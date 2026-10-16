@@ -46,7 +46,7 @@ void raylcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     bool upper = false;
     const Span<const Value> a = args.subspan(0, stripUpperFlag(args, upper));
     if (a.size() < 2)
-        throw Error("raylcdf: requires (x, b[, 'upper'])", 0, 0, "raylcdf", "", "nk:raylcdf:nargin");
+        throw Error("raylcdf: requires (x, b[, 'upper'])", 0, 0, "raylcdf", "", "numkit:raylcdf:nargin");
     auto *mr = ctx.engine->resource();
     const Value &b = a[1];
     Value v = b.isScalar() ? raylcdf(a[0], b.toScalar(), mr)

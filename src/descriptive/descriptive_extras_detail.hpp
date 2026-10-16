@@ -174,7 +174,7 @@ Value topKAlongDim(const Value &x, int dim, int kReq, bool ascending, const char
 {
     if (kReq < 0)
         throw Error(std::string(fn) + ": k must be non-negative",
-                     0, 0, fn, "", std::string("nk:") + fn + ":badK");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":badK");
     if (x.isEmpty()) {
         if (idxOut) *idxOut = Value::matrix(0, 0, ValueType::DOUBLE, mr);
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
@@ -214,7 +214,7 @@ Value topKAlongDim(const Value &x, int dim, int kReq, bool ascending, const char
     const auto &dd = x.dims();
     if (dd.ndim() >= 4)
         throw Error(std::string(fn) + ": ND (rank>=4) input not yet supported",
-                     0, 0, fn, "", std::string("nk:") + fn + ":nd");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":nd");
 
     const size_t R = dd.rows(), C = dd.cols();
     const size_t P = dd.is3D() ? dd.pages() : 1;
@@ -919,7 +919,7 @@ KsKernel parse_ks_kernel(const std::string &raw) {
     if (s == "triangle" || s == "triangular")              return KsKernel::Triangle;
     if (s == "epanechnikov" || s == "epan")                return KsKernel::Epanechnikov;
     throw Error("ksdensity: unknown Kernel '" + raw + "'",
-                0, 0, "ksdensity", "", "nk:ksdensity:kernel");
+                0, 0, "ksdensity", "", "numkit:ksdensity:kernel");
 }
 inline double ks_pdf(double u, KsKernel k) {
     switch (k) {

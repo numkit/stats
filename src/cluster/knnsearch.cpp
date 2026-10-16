@@ -27,10 +27,10 @@ knnsearch(const Value &X, const Value &Y, int K, const std::string &metric, doub
     const size_t Ny = dy.rows();
     if (dx.cols() != dy.cols())
         throw Error("knnsearch: X and Y must have the same column count",
-                    0, 0, "knnsearch", "", "nk:knnsearch:cols");
+                    0, 0, "knnsearch", "", "numkit:knnsearch:cols");
     if (K < 1)
         throw Error("knnsearch: K must be a positive integer",
-                    0, 0, "knnsearch", "", "nk:knnsearch:K");
+                    0, 0, "knnsearch", "", "numkit:knnsearch:K");
     const int Keff = std::min(static_cast<int>(Nx), K);
 
     Value Idx = Value::matrix(Ny, static_cast<size_t>(K), ValueType::DOUBLE, mr);
@@ -47,7 +47,7 @@ knnsearch(const Value &X, const Value &Y, int K, const std::string &metric, doub
     const size_t Dc = D.dims().cols();
     if (Dr != Nx || Dc != Ny)
         throw Error("knnsearch: pdist2 returned unexpected shape",
-                    0, 0, "knnsearch", "", "nk:knnsearch:internal");
+                    0, 0, "knnsearch", "", "numkit:knnsearch:internal");
     const double *dd = D.doubleData();
 
     std::vector<std::pair<double, size_t>> heap;
@@ -90,10 +90,10 @@ rangesearch(const Value &X, const Value &Y, double r, const std::string &metric,
     const size_t Ny = dy.rows();
     if (dx.cols() != dy.cols())
         throw Error("rangesearch: X and Y must have the same column count",
-                    0, 0, "rangesearch", "", "nk:rangesearch:cols");
+                    0, 0, "rangesearch", "", "numkit:rangesearch:cols");
     if (!(r >= 0.0))
         throw Error("rangesearch: r must be non-negative",
-                    0, 0, "rangesearch", "", "nk:rangesearch:r");
+                    0, 0, "rangesearch", "", "numkit:rangesearch:r");
 
     Value IdxCells = Value::cell(Ny, 1, mr);
     Value DCells   = Value::cell(Ny, 1, mr);

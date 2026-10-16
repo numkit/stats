@@ -29,7 +29,7 @@ Value randsample(::numkit::ops::RngContext &rng, int N, int K, bool with_replace
     if (weights.numel() > 0) w = read_vec(weights);
     if (!w.empty() && (int)w.size() != N)
         throw Error("randsample: weights length must equal N",
-                    0, 0, "randsample", "", "nk:randsample:size");
+                    0, 0, "randsample", "", "numkit:randsample:size");
 
     auto &gen = rng;
     std::vector<int> idx;
@@ -49,13 +49,13 @@ Value datasample(::numkit::ops::RngContext &rng, const Value &X, int K, int dim,
     const int N = (dim == 2) ? (int)D : (int)M;
     if (N <= 0)
         throw Error("datasample: empty input", 0, 0, "datasample", "",
-                    "nk:datasample:empty");
+                    "numkit:datasample:empty");
 
     std::vector<double> w;
     if (weights.numel() > 0) w = read_vec(weights);
     if (!w.empty() && (int)w.size() != N)
         throw Error("datasample: weights length must equal sample-axis size",
-                    0, 0, "datasample", "", "nk:datasample:size");
+                    0, 0, "datasample", "", "numkit:datasample:size");
 
     auto &gen = rng;
     std::vector<int> idx;
@@ -90,7 +90,7 @@ Value combnk(int N, int K, std::pmr::memory_resource *mr)
 {
     if (N < 0)
         throw Error("combnk: N must be non-negative", 0, 0, "combnk", "",
-                    "nk:combnk:badN");
+                    "numkit:combnk:badN");
     std::vector<double> items((size_t)N);
     for (int i = 0; i < N; ++i) items[(size_t)i] = double(i + 1);
     return combnkImpl(items, K, mr);
@@ -165,7 +165,7 @@ Value randsample_full(::numkit::ops::RngContext &rng, Span<const Value> args,
     if (args.size() < 2)
         throw Error("randsample: requires the input arguments N/POPULATION "
                     "and K.",
-                    0, 0, "randsample", "", "nk:randsample:tooFewInputs");
+                    0, 0, "randsample", "", "numkit:randsample:tooFewInputs");
 
     // Count form vs population form (probe S05: population must be a
     // vector).
@@ -181,38 +181,38 @@ Value randsample_full(::numkit::ops::RngContext &rng, Span<const Value> args,
         population = args[0];
         if (!population.dims().isVector() || population.numel() == 0)
             throw Error("randsample: POPULATION must be a vector.",
-                        0, 0, "randsample", "", "nk:randsample:badPopulation");
+                        0, 0, "randsample", "", "numkit:randsample:badPopulation");
         N = static_cast<std::size_t>(population.numel());
     }
     const double kD = args[1].elemAsDouble(0);
     const std::size_t K = static_cast<std::size_t>(std::max(kD, 0.0));
 
     const bool replace = (args.size() >= 3 && !args[2].isEmpty())
-        ? parseReplaceFlag(args[2], "randsample", "nk:randsample:badReplaceValue")
+        ? parseReplaceFlag(args[2], "randsample", "numkit:randsample:badReplaceValue")
         : false;
     std::vector<double> w;
     if (args.size() >= 4 && !args[3].isEmpty())
         w = parseWeightVector(args[3], N, "randsample",
-                              "nk:randsample:inputSizeMismatch",
-                              "nk:randsample:invalidWeights");
+                              "numkit:randsample:inputSizeMismatch",
+                              "numkit:randsample:invalidWeights");
 
     if (!replace) {
         if (K > N)
             throw Error("randsample: K must be less than or equal "
                         + std::to_string(N) + " for sampling without "
                         "replacement.",
-                        0, 0, "randsample", "", "nk:randsample:sampleTooLarge");
+                        0, 0, "randsample", "", "numkit:randsample:sampleTooLarge");
         if (!w.empty())
             throw Error("randsample: weighted sampling without replacement "
                         "is not supported.",
-                        0, 0, "randsample", "", "nk:randsample:noWeighting");
+                        0, 0, "randsample", "", "numkit:randsample:noWeighting");
     }
 
     if (replace && N == 0) {
         if (K == 0) return Value::matrix(0, 1, ValueType::DOUBLE, mr);
         throw Error("randsample: K must be 0 when N=0 or the input "
                     "population is empty.",
-                    0, 0, "randsample", "", "nk:randsample:emptyPopulation");
+                    0, 0, "randsample", "", "numkit:randsample:emptyPopulation");
     }
 
     auto &gen = rng;
@@ -251,14 +251,14 @@ Value datasample_full(::numkit::ops::RngContext &rng, Span<const Value> args,
 {
     if (args.size() < 2)
         throw Error("datasample: requires the input arguments DATA and K.",
-                    0, 0, "datasample", "", "nk:datasample:tooFewInputs");
+                    0, 0, "datasample", "", "numkit:datasample:tooFewInputs");
     const Value &X = args[0];
     const double kD = args[1].elemAsDouble(0);
     if (!(args[1].isScalar() && args[1].isNumeric() && kD >= 0.0
             && kD == std::floor(kD)))
         throw Error("datasample: sample size K must be a non-negative "
                     "integer.",
-                    0, 0, "datasample", "", "nk:datasample:invalidK");
+                    0, 0, "datasample", "", "numkit:datasample:invalidK");
     const std::size_t K = static_cast<std::size_t>(kD);
 
     // dim: a numeric positional 3rd argument, else the first
@@ -295,22 +295,22 @@ Value datasample_full(::numkit::ops::RngContext &rng, Span<const Value> args,
                 throw Error("datasample: REPLACE must be either true or "
                             "false.",
                             0, 0, "datasample", "",
-                            "nk:datasample:invalidReplace");
+                            "numkit:datasample:invalidReplace");
             replace = args[i + 1].elemAsDouble(0) != 0.0;
         } else if (name == "weights") {
             wRaw = args[i + 1];
         }
     }
     std::vector<double> w = parseWeightVector(
-        wRaw, n, "datasample", "nk:datasample:inputSizeMismatch",
-        "nk:datasample:invalidWeights");
+        wRaw, n, "datasample", "numkit:datasample:inputSizeMismatch",
+        "numkit:datasample:invalidWeights");
 
     if (replace) {
         if (n == 0) {
             if (K == 0) return Value::matrix(0, 1, ValueType::DOUBLE, mr);
             throw Error("datasample: sample size K must be 0 when sampling "
                         "from empty data.",
-                        0, 0, "datasample", "", "nk:datasample:emptyData");
+                        0, 0, "datasample", "", "numkit:datasample:emptyData");
         }
     } else {
         if (K > n)
@@ -318,7 +318,7 @@ Value datasample_full(::numkit::ops::RngContext &rng, Span<const Value> args,
                         "number of sampled elements (" + std::to_string(n)
                         + ").",
                         0, 0, "datasample", "",
-                        "nk:datasample:sampleTooLarge");
+                        "numkit:datasample:sampleTooLarge");
         if (!w.empty()) {
             std::size_t posCount = 0;
             for (double v : w) if (v > 0.0) ++posCount;
@@ -326,7 +326,7 @@ Value datasample_full(::numkit::ops::RngContext &rng, Span<const Value> args,
                 throw Error("datasample: there must be at least K positive "
                             "weights when sampling without replacement.",
                             0, 0, "datasample", "",
-                            "nk:datasample:tooFewPosWeights");
+                            "numkit:datasample:tooFewPosWeights");
         }
     }
 

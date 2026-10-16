@@ -48,7 +48,7 @@ void binocdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     bool upper = false;
     const Span<const Value> a = args.subspan(0, stripUpperFlag(args, upper));
     if (a.size() < 3)
-        throw Error("binocdf: requires (k, n, p[, 'upper'])", 0, 0, "binocdf", "", "nk:binocdf:nargin");
+        throw Error("binocdf: requires (k, n, p[, 'upper'])", 0, 0, "binocdf", "", "numkit:binocdf:nargin");
     auto *mr = ctx.engine->resource();
     const Value &n = a[1];
     const Value &p = a[2];

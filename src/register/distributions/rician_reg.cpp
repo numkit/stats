@@ -45,7 +45,7 @@ void ricecdf_reg(Span<const Value> args, size_t /*nargout*/,
     const size_t n = stripUpperFlag(args, upper);
     if (n < 3)
         throw Error("ricecdf: requires (x, s, sigma[, 'upper'])",
-                    0, 0, "ricecdf", "", "nk:ricecdf:nargin");
+                    0, 0, "ricecdf", "", "numkit:ricecdf:nargin");
     Value v = ricecdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);

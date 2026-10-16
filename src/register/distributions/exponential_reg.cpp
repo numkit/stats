@@ -45,7 +45,7 @@ void expcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     bool upper = false;
     const Span<const Value> a = args.subspan(0, stripUpperFlag(args, upper));
     if (a.empty())
-        throw Error("expcdf: requires (x[, mu][, 'upper'])", 0, 0, "expcdf", "", "nk:expcdf:nargin");
+        throw Error("expcdf: requires (x[, mu][, 'upper'])", 0, 0, "expcdf", "", "numkit:expcdf:nargin");
     auto *mr = ctx.engine->resource();
     // MATLAB default: expcdf(x) ≡ expcdf(x, 1).
     Value hmu;

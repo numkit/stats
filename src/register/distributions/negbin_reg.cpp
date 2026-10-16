@@ -48,7 +48,7 @@ void nbincdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     bool upper = false;
     const Span<const Value> a = args.subspan(0, stripUpperFlag(args, upper));
     if (a.size() < 3)
-        throw Error("nbincdf: requires (k, r, p[, 'upper'])", 0, 0, "nbincdf", "", "nk:nbincdf:nargin");
+        throw Error("nbincdf: requires (k, r, p[, 'upper'])", 0, 0, "nbincdf", "", "numkit:nbincdf:nargin");
     auto *mr = ctx.engine->resource();
     const Value &r = a[1];
     const Value &p = a[2];

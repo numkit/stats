@@ -72,7 +72,7 @@ cholcov(const Value &SIGMA, std::pmr::memory_resource *mr)
     const size_t C = SIGMA.dims().cols();
     if (R != C)
         throw Error("cholcov: SIGMA must be square",
-                    0, 0, "cholcov", "", "nk:cholcov:NotSquare");
+                    0, 0, "cholcov", "", "numkit:cholcov:NotSquare");
     if (R == 0) {
         Value T = Value::matrix(0, 0, ValueType::DOUBLE, mr);
         return {std::move(T), Value::scalar(0.0, mr)};

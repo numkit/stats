@@ -38,7 +38,7 @@ static GlmDistribution parseDistr(const std::string &s, const char *fn)
     if (s == "inverse gaussian"
         || s == "inversegaussian") return GlmDistribution::InverseGaussian;
     throw Error(std::string(fn) + ": unknown distribution '" + s + "'",
-                0, 0, fn, "", std::string("nk:") + fn + ":badDistr");
+                0, 0, fn, "", std::string("numkit:") + fn + ":badDistr");
 }
 
 static GlmLink parseLink(const std::string &s, const char *fn)
@@ -50,7 +50,7 @@ static GlmLink parseLink(const std::string &s, const char *fn)
     if (s == "reciprocal")  return GlmLink::Reciprocal;
     if (s == "probit")      return GlmLink::Probit;
     throw Error(std::string(fn) + ": unknown link '" + s + "'",
-                0, 0, fn, "", std::string("nk:") + fn + ":badLink");
+                0, 0, fn, "", std::string("numkit:") + fn + ":badLink");
 }
 
 void glmfit_reg(Span<const Value> args, size_t nargout,
@@ -59,7 +59,7 @@ void glmfit_reg(Span<const Value> args, size_t nargout,
     argcheck::checkNargin(args.size(), 3, "glmfit");  // no max: name-value tail in the reference
     if (!args[2].isChar())
         throw Error("glmfit: distr must be a string",
-                    0, 0, "glmfit", "", "nk:glmfit:badDistr");
+                    0, 0, "glmfit", "", "numkit:glmfit:badDistr");
     const GlmDistribution d = parseDistr(args[2].toString(), "glmfit");
     GlmLink link = GlmLink::Identity;
     if (args.size() >= 4 && args[3].isChar())

@@ -47,7 +47,7 @@ void poisscdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     bool upper = false;
     const Span<const Value> a = args.subspan(0, stripUpperFlag(args, upper));
     if (a.size() < 2)
-        throw Error("poisscdf: requires (k, lambda[, 'upper'])", 0, 0, "poisscdf", "", "nk:poisscdf:nargin");
+        throw Error("poisscdf: requires (k, lambda[, 'upper'])", 0, 0, "poisscdf", "", "numkit:poisscdf:nargin");
     auto *mr = ctx.engine->resource();
     const Value &lam = a[1];
     Value v;

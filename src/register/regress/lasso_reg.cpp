@@ -47,7 +47,7 @@ void lassoglm_reg(Span<const Value> args, size_t nargout,
     argcheck::checkNargin(args.size(), 4, "lassoglm");  // no max: name-value tail in the reference
     if (!args[2].isChar())
         throw Error("lassoglm: distr must be a string",
-                    0, 0, "lassoglm", "", "nk:lassoglm:badDistr");
+                    0, 0, "lassoglm", "", "numkit:lassoglm:badDistr");
     const std::string s = args[2].toString();
     GlmDistribution d;
     if (s == "normal")        d = GlmDistribution::Normal;
@@ -56,7 +56,7 @@ void lassoglm_reg(Span<const Value> args, size_t nargout,
     else
         throw Error("lassoglm: unsupported distribution '" + s
                     + "' (v1: normal, binomial, poisson)",
-                    0, 0, "lassoglm", "", "nk:lassoglm:badDistr");
+                    0, 0, "lassoglm", "", "numkit:lassoglm:badDistr");
     double alpha = 1.0;
     if (args.size() >= 5 && !args[4].isEmpty())
         alpha = args[4].toScalar();

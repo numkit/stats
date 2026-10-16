@@ -40,7 +40,7 @@ void forEachColumn(const Value &A, Op op) {
     // mean/var on 2-D path).
     if (N != H * W)
         throw Error("normalize/rescale/zscore: only 1-D or 2-D inputs supported",
-                    0, 0, "normalize", "", "nk:normalize:nd");
+                    0, 0, "normalize", "", "numkit:normalize:nd");
     std::vector<double> buf(H);
     for (size_t j = 0; j < W; ++j) {
         for (size_t i = 0; i < H; ++i) buf[i] = A.elemAsDouble(j * H + i);
@@ -263,7 +263,7 @@ NormalizeResult normalize(const Value &A, const std::string &method,
             for (size_t i = 0; i < n; ++i) y[i] = (col[i] - med) * inv;
         } else {
             throw Error("normalize: unknown method '" + m + "'",
-                        0, 0, "normalize", "", "nk:normalize:method");
+                        0, 0, "normalize", "", "numkit:normalize:method");
         }
         if (cOutD) cOutD[j] = cVal;
         if (sOutD) sOutD[j] = sVal;
@@ -283,7 +283,7 @@ void rescale_argcheck(const Value &A)
     if (!(A.isNumeric() || A.isLogical()) || A.isComplex())
         throw Error("rescale: first argument must be a real numeric or "
                     "logical array.",
-                    0, 0, "rescale", "", "nk:rescale:InvalidA");
+                    0, 0, "rescale", "", "numkit:rescale:InvalidA");
 }
 
 } // namespace

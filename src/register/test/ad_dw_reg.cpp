@@ -63,7 +63,7 @@ void dwtest_reg(Span<const Value> args, size_t nargout,
     for (size_t i = 2; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error("dwtest: expected option name (string)",
-                        0, 0, "dwtest", "", "nk:dwtest:badOption");
+                        0, 0, "dwtest", "", "numkit:dwtest:badOption");
         const std::string key = toLowerAscii(args[i].toString());
         const std::string val = toLowerAscii(args[i + 1].toString());
         if (key == "tail") {
@@ -71,20 +71,20 @@ void dwtest_reg(Span<const Value> args, size_t nargout,
             else if (val == "right") tail = 1;
             else if (val == "left")  tail = 2;
             else throw Error("dwtest: Tail must be 'both', 'right' or 'left'",
-                             0, 0, "dwtest", "", "nk:dwtest:badOption");
+                             0, 0, "dwtest", "", "numkit:dwtest:badOption");
         } else if (key == "method") {
             if (val == "exact")            exact = true;
             else if (val == "approximate") exact = false;
             else throw Error("dwtest: Method must be 'exact' or 'approximate'",
-                             0, 0, "dwtest", "", "nk:dwtest:badOption");
+                             0, 0, "dwtest", "", "numkit:dwtest:badOption");
         } else {
             throw Error("dwtest: unsupported option '" + key + "'",
-                        0, 0, "dwtest", "", "nk:dwtest:badOption");
+                        0, 0, "dwtest", "", "numkit:dwtest:badOption");
         }
     }
     if ((args.size() - 2) % 2 != 0)
         throw Error("dwtest: option name without value",
-                    0, 0, "dwtest", "", "nk:dwtest:badOption");
+                    0, 0, "dwtest", "", "numkit:dwtest:badOption");
 
     double dw = 0.0;
     const double pLeft = dwStatAndPLeft(args[0], args[1], exact, dw, mr);

@@ -101,7 +101,7 @@ void parseWindowHalfSpans(const Value &wl, const char *fn, long &hb, long &hf)
         throw Error(std::string(fn) + ": window length must be a positive "
                     "scalar or a 2-element nonnegative [back forward] "
                     "vector of finite values",
-                    0, 0, fn, "", std::string("nk:") + fn + ":invalidWindow");
+                    0, 0, fn, "", std::string("numkit:") + fn + ":invalidWindow");
     };
     if (!(numeric || wl.isLogical())) bad();
     if (wl.numel() == 1) {
@@ -354,14 +354,14 @@ void isoutlierParse(const Value &A, Span<const Value> in, bool forRmoutliers,
                         in[0].toString() + "' (expected median, mean, "
                         "quartiles, grubbs, gesd, movmedian, movmean, or "
                         "percentiles)",
-                        0, 0, "isoutlier", "", "nk:isoutlier:badMethod");
+                        0, 0, "isoutlier", "", "numkit:isoutlier:badMethod");
         const std::string_view m = all[static_cast<std::size_t>(hit)];
         if (m == "movmedian" || m == "movmean") {
             p.method = m;
             if (in.size() < 2)
                 throw Error("isoutlier: specify a window length after '" +
                             std::string(m) + "'",
-                            0, 0, "isoutlier", "", "nk:isoutlier:missingWindow");
+                            0, 0, "isoutlier", "", "numkit:isoutlier:missingWindow");
             parseWindowHalfSpans(in[1], "isoutlier", p.hb, p.hf);
             i = 2;
         } else if (m == "percentiles") {
@@ -379,7 +379,7 @@ void isoutlierParse(const Value &A, Span<const Value> in, bool forRmoutliers,
                             "2-element numeric row vector with entries in "
                             "[0, 100]",
                             0, 0, "isoutlier", "",
-                            "nk:isoutlier:badPercentiles");
+                            "numkit:isoutlier:badPercentiles");
             p.loP = lu.elemAsDouble(0);
             p.hiP = lu.elemAsDouble(1);
             i = 2;
@@ -399,12 +399,12 @@ void isoutlierParse(const Value &A, Span<const Value> in, bool forRmoutliers,
                               ? dv.elemAsDouble(0) : -1.0;
         if (!(dd >= 1.0) || std::floor(dd) != dd)
             throw Error("isoutlier: dim must be a positive integer scalar",
-                        0, 0, "isoutlier", "", "nk:isoutlier:badDim");
+                        0, 0, "isoutlier", "", "numkit:isoutlier:badDim");
         p.dim = static_cast<int>(dd);
         if (p.dim > 2 && A.dims().ndim() > 2)
             throw Error("isoutlier: reducing beyond dimension 2 is not "
                         "supported for N-D arrays in this revision",
-                        0, 0, "isoutlier", "", "nk:isoutlier:dimND");
+                        0, 0, "isoutlier", "", "numkit:isoutlier:dimND");
         p.dropIdx.push_back(i);   // rmoutliers: detection always runs at
                                   // the default dim; dim selects removal
         ++i;
@@ -413,7 +413,7 @@ void isoutlierParse(const Value &A, Span<const Value> in, bool forRmoutliers,
     if ((in.size() - i) % 2 != 0)
         throw Error("isoutlier: each parameter name needs a value "
                     "(unmatched name in the name-value list)",
-                    0, 0, "isoutlier", "", "nk:isoutlier:nvMismatch");
+                    0, 0, "isoutlier", "", "numkit:isoutlier:nvMismatch");
     for (; i + 1 < in.size(); i += 2) {
         if (!isStringValue(in[i])) continue;
         const int hit = argcheck::matchStringChoice(
@@ -421,7 +421,7 @@ void isoutlierParse(const Value &A, Span<const Value> in, bool forRmoutliers,
         if (hit < 0)
             throw Error("isoutlier: unrecognized parameter name '" +
                         in[i].toString() + "'",
-                        0, 0, "isoutlier", "", "nk:isoutlier:badParam");
+                        0, 0, "isoutlier", "", "numkit:isoutlier:badParam");
         const std::string_view name = nvNames[static_cast<std::size_t>(hit)];
         const Value &v = in[i + 1];
         if (name == "thresholdfactor") {
@@ -429,19 +429,19 @@ void isoutlierParse(const Value &A, Span<const Value> in, bool forRmoutliers,
                 throw Error("isoutlier: 'ThresholdFactor' is not supported "
                             "with the 'percentiles' method",
                             0, 0, "isoutlier", "",
-                            "nk:isoutlier:unsupportedThreshold");
+                            "numkit:isoutlier:unsupportedThreshold");
             const bool scalar = v.isNumeric() && !v.isComplex() && v.numel() == 1;
             if (!scalar)
                 throw Error("isoutlier: ThresholdFactor must be a real "
                             "numeric scalar",
-                            0, 0, "isoutlier", "", "nk:isoutlier:tfScalar");
+                            0, 0, "isoutlier", "", "numkit:isoutlier:tfScalar");
             if (std::isnan(v.elemAsDouble(0)))
                 throw Error("isoutlier: ThresholdFactor must not be NaN",
-                            0, 0, "isoutlier", "", "nk:isoutlier:tfNaN");
+                            0, 0, "isoutlier", "", "numkit:isoutlier:tfNaN");
             if (v.elemAsDouble(0) < 0.0)
                 throw Error("isoutlier: ThresholdFactor must be nonnegative "
                             "(got " + std::to_string(v.elemAsDouble(0)) + ")",
-                            0, 0, "isoutlier", "", "nk:isoutlier:tfNonneg");
+                            0, 0, "isoutlier", "", "numkit:isoutlier:tfNonneg");
             p.tf = v.elemAsDouble(0);
             p.haveTf = true;
         } else if (name == "maxnumoutliers") {
@@ -450,7 +450,7 @@ void isoutlierParse(const Value &A, Span<const Value> in, bool forRmoutliers,
             if (!(mo >= 1.0) || std::floor(mo) != mo)
                 throw Error("isoutlier: MaxNumOutliers must be a positive "
                             "integer scalar",
-                            0, 0, "isoutlier", "", "nk:isoutlier:badMaxNum");
+                            0, 0, "isoutlier", "", "numkit:isoutlier:badMaxNum");
             p.maxOut = static_cast<long>(mo);
         } else if (name == "minnumoutliers") {
             const double mo = (v.isNumeric() && !v.isComplex() && v.numel() == 1)
@@ -458,7 +458,7 @@ void isoutlierParse(const Value &A, Span<const Value> in, bool forRmoutliers,
             if (!(mo >= 0.0) || std::floor(mo) != mo)
                 throw Error("rmoutliers: MinNumOutliers must be a nonnegative "
                             "integer scalar",
-                            0, 0, "rmoutliers", "", "nk:rmoutliers:badMinNum");
+                            0, 0, "rmoutliers", "", "numkit:rmoutliers:badMinNum");
             p.minNum = static_cast<long>(mo);
             p.dropIdx.push_back(i);
             p.dropIdx.push_back(i + 1);
@@ -469,15 +469,15 @@ void isoutlierParse(const Value &A, Span<const Value> in, bool forRmoutliers,
         } else if (name == "samplepoints") {
             throw Error("isoutlier: 'SamplePoints' is not supported in this "
                         "revision",
-                        0, 0, "isoutlier", "", "nk:isoutlier:samplePoints");
+                        0, 0, "isoutlier", "", "numkit:isoutlier:samplePoints");
         } else if (name == "datavariables") {
             throw Error("isoutlier: 'DataVariables' is supported only for "
                         "table inputs",
-                        0, 0, "isoutlier", "", "nk:isoutlier:dataVariables");
+                        0, 0, "isoutlier", "", "numkit:isoutlier:dataVariables");
         } else if (name == "outputformat") {
             throw Error("isoutlier: 'OutputFormat' is supported only for "
                         "table inputs",
-                        0, 0, "isoutlier", "", "nk:isoutlier:outputFormat");
+                        0, 0, "isoutlier", "", "numkit:isoutlier:outputFormat");
         }
     }
 }
@@ -492,13 +492,13 @@ void isoutlierApplyTfDefaults(IsOutlierPlan &p, const Value &A)
         if (p.tf > 1.0)
             throw Error("isoutlier: 'ThresholdFactor' value must be between "
                         "0 and 1 when the method is '" + p.method + "'",
-                        0, 0, "isoutlier", "", "nk:isoutlier:alphaRange");
+                        0, 0, "isoutlier", "", "numkit:isoutlier:alphaRange");
     }
     if (p.maxOut >= 0) {
         if (p.method != "gesd")
             throw Error("isoutlier: 'MaxNumOutliers' is supported only for "
                         "the 'gesd' method",
-                        0, 0, "isoutlier", "", "nk:isoutlier:maxNumGesdOnly");
+                        0, 0, "isoutlier", "", "numkit:isoutlier:maxNumGesdOnly");
         std::size_t dlen = 1;
         if (p.dim > 0) {
             dlen = static_cast<std::size_t>(A.dims().dim(p.dim - 1));
@@ -514,7 +514,7 @@ void isoutlierApplyTfDefaults(IsOutlierPlan &p, const Value &A)
         if (static_cast<std::size_t>(p.maxOut) > dlen)
             throw Error("isoutlier: MaxNumOutliers must not exceed the "
                         "length of the operating dimension",
-                        0, 0, "isoutlier", "", "nk:isoutlier:maxNumTooLarge");
+                        0, 0, "isoutlier", "", "numkit:isoutlier:maxNumTooLarge");
     }
 }
 
@@ -533,7 +533,7 @@ IsOutlierOut isoutlier_full(const Value &A, Span<const Value> in,
     if (locs)
         throw Error("isoutlier: 'OutlierLocations' is supported only in "
                     "rmoutliers",
-                    0, 0, "isoutlier", "", "nk:isoutlier:outlierLocations");
+                    0, 0, "isoutlier", "", "numkit:isoutlier:outlierLocations");
     isoutlierApplyTfDefaults(p, A);
 
     int dim = p.dim;
@@ -627,7 +627,7 @@ RmOutliersOut rmoutliers_full(const Value &A, Span<const Value> in,
     argcheck::requireClassSet(A, kFloatReal, "rmoutliers");
     if (A.dims().ndim() > 2)
         throw Error("rmoutliers: N-D arrays are not supported",
-                    0, 0, "rmoutliers", "", "nk:rmoutliers:ndArrays");
+                    0, 0, "rmoutliers", "", "numkit:rmoutliers:ndArrays");
 
     IsOutlierPlan p;
     const Value *locs = nullptr;
@@ -652,7 +652,7 @@ RmOutliersOut rmoutliers_full(const Value &A, Span<const Value> in,
             throw Error("rmoutliers: 'OutlierLocations' must be a logical "
                         "array the same size as the input",
                         0, 0, "rmoutliers", "",
-                        "nk:rmoutliers:badOutlierLocations");
+                        "numkit:rmoutliers:badOutlierLocations");
         map = *locs;
         Value nanRow = Value::matrix(
             1, (A.dims().ndim() >= 2) ? A.numel() /
@@ -788,10 +788,10 @@ RmMissingOut rmmissing_full(const Value &A, Span<const Value> in,
                     std::string(mtypeName(t)) +
                     " (string and cell inputs are not supported in this "
                     "revision)",
-                    0, 0, "rmmissing", "", "nk:rmmissing:typeUnsupported");
+                    0, 0, "rmmissing", "", "numkit:rmmissing:typeUnsupported");
     if (A.dims().ndim() > 2)
         throw Error("rmmissing: N-D arrays are not supported",
-                    0, 0, "rmmissing", "", "nk:rmmissing:ndArrays");
+                    0, 0, "rmmissing", "", "numkit:rmmissing:ndArrays");
 
     int dim = 0;
     long minNum = 1;
@@ -801,7 +801,7 @@ RmMissingOut rmmissing_full(const Value &A, Span<const Value> in,
                               ? dv.elemAsDouble(0) : 0.0;
         if (std::floor(dd) != dd || dd < 1.0 || dd > 2.0)
             throw Error("rmmissing: dimension must be 1 or 2",
-                        0, 0, "rmmissing", "", "nk:rmmissing:badDim");
+                        0, 0, "rmmissing", "", "numkit:rmmissing:badDim");
         dim = static_cast<int>(dd);
     }
     for (std::size_t i = isStringValue(in.empty() ? Value() : in[0]) || in.empty()
@@ -819,16 +819,16 @@ RmMissingOut rmmissing_full(const Value &A, Span<const Value> in,
             if (!(mo >= 0.0) || std::floor(mo) != mo)
                 throw Error("rmmissing: MinNumMissing must be a nonnegative "
                             "integer scalar",
-                            0, 0, "rmmissing", "", "nk:rmmissing:badMinNum");
+                            0, 0, "rmmissing", "", "numkit:rmmissing:badMinNum");
             minNum = static_cast<long>(mo);
         } else if (hit == 1) {
             throw Error("rmmissing: 'DataVariables' is supported only for "
                         "table inputs",
-                        0, 0, "rmmissing", "", "nk:rmmissing:dataVariables");
+                        0, 0, "rmmissing", "", "numkit:rmmissing:dataVariables");
         } else {
             throw Error("rmmissing: unrecognized parameter name '" +
                         in[i].toString() + "'",
-                        0, 0, "rmmissing", "", "nk:rmmissing:badParam");
+                        0, 0, "rmmissing", "", "numkit:rmmissing:badParam");
         }
     }
 
@@ -969,7 +969,7 @@ std::vector<double> parseConstants(const Value &C, std::size_t nVects,
         throw Error(std::string(fn) + ": fill constant must be numeric "
                     "(got " + mtypeName(C.type()) + ")",
                     0, 0, fn, "",
-                    std::string("nk:") + fn + ":constantNumeric");
+                    std::string("numkit:") + fn + ":constantNumeric");
     // Complex constants are legal for complex inputs (the parts fill
     // the real / imaginary buffers separately).
     const bool cplx = C.isComplex();
@@ -977,7 +977,7 @@ std::vector<double> parseConstants(const Value &C, std::size_t nVects,
         throw Error(std::string(fn) + ": complex fill constants are "
                     "supported only for complex inputs",
                     0, 0, fn, "",
-                    std::string("nk:") + fn + ":constantNumeric");
+                    std::string("numkit:") + fn + ":constantNumeric");
     auto partOf = [&](std::size_t i) {
         if (!cplx) return C.elemAsDouble(i);
         const Complex z = C.complexData()[i];
@@ -993,7 +993,7 @@ std::vector<double> parseConstants(const Value &C, std::size_t nVects,
                     "a " + std::to_string(nVects) + "-element vector" +
                     (nVects <= 1 ? "" : " (one per slice)"),
                     0, 0, fn, "",
-                    std::string("nk:") + fn + ":SizeConstant" + eidSuffix);
+                    std::string("numkit:") + fn + ":SizeConstant" + eidSuffix);
     if (imagParts) imagParts->resize(C.numel(), 0.0);
     std::vector<double> v(C.numel());
     for (std::size_t i = 0; i < C.numel(); ++i) v[i] = partOf(i);
@@ -1012,10 +1012,10 @@ FillMissingOut fillmissing_full(const Value &A, Span<const Value> in,
         throw Error(std::string(fn) + ": unsupported input type " +
                     std::string(mtypeName(at)) + " (string and cell inputs "
                     "are not supported in this revision)",
-                    0, 0, fn, std::string("nk:") + fn + ":firstInputInvalid");
+                    0, 0, fn, std::string("numkit:") + fn + ":firstInputInvalid");
     if (A.dims().ndim() > 2)
         throw Error(std::string(fn) + ": N-D arrays are not supported",
-                    0, 0, fn, "", std::string("nk:") + fn + ":ndArrays");
+                    0, 0, fn, "", std::string("numkit:") + fn + ":ndArrays");
 
     static constexpr std::string_view kFmMethods[] = {
         "constant", "previous", "next", "nearest", "linear",
@@ -1027,20 +1027,20 @@ FillMissingOut fillmissing_full(const Value &A, Span<const Value> in,
                     "'constant', 'previous', 'next', 'nearest', 'linear', "
                     "'movmean', 'movmedian' (spline/pchip/makima/knn and "
                     "custom function handles are deferred)",
-                    0, 0, fn, "", std::string("nk:") + fn + ":methodInvalid");
+                    0, 0, fn, "", std::string("numkit:") + fn + ":methodInvalid");
     const int mhit = argcheck::matchStringChoice(in[0], methods);
     if (mhit < 0)
         throw Error(std::string(fn) + ": fill method must be one of "
                     "'constant', 'previous', 'next', 'nearest', 'linear', "
                     "'movmean', 'movmedian' (got '" + in[0].toString() +
                     "'; ambiguous or unrecognized)",
-                    0, 0, fn, "", std::string("nk:") + fn + ":methodInvalid");
+                    0, 0, fn, "", std::string("numkit:") + fn + ":methodInvalid");
     const std::string m(methods[static_cast<std::size_t>(mhit)]);
     if (m == "spline" || m == "pchip" || m == "makima" || m == "knn")
         throw Error(std::string(fn) + ": the '" + m + "' fill method is not "
                     "supported in this revision (constant, previous, next, "
                     "nearest, linear, movmean, movmedian)",
-                    0, 0, fn, "", std::string("nk:") + fn + ":methodDeferred");
+                    0, 0, fn, "", std::string("numkit:") + fn + ":methodDeferred");
 
     long hb = 0, hf = 0;
     std::size_t i = 1;
@@ -1048,13 +1048,13 @@ FillMissingOut fillmissing_full(const Value &A, Span<const Value> in,
         if (in.size() < 2)
             throw Error(std::string(fn) + ": specify a fill value after the "
                         "'constant' method",
-                        0, 0, fn, "", std::string("nk:") + fn + ":constantInput");
+                        0, 0, fn, "", std::string("numkit:") + fn + ":constantInput");
         ++i;
     } else if (m == "movmean" || m == "movmedian") {
         if (in.size() < 2)
             throw Error(std::string(fn) + ": specify a window length after "
                         "the '" + m + "' method",
-                        0, 0, fn, "", std::string("nk:") + fn + ":windowInput");
+                        0, 0, fn, "", std::string("numkit:") + fn + ":windowInput");
         parseWindowHalfSpans(in[1], fn, hb, hf);
         ++i;
     }
@@ -1070,7 +1070,7 @@ FillMissingOut fillmissing_full(const Value &A, Span<const Value> in,
             throw Error(std::string(fn) + ": dimension must be a positive "
                         "integer scalar",
                         0, 0, fn, "",
-                        std::string("nk:") + fn + ":dimensionInvalid");
+                        std::string("numkit:") + fn + ":dimensionInvalid");
         dim = static_cast<int>(dd);
         ++i;
     }
@@ -1090,17 +1090,17 @@ FillMissingOut fillmissing_full(const Value &A, Span<const Value> in,
     if ((in.size() - i) % 2 != 0)
         throw Error(std::string(fn) + ": each parameter name needs a value "
                     "(unmatched value in the name-value list)",
-                    0, 0, fn, "", std::string("nk:") + fn + ":nameValuePairs");
+                    0, 0, fn, "", std::string("numkit:") + fn + ":nameValuePairs");
     for (; i + 1 < in.size(); i += 2) {
         if (!isStringValue(in[i]))
             throw Error(std::string(fn) + ": expected a parameter name",
-                        0, 0, fn, "", std::string("nk:") + fn + ":nameValuePairs");
+                        0, 0, fn, "", std::string("numkit:") + fn + ":nameValuePairs");
         const int hit = argcheck::matchStringChoice(
             in[i], Span<const std::string_view>(nvNames));
         if (hit < 0)
             throw Error(std::string(fn) + ": unrecognized parameter name '" +
                         in[i].toString() + "'",
-                        0, 0, fn, "", std::string("nk:") + fn + ":nameValueNames");
+                        0, 0, fn, "", std::string("numkit:") + fn + ":nameValueNames");
         const std::string_view name = nvNames[static_cast<std::size_t>(hit)];
         const Value &v = in[i + 1];
         if (name == "endvalues") {
@@ -1115,7 +1115,7 @@ FillMissingOut fillmissing_full(const Value &A, Span<const Value> in,
                                 "'extrap', 'previous', 'next', 'nearest', "
                                 "'none', or a numeric constant",
                                 0, 0, fn, "",
-                                std::string("nk:") + fn + ":endValuesInvalid");
+                                std::string("numkit:") + fn + ":endValuesInvalid");
                 endMode = (eh == 0) ? 0 : (eh == 4) ? 1 : (eh == 3) ? 2
                           : (eh == 1) ? 3 : 4;
             } else {
@@ -1128,18 +1128,18 @@ FillMissingOut fillmissing_full(const Value &A, Span<const Value> in,
                 throw Error(std::string(fn) + ": 'MissingLocations' must be "
                             "a logical array the same size as the input",
                             0, 0, fn, "",
-                            std::string("nk:") + fn + ":badMissingLocations");
+                            std::string("numkit:") + fn + ":badMissingLocations");
             missingLocations = &v;
         } else if (name == "samplepoints" || name == "maxgap" ||
                    name == "distance") {
             throw Error(std::string(fn) + ": '" + std::string(name) +
                         "' is not supported " "in this revision",
                         0, 0, fn, "",
-                        std::string("nk:") + fn + ":optionDeferred");
+                        std::string("numkit:") + fn + ":optionDeferred");
         } else {
             throw Error(std::string(fn) + ": '" + std::string(name) +
                         "' is supported " "only for table inputs",
-                        0, 0, fn, "", std::string("nk:") + fn + ":tableOnly");
+                        0, 0, fn, "", std::string("numkit:") + fn + ":tableOnly");
         }
     }
 
@@ -1413,13 +1413,13 @@ Value detrend_full(const Value &x, Span<const Value> in,
                 throw Error("detrend: polynomial degree must be a "
                             "non-negative integer scalar, 'constant', or "
                             "'linear'",
-                            0, 0, "detrend", "", "nk:detrend:invalidTrendInput");
+                            0, 0, "detrend", "", "numkit:detrend:invalidTrendInput");
             polyDeg = static_cast<int>(a0.elemAsDouble(0));
             i = 1;
         } else {
             throw Error("detrend: polynomial degree must be a non-negative "
                         "integer scalar, 'constant', or 'linear'",
-                        0, 0, "detrend", "", "nk:detrend:invalidTrendInput");
+                        0, 0, "detrend", "", "numkit:detrend:invalidTrendInput");
         }
     }
 
@@ -1436,7 +1436,7 @@ Value detrend_full(const Value &x, Span<const Value> in,
         } else {
             throw Error("detrend: breakpoints must be a real numeric or "
                         "logical vector of sample positions",
-                        0, 0, "detrend", "", "nk:detrend:breakpointsInvalid");
+                        0, 0, "detrend", "", "numkit:detrend:breakpointsInvalid");
         }
         ++i;
     }
@@ -1455,11 +1455,11 @@ Value detrend_full(const Value &x, Span<const Value> in,
     if ((in.size() - i) % 2 != 0)
         throw Error("detrend: each parameter name needs a value "
                     "(unmatched name in the name-value list)",
-                    0, 0, "detrend", "", "nk:detrend:keyWithoutValue");
+                    0, 0, "detrend", "", "numkit:detrend:keyWithoutValue");
     for (; i + 1 < in.size(); i += 2) {
         if (!isStringValue(in[i]))
             throw Error("detrend: each parameter name needs a value",
-                        0, 0, "detrend", "", "nk:detrend:keyWithoutValue");
+                        0, 0, "detrend", "", "numkit:detrend:keyWithoutValue");
         const std::string nm = lowerCopy(in[i].toString());
         const Value &v = in[i + 1];
         if (nm.size() >= 4 && std::string("continuous").rfind(nm, 0) == 0) {
@@ -1468,16 +1468,16 @@ Value detrend_full(const Value &x, Span<const Value> in,
         } else if (std::string("samplepoints").rfind(nm, 0) == 0) {
             throw Error("detrend: 'SamplePoints' is not supported in this "
                         "revision",
-                        0, 0, "detrend", "", "nk:detrend:samplePoints");
+                        0, 0, "detrend", "", "numkit:detrend:samplePoints");
         } else if (std::string("datavariables").rfind(nm, 0) == 0 ||
                    std::string("replacevalues").rfind(nm, 0) == 0) {
             throw Error("detrend: '" + in[i].toString() + "' is supported "
                         "only for table inputs",
-                        0, 0, "detrend", "", "nk:detrend:tableOnly");
+                        0, 0, "detrend", "", "numkit:detrend:tableOnly");
         } else {
             throw Error("detrend: unrecognized parameter name '" +
                         in[i].toString() + "'",
-                        0, 0, "detrend", "", "nk:detrend:parseFlags");
+                        0, 0, "detrend", "", "numkit:detrend:parseFlags");
         }
     }
 

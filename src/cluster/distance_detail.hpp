@@ -54,7 +54,7 @@ Metric parse_metric(const std::string &raw) {
     if (s == "seuclidean")       return Metric::Seuclidean;
     if (s == "spearman")         return Metric::Spearman;
     throw Error("pdist: unknown metric '" + raw + "'", 0, 0, "pdist", "",
-                "nk:pdist:badmetric");
+                "numkit:pdist:badmetric");
 }
 
 // Invert a small dense matrix in-place (D × D, row-major in `A`) using
@@ -80,7 +80,7 @@ inline void invert_small(double *A, size_t D,
         if (pmax < 1e-14)
             throw Error("pdist: covariance matrix is singular for "
                         "Mahalanobis distance",
-                        0, 0, "pdist", "", "nk:pdist:singular");
+                        0, 0, "pdist", "", "numkit:pdist:singular");
         if (piv != k) {
             for (size_t c = 0; c < 2 * D; ++c)
                 std::swap(aug[k * 2 * D + c], aug[piv * 2 * D + c]);

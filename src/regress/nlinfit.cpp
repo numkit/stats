@@ -201,7 +201,7 @@ NlinfitResult nlinfit(const Value &X, const Value &y,
     const std::size_t p = beta0.numel();
     if (p == 0)
         throw Error("nlinfit: beta0 cannot be empty",
-                    0, 0, "nlinfit", "", "nk:nlinfit:emptyBeta0");
+                    0, 0, "nlinfit", "", "numkit:nlinfit:emptyBeta0");
 
     std::vector<double> beta = toFlatDouble(beta0);
     std::vector<double> yv = toFlatDouble(y);
@@ -281,10 +281,10 @@ Value nlparci(const Value &beta, const Value &R, const Value &J,
     const std::size_t n = R.numel();
     if (J.dims().rows() != n || J.dims().cols() != p)
         throw Error("nlparci: J must be (n × p) consistent with R, beta",
-                    0, 0, "nlparci", "", "nk:nlparci:shapeMismatch");
+                    0, 0, "nlparci", "", "numkit:nlparci:shapeMismatch");
     if (n <= p)
         throw Error("nlparci: need n > p degrees of freedom",
-                    0, 0, "nlparci", "", "nk:nlparci:noDOF");
+                    0, 0, "nlparci", "", "numkit:nlparci:noDOF");
 
     // MSE = ||R||² / (n - p).
     double sse = 0.0;
@@ -324,10 +324,10 @@ nlpredci(FnHandle model, const Value &X, const Value &beta,
     const std::size_t m = X.dims().rows();
     if (J.dims().rows() != n || J.dims().cols() != p)
         throw Error("nlpredci: J must be (n × p) consistent with R, beta",
-                    0, 0, "nlpredci", "", "nk:nlpredci:shapeMismatch");
+                    0, 0, "nlpredci", "", "numkit:nlpredci:shapeMismatch");
     if (n <= p)
         throw Error("nlpredci: need n > p degrees of freedom",
-                    0, 0, "nlpredci", "", "nk:nlpredci:noDOF");
+                    0, 0, "nlpredci", "", "numkit:nlpredci:noDOF");
 
     double sse = 0.0;
     for (std::size_t i = 0; i < n; ++i) {

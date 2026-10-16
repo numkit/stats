@@ -46,7 +46,7 @@ void geocdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     bool upper = false;
     const Span<const Value> a = args.subspan(0, stripUpperFlag(args, upper));
     if (a.size() < 2)
-        throw Error("geocdf: requires (k, p[, 'upper'])", 0, 0, "geocdf", "", "nk:geocdf:nargin");
+        throw Error("geocdf: requires (k, p[, 'upper'])", 0, 0, "geocdf", "", "numkit:geocdf:nargin");
     auto *mr = ctx.engine->resource();
     const Value &p = a[1];
     Value v = p.isScalar() ? geocdf(a[0], p.toScalar(), mr)

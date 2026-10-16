@@ -49,7 +49,7 @@ void copulapdf_reg(Span<const Value> args, size_t /*nargout*/,
     } else if (fam == "t") {
         if (args.size() < 4)
             throw Error("copulapdf 't': requires nu (4th arg)",
-                        0, 0, "copulapdf", "", "nk:copulapdf:nuMissing");
+                        0, 0, "copulapdf", "", "numkit:copulapdf:nuMissing");
         outs[0] = copulapdf_t(args[1], args[2], args[3].toScalar(), mr);
     } else if (fam == "clayton") {
         outs[0] = copulapdf_clayton(args[1], args[2].toScalar(), mr);
@@ -59,7 +59,7 @@ void copulapdf_reg(Span<const Value> args, size_t /*nargout*/,
         outs[0] = copulapdf_gumbel(args[1], args[2].toScalar(), mr);
     } else {
         throw Error("copulapdf: unknown family '" + fam + "'",
-                    0, 0, "copulapdf", "", "nk:copulapdf:badFamily");
+                    0, 0, "copulapdf", "", "numkit:copulapdf:badFamily");
     }
 }
 
@@ -74,7 +74,7 @@ void copulacdf_reg(Span<const Value> args, size_t /*nargout*/,
     } else if (fam == "t") {
         if (args.size() < 4)
             throw Error("copulacdf 't': requires nu (4th arg)",
-                        0, 0, "copulacdf", "", "nk:copulacdf:nuMissing");
+                        0, 0, "copulacdf", "", "numkit:copulacdf:nuMissing");
         outs[0] = copulacdf_t(args[1], args[2], args[3].toScalar(), mr);
     } else if (fam == "clayton") {
         outs[0] = copulacdf_clayton(args[1], args[2].toScalar(), mr);
@@ -84,7 +84,7 @@ void copulacdf_reg(Span<const Value> args, size_t /*nargout*/,
         outs[0] = copulacdf_gumbel(args[1], args[2].toScalar(), mr);
     } else {
         throw Error("copulacdf: unknown family '" + fam + "'",
-                    0, 0, "copulacdf", "", "nk:copulacdf:badFamily");
+                    0, 0, "copulacdf", "", "numkit:copulacdf:badFamily");
     }
 }
 

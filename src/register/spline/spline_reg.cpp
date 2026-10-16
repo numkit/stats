@@ -107,7 +107,7 @@ void fncmb_reg(Span<const Value> args, size_t /*nargout*/,
             outs[0] = fncmb(args[1], args[0].toScalar(), Value::Empty, 0.0, mr);
         } else {
             throw Error("fncmb: 2-arg form requires (pp, scalar) or (scalar, pp)",
-                        0, 0, "fncmb", "", "nk:fncmb:nargin");
+                        0, 0, "fncmb", "", "numkit:fncmb:nargin");
         }
         return;
     }
@@ -116,7 +116,7 @@ void fncmb_reg(Span<const Value> args, size_t /*nargout*/,
         return;
     }
     throw Error("fncmb: requires (pp, c) or (pp1, c1, pp2, c2)",
-                0, 0, "fncmb", "", "nk:fncmb:nargin");
+                0, 0, "fncmb", "", "numkit:fncmb:nargin");
 }
 
 void fnbrk_reg(Span<const Value> args, size_t /*nargout*/,
@@ -125,7 +125,7 @@ void fnbrk_reg(Span<const Value> args, size_t /*nargout*/,
     argcheck::checkNargin(args.size(), 2, "fnbrk");  // no max: name-value tail in the reference
     if (!args[1].isChar() && !args[1].isString())
         throw Error("fnbrk: nk only supports the named-part form",
-                    0, 0, "fnbrk", "", "nk:fnbrk:type");
+                    0, 0, "fnbrk", "", "numkit:fnbrk:type");
     outs[0] = fnbrk(args[0], args[1].toString(), ctx.engine->resource());
 }
 

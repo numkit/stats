@@ -62,7 +62,7 @@ void anova1_reg(Span<const Value> args, size_t nargout,
     } else {
         if (args.size() < 2)
             throw Error("anova1: requires (y, group[, 'off'])",
-                        0, 0, "anova1", "", "nk:anova1:nargin");
+                        0, 0, "anova1", "", "numkit:anova1:nargin");
         yp = &args[0];
         gp = &args[1];
     }
@@ -189,7 +189,7 @@ void kruskalwallis_reg(Span<const Value> args, size_t nargout,
         gArg = std::move(gFlat);
     } else if (!haveExplicitGroup) {
         throw Error("kruskalwallis: vector y requires explicit group argument",
-                    0, 0, "kruskalwallis", "", "nk:kruskalwallis:noGroup");
+                    0, 0, "kruskalwallis", "", "numkit:kruskalwallis:noGroup");
     }
     (void)flagPos;   // 'off'/'on' display flag accepted but ignored
     auto [p, H, df, sumR2] = kruskalwallis(yArg, gArg, mr);
@@ -316,7 +316,7 @@ void anova2_reg(Span<const Value> args, size_t nargout,
             throw Error("anova2: reps > 1 (with replication / interaction) "
                         "is deferred -- only reps=1 (without replication) "
                         "supported in this revision",
-                        0, 0, "anova2", "", "nk:anova2:reps");
+                        0, 0, "anova2", "", "numkit:anova2:reps");
     }
     auto *mr = ctx.engine->resource();
     auto [pCols, pRows, Fc, Fr, dfC, dfR, dfE, ssC, ssR, ssE] =
@@ -392,7 +392,7 @@ void friedman_reg(Span<const Value> args, size_t nargout,
     // yet, so reject rather than return a wrong p. bugs/stats/friedman.
     if (reps != 1)
         throw Error("friedman: reps > 1 is not yet supported (use reps = 1)",
-                    0, 0, "friedman", "", "nk:friedman:reps");
+                    0, 0, "friedman", "", "numkit:friedman:reps");
 
     auto [p, Q, df] = friedman(args[0], reps, mr);
     outs[0] = std::move(p);

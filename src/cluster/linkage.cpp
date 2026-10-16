@@ -90,7 +90,7 @@ Value linkage(const Value &Y, const std::string &method, const std::string &metr
         N = solve_N_from_pdist(n);
         if (N * (N - 1) / 2 != n)
             throw Error("linkage: pdist input has invalid length",
-                        0, 0, "linkage", "", "nk:linkage:size");
+                        0, 0, "linkage", "", "numkit:linkage:size");
         D.resize(n);
         for (size_t i = 0; i < n; ++i) D[i] = Y.elemAsDouble(i);
     } else {
@@ -100,7 +100,7 @@ Value linkage(const Value &Y, const std::string &method, const std::string &metr
         N = Yrows;
         if (N * (N - 1) / 2 != n)
             throw Error("linkage: bad pdist intermediate", 0, 0, "linkage", "",
-                        "nk:linkage:internal");
+                        "numkit:linkage:internal");
         D.resize(n);
         for (size_t i = 0; i < n; ++i) D[i] = Yp.elemAsDouble(i);
     }
@@ -215,7 +215,7 @@ Value cluster_from_linkage(const Value &Z, int maxclust, double cutoff, const st
     const size_t M = Z.dims().rows();
     if (Z.dims().cols() != 3)
         throw Error("cluster: Z must be (N-1)×3", 0, 0, "cluster", "",
-                    "nk:cluster:size");
+                    "numkit:cluster:size");
     const size_t N = M + 1;
     ScratchArena scratch(mr);
     ScratchVec<int>    a(M, &scratch), b(M, &scratch);
@@ -368,11 +368,11 @@ std::tuple<Value, Value> cophenet_full(const Value &Z, const Value &Y, std::pmr:
     const size_t N = M + 1;
     if (Z.dims().cols() != 3)
         throw Error("cophenet: Z must be (N-1)×3", 0, 0, "cophenet", "",
-                    "nk:cophenet:size");
+                    "numkit:cophenet:size");
     const size_t Yn = Y.numel();
     if (N * (N - 1) / 2 != Yn)
         throw Error("cophenet: Y / Z size mismatch", 0, 0, "cophenet", "",
-                    "nk:cophenet:size");
+                    "numkit:cophenet:size");
 
     ScratchArena scratch(mr);
     ScratchVec<int>    a(M, &scratch), b(M, &scratch);
@@ -445,7 +445,7 @@ Value inconsistent(const Value &Z, int depth, std::pmr::memory_resource *mr) {
     const size_t M = Z.dims().rows();
     if (Z.dims().cols() != 3)
         throw Error("inconsistent: Z must be (N-1)×3", 0, 0, "inconsistent", "",
-                    "nk:inconsistent:size");
+                    "numkit:inconsistent:size");
     if (depth <= 0) depth = 2;
     const size_t N = M + 1;
 

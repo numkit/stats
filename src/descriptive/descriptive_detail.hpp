@@ -43,7 +43,7 @@ void validateNormFlag(int w, const char *fn)
 {
     if (w != 0 && w != 1)
         throw Error(std::string(fn) + ": normalization flag must be 0 or 1",
-                     0, 0, fn, "", std::string("nk:") + fn + ":badFlag");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":badFlag");
 }
 
 // Cast a DOUBLE result to SINGLE in place. Used to preserve SINGLE
@@ -365,7 +365,7 @@ Value quantileImpl(const Value &x, const Value &p, int dim, double pScale, QMeth
 {
     if (p.numel() == 0)
         throw Error(std::string(fn) + ": p must be non-empty",
-                     0, 0, fn, "", std::string("nk:") + fn + ":emptyP");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":emptyP");
 
     ScratchArena scratch(mr);
 
@@ -376,7 +376,7 @@ Value quantileImpl(const Value &x, const Value &p, int dim, double pScale, QMeth
         probs[i] = p.doubleData()[i] * pScale;
         if (!(probs[i] >= 0.0 && probs[i] <= 1.0))
             throw Error(std::string(fn) + ": probabilities out of range",
-                         0, 0, fn, "", std::string("nk:") + fn + ":badProb");
+                         0, 0, fn, "", std::string("numkit:") + fn + ":badProb");
     }
 
     const size_t k = probs.size();
@@ -706,10 +706,10 @@ dispatchMode(const Value &x, int dim, std::pmr::memory_resource *mr, const char 
     case ValueType::CHAR:    return run(char    {}, ValueType::CHAR);
     case ValueType::COMPLEX:
         throw Error(std::string(fn) + ": not defined for complex inputs",
-                     0, 0, fn, "", std::string("nk:") + fn + ":complex");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":complex");
     default:
         throw Error(std::string(fn) + ": unsupported input type",
-                     0, 0, fn, "", std::string("nk:") + fn + ":type");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":type");
     }
 }
 
@@ -720,17 +720,17 @@ void validateCovInputs(const Value &x, const char *fn)
 {
     if (x.type() == ValueType::COMPLEX)
         throw Error(std::string(fn) + ": complex inputs are not supported",
-                     0, 0, fn, "", std::string("nk:") + fn + ":complex");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":complex");
     if (x.dims().is3D() || x.dims().ndim() > 2)
         throw Error(std::string(fn) + ": only vector and 2D matrix inputs are supported",
-                     0, 0, fn, "", std::string("nk:") + fn + ":rank");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":rank");
 }
 
 void validateNormFlagCov(int w, const char *fn)
 {
     if (w != 0 && w != 1)
         throw Error(std::string(fn) + ": normalization flag must be 0 or 1",
-                     0, 0, fn, "", std::string("nk:") + fn + ":badFlag");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":badFlag");
 }
 
 // Build an n×p column-major DOUBLE buffer from x. Vector input is
@@ -812,10 +812,10 @@ Value assembleXY(const Value &x, const Value &y, std::pmr::memory_resource *mr)
     validateCovInputs(y, "cov");
     if (!x.dims().isVector() || !y.dims().isVector())
         throw Error("cov: two-input form requires vector arguments",
-                     0, 0, "cov", "", "nk:cov:notVector");
+                     0, 0, "cov", "", "numkit:cov:notVector");
     if (x.numel() != y.numel())
         throw Error("cov: x and y must have the same length",
-                     0, 0, "cov", "", "nk:cov:lengthMismatch");
+                     0, 0, "cov", "", "numkit:cov:lengthMismatch");
     const std::size_t n = x.numel();
     auto out = Value::matrix(n, 2, ValueType::DOUBLE, mr);
     double *o = out.doubleDataMut();
@@ -935,9 +935,9 @@ CorrcoefRows parseCorrcoefRows(Span<const Value> args, std::size_t start)
         if (!isName) {
             if (i + 1 < args.size() && (args[i + 1].isChar() || args[i + 1].isString()))
                 throw Error("corrcoef: Valid parameters are 'alpha' and 'rows'.",
-                            0, 0, "corrcoef", "", "nk:corrcoef:invalidArgName");
+                            0, 0, "corrcoef", "", "numkit:corrcoef:invalidArgName");
             throw Error("corrcoef: Unmatched parameter name/value pair.",
-                        0, 0, "corrcoef", "", "nk:corrcoef:unmatchedPVPair");
+                        0, 0, "corrcoef", "", "numkit:corrcoef:unmatchedPVPair");
         }
         ++i;  // skip the value
     }
@@ -953,7 +953,7 @@ CorrcoefRows parseCorrcoefRows(Span<const Value> args, std::size_t start)
             if (v == "pairwise") return CorrcoefRows::Pairwise;
             throw Error("corrcoef: Valid row choices are 'all', 'complete', "
                         "and 'pairwise'.",
-                        0, 0, "corrcoef", "", "nk:corrcoef:invalidRowChoice");
+                        0, 0, "corrcoef", "", "numkit:corrcoef:invalidRowChoice");
         }
     }
     return CorrcoefRows::All;
@@ -971,7 +971,7 @@ double parseCorrcoefAlpha(Span<const Value> args, std::size_t start)
             const double a = args[i + 1].toScalar();
             if (!(a > 0.0 && a < 1.0))
                 throw Error("corrcoef: Alpha must be in the interval (0,1)",
-                            0, 0, "corrcoef", "", "nk:corrcoef:BadAlpha");
+                            0, 0, "corrcoef", "", "numkit:corrcoef:BadAlpha");
             return a;
         }
     }
@@ -1049,7 +1049,7 @@ Value corrcoefFromCov(const Value &C, std::pmr::memory_resource *mr)
 {
     if (C.dims().rows() != C.dims().cols())
         throw Error("corrcoef: covariance matrix must be square",
-                     0, 0, "corrcoef", "", "nk:corrcoef:internal");
+                     0, 0, "corrcoef", "", "numkit:corrcoef:internal");
     const std::size_t p = C.dims().rows();
     auto R = Value::matrix(p, p, ValueType::DOUBLE, mr);
     if (p == 0) return R;
@@ -1159,7 +1159,7 @@ inline void rejectComplexOmitNan(const Value &x, const char *fn)
 {
     if (x.type() == ValueType::COMPLEX)
         throw Error(std::string(fn) + ": 'omitnan' for complex input is not supported",
-                     0, 0, fn, "", std::string("nk:") + fn + ":complexOmitNan");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":complexOmitNan");
 }
 
 } // namespace

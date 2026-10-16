@@ -46,7 +46,7 @@ void evcdf_reg(Span<const Value> args, size_t /*nargout*/,
     const size_t n = stripUpperFlag(args, upper);
     if (n < 1)
         throw Error("evcdf: requires x[, mu, sigma][, 'upper']",
-                    0, 0, "evcdf", "", "nk:evcdf:nargin");
+                    0, 0, "evcdf", "", "numkit:evcdf:nargin");
     const double mu    = (n >= 2) ? args[1].toScalar() : 0.0;
     const double sigma = (n >= 3) ? args[2].toScalar() : 1.0;
     Value v = evcdf(args[0], mu, sigma, ctx.engine->resource());

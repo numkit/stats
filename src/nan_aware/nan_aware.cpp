@@ -190,10 +190,10 @@ Value nancov(const Value &x, const Value &y, int normFlag,
     validateNormFlag(normFlag, "nancov");
     if (!x.dims().isVector() || !y.dims().isVector())
         throw Error("nancov: two-input form requires vector arguments",
-                    0, 0, "nancov", "", "nk:nancov:notVector");
+                    0, 0, "nancov", "", "numkit:nancov:notVector");
     if (x.numel() != y.numel())
         throw Error("nancov: x and y must have the same length",
-                    0, 0, "nancov", "", "nk:nancov:lengthMismatch");
+                    0, 0, "nancov", "", "numkit:nancov:lengthMismatch");
 
     const std::size_t n = x.numel();
     if (n == 0)

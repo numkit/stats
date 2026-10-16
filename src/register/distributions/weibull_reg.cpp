@@ -57,7 +57,7 @@ void wblcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     bool upper = false;
     const Span<const Value> s = args.subspan(0, stripUpperFlag(args, upper));
     if (s.empty())
-        throw Error("wblcdf: requires (x[, a, b][, 'upper'])", 0, 0, "wblcdf", "", "nk:wblcdf:nargin");
+        throw Error("wblcdf: requires (x[, a, b][, 'upper'])", 0, 0, "wblcdf", "", "numkit:wblcdf:nargin");
     auto *mr = ctx.engine->resource();
     Value ha, hb;
     const Value &a = dist_param(s, 1, 1.0, mr, ha);

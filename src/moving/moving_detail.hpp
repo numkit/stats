@@ -49,7 +49,7 @@ Window decodeWindow(Span<const size_t> k, const char *fn)
         throw Error(std::string(fn) + ": Window length must be a finite, "
                     "positive, real scalar or 2-element vector of finite, "
                     "nonnegative, real scalars.",
-                    0, 0, fn, "", std::string("nk:") + fn + ":badK");
+                    0, 0, fn, "", std::string("numkit:") + fn + ":badK");
     };
     if (k.size() == 1) {
         const size_t n = k[0];
@@ -78,7 +78,7 @@ ScratchVec<size_t> decodeWindowValueToScratch(const Value &k, const char *fn,
         throw Error(std::string(fn) + ": Window length must be a finite, "
                     "positive, real scalar or 2-element vector of finite, "
                     "nonnegative, real scalars.",
-                    0, 0, fn, "", std::string("nk:") + fn + ":badK");
+                    0, 0, fn, "", std::string("numkit:") + fn + ":badK");
     };
     ScratchVec<size_t> out(&scratch);
     if (k.isScalar()) {
@@ -151,7 +151,7 @@ MovOpts parseMovExtras(Span<const Value> args, size_t start, const char *fn)
     while (i + 1 < args.size()) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error(std::string(fn) + ": expected a Name-Value pair",
-                        0, 0, fn, "", std::string("nk:") + fn + ":nv");
+                        0, 0, fn, "", std::string("numkit:") + fn + ":nv");
         const std::string name = toLower(args[i].toString());
         const Value &val = args[i + 1];
         if (name == "endpoints") {
@@ -164,33 +164,33 @@ MovOpts parseMovExtras(Span<const Value> args, size_t start, const char *fn)
                 else
                     throw Error(std::string(fn) + ": Endpoints must be "
                                 "'shrink', 'discard', 'fill' or a scalar",
-                                0, 0, fn, "", std::string("nk:") + fn + ":ep");
+                                0, 0, fn, "", std::string("numkit:") + fn + ":ep");
             } else if (val.isScalar()) {
                 o.ep = EndpointMode::Scalar;
                 o.ep_fill = val.toScalar();
             } else {
                 throw Error(std::string(fn) + ": Endpoints must be a string "
                             "or numeric scalar",
-                            0, 0, fn, "", std::string("nk:") + fn + ":ep");
+                            0, 0, fn, "", std::string("numkit:") + fn + ":ep");
             }
         } else if (name == "samplepoints") {
             throw Error(std::string(fn) + ": 'SamplePoints' is not yet "
                         "supported in nk (parity gap)",
-                        0, 0, fn, "", std::string("nk:") + fn + ":samplePts");
+                        0, 0, fn, "", std::string("numkit:") + fn + ":samplePts");
         } else if (name == "datavariables" || name == "replacevalues") {
             throw Error(std::string(fn) + ": '" + name + "' is for table/"
                         "timetable inputs (nk does not implement those)",
-                        0, 0, fn, "", std::string("nk:") + fn + ":tableOnly");
+                        0, 0, fn, "", std::string("numkit:") + fn + ":tableOnly");
         } else {
             throw Error(std::string(fn) + ": unknown Name-Value '" + name + "'",
-                        0, 0, fn, "", std::string("nk:") + fn + ":nv");
+                        0, 0, fn, "", std::string("numkit:") + fn + ":nv");
         }
         i += 2;
     }
     if (i != args.size())
         throw Error(std::string(fn) + ": dangling argument at position " +
                     std::to_string(i + 1),
-                    0, 0, fn, "", std::string("nk:") + fn + ":nargin");
+                    0, 0, fn, "", std::string("numkit:") + fn + ":nargin");
     return o;
 }
 
@@ -612,7 +612,7 @@ Value movvar_impl(const Value &x, Span<const size_t> k, int normFlag, const MovO
 {
     if (normFlag != 0 && normFlag != 1)
         throw Error("movvar: normFlag must be 0 or 1",
-                     0, 0, "movvar", "", "nk:movvar:badNormFlag");
+                     0, 0, "movvar", "", "numkit:movvar:badNormFlag");
     const auto w = decodeWindow(k, "movvar");
     const int d = resolveDim(x, opt.dim, "movvar");
     return movingDriverDim(x, w, d, opt, [normFlag](const double *win, size_t n) { return winVar(win, n, normFlag); }, mr);

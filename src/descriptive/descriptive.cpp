@@ -242,10 +242,10 @@ Value cov(const Value &x, const Value &y, int normFlag, std::pmr::memory_resourc
     validateCovInputs(y, "cov");
     if (!x.dims().isVector() || !y.dims().isVector())
         throw Error("cov: two-input form requires vector arguments",
-                     0, 0, "cov", "", "nk:cov:notVector");
+                     0, 0, "cov", "", "numkit:cov:notVector");
     if (x.numel() != y.numel())
         throw Error("cov: x and y must have the same length",
-                     0, 0, "cov", "", "nk:cov:lengthMismatch");
+                     0, 0, "cov", "", "numkit:cov:lengthMismatch");
     const std::size_t n = x.numel();
     if (n == 0)
         return Value::matrix(2, 2, ValueType::DOUBLE, mr);

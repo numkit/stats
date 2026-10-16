@@ -51,14 +51,14 @@ void kmeans_reg(Span<const Value> args, size_t nargout,
             if (dn != "sqeuclidean" && dn != "squaredeuclidean")
                 throw Error("kmeans: only Distance = 'sqeuclidean' is "
                             "implemented (got '" + dn + "')",
-                            0, 0, "kmeans", "", "nk:kmeans:distance");
+                            0, 0, "kmeans", "", "numkit:kmeans:distance");
         }
         else if (key == "start") {
             const std::string sn = lower(v.toString());
             if (sn != "plus")
                 throw Error("kmeans: only Start = 'plus' is implemented "
                             "(got '" + sn + "')",
-                            0, 0, "kmeans", "", "nk:kmeans:start");
+                            0, 0, "kmeans", "", "numkit:kmeans:start");
         }
         // 'Display' / 'EmptyAction' / 'OnlinePhase' / 'Options' silently
         // accepted (no-op).

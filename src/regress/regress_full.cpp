@@ -39,7 +39,7 @@ GlmLink parseGlmLinkName(const Value &v, const char *fn)
                 + v.toString() + "' (expected identity, logit, log, "
                 "probit, reciprocal, or canonical).",
                 0, 0, fn, "",
-                std::string("nk:") + fn + ":unrecognizedLink");
+                std::string("numkit:") + fn + ":unrecognizedLink");
 }
 
 } // namespace
@@ -58,13 +58,13 @@ Value ridge_full(const Value &y, const Value &X, const Value &kVec,
         else if (f != 1.0)
             throw Error("ridge: the scaling flag must be 0 or 1 (got "
                         + std::to_string(f) + ").",
-                        0, 0, "ridge", "", "nk:ridge:badScalingFlag");
+                        0, 0, "ridge", "", "numkit:ridge:badScalingFlag");
     }
 
     // Shape gates (probe76 R05/R06): row count then column-vector y.
     if (X.dims().ndim() != 2)
         throw Error("ridge: X must be a matrix.",
-                    0, 0, "ridge", "", "nk:ridge:invalidData");
+                    0, 0, "ridge", "", "numkit:ridge:invalidData");
     const std::size_t n = static_cast<std::size_t>(X.dims().dim(0));
     if (static_cast<std::size_t>(y.dims().dim(0)) != n
         || y.dims().ndim() != 2)
@@ -72,12 +72,12 @@ Value ridge_full(const Value &y, const Value &X, const Value &kVec,
                     "of rows in X (Y has "
                     + std::to_string(y.dims().dim(0)) + ", X has "
                     + std::to_string(n) + ").",
-                    0, 0, "ridge", "", "nk:ridge:inputSizeMismatch");
+                    0, 0, "ridge", "", "numkit:ridge:inputSizeMismatch");
     if (y.dims().dim(1) != 1)
         throw Error("ridge: Y must be a column vector (got "
                     + std::to_string(y.dims().dim(0)) + "x"
                     + std::to_string(y.dims().dim(1)) + ").",
-                    0, 0, "ridge", "", "nk:ridge:invalidData");
+                    0, 0, "ridge", "", "numkit:ridge:invalidData");
 
     // Missing-value removal: any row with a NaN in y or X (probe76 R07).
     const std::size_t p = static_cast<std::size_t>(X.dims().dim(1));
@@ -94,7 +94,7 @@ Value ridge_full(const Value &y, const Value &X, const Value &kVec,
     if (m == 0)
         throw Error("ridge: no observations remain after removing rows "
                     "with missing values.",
-                    0, 0, "ridge", "", "nk:ridge:invalidData");
+                    0, 0, "ridge", "", "numkit:ridge:invalidData");
     Value yc = Value::matrix(m, 1, ValueType::DOUBLE, mr);
     Value Xc = Value::matrix(m, p, ValueType::DOUBLE, mr);
     for (std::size_t k = 0; k < m; ++k) {
@@ -134,7 +134,7 @@ Value nlparci_full(const Value &beta, const Value &resid,
                 throw Error("nlparci: unrecognized parameter name '"
                             + tail[i].toString() + "'.",
                             0, 0, "nlparci", "",
-                            "nk:nlparci:badParamName");
+                            "numkit:nlparci:badParamName");
         }
     } else {
         if (tail.size() >= 1) J = tail[0];
@@ -144,15 +144,15 @@ Value nlparci_full(const Value &beta, const Value &resid,
     if (resid.isEmpty() || (J.isEmpty() && Sigma.isEmpty()))
         throw Error("nlparci: requires (BETA, RESID, J) or the 'covar' "
                     "form.",
-                    0, 0, "nlparci", "", "nk:nlparci:tooFewInputs");
+                    0, 0, "nlparci", "", "numkit:nlparci:tooFewInputs");
     if (beta.isComplex() || J.isComplex())
         throw Error("nlparci: cannot compute confidence intervals for "
                     "complex parameters.",
-                    0, 0, "nlparci", "", "nk:nlparci:complexParams");
+                    0, 0, "nlparci", "", "numkit:nlparci:complexParams");
     if (!std::isnan(alpha) && !(alpha > 0.0 && alpha < 1.0))
         throw Error("nlparci: ALPHA must be a scalar between 0 and 1 "
                     "(got " + std::to_string(alpha) + ").",
-                    0, 0, "nlparci", "", "nk:nlparci:badAlpha");
+                    0, 0, "nlparci", "", "numkit:nlparci:badAlpha");
 
     // Drop NaN residuals (and their Jacobian rows).
     const std::size_t nAll = static_cast<std::size_t>(resid.numel());
@@ -166,7 +166,7 @@ Value nlparci_full(const Value &beta, const Value &resid,
         throw Error("nlparci: the degrees of freedom v = n - p must be "
                     "positive (n = " + std::to_string(n) + ", p = "
                     + std::to_string(pp) + ").",
-                    0, 0, "nlparci", "", "nk:nlparci:noDOF");
+                    0, 0, "nlparci", "", "numkit:nlparci:noDOF");
 
     std::vector<double> se(pp, 0.0);
     if (!Sigma.isEmpty()) {
@@ -182,7 +182,7 @@ Value nlparci_full(const Value &beta, const Value &resid,
                         + std::to_string(J.dims().dim(1)) + ", expected "
                         + std::to_string(nAll) + "x" + std::to_string(pp)
                         + ").",
-                        0, 0, "nlparci", "", "nk:nlparci:inputSizeMismatch");
+                        0, 0, "nlparci", "", "numkit:nlparci:inputSizeMismatch");
         Value Jc = Value::matrix(n, pp, ValueType::DOUBLE, mr);
         for (std::size_t k = 0; k < n; ++k)
             for (std::size_t j = 0; j < pp; ++j)
@@ -229,7 +229,7 @@ Value glmval_full(const Value &b, const Value &X, const Value &link,
 {
     if (!(link.isChar() || link.isString()))
         throw Error("glmval: link must be a char row or string scalar.",
-                    0, 0, "glmval", "", "nk:glmval:badLink");
+                    0, 0, "glmval", "", "numkit:glmval:badLink");
     const GlmLink lk = parseGlmLinkName(link, "glmval");
 
     // STATS: a non-string 4th argument is the stats struct (used only
@@ -267,16 +267,16 @@ Value glmval_full(const Value &b, const Value &X, const Value &link,
             else
                 throw Error("glmval: unrecognized parameter name '"
                             + tail[i].toString() + "'.",
-                            0, 0, "glmval", "", "nk:glmval:badParamName");
+                            0, 0, "glmval", "", "numkit:glmval:badParamName");
         }
         if (haveConfidence && haveAlpha)
             throw Error("glmval: cannot supply both the 'Confidence' and "
                         "'Alpha' parameters.",
-                        0, 0, "glmval", "", "nk:glmval:argCombination");
+                        0, 0, "glmval", "", "numkit:glmval:argCombination");
         if (haveSize && haveBinomSize)
             throw Error("glmval: cannot supply both the 'Size' and "
                         "'BinomialSize' parameters.",
-                        0, 0, "glmval", "", "nk:glmval:argCombination");
+                        0, 0, "glmval", "", "numkit:glmval:argCombination");
     } else {
         // Legacy positional: (clev, N, offset, const).
         if (i < tail.size() && !tail[i].isEmpty())
@@ -297,7 +297,7 @@ Value glmval_full(const Value &b, const Value &X, const Value &link,
             : "glmval: the STATS parameter is required to compute "
               "confidence bounds.",
             0, 0, "glmval", "",
-            haveStats ? "nk:glmval:boundsUnsupported" : "nk:glmval:needSTATS");
+            haveStats ? "numkit:glmval:boundsUnsupported" : "numkit:glmval:needSTATS");
 
     // Row X with a 2-coefficient (or scalar-no-const) model is a column
     // of points (probe76 V02).
@@ -317,13 +317,13 @@ Value glmval_full(const Value &b, const Value &X, const Value &link,
             || static_cast<std::size_t>(Nv.numel()) != m))
         throw Error("glmval: BinomialSize must be a scalar or a column "
                     "vector with one entry per row of X.",
-                    0, 0, "glmval", "", "nk:glmval:wrongArgSizeBinomialSize");
+                    0, 0, "glmval", "", "numkit:glmval:wrongArgSizeBinomialSize");
     if (!offset.isScalar()
         && (offset.dims().dim(1) != 1
             || static_cast<std::size_t>(offset.numel()) != m))
         throw Error("glmval: Offset must be a scalar or a column vector "
                     "with one entry per row of X.",
-                    0, 0, "glmval", "", "nk:glmval:wrongArgSizeOffset");
+                    0, 0, "glmval", "", "numkit:glmval:wrongArgSizeOffset");
 
     // eta = x·beta + offset, then yhat = N·ilink(eta) — computed
     // directly (the offset enters INSIDE the inverse link). A scalar
@@ -349,7 +349,7 @@ Value glmval_full(const Value &b, const Value &X, const Value &link,
                     "columns of X plus one when the constant is on (got "
                     + std::to_string(b.numel()) + " coefficients for "
                     + std::to_string(cols) + " columns).",
-                    0, 0, "glmval", "", "nk:glmval:shapeMismatch");
+                    0, 0, "glmval", "", "numkit:glmval:shapeMismatch");
     Value out;
     if (scalarBeta) {
         // x*beta semantics: every column (including the intercept

@@ -54,7 +54,7 @@ void cluster_reg(Span<const Value> args, size_t /*nargout*/,
 void inconsistent_reg(Span<const Value> args, size_t /*nargout*/,
                       Span<Value> outs, CallContext &ctx)
 {
-    argcheck::checkNargin(args.size(), 1, "inconsistent");
+    argcheck::checkNargin(args.size(), 1, 2, "inconsistent");
     // Marshalling only — the depth gate lives in inconsistent_full.
     outs[0] = inconsistent_full(args[0],
                                 Span<const Value>(args.data() + 1, args.size() - 1),

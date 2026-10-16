@@ -87,16 +87,16 @@ void bootstrp_reg(Span<const Value> args, size_t /*nargout*/,
     argcheck::checkNargin(args.size(), 3, "bootstrp");  // no max: name-value tail in the reference
     if (!args[1].isFuncHandle())
         throw Error("bootstrp: 2nd argument must be a function handle",
-                    0, 0, "bootstrp", "", "nk:bootstrp:notFuncHandle");
+                    0, 0, "bootstrp", "", "numkit:bootstrp:notFuncHandle");
     const int nboot = (int)args[0].toScalar();
     if (nboot < 1)
         throw Error("bootstrp: nboot must be >= 1",
-                    0, 0, "bootstrp", "", "nk:bootstrp:badN");
+                    0, 0, "bootstrp", "", "numkit:bootstrp:badN");
     auto *mr = ctx.engine->resource();
     const Value &X = args[2];
     const int N = static_cast<int>(X.dims().dim(0));
     if (N == 0)
-        throw Error("bootstrp: empty data", 0, 0, "bootstrp", "", "nk:bootstrp:empty");
+        throw Error("bootstrp: empty data", 0, 0, "bootstrp", "", "numkit:bootstrp:empty");
 
     ScratchArena scratch(mr);
     ScratchVec<int> idx(static_cast<std::size_t>(N), &scratch);
@@ -110,7 +110,7 @@ void bootstrp_reg(Span<const Value> args, size_t /*nargout*/,
     const std::size_t K = stat0.numel();
     if (K == 0)
         throw Error("bootstrp: bootfun returned empty", 0, 0, "bootstrp", "",
-                    "nk:bootstrp:emptyStat");
+                    "numkit:bootstrp:emptyStat");
 
     // Output is nboot × K (each row = one bootstrap statistic).
     auto out = Value::matrix(static_cast<std::size_t>(nboot), K,
@@ -130,7 +130,7 @@ void bootstrp_reg(Span<const Value> args, size_t /*nargout*/,
             args[1], Span<const Value>(callArgs, 1), ctx.env);
         if (stat.numel() != K)
             throw Error("bootstrp: bootfun returned varying-size output",
-                        0, 0, "bootstrp", "", "nk:bootstrp:varyingStat");
+                        0, 0, "bootstrp", "", "numkit:bootstrp:varyingStat");
         for (std::size_t j = 0; j < K; ++j)
             od[b + j * nboot] = stat.elemAsDouble(j);
     }
@@ -150,7 +150,7 @@ void crossval_reg(Span<const Value> args, size_t /*nargout*/,
     if (!args[0].isFuncHandle())
         throw Error("crossval: 1st argument must be a function handle "
                     "predfun(Xtrain, Ytrain, Xtest, Ytest)",
-                    0, 0, "crossval", "", "nk:crossval:notFuncHandle");
+                    0, 0, "crossval", "", "numkit:crossval:notFuncHandle");
 
     auto *mr = ctx.engine->resource();
     const Value &X = args[1];
@@ -159,16 +159,16 @@ void crossval_reg(Span<const Value> args, size_t /*nargout*/,
     const std::size_t m = static_cast<std::size_t>(X.dims().dim(0));
     if (Y.dims().dim(0) != static_cast<int>(m))
         throw Error("crossval: X and Y must have the same number of rows",
-                    0, 0, "crossval", "", "nk:crossval:dimMismatch");
+                    0, 0, "crossval", "", "numkit:crossval:dimMismatch");
     if (m < 2)
         throw Error("crossval: need at least 2 observations",
-                    0, 0, "crossval", "", "nk:crossval:tooSmall");
+                    0, 0, "crossval", "", "numkit:crossval:tooSmall");
 
     int K = 10;
     for (std::size_t i = 3; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error("crossval: option name must be a string",
-                        0, 0, "crossval", "", "nk:crossval:badOption");
+                        0, 0, "crossval", "", "numkit:crossval:badOption");
         const auto opt = args[i].toString();
         if (opt == "kfold" || opt == "KFold")
             K = argcheck::expectedInteger(
@@ -177,7 +177,7 @@ void crossval_reg(Span<const Value> args, size_t /*nargout*/,
         else
             throw Error("crossval: unknown option '" + opt + "' (only "
                         "'kfold' supported in this revision)",
-                        0, 0, "crossval", "", "nk:crossval:badOption");
+                        0, 0, "crossval", "", "numkit:crossval:badOption");
     }
     if (K < 2 || K > static_cast<int>(m))
         K = static_cast<int>(std::min(m, std::size_t{10}));
@@ -223,7 +223,7 @@ void crossval_reg(Span<const Value> args, size_t /*nargout*/,
             args[0], Span<const Value>(callArgs, 4), ctx.env);
         if (res.numel() != 1)
             throw Error("crossval: predfun must return a scalar",
-                        0, 0, "crossval", "", "nk:crossval:badPredfun");
+                        0, 0, "crossval", "", "numkit:crossval:badPredfun");
         od[k] = res.toScalar();
     }
     outs[0] = std::move(out);
@@ -237,17 +237,17 @@ void bootci_reg(Span<const Value> args, size_t /*nargout*/,
     argcheck::checkNargin(args.size(), 3, "bootci");  // no max: name-value tail in the reference
     if (!args[1].isFuncHandle())
         throw Error("bootci: 2nd argument must be a function handle",
-                    0, 0, "bootci", "", "nk:bootci:notFuncHandle");
+                    0, 0, "bootci", "", "numkit:bootci:notFuncHandle");
     const int nboot = (int)args[0].toScalar();
     if (nboot < 10)
         throw Error("bootci: nboot must be >= 10 for meaningful CI",
-                    0, 0, "bootci", "", "nk:bootci:badN");
+                    0, 0, "bootci", "", "numkit:bootci:badN");
     double alpha = 0.05;
     if (args.size() >= 4 && !args[3].isEmpty()) {
         alpha = args[3].toScalar();
         if (alpha <= 0.0 || alpha >= 1.0)
             throw Error("bootci: alpha must be in (0, 1)",
-                        0, 0, "bootci", "", "nk:bootci:alpha");
+                        0, 0, "bootci", "", "numkit:bootci:alpha");
     }
     auto *mr = ctx.engine->resource();
 
@@ -297,7 +297,7 @@ void jackknife_reg(Span<const Value> args, size_t /*nargout*/,
     argcheck::checkNargin(args.size(), 2, "jackknife");  // no max: name-value tail in the reference
     if (!args[0].isFuncHandle())
         throw Error("jackknife: 1st argument must be a function handle",
-                    0, 0, "jackknife", "", "nk:jackknife:notFuncHandle");
+                    0, 0, "jackknife", "", "numkit:jackknife:notFuncHandle");
     auto *mr = ctx.engine->resource();
     const Value &X = args[1];
     const auto &d = X.dims();
@@ -305,7 +305,7 @@ void jackknife_reg(Span<const Value> args, size_t /*nargout*/,
     const int n = isVec ? static_cast<int>(X.numel()) : static_cast<int>(d.dim(0));
     if (n < 1)
         throw Error("jackknife: empty data", 0, 0, "jackknife", "",
-                    "nk:jackknife:empty");
+                    "numkit:jackknife:empty");
 
     // Observations are rows; treat a vector (either orientation) as a column so
     // resampleRows selects one element per observation (not one row of many).
@@ -328,7 +328,7 @@ void jackknife_reg(Span<const Value> args, size_t /*nargout*/,
     const std::size_t K = stat0.numel();
     if (K == 0)
         throw Error("jackknife: jackfun returned empty", 0, 0, "jackknife", "",
-                    "nk:jackknife:emptyStat");
+                    "numkit:jackknife:emptyStat");
 
     auto out = Value::matrix(static_cast<std::size_t>(n), K, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
@@ -342,7 +342,7 @@ void jackknife_reg(Span<const Value> args, size_t /*nargout*/,
             args[0], Span<const Value>(callArgs, 1), ctx.env);
         if (stat.numel() != K)
             throw Error("jackknife: jackfun returned varying-size output",
-                        0, 0, "jackknife", "", "nk:jackknife:varyingStat");
+                        0, 0, "jackknife", "", "numkit:jackknife:varyingStat");
         for (std::size_t j = 0; j < K; ++j)
             od[static_cast<std::size_t>(s) + j * static_cast<std::size_t>(n)] =
                 stat.elemAsDouble(j);

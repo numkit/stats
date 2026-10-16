@@ -126,7 +126,7 @@ Value nearcorr_full(const Value &A, Span<const Value> nv,
         throw Error("nearcorr: invalid value of 'A'. Expected A to be a "
                     "symmetric matrix with unit diagonal and entries in "
                     "[-1,1] of double or single class (" + why + ").",
-                    0, 0, "nearcorr", "", "nk:nearcorr:invalidInputA");
+                    0, 0, "nearcorr", "", "numkit:nearcorr:invalidInputA");
     };
     if (!A.isNumeric() || A.numel() == 0 || A.dims().ndim() > 2)
         rejectA(std::string("got a ") + mtypeName(A.type())
@@ -162,11 +162,11 @@ Value nearcorr_full(const Value &A, Span<const Value> nv,
     const auto badOpt = [&](const std::string &why) {
         throw Error("nearcorr: error in optional input arguments (" + why
                     + ").",
-                    0, 0, "nearcorr", "", "nk:nearcorr:optionalInputError");
+                    0, 0, "nearcorr", "", "numkit:nearcorr:optionalInputError");
     };
     argcheck::forEachNvPair(
         nv, 0, Span<const std::string_view>(kNv), "nearcorr",
-        "nk:nearcorr:optionalInputError",
+        "numkit:nearcorr:optionalInputError",
         [&](std::size_t hit, const Value &v) {
             switch (hit) {
             case 0: {  // Tolerance: double scalar > 0
@@ -205,7 +205,7 @@ Value nearcorr_full(const Value &A, Span<const Value> nv,
                             "the minimizer). Omit 'Weights' for the "
                             "unweighted problem.",
                             0, 0, "nearcorr", "",
-                            "nk:nearcorr:weightsUnsupported");
+                            "numkit:nearcorr:weightsUnsupported");
             }
             default: break;
             }

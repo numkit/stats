@@ -122,7 +122,7 @@ crosscorr(const Value &y1, const Value &y2, int numLags, double numSTD,
     const size_t N = y1.numel();
     if (y2.numel() != N)
         throw Error("crosscorr: y1 and y2 must have the same length",
-                    0, 0, "crosscorr", "", "nk:crosscorr:lengthMismatch");
+                    0, 0, "crosscorr", "", "numkit:crosscorr:lengthMismatch");
     const size_t K = (numLags >= 0) ? static_cast<size_t>(numLags) : defaultNumLags(N);
 
     std::vector<double> c1, c2;

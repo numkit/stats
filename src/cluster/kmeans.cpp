@@ -37,7 +37,7 @@ kmeans_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter,
     const size_t D = X.dims().cols();
     if (K < 1 || (size_t)K > N)
         throw Error("kmeans: K must be in 1..N", 0, 0, "kmeans", "",
-                    "nk:kmeans:badK");
+                    "numkit:kmeans:badK");
 
     ScratchArena scratch(mr);
 

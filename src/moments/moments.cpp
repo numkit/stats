@@ -96,10 +96,10 @@ Value dispatchMomentReduction(const Value &x, int dim, int normFlag, const char 
 {
     if (normFlag != 0 && normFlag != 1)
         throw Error(std::string(fn) + ": normalization flag must be 0 or 1",
-                     0, 0, fn, "", std::string("nk:") + fn + ":badFlag");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":badFlag");
     if (x.type() == ValueType::COMPLEX)
         throw Error(std::string(fn) + ": complex inputs are not supported",
-                     0, 0, fn, "", std::string("nk:") + fn + ":complex");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":complex");
     if (x.isEmpty())
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     const int d = resolveDim(x, dim, fn);

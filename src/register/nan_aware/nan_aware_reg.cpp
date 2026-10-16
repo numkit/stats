@@ -43,7 +43,7 @@ static Value nanAllArg(const Value &x, const Value &a, const char *fn,
                    [](unsigned char c) { return std::tolower(c); });
     if (s != "all")
         throw Error(std::string(fn) + ": unknown flag '" + s + "'",
-                    0, 0, fn, "", std::string("nk:") + fn + ":unknownFlag");
+                    0, 0, fn, "", std::string("numkit:") + fn + ":unknownFlag");
     Value flat = Value::matrix(x.numel(), 1, ValueType::DOUBLE, mr);
     for (std::size_t i = 0; i < x.numel(); ++i)
         flat.doubleDataMut()[i] = x.elemAsDouble(i);

@@ -76,7 +76,7 @@ Value rmse(const Value &f, const Value &a, int dim, std::pmr::memory_resource *m
 {
     if (f.dims() != a.dims() && !(f.isScalar() || a.isScalar()))
         throw Error("rmse: F and A must have compatible sizes",
-                     0, 0, "rmse", "", "nk:rmse:sizeMismatch");
+                     0, 0, "rmse", "", "numkit:rmse:sizeMismatch");
     // Build the squared-difference array, then reduce.
     const size_t n = std::max(f.numel(), a.numel());
     auto diff = (f.numel() >= a.numel())
@@ -117,7 +117,7 @@ Value mape(const Value &f, const Value &a, int dim, std::pmr::memory_resource *m
 {
     if (f.dims() != a.dims() && !(f.isScalar() || a.isScalar()))
         throw Error("mape: F and A must have compatible sizes",
-                     0, 0, "mape", "", "nk:mape:sizeMismatch");
+                     0, 0, "mape", "", "numkit:mape:sizeMismatch");
     const size_t n = std::max(f.numel(), a.numel());
     auto pct = (f.numel() >= a.numel())
                   ? createLike(f, ValueType::DOUBLE, mr)
@@ -160,13 +160,13 @@ Value partialcorr_of(const Value &X, const Value &Y, const Value &Z, std::pmr::m
 {
     if (X.dims().ndim() != 2 || Y.dims().ndim() != 2 || Z.dims().ndim() != 2)
         throw Error("partialcorr: X, Y, Z must be 2D matrices",
-                    0, 0, "partialcorr", "", "nk:partialcorr:notMatrix");
+                    0, 0, "partialcorr", "", "numkit:partialcorr:notMatrix");
     const std::size_t m = static_cast<std::size_t>(X.dims().dim(0));
     const std::size_t mY = static_cast<std::size_t>(Y.dims().dim(0));
     const std::size_t mZ = static_cast<std::size_t>(Z.dims().dim(0));
     if (mY != m || mZ != m)
         throw Error("partialcorr: X, Y, Z must have the same number of rows",
-                    0, 0, "partialcorr", "", "nk:partialcorr:dimMismatch");
+                    0, 0, "partialcorr", "", "numkit:partialcorr:dimMismatch");
     const std::size_t pX = static_cast<std::size_t>(X.dims().dim(1));
     const std::size_t pY = static_cast<std::size_t>(Y.dims().dim(1));
     const std::size_t pZ = static_cast<std::size_t>(Z.dims().dim(1));
@@ -309,7 +309,7 @@ Value partialcorr_xx(const Value &X, std::pmr::memory_resource *mr)
 {
     if (X.dims().ndim() != 2)
         throw Error("partialcorr: X must be a 2D matrix",
-                    0, 0, "partialcorr", "", "nk:partialcorr:notMatrix");
+                    0, 0, "partialcorr", "", "numkit:partialcorr:notMatrix");
     const std::size_t m = static_cast<std::size_t>(X.dims().dim(0));
     const std::size_t p = static_cast<std::size_t>(X.dims().dim(1));
 
@@ -397,7 +397,7 @@ Value corr_xy(const Value &X, const Value &Y, std::pmr::memory_resource *mr)
                             ? static_cast<std::size_t>(X.dims().dim(1)) : 1;
     if (static_cast<std::size_t>(Y.dims().dim(0)) != n)
         throw Error("corr: X and Y must have the same number of rows",
-                    0, 0, "corr", "", "nk:corr:rows");
+                    0, 0, "corr", "", "numkit:corr:rows");
     const std::size_t q = (Y.dims().ndim() >= 2)
                             ? static_cast<std::size_t>(Y.dims().dim(1)) : 1;
 
@@ -586,7 +586,7 @@ Value filloutliers_of(const Value &x,
                         "'center', 'clip', 'previous', 'next', "
                         "'nearest', or 'linear'",
                         0, 0, "filloutliers", "",
-                        "nk:filloutliers:fillmethod");
+                        "numkit:filloutliers:fillmethod");
     } else {
         fill_is_constant = true;
         constVal = fillArg.toScalar();
@@ -698,7 +698,7 @@ ErrorMetricOpts parseErrorMetricOpts(Span<const Value> tail,
                                                 : "") +
                             "; prefixes allowed)",
                             0, 0, fn, "",
-                            std::string("nk:") + fn +
+                            std::string("numkit:") + fn +
                             (forMape ? ":unknownFlagMape" : ":unknownFlag"));
             break;   // NV region starts here
         }
@@ -709,7 +709,7 @@ ErrorMetricOpts parseErrorMetricOpts(Span<const Value> tail,
                         std::string(forMape ? ", omitzero, includezero" : "") +
                         "; prefixes allowed)",
                         0, 0, fn, "",
-                        std::string("nk:") + fn +
+                        std::string("numkit:") + fn +
                         (forMape ? ":unknownFlagMape" : ":unknownFlag"));
         if (forMape && total > 1)
             throw Error(std::string(fn) + ": ambiguous flag '" +
@@ -717,7 +717,7 @@ ErrorMetricOpts parseErrorMetricOpts(Span<const Value> tail,
                         "omitnan, includenan, omitmissing, includemissing, "
                         "omitzero, includezero)",
                         0, 0, fn, "",
-                        std::string("nk:") + fn + ":unknownFlagMape");
+                        std::string("numkit:") + fn + ":unknownFlagMape");
         if (nanM.second == 1)
             o.omitnan = o.omitnan || (nanM.first == 0 || nanM.first == 2);
         else if (zeroM.second == 1)
@@ -728,7 +728,7 @@ ErrorMetricOpts parseErrorMetricOpts(Span<const Value> tail,
     static constexpr std::string_view kWNames[] = {"weights"};
     argcheck::forEachNvPair(
         tail, i, Span<const std::string_view>(kWNames), fn,
-        std::string("nk:") + fn + ":badWeights",
+        std::string("numkit:") + fn + ":badWeights",
         [&](std::size_t, const Value &w) {
             if (!w.isNumeric() || w.isComplex() ||
                 (w.type() != ValueType::DOUBLE && w.type() != ValueType::SINGLE))
@@ -736,14 +736,14 @@ ErrorMetricOpts parseErrorMetricOpts(Span<const Value> tail,
                             "or single array of real nonnegative values "
                             "(got " + mtypeName(w.type()) + ")",
                             0, 0, fn, "",
-                            std::string("nk:") + fn + ":invalidWeight");
+                            std::string("numkit:") + fn + ":invalidWeight");
             for (std::size_t k = 0; k < w.numel(); ++k) {
                 const double wv = w.elemAsDouble(k);
                 if (o.omitnan ? (wv < 0.0) : !(wv >= 0.0))
                     throw Error(std::string(fn) + ": Weights must be "
                                 "nonnegative (got " + std::to_string(wv) + ")",
                                 0, 0, fn, "",
-                                std::string("nk:") + fn + ":invalidWeight");
+                                std::string("numkit:") + fn + ":invalidWeight");
             }
             const std::size_t dn = std::max(F.numel(), A.numel());
             const bool okSize =
@@ -756,7 +756,7 @@ ErrorMetricOpts parseErrorMetricOpts(Span<const Value> tail,
                             std::to_string(dimLen) +
                             " along the operating dimension",
                             0, 0, fn, "",
-                            std::string("nk:") + fn + ":invalidWeight");
+                            std::string("numkit:") + fn + ":invalidWeight");
             o.weights = &w;
         });
     return o;
@@ -1105,7 +1105,7 @@ Value trimmean_of(const Value &x, double pct, int dim, bool useFloor,
 {
     if (pct < 0.0 || pct >= 100.0)
         throw Error("trimmean: percent must be in [0, 100)",
-                    0, 0, "trimmean", "", "nk:trimmean:badPct");
+                    0, 0, "trimmean", "", "numkit:trimmean:badPct");
     const int d = resolveDim(x, dim, "trimmean");
     const double p = pct;
     return applyAlongDim(x, d,
@@ -1312,7 +1312,7 @@ ksdensity_full(const Value &x, const Value &pts, double bw_user, const std::stri
         }
     } else {
         throw Error("ksdensity: unknown Function '" + mode + "'",
-                    0, 0, "ksdensity", "", "nk:ksdensity:badfn");
+                    0, 0, "ksdensity", "", "numkit:ksdensity:badfn");
     }
 
     Value xiV = Value::matrix(1, M, ValueType::DOUBLE, mr);
@@ -1343,7 +1343,7 @@ prepareCurveData(const Value &x, const Value &y, const Value &w, std::pmr::memor
     if (Nx != Ny || (hasW && Nw != Nx))
         throw Error("prepareCurveData: x, y" +
                     std::string(hasW ? ", w" : "") + " must be same length",
-                    0, 0, "prepareCurveData", "", "nk:prepCD:size");
+                    0, 0, "prepareCurveData", "", "numkit:prepCD:size");
 
     std::vector<double> xv(Nx), yv(Nx), wv(hasW ? Nx : 0);
     std::vector<uint8_t> keep(Nx, 1);
@@ -1394,7 +1394,7 @@ prepareSurfaceData(const Value &x, const Value &y, const Value &z, std::pmr::mem
                         out[r + c * rows] = v.elemAsDouble(r);
             } else {
                 throw Error("prepareSurfaceData: x, y, z size mismatch",
-                            0, 0, "prepareSurfaceData", "", "nk:prepSD:size");
+                            0, 0, "prepareSurfaceData", "", "numkit:prepSD:size");
             }
         }
         return out;
@@ -1490,7 +1490,7 @@ Value filloutliers(const Value &A, const Value &fillMethod,
         throw Error("filloutliers: findMethod must be 'median', 'mean', or "
                     "'quartiles' for the C++ API ('percentiles' and "
                     "grubbs/gesd/movmedian/movmean are script-only / deferred)",
-                    0, 0, "filloutliers", "", "nk:filloutliers:findmethod");
+                    0, 0, "filloutliers", "", "numkit:filloutliers:findmethod");
     // Per-method default threshold when thresholdFactor is NaN (matches the
     // adapter): median/mean default 3; quartiles internal 3.0 (= MATLAB k=1.5).
     // A user-supplied factor for quartiles is the IQR multiplier k; the
@@ -1515,12 +1515,12 @@ ecdfhist(const Value &f, const Value &x, int m, std::pmr::memory_resource *mr)
 {
     if (m < 1)
         throw Error("ecdfhist: number of bins must be >= 1",
-                    0, 0, "ecdfhist", "", "nk:ecdfhist:nbins");
+                    0, 0, "ecdfhist", "", "numkit:ecdfhist:nbins");
     const size_t Lf = f.numel();
     const size_t Lx = x.numel();
     if (Lf != Lx)
         throw Error("ecdfhist: f and x must have the same length",
-                    0, 0, "ecdfhist", "", "nk:ecdfhist:size");
+                    0, 0, "ecdfhist", "", "numkit:ecdfhist:size");
     if (Lf < 2) {
         Value n_empty = Value::matrix(1, static_cast<size_t>(m), ValueType::DOUBLE, mr);
         Value c_empty = Value::matrix(1, static_cast<size_t>(m), ValueType::DOUBLE, mr);
@@ -1589,7 +1589,7 @@ EcdfFull ecdf_full(const Value &y, const Value *freq, const std::string &functio
     const bool has_freq = (freq && freq->numel() == n);
     if (freq && freq->numel() != 0 && freq->numel() != n)
         throw Error("ecdf: Frequency length must match data length",
-                    0, 0, "ecdf", "", "nk:ecdf:freqsize");
+                    0, 0, "ecdf", "", "numkit:ecdf:freqsize");
 
     // Collect (value, weight) pairs, dropping NaNs. Sort by value.
     std::vector<std::pair<double, double>> vw;
@@ -1666,7 +1666,7 @@ EcdfFull ecdf_full(const Value &y, const Value *freq, const std::string &functio
         }
     } else {
         throw Error("ecdf: unknown Function mode '" + mode + "'",
-                    0, 0, "ecdf", "", "nk:ecdf:badmode");
+                    0, 0, "ecdf", "", "numkit:ecdf:badmode");
     }
 
     R.f = Value::matrix(L, 1, ValueType::DOUBLE, mr);

@@ -43,7 +43,7 @@ inline std::vector<int> parseDimSet(const Value &a, std::string_view fn)
                     "scalar or a vector of unique positive integers "
                     "(argument is " + argcheck::detail::dimsStr(a) + ").",
                     0, 0, std::string(fn), "",
-                    "nk:" + std::string(fn) + ":dimNotVector");
+                    "numkit:" + std::string(fn) + ":dimNotVector");
     std::vector<int> set;
     set.reserve(a.numel());
     for (size_t i = 0; i < a.numel(); ++i)
@@ -56,7 +56,7 @@ inline std::vector<int> parseDimSet(const Value &a, std::string_view fn)
                         "must be unique (" + std::to_string(sorted[i]) +
                         " repeats).",
                         0, 0, std::string(fn), "",
-                        "nk:" + std::string(fn) + ":dimNotUnique");
+                        "numkit:" + std::string(fn) + ":dimNotUnique");
     return set;
 }
 

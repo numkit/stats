@@ -45,7 +45,7 @@ void nakacdf_reg(Span<const Value> args, size_t /*nargout*/,
     const size_t n = stripUpperFlag(args, upper);
     if (n < 3)
         throw Error("nakacdf: requires (x, mu, omega[, 'upper'])",
-                    0, 0, "nakacdf", "", "nk:nakacdf:nargin");
+                    0, 0, "nakacdf", "", "numkit:nakacdf:nargin");
     Value v = nakacdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);

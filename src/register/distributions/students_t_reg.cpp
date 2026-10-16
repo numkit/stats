@@ -47,7 +47,7 @@ void tcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     bool upper = false;
     const Span<const Value> a = args.subspan(0, stripUpperFlag(args, upper));
     if (a.size() < 2)
-        throw Error("tcdf: requires (x, nu[, 'upper'])", 0, 0, "tcdf", "", "nk:tcdf:nargin");
+        throw Error("tcdf: requires (x, nu[, 'upper'])", 0, 0, "tcdf", "", "numkit:tcdf:nargin");
     auto *mr = ctx.engine->resource();
     const Value &nu = a[1];
     Value v;
@@ -163,7 +163,7 @@ void nctcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     const size_t n = stripUpperFlag(args, upper);
     if (n < 3)
         throw Error("nctcdf: requires (x, nu, delta[, 'upper'])",
-                    0, 0, "nctcdf", "", "nk:nctcdf:nargin");
+                    0, 0, "nctcdf", "", "numkit:nctcdf:nargin");
     outs[0] = nctcdf(args[0], args[1].toScalar(), args[2].toScalar(), upper,
                      ctx.engine->resource());
 }

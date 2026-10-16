@@ -46,7 +46,7 @@ void unidcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     bool upper = false;
     const Span<const Value> a = args.subspan(0, stripUpperFlag(args, upper));
     if (a.size() < 2)
-        throw Error("unidcdf: requires (k, N[, 'upper'])", 0, 0, "unidcdf", "", "nk:unidcdf:nargin");
+        throw Error("unidcdf: requires (k, N[, 'upper'])", 0, 0, "unidcdf", "", "numkit:unidcdf:nargin");
     auto *mr = ctx.engine->resource();
     const Value &N = a[1];
     Value v = N.isScalar() ? unidcdf(a[0], N.toScalar(), mr)

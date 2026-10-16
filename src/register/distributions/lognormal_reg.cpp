@@ -57,7 +57,7 @@ void logncdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     bool upper = false;
     const Span<const Value> s = args.subspan(0, stripUpperFlag(args, upper));
     if (s.empty())
-        throw Error("logncdf: requires (x[, mu, sigma][, 'upper'])", 0, 0, "logncdf", "", "nk:logncdf:nargin");
+        throw Error("logncdf: requires (x[, mu, sigma][, 'upper'])", 0, 0, "logncdf", "", "numkit:logncdf:nargin");
     auto *mr = ctx.engine->resource();
     Value hmu, hsig;
     const Value &mu  = dist_param(s, 1, 0.0, mr, hmu);

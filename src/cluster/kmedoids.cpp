@@ -135,7 +135,7 @@ kmedoids_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_ite
     const size_t D = X.dims().cols();
     if (K < 1 || (size_t)K > N)
         throw Error("kmedoids: K must be in 1..N", 0, 0, "kmedoids", "",
-                    "nk:kmedoids:badK");
+                    "numkit:kmedoids:badK");
 
     ScratchArena scratch(mr);
     ScratchVec<double> Xv = read_rows(X, &scratch);
@@ -287,7 +287,7 @@ std::tuple<Value, Value>
 dbscan(const Value &X, double eps, int minpts, const std::string &metric_name, double p, std::pmr::memory_resource *mr)
 {
     if (eps <= 0.0)  throw Error("dbscan: eps must be positive",
-                                 0, 0, "dbscan", "", "nk:dbscan:badeps");
+                                 0, 0, "dbscan", "", "numkit:dbscan:badeps");
     if (minpts <= 0) minpts = 1;
     const Metric m = parse_metric(metric_name);
 
@@ -303,7 +303,7 @@ dbscan(const Value &X, double eps, int minpts, const std::string &metric_name, d
     if (precomputed) {
         if (X.dims().cols() != N)
             throw Error("dbscan: precomputed distance matrix must be N×N",
-                        0, 0, "dbscan", "", "nk:dbscan:badprecomp");
+                        0, 0, "dbscan", "", "numkit:dbscan:badprecomp");
         Dmat.assign(N * N, 0.0);
         for (size_t i = 0; i < N; ++i)
             for (size_t j = 0; j < N; ++j)

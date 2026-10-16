@@ -81,12 +81,12 @@ anova2(const Value &Y, std::pmr::memory_resource *mr)
     const double nan = std::numeric_limits<double>::quiet_NaN();
     if (Y.dims().ndim() != 2)
         throw Error("anova2: input must be a 2D matrix",
-                    0, 0, "anova2", "", "nk:anova2:notMatrix");
+                    0, 0, "anova2", "", "numkit:anova2:notMatrix");
     const std::size_t m = static_cast<std::size_t>(Y.dims().dim(0));
     const std::size_t n = static_cast<std::size_t>(Y.dims().dim(1));
     if (m < 2 || n < 2)
         throw Error("anova2: input must be at least 2x2",
-                    0, 0, "anova2", "", "nk:anova2:tooSmall");
+                    0, 0, "anova2", "", "numkit:anova2:tooSmall");
 
     const double *yd = Y.doubleData();
     const double N = static_cast<double>(m * n);

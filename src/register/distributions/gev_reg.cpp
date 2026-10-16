@@ -44,7 +44,7 @@ void gevcdf_reg(Span<const Value> args, size_t /*nargout*/,
     const size_t n = stripUpperFlag(args, upper);
     if (n < 4)
         throw Error("gevcdf: requires (x, k, sigma, mu[, 'upper'])",
-                    0, 0, "gevcdf", "", "nk:gevcdf:nargin");
+                    0, 0, "gevcdf", "", "numkit:gevcdf:nargin");
     Value v = gevcdf(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);

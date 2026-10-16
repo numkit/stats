@@ -53,7 +53,7 @@ void mvnrnd_reg(Span<const Value> args, size_t nargout,
         if (std::isnan(n) || n != std::floor(n))
             throw Error("mvnrnd: n must be a real integer scalar (got "
                         + std::to_string(n) + ").",
-                        0, 0, "mvnrnd", "", "nk:mvnrnd:badCases");
+                        0, 0, "mvnrnd", "", "numkit:mvnrnd:badCases");
         cases = Value::scalar(n, ctx.engine->resource());
     }
     auto r = mvnrnd_full(ctx.engine->rng(), args[0], args[1], cases,
@@ -72,7 +72,7 @@ void mvtrnd_reg(Span<const Value> args, size_t /*nargout*/,
         if (std::isnan(n) || n != std::floor(n))
             throw Error("mvtrnd: cases must be a real integer scalar (got "
                         + std::to_string(n) + ").",
-                        0, 0, "mvtrnd", "", "nk:mvtrnd:badCases");
+                        0, 0, "mvtrnd", "", "numkit:mvtrnd:badCases");
         cases = Value::scalar(n, ctx.engine->resource());
     }
     outs[0] = mvtrnd_full(ctx.engine->rng(), args[0], args[1], cases,
@@ -129,7 +129,7 @@ void mvtcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
                              args[3].toScalar(), args[4].toScalar(), mr);
     } else {
         throw Error("mvtcdf: requires (X, C, df) or (L, U, C, df[, tol])",
-                    0, 0, "mvtcdf", "", "nk:mvtcdf:nargin");
+                    0, 0, "mvtcdf", "", "numkit:mvtcdf:nargin");
     }
 }
 

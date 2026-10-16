@@ -26,7 +26,7 @@ Value silhouette(const Value &X, const Value &clust, const std::string &metric, 
 
     if (clust.numel() != N)
         throw Error("silhouette: clust length must equal size(X, 1)",
-                    0, 0, "silhouette", "", "nk:silhouette:size");
+                    0, 0, "silhouette", "", "numkit:silhouette:size");
 
     // Pull labels into int vector. MATLAB allows numeric or char/string —
     // we accept anything that elemAsDouble can read (round to int).
@@ -43,7 +43,7 @@ Value silhouette(const Value &X, const Value &clust, const std::string &metric, 
     Value D = pdist2(X, X, metric, p, mr);
     if (D.dims().rows() != N || D.dims().cols() != N)
         throw Error("silhouette: pdist2 returned unexpected shape",
-                    0, 0, "silhouette", "", "nk:silhouette:internal");
+                    0, 0, "silhouette", "", "numkit:silhouette:internal");
     const double *dd = D.doubleData();
 
     Value out = Value::matrix(N, 1, ValueType::DOUBLE, mr);

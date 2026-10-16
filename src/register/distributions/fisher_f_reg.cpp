@@ -48,7 +48,7 @@ void fcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     bool upper = false;
     const Span<const Value> a0 = args.subspan(0, stripUpperFlag(args, upper));
     if (a0.size() < 3)
-        throw Error("fcdf: requires (x, v1, v2[, 'upper'])", 0, 0, "fcdf", "", "nk:fcdf:nargin");
+        throw Error("fcdf: requires (x, v1, v2[, 'upper'])", 0, 0, "fcdf", "", "numkit:fcdf:nargin");
     auto *mr = ctx.engine->resource();
     const Value &v1 = a0[1];
     const Value &v2 = a0[2];
@@ -148,7 +148,7 @@ void ncfcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     const size_t n = stripUpperFlag(args, upper);
     if (n < 4)
         throw Error("ncfcdf: requires (x, nu1, nu2, delta[, 'upper'])",
-                    0, 0, "ncfcdf", "", "nk:ncfcdf:nargin");
+                    0, 0, "ncfcdf", "", "numkit:ncfcdf:nargin");
     outs[0] = ncfcdf(args[0], args[1].toScalar(), args[2].toScalar(),
                      args[3].toScalar(), upper, ctx.engine->resource());
 }

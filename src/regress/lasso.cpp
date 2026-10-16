@@ -25,17 +25,17 @@ LassoResult lasso(const Value &X, const Value &y, const Value &lambdas,
 {
     if (alpha < 0.0 || alpha > 1.0)
         throw Error("lasso: alpha must be in [0, 1]",
-                    0, 0, "lasso", "", "nk:lasso:badAlpha");
+                    0, 0, "lasso", "", "numkit:lasso:badAlpha");
 
     const std::size_t n = X.dims().rows();
     const std::size_t p = X.dims().cols();
     if (y.numel() != n)
         throw Error("lasso: length(y) must equal rows(X)",
-                    0, 0, "lasso", "", "nk:lasso:shapeMismatch");
+                    0, 0, "lasso", "", "numkit:lasso:shapeMismatch");
     const std::size_t nL = lambdas.numel();
     if (nL == 0)
         throw Error("lasso: lambdas must be a non-empty vector",
-                    0, 0, "lasso", "", "nk:lasso:emptyLambda");
+                    0, 0, "lasso", "", "numkit:lasso:emptyLambda");
 
     // Copy X (n×p, col-major) and standardise in place.
     std::vector<double> Xs(n * p);
@@ -114,17 +114,17 @@ LassoResult lassoglm(const Value &X, const Value &y,
 {
     if (alpha < 0.0 || alpha > 1.0)
         throw Error("lassoglm: alpha must be in [0, 1]",
-                    0, 0, "lassoglm", "", "nk:lassoglm:badAlpha");
+                    0, 0, "lassoglm", "", "numkit:lassoglm:badAlpha");
 
     const std::size_t n = X.dims().rows();
     const std::size_t p = X.dims().cols();
     if (y.numel() != n)
         throw Error("lassoglm: length(y) must equal rows(X)",
-                    0, 0, "lassoglm", "", "nk:lassoglm:shapeMismatch");
+                    0, 0, "lassoglm", "", "numkit:lassoglm:shapeMismatch");
     const std::size_t nL = lambdas.numel();
     if (nL == 0)
         throw Error("lassoglm: lambdas must be a non-empty vector",
-                    0, 0, "lassoglm", "", "nk:lassoglm:emptyLambda");
+                    0, 0, "lassoglm", "", "numkit:lassoglm:emptyLambda");
 
     const LinkPair link = pickLink(distr);
 

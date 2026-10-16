@@ -64,7 +64,7 @@ void ttest_reg(Span<const Value> args, size_t nargout,
         const Value &y = args[1];
         if (y.numel() != args[0].numel())
             throw Error("ttest: paired vectors must have equal length",
-                        0, 0, "ttest", "", "nk:ttest:pairedLen");
+                        0, 0, "ttest", "", "numkit:ttest:pairedLen");
         Value diff = Value::matrix(1, y.numel(), ValueType::DOUBLE, mr);
         double *dst = diff.doubleDataMut();
         for (size_t i = 0; i < y.numel(); ++i)
@@ -92,7 +92,7 @@ void ttest_reg(Span<const Value> args, size_t nargout,
                 tail = parse_tail(args[i + 1].toString(), tail); i += 2;
             } else if (sl == "dim") {
                 throw Error("ttest: 'Dim' not yet supported (parity gap)",
-                            0, 0, "ttest", "", "nk:ttest:dim");
+                            0, 0, "ttest", "", "numkit:ttest:dim");
             } else {
                 tail = parse_tail(sl, tail); ++i;
             }
@@ -124,7 +124,7 @@ void ttest2_reg(Span<const Value> args, size_t nargout,
             else if (k == "alpha")   alpha = args[i + 1].toScalar();
             else if (k == "dim")
                 throw Error("ttest2: 'Dim' not yet supported (parity gap)",
-                            0, 0, "ttest2", "", "nk:ttest2:dim");
+                            0, 0, "ttest2", "", "numkit:ttest2:dim");
         }
     }
     auto [h, p, ci, t] = ttest2(args[0], args[1], alpha, tail, vartype, ctx.engine->resource());
@@ -152,7 +152,7 @@ void ztest_reg(Span<const Value> args, size_t nargout,
             else if (sl == "tail" && i + 1 < args.size()) { tail = parse_tail(args[i + 1].toString(), tail); i += 2; }
             else if (sl == "dim")
                 throw Error("ztest: 'Dim' not yet supported (parity gap)",
-                            0, 0, "ztest", "", "nk:ztest:dim");
+                            0, 0, "ztest", "", "numkit:ztest:dim");
             else { tail = parse_tail(sl, tail); ++i; }
         } else { alpha = a.toScalar(); ++i; }
     }
@@ -180,7 +180,7 @@ void vartest_reg(Span<const Value> args, size_t nargout,
             else if (sl == "tail" && i + 1 < args.size()) { tail = parse_tail(args[i + 1].toString(), tail); i += 2; }
             else if (sl == "dim")
                 throw Error("vartest: 'Dim' not yet supported (parity gap)",
-                            0, 0, "vartest", "", "nk:vartest:dim");
+                            0, 0, "vartest", "", "numkit:vartest:dim");
             else { tail = parse_tail(sl, tail); ++i; }
         } else { alpha = a.toScalar(); ++i; }
     }
@@ -207,7 +207,7 @@ void vartest2_reg(Span<const Value> args, size_t nargout,
             else if (sl == "tail" && i + 1 < args.size()) { tail = parse_tail(args[i + 1].toString(), tail); i += 2; }
             else if (sl == "dim")
                 throw Error("vartest2: 'Dim' not yet supported (parity gap)",
-                            0, 0, "vartest2", "", "nk:vartest2:dim");
+                            0, 0, "vartest2", "", "numkit:vartest2:dim");
             else { tail = parse_tail(sl, tail); ++i; }
         } else { alpha = a.toScalar(); ++i; }
     }
@@ -374,7 +374,7 @@ void chi2gof_reg(Span<const Value> args, size_t nargout,
         throw Error("chi2gof: 'CDF' function-handle argument is not yet "
                     "supported in nk; supply 'Expected' or rely on "
                     "the default normal auto-fit instead",
-                    0, 0, "chi2gof", "", "nk:chi2gof:cdf_nyi");
+                    0, 0, "chi2gof", "", "numkit:chi2gof:cdf_nyi");
 
     // Path A: explicit Frequency + Expected (existing behavior).
     if (freq_set && expected_set) {
@@ -409,7 +409,7 @@ void chi2gof_reg(Span<const Value> args, size_t nargout,
     const size_t N = x.numel();
     if (N < 2)
         throw Error("chi2gof: data vector must have at least 2 elements",
-                    0, 0, "chi2gof", "", "nk:chi2gof:size");
+                    0, 0, "chi2gof", "", "numkit:chi2gof:size");
 
     ScratchArena scratch(mr);
 
@@ -597,7 +597,7 @@ void vartestn_reg(Span<const Value> args, size_t nargout,
             else if (v == "brownforsythe")   test = 3;
             else if (v == "obrien")          test = 4;
             else throw Error("vartestn: unknown TestType '" + v + "'",
-                             0, 0, "vartestn", "", "nk:vartestn:badtype");
+                             0, 0, "vartestn", "", "numkit:vartestn:badtype");
         }
         // 'display' / 'alpha' silently ignored (Display has no console
         // effect; alpha doesn't change p/stat output).
@@ -610,7 +610,7 @@ void vartestn_reg(Span<const Value> args, size_t nargout,
         const size_t C = X.dims().cols();
         if (R == 0 || C < 2)
             throw Error("vartestn: matrix input must have >=2 columns",
-                        0, 0, "vartestn", "", "nk:vartestn:size");
+                        0, 0, "vartestn", "", "numkit:vartestn:size");
         ScratchArena scratch(mr);
         ScratchVec<double> vv(R * C, &scratch);
         ScratchVec<double> gg(R * C, &scratch);

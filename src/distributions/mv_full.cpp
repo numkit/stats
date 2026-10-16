@@ -134,13 +134,13 @@ MvnrndOut mvnrnd_full(::numkit::ops::RngContext &rng, const Value &mu,
 {
     if (mu.isEmpty() || Sigma.isEmpty())
         throw Error("mvnrnd: requires the input arguments MU and SIGMA.",
-                    0, 0, "mvnrnd", "", "nk:mvnrnd:tooFewInputs");
+                    0, 0, "mvnrnd", "", "numkit:mvnrnd:tooFewInputs");
     if (!isMatrixValue(mu))
         throw Error("mvnrnd: MU must be a matrix.",
-                    0, 0, "mvnrnd", "", "nk:mvnrnd:badMu");
+                    0, 0, "mvnrnd", "", "numkit:mvnrnd:badMu");
     if (Sigma.dims().ndim() > 3)
         throw Error("mvnrnd: SIGMA must be a matrix or a 3-D array.",
-                    0, 0, "mvnrnd", "", "nk:mvnrnd:badSigma");
+                    0, 0, "mvnrnd", "", "numkit:mvnrnd:badSigma");
 
     std::size_t n = static_cast<std::size_t>(mu.dims().dim(0));
     std::size_t d = static_cast<std::size_t>(mu.dims().dim(1));
@@ -192,7 +192,7 @@ MvnrndOut mvnrnd_reinterpreted(::numkit::ops::RngContext &rng, const Value &mu,
             throw Error("mvnrnd: MU must be a row vector, or must have "
                         "CASES rows (CASES is " + std::to_string(casesN)
                         + ", MU has " + std::to_string(n) + " rows).",
-                        0, 0, "mvnrnd", "", "nk:mvnrnd:inputSizeMismatchMu");
+                        0, 0, "mvnrnd", "", "numkit:mvnrnd:inputSizeMismatchMu");
         }
     }
     if (nocases && Sigma.dims().ndim() >= 3 && n == 1) {
@@ -220,12 +220,12 @@ MvnrndOut mvnrnd_reinterpreted(::numkit::ops::RngContext &rng, const Value &mu,
             throw Error("mvnrnd: SIGMA must be a square covariance matrix "
                         "(got " + std::to_string(sz1) + "-by-"
                         + std::to_string(sz2) + ").",
-                        0, 0, "mvnrnd", "", "nk:mvnrnd:badCovariance2DSize");
+                        0, 0, "mvnrnd", "", "numkit:mvnrnd:badCovariance2DSize");
         if (sz1 != d)
             throw Error("mvnrnd: SIGMA must be " + std::to_string(d)
                         + "-by-" + std::to_string(d) + " to match MU.",
                         0, 0, "mvnrnd", "",
-                        "nk:mvnrnd:inputSizeMismatch2DSigma");
+                        "numkit:mvnrnd:inputSizeMismatch2DSigma");
         if (sigmaIsDiag) {
             std::vector<double> sd(d);
             for (std::size_t j = 0; j < d; ++j) {
@@ -235,7 +235,7 @@ MvnrndOut mvnrnd_reinterpreted(::numkit::ops::RngContext &rng, const Value &mu,
                                 "SIGMA must be non-negative (got "
                                 + std::to_string(v) + ").",
                                 0, 0, "mvnrnd", "",
-                                "nk:mvnrnd:badDiagSigma");
+                                "numkit:mvnrnd:badDiagSigma");
                 sd[j] = std::sqrt(v);
             }
             if (wantT) {
@@ -259,12 +259,12 @@ MvnrndOut mvnrnd_reinterpreted(::numkit::ops::RngContext &rng, const Value &mu,
             if (!isSymmetric(Sig, d))
                 throw Error("mvnrnd: SIGMA must be symmetric.",
                             0, 0, "mvnrnd", "",
-                            "nk:mvnrnd:badCovariance2DSym");
+                            "numkit:mvnrnd:badCovariance2DSym");
             if (!psdFactor(Sig, d, T, eval, evec, mr))
                 throw Error("mvnrnd: SIGMA must be positive "
                             "semi-definite.",
                             0, 0, "mvnrnd", "",
-                            "nk:mvnrnd:badCovariance2DPos");
+                            "numkit:mvnrnd:badCovariance2DPos");
             if (wantT) {
                 // Upper factor (Sigma = T'·T), matching the reference's
                 // cholcov output — the transpose of the sampling L.
@@ -297,19 +297,19 @@ MvnrndOut mvnrnd_reinterpreted(::numkit::ops::RngContext &rng, const Value &mu,
             throw Error("mvnrnd: each SIGMA page must be a square "
                         "covariance matrix.",
                         0, 0, "mvnrnd", "",
-                        "nk:mvnrnd:badCovariance3DSize");
+                        "numkit:mvnrnd:badCovariance3DSize");
         if (sz1 != d)
             throw Error("mvnrnd: each SIGMA page must be "
                         + std::to_string(d) + "-by-" + std::to_string(d)
                         + " to match MU.",
                         0, 0, "mvnrnd", "",
-                        "nk:mvnrnd:inputSizeMismatch3DSigma");
+                        "numkit:mvnrnd:inputSizeMismatch3DSigma");
         if (pages != n)
             throw Error("mvnrnd: SIGMA must have CASES pages (CASES is "
                         + std::to_string(n) + ", SIGMA has "
                         + std::to_string(pages) + " pages).",
                         0, 0, "mvnrnd", "",
-                        "nk:mvnrnd:inputSizeMismatchSigmaDimension");
+                        "numkit:mvnrnd:inputSizeMismatchSigmaDimension");
         if (wantT)
             out.T = Value::matrix3d(d, d, pages, ValueType::DOUBLE, mr);
         std::vector<double> Sig(d * d), T, eval, evec, z(d);
@@ -322,7 +322,7 @@ MvnrndOut mvnrnd_reinterpreted(::numkit::ops::RngContext &rng, const Value &mu,
                         throw Error("mvnrnd: all elements of the diagonal "
                                     "SIGMA must be non-negative.",
                                     0, 0, "mvnrnd", "",
-                                    "nk:mvnrnd:badDiagSigma");
+                                    "numkit:mvnrnd:badDiagSigma");
                 }
                 for (std::size_t j = 0; j < d; ++j) {
                     const double s = std::sqrt(Sigma.elemAsDouble(j + p * d));
@@ -340,12 +340,12 @@ MvnrndOut mvnrnd_reinterpreted(::numkit::ops::RngContext &rng, const Value &mu,
             if (!isSymmetric(Sig, d))
                 throw Error("mvnrnd: SIGMA must be symmetric.",
                             0, 0, "mvnrnd", "",
-                            "nk:mvnrnd:badCovariance3DSym");
+                            "numkit:mvnrnd:badCovariance3DSym");
             if (!psdFactor(Sig, d, T, eval, evec, mr))
                 throw Error("mvnrnd: SIGMA must be positive "
                             "semi-definite.",
                             0, 0, "mvnrnd", "",
-                            "nk:mvnrnd:badCovariance3DPos");
+                            "numkit:mvnrnd:badCovariance3DPos");
             if (wantT) {
                 double *td = out.T.doubleDataMut() + p * d * d;
                 for (std::size_t i = 0; i < d; ++i)
@@ -386,7 +386,7 @@ Value mvtrnd_full(::numkit::ops::RngContext &rng, const Value &C,
         throw Error("mvtrnd: the correlation matrix C must be square (got "
                     + std::to_string(m1) + "-by-" + std::to_string(m2)
                     + ").",
-                    0, 0, "mvtrnd", "", "nk:mvtrnd:badCorrelationNotSquare");
+                    0, 0, "mvtrnd", "", "numkit:mvtrnd:badCorrelationNotSquare");
 
     // df: scalar, or one value per case.
     std::vector<double> dfv(n);
@@ -398,13 +398,13 @@ Value mvtrnd_full(::numkit::ops::RngContext &rng, const Value &C,
     } else {
         throw Error("mvtrnd: DF must be a scalar or a vector with one "
                     "element for each row of the output matrix.",
-                    0, 0, "mvtrnd", "", "nk:mvtrnd:inputSizeMismatch");
+                    0, 0, "mvtrnd", "", "numkit:mvtrnd:inputSizeMismatch");
     }
     for (double v : dfv)
         if (!(v > 0.0))
             throw Error("mvtrnd: DF must be positive (got "
                         + std::to_string(v) + ").",
-                        0, 0, "mvtrnd", "", "nk:mvtrnd:badDF");
+                        0, 0, "mvtrnd", "", "numkit:mvtrnd:badDF");
 
     // Standardize C to a correlation matrix (silent, probe T06).
     const std::size_t d = m1;
@@ -423,12 +423,12 @@ Value mvtrnd_full(::numkit::ops::RngContext &rng, const Value &C,
     if (!isSymmetric(Cm, d))
         throw Error("mvtrnd: C must be a symmetric positive "
                     "semi-definite matrix.",
-                    0, 0, "mvtrnd", "", "nk:mvtrnd:badCorrelationSymPos");
+                    0, 0, "mvtrnd", "", "numkit:mvtrnd:badCorrelationSymPos");
     std::vector<double> T, eval, evec;
     if (!psdFactor(Cm, d, T, eval, evec, mr))
         throw Error("mvtrnd: C must be a symmetric positive "
                     "semi-definite matrix.",
-                    0, 0, "mvtrnd", "", "nk:mvtrnd:badCorrelationSymPos");
+                    0, 0, "mvtrnd", "", "numkit:mvtrnd:badCorrelationSymPos");
 
     // r = (randn·T) ./ sqrt(χ²(df)/df), one χ² per case.
     Value out = Value::matrix(n, d, ValueType::DOUBLE, mr);
@@ -468,7 +468,7 @@ Value mvncdf_full(Span<const Value> args, std::pmr::memory_resource *mr)
         --nin;
     if (nin == 0)
         throw Error("mvncdf: requires at least one input argument.",
-                    0, 0, "mvncdf", "", "nk:mvncdf:tooFewInputs");
+                    0, 0, "mvncdf", "", "numkit:mvncdf:tooFewInputs");
 
     Value XU, XL;
     Value mu, Sigma;
@@ -477,7 +477,7 @@ Value mvncdf_full(Span<const Value> args, std::pmr::memory_resource *mr)
         XU = args[0];
         if (!isMatrixValue(XU))
             throw Error("mvncdf: X must be a non-empty matrix.",
-                        0, 0, "mvncdf", "", "nk:mvncdf:invalidDataMatrix");
+                        0, 0, "mvncdf", "", "numkit:mvncdf:invalidDataMatrix");
         XL = Value();   // -Inf lower limits, filled per-d below
         if (nin > 1) mu = args[1];
         if (nin > 2) Sigma = args[2];
@@ -491,21 +491,21 @@ Value mvncdf_full(Span<const Value> args, std::pmr::memory_resource *mr)
             || XL.dims().dim(1) != XU.dims().dim(1))
             throw Error("mvncdf: XL and XU must be matrices of the same "
                         "size.",
-                        0, 0, "mvncdf", "", "nk:mvncdf:invalidDataMatrices");
+                        0, 0, "mvncdf", "", "numkit:mvncdf:invalidDataMatrices");
         const std::size_t cnt = static_cast<std::size_t>(XU.numel());
         for (std::size_t k = 0; k < cnt; ++k)
             if (XL.elemAsDouble(k) > XU.elemAsDouble(k))
                 throw Error("mvncdf: the lower limits XL must be less "
                             "than or equal to the upper limits XU.",
                             0, 0, "mvncdf", "",
-                            "nk:mvncdf:nonincreasingLimits");
+                            "numkit:mvncdf:nonincreasingLimits");
     }
 
     std::size_t n = static_cast<std::size_t>(XU.dims().dim(0));
     std::size_t d = static_cast<std::size_t>(XU.dims().dim(1));
     if (d < 1)
         throw Error("mvncdf: X must have at least one column.",
-                    0, 0, "mvncdf", "", "nk:mvncdf:tooFewDimensions");
+                    0, 0, "mvncdf", "", "numkit:mvncdf:tooFewDimensions");
     bool single = (XU.type() == ValueType::SINGLE);
 
     // Center by mu: empty | scalar | row/full vector (column mu with a
@@ -526,13 +526,13 @@ Value mvncdf_full(Span<const Value> args, std::pmr::memory_resource *mr)
         }
         if (!isMatrixValue(mu))
             throw Error("mvncdf: MU must be a scalar or a matrix.",
-                        0, 0, "mvncdf", "", "nk:mvncdf:invalidMu");
+                        0, 0, "mvncdf", "", "numkit:mvncdf:invalidMu");
         const std::size_t n2 = static_cast<std::size_t>(mu.dims().dim(0));
         const std::size_t d2 = static_cast<std::size_t>(mu.dims().dim(1));
         if (d2 != d || !(n2 == 1 || n2 == n))
             throw Error("mvncdf: MU must be a row vector with the same "
                         "number of columns as X, or one row per X row.",
-                        0, 0, "mvncdf", "", "nk:mvncdf:inputSizeMismatch");
+                        0, 0, "mvncdf", "", "numkit:mvncdf:inputSizeMismatch");
         Value out = Value::matrix(V.dims().dim(0), V.dims().dim(1),
                                   ValueType::DOUBLE, mr);
         for (std::size_t j = 0; j < d; ++j)
@@ -584,16 +584,16 @@ Value mvncdf_full(Span<const Value> args, std::pmr::memory_resource *mr)
         } else if (d == 1 && !mu.isScalar() && !mu.isEmpty()) {
             throw Error("mvncdf: MU must be a row vector with the same "
                         "number of columns as X, or one row per X row.",
-                        0, 0, "mvncdf", "", "nk:mvncdf:inputSizeMismatch");
+                        0, 0, "mvncdf", "", "numkit:mvncdf:inputSizeMismatch");
         }
         single = single || (Sigma.type() == ValueType::SINGLE);
         if (sz1 != static_cast<std::size_t>(Sigma.dims().dim(1)))
             throw Error("mvncdf: SIGMA must be a square covariance matrix.",
-                        0, 0, "mvncdf", "", "nk:mvncdf:badCovariance");
+                        0, 0, "mvncdf", "", "numkit:mvncdf:badCovariance");
         if (sz1 != d)
             throw Error("mvncdf: SIGMA must be " + std::to_string(d)
                         + "-by-" + std::to_string(d) + " to match X.",
-                        0, 0, "mvncdf", "", "nk:mvncdf:covSizeMismatch");
+                        0, 0, "mvncdf", "", "numkit:mvncdf:covSizeMismatch");
     }
 
     // Standard deviations (diag path) or correlation + factor (matrix).
@@ -607,7 +607,7 @@ Value mvncdf_full(Span<const Value> args, std::pmr::memory_resource *mr)
                     throw Error("mvncdf: all elements of the diagonal "
                                 "SIGMA must be positive.",
                                 0, 0, "mvncdf", "",
-                                "nk:mvncdf:badDiagSigma");
+                                "numkit:mvncdf:badDiagSigma");
                 sd[j] = std::sqrt(v);
             }
         }
@@ -621,7 +621,7 @@ Value mvncdf_full(Span<const Value> args, std::pmr::memory_resource *mr)
             || !psdFactor(Sig, d, T, eval, evec, mr))
             throw Error("mvncdf: SIGMA must be a square, symmetric, "
                         "positive semi-definite matrix.",
-                        0, 0, "mvncdf", "", "nk:mvncdf:badMatrixSigma");
+                        0, 0, "mvncdf", "", "numkit:mvncdf:badMatrixSigma");
         // Standardize to a correlation and Cholesky it.
         std::vector<double> rho(d * d, 0.0);
         for (std::size_t j = 0; j < d; ++j) sd[j] = std::sqrt(Sig[j + j * d]);
@@ -637,7 +637,7 @@ Value mvncdf_full(Span<const Value> args, std::pmr::memory_resource *mr)
                 throw Error("mvncdf: SIGMA must be a square, symmetric, "
                             "positive semi-definite matrix.",
                             0, 0, "mvncdf", "",
-                            "nk:mvncdf:badMatrixSigma");
+                            "numkit:mvncdf:badMatrixSigma");
             L[j * d + j] = std::sqrt(s);
             for (std::size_t i = j + 1; i < d; ++i) {
                 double t = rho[i + j * d];

@@ -101,7 +101,7 @@ pca(const Value &X, std::pmr::memory_resource *mr)
     const size_t D = X.dims().cols();
     if (N < 2 || D < 1)
         throw Error("pca: need at least 2 rows and 1 column",
-                    0, 0, "pca", "", "nk:pca:size");
+                    0, 0, "pca", "", "numkit:pca:size");
 
     std::vector<double> Xv = read_rows(X);
 
@@ -201,7 +201,7 @@ pcacov(const Value &C, std::pmr::memory_resource *mr) {
     const size_t D = C.dims().rows();
     if (C.dims().cols() != D)
         throw Error("pcacov: C must be square", 0, 0, "pcacov", "",
-                    "nk:pcacov:size");
+                    "numkit:pcacov:size");
 
     std::vector<double> A(D * D);
     for (size_t r = 0; r < D; ++r)
@@ -252,7 +252,7 @@ pcares_full(const Value &X, int ndim, std::pmr::memory_resource *mr) {
     const size_t D = X.dims().cols();
     if (ndim < 0 || (size_t)ndim > D)
         throw Error("pcares: ndim must be in 0..D", 0, 0, "pcares", "",
-                    "nk:pcares:badndim");
+                    "numkit:pcares:badndim");
 
     Value res   = Value::matrix(N, D, ValueType::DOUBLE, mr);
     Value recon = Value::matrix(N, D, ValueType::DOUBLE, mr);

@@ -43,10 +43,10 @@ void multcompare_reg(Span<const Value> args, size_t /*nargout*/,
         else if (s == "tukey-kramer" || s == "hsd")
             throw Error("multcompare: 'tukey-kramer' not yet supported "
                         "(v1 ships 'bonferroni' and 'lsd' only)",
-                        0, 0, "multcompare", "", "nk:multcompare:badCtype");
+                        0, 0, "multcompare", "", "numkit:multcompare:badCtype");
         else
             throw Error("multcompare: unknown ctype '" + s + "'",
-                        0, 0, "multcompare", "", "nk:multcompare:badCtype");
+                        0, 0, "multcompare", "", "numkit:multcompare:badCtype");
     }
     outs[0] = multcompare(args[0], alpha, ctype, ctx.engine->resource());
 }

@@ -34,7 +34,7 @@ void validateNormFlag(int w, const char *fn)
 {
     if (w != 0 && w != 1)
         throw Error(std::string(fn) + ": normalization flag must be 0 or 1",
-                     0, 0, fn, "", std::string("nk:") + fn + ":badFlag");
+                     0, 0, fn, "", std::string("numkit:") + fn + ":badFlag");
 }
 
 double medianFromSlice(double *data, size_t n)

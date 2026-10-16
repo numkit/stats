@@ -50,7 +50,7 @@ void hygecdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     bool upper = false;
     const Span<const Value> a = args.subspan(0, stripUpperFlag(args, upper));
     if (a.size() < 4)
-        throw Error("hygecdf: requires (k, M, K, N[, 'upper'])", 0, 0, "hygecdf", "", "nk:hygecdf:nargin");
+        throw Error("hygecdf: requires (k, M, K, N[, 'upper'])", 0, 0, "hygecdf", "", "numkit:hygecdf:nargin");
     auto *mr = ctx.engine->resource();
     Value v = hyge_params_scalar(a, 1)
                   ? hygecdf(a[0], a[1].toScalar(), a[2].toScalar(), a[3].toScalar(), mr)

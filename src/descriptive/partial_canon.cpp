@@ -110,23 +110,23 @@ Value partialcorri(const Value &Y, const Value &X, const Value &Z,
 {
     if (X.dims().ndim() > 2 || Y.dims().ndim() > 2)
         throw Error("partialcorri: X, Y must be 2D matrices",
-                    0, 0, "partialcorri", "", "nk:partialcorri:notMatrix");
+                    0, 0, "partialcorri", "", "numkit:partialcorri:notMatrix");
     const std::size_t n  = static_cast<std::size_t>(Y.dims().dim(0));
     const std::size_t pY = static_cast<std::size_t>(Y.dims().dim(1));
     const std::size_t pX = static_cast<std::size_t>(X.dims().dim(1));
     if (X.dims().dim(0) != static_cast<long long>(n))
         throw Error("partialcorri: rows(X) must equal rows(Y)",
-                    0, 0, "partialcorri", "", "nk:partialcorri:dimMismatch");
+                    0, 0, "partialcorri", "", "numkit:partialcorri:dimMismatch");
 
     const bool hasZ = !Z.isEmpty();
     std::size_t pZ = 0;
     if (hasZ) {
         if (Z.dims().ndim() > 2)
             throw Error("partialcorri: Z must be a 2D matrix",
-                        0, 0, "partialcorri", "", "nk:partialcorri:notMatrix");
+                        0, 0, "partialcorri", "", "numkit:partialcorri:notMatrix");
         if (Z.dims().dim(0) != static_cast<long long>(n))
             throw Error("partialcorri: rows(Z) must equal rows(Y)",
-                        0, 0, "partialcorri", "", "nk:partialcorri:dimMismatch");
+                        0, 0, "partialcorri", "", "numkit:partialcorri:dimMismatch");
         pZ = static_cast<std::size_t>(Z.dims().dim(1));
     }
 
@@ -198,16 +198,16 @@ CanoncorrResult canoncorr(const Value &X, const Value &Y,
 {
     if (X.dims().ndim() > 2 || Y.dims().ndim() > 2)
         throw Error("canoncorr: X, Y must be 2D matrices",
-                    0, 0, "canoncorr", "", "nk:canoncorr:notMatrix");
+                    0, 0, "canoncorr", "", "numkit:canoncorr:notMatrix");
     const std::size_t n = static_cast<std::size_t>(X.dims().dim(0));
     const std::size_t p = static_cast<std::size_t>(X.dims().dim(1));
     const std::size_t q = static_cast<std::size_t>(Y.dims().dim(1));
     if (Y.dims().dim(0) != static_cast<long long>(n))
         throw Error("canoncorr: rows(Y) must equal rows(X)",
-                    0, 0, "canoncorr", "", "nk:canoncorr:dimMismatch");
+                    0, 0, "canoncorr", "", "numkit:canoncorr:dimMismatch");
     if (n < p + q)
         throw Error("canoncorr: insufficient observations (need n >= p + q)",
-                    0, 0, "canoncorr", "", "nk:canoncorr:tooFewRows");
+                    0, 0, "canoncorr", "", "numkit:canoncorr:tooFewRows");
 
     const std::size_t k = std::min(p, q);
     ScratchArena scratch(mr);

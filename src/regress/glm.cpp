@@ -34,12 +34,12 @@ GlmfitResult glmfit(const Value &X, const Value &y,
     const std::size_t n = y.numel();
     if (X.dims().rows() != n)
         throw Error("glmfit: rows(X) must equal length(y)",
-                    0, 0, "glmfit", "", "nk:glmfit:shapeMismatch");
+                    0, 0, "glmfit", "", "numkit:glmfit:shapeMismatch");
     const std::size_t p_in = X.dims().cols();
     const std::size_t p = p_in + 1;   // +1 for auto intercept
     if (n <= p)
         throw Error("glmfit: need rows(X) > cols(X) + 1",
-                    0, 0, "glmfit", "", "nk:glmfit:noDOF");
+                    0, 0, "glmfit", "", "numkit:glmfit:noDOF");
 
     // If user passed Identity AND it's not Normal, treat that as
     // "default" and switch to canonical link.
@@ -152,7 +152,7 @@ Value glmval(const Value &b, const Value &X, GlmLink link,
     const std::size_t p_in = X.dims().cols();
     if (p != p_in + 1)
         throw Error("glmval: length(b) must equal cols(X) + 1",
-                    0, 0, "glmval", "", "nk:glmval:shapeMismatch");
+                    0, 0, "glmval", "", "numkit:glmval:shapeMismatch");
 
     const LinkFn fn = makeLink(link);
     std::vector<double> bv(p);

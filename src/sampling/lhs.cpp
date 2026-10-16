@@ -34,7 +34,7 @@ void choleskyUpperInPlace(double *S, std::size_t n)
         if (diag <= 0.0)
             throw Error("lhsnorm: Sigma must be positive definite "
                         "(Cholesky failed at row " + std::to_string(j + 1) + ")",
-                        0, 0, "lhsnorm", "", "nk:lhsnorm:notPD");
+                        0, 0, "lhsnorm", "", "numkit:lhsnorm:notPD");
         const double Rjj = std::sqrt(diag);
         S[j * n + j] = Rjj;
         for (std::size_t i = j + 1; i < n; ++i) {
@@ -187,7 +187,7 @@ Value lhsnorm(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigm
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     if (Sigma.dims().rows() != d || Sigma.dims().cols() != d)
         throw Error("lhsnorm: Sigma must be d × d where d = length(mu)",
-                    0, 0, "lhsnorm", "", "nk:lhsnorm:shape");
+                    0, 0, "lhsnorm", "", "numkit:lhsnorm:shape");
 
     // U is the LHS uniform design (n × d).
     // U is a PLAIN LHS design (no maximin refinement — the reference

@@ -48,7 +48,7 @@ void chi2cdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     bool upper = false;
     const Span<const Value> a = args.subspan(0, stripUpperFlag(args, upper));
     if (a.size() < 2)
-        throw Error("chi2cdf: requires (x, k[, 'upper'])", 0, 0, "chi2cdf", "", "nk:chi2cdf:nargin");
+        throw Error("chi2cdf: requires (x, k[, 'upper'])", 0, 0, "chi2cdf", "", "numkit:chi2cdf:nargin");
     auto *mr = ctx.engine->resource();
     const Value &k = a[1];
     Value v;

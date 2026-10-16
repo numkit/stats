@@ -383,7 +383,7 @@ Value smoothdata(const Value &x, const std::string &method, int k, int dim, std:
     throw Error("smoothdata: method '" + method + "' not supported "
                  "(supported: 'movmean', 'movmedian', 'gaussian', 'sgolay', "
                  "'lowess', 'loess')",
-                 0, 0, "smoothdata", "", "nk:smoothdata:unsupportedMethod");
+                 0, 0, "smoothdata", "", "numkit:smoothdata:unsupportedMethod");
 }
 
 // ── hampel ────────────────────────────────────────────────────────────
@@ -431,13 +431,13 @@ void hampelValidate(const Value &x, int k, double nsigmas)
 {
     if (k < 0)
         throw Error("hampel: k must be >= 0",
-                     0, 0, "hampel", "", "nk:hampel:badK");
+                     0, 0, "hampel", "", "numkit:hampel:badK");
     if (nsigmas <= 0)
         throw Error("hampel: nsigmas must be positive",
-                     0, 0, "hampel", "", "nk:hampel:badSigmas");
+                     0, 0, "hampel", "", "numkit:hampel:badSigmas");
     if (!x.dims().isVector() && !x.isScalar())
         throw Error("hampel: vector input only (matrix form deferred)",
-                     0, 0, "hampel", "", "nk:hampel:notVector");
+                     0, 0, "hampel", "", "numkit:hampel:notVector");
 }
 
 Value hampel(const Value &x, int k, double nsigmas, std::pmr::memory_resource *mr)

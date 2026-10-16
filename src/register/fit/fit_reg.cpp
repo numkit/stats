@@ -230,7 +230,7 @@ static void like2_reg(const char *fn,
 {
     if (args.size() < 2 || args[0].numel() < 2)
         throw Error(std::string(fn) + ": requires (params[2], data)",
-                    0, 0, fn, "", "nk:like:nargin");
+                    0, 0, fn, "", "numkit:like:nargin");
     const double p0 = args[0].elemAsDouble(0);
     const double p1 = args[0].elemAsDouble(1);
     const double nL = impl(p0, p1, args[1], ctx.engine->resource());
@@ -243,7 +243,7 @@ void normlike_reg(Span<const Value> args, size_t nargout,
     argcheck::checkNargin(args.size(), 2, 4, "normlike");
     if (args[0].numel() < 2)
         throw Error("normlike: requires (params=[mu sigma], data[, cens, freq])",
-                    0, 0, "normlike", "", "nk:normlike:nargin");
+                    0, 0, "normlike", "", "numkit:normlike:nargin");
     const double mu    = args[0].elemAsDouble(0);
     const double sigma = args[0].elemAsDouble(1);
     Value emptyVal = Value::matrix(0, 0, ValueType::DOUBLE, ctx.engine->resource());
@@ -326,7 +326,7 @@ void lognlike_reg(Span<const Value> args, size_t nargout,
     argcheck::checkNargin(args.size(), 2, 4, "lognlike");
     if (args[0].numel() < 2)
         throw Error("lognlike: requires (params=[mu sigma], data[, cens, freq])",
-                    0, 0, "lognlike", "", "nk:lognlike:nargin");
+                    0, 0, "lognlike", "", "numkit:lognlike:nargin");
     auto *mr = ctx.engine->resource();
     const double mu    = args[0].elemAsDouble(0);
     const double sigma = args[0].elemAsDouble(1);
@@ -346,7 +346,7 @@ void gamlike_reg(Span<const Value> args, size_t nargout,
     argcheck::checkNargin(args.size(), 2, 4, "gamlike");
     if (args[0].numel() < 2)
         throw Error("gamlike: requires (params=[a b], data)",
-                    0, 0, "gamlike", "", "nk:gamlike:nargin");
+                    0, 0, "gamlike", "", "numkit:gamlike:nargin");
     auto *mr = ctx.engine->resource();
     const double a  = args[0].elemAsDouble(0);
     const double b  = args[0].elemAsDouble(1);
@@ -370,7 +370,7 @@ void betalike_reg(Span<const Value> args, size_t nargout,
     argcheck::checkNargin(args.size(), 2, 2, "betalike");
     if (args[0].numel() < 2)
         throw Error("betalike: requires (params=[a b], data)",
-                    0, 0, "betalike", "", "nk:betalike:nargin");
+                    0, 0, "betalike", "", "numkit:betalike:nargin");
     auto *mr = ctx.engine->resource();
     const double a  = args[0].elemAsDouble(0);
     const double b  = args[0].elemAsDouble(1);
@@ -428,7 +428,7 @@ void wbllike_reg(Span<const Value> args, size_t /*nargout*/,
     argcheck::checkNargin(args.size(), 2, 4, "wbllike");
     if (args[0].numel() < 2)
         throw Error("wbllike: requires (params=[scale shape], data[, cens, freq])",
-                    0, 0, "wbllike", "", "nk:wbllike:nargin");
+                    0, 0, "wbllike", "", "numkit:wbllike:nargin");
     const double scale = args[0].elemAsDouble(0);
     const double shape = args[0].elemAsDouble(1);
     Value emptyVal = Value::matrix(0, 0, ValueType::DOUBLE, ctx.engine->resource());
@@ -446,7 +446,7 @@ void evlike_reg(Span<const Value> args, size_t /*nargout*/,
     argcheck::checkNargin(args.size(), 2, 4, "evlike");
     if (args[0].numel() < 2)
         throw Error("evlike: requires (params=[mu sigma], data[, cens, freq])",
-                    0, 0, "evlike", "", "nk:evlike:nargin");
+                    0, 0, "evlike", "", "numkit:evlike:nargin");
     const double mu    = args[0].elemAsDouble(0);
     const double sigma = args[0].elemAsDouble(1);
     Value emptyVal = Value::matrix(0, 0, ValueType::DOUBLE, ctx.engine->resource());
@@ -481,7 +481,7 @@ void gevlike_reg(Span<const Value> args, size_t nargout,
     argcheck::checkNargin(args.size(), 2, 2, "gevlike");
     if (args[0].numel() < 3)
         throw Error("gevlike: requires (params=[k sigma mu], data)",
-                    0, 0, "gevlike", "", "nk:gevlike:nargin");
+                    0, 0, "gevlike", "", "numkit:gevlike:nargin");
     auto *mr = ctx.engine->resource();
     const double k     = args[0].elemAsDouble(0);
     const double sigma = args[0].elemAsDouble(1);
@@ -505,7 +505,7 @@ void gplike_reg(Span<const Value> args, size_t nargout,
     argcheck::checkNargin(args.size(), 2, 2, "gplike");
     if (args[0].numel() < 2)
         throw Error("gplike: requires (params=[k sigma], data)",
-                    0, 0, "gplike", "", "nk:gplike:nargin");
+                    0, 0, "gplike", "", "numkit:gplike:nargin");
     auto *mr = ctx.engine->resource();
     const double k     = args[0].elemAsDouble(0);
     const double sigma = args[0].elemAsDouble(1);
@@ -537,7 +537,7 @@ void mle_reg(Span<const Value> args, size_t nargout,
     const std::size_t N = x.numel();
     if (N < 2)
         throw Error("mle: need at least 2 observations",
-                    0, 0, "mle", "", "nk:mle:tooSmall");
+                    0, 0, "mle", "", "numkit:mle:tooSmall");
 
     std::string dist = "normal";
     bool custom_fn = false;
@@ -545,7 +545,7 @@ void mle_reg(Span<const Value> args, size_t nargout,
     for (std::size_t i = 1; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error("mle: option name must be a string",
-                        0, 0, "mle", "", "nk:mle:badOption");
+                        0, 0, "mle", "", "numkit:mle:badOption");
         const std::string opt = args[i].toString();
         if (opt == "distribution" || opt == "Distribution")
             dist = args[i + 1].toString();
@@ -553,7 +553,7 @@ void mle_reg(Span<const Value> args, size_t nargout,
             alpha = args[i + 1].toScalar();
             if (!(alpha > 0.0 && alpha < 1.0))
                 throw Error("mle: Alpha must be in (0, 1)",
-                    0, 0, "mle", "", "nk:mle:badOption");
+                    0, 0, "mle", "", "numkit:mle:badOption");
         }
         else if (opt == "pdf" || opt == "PDF" ||
                  opt == "logpdf" || opt == "LogPDF" ||
@@ -562,7 +562,7 @@ void mle_reg(Span<const Value> args, size_t nargout,
         else if (opt == "start" || opt == "Start") { /* paired with custom_fn */ }
         else
             throw Error("mle: unknown option '" + opt + "'",
-                        0, 0, "mle", "", "nk:mle:badOption");
+                        0, 0, "mle", "", "numkit:mle:badOption");
     }
 
     // pci (2nd output): 2×k matrix, row 1 = lower bounds, row 2 = upper bounds,
@@ -586,7 +586,7 @@ void mle_reg(Span<const Value> args, size_t nargout,
                     "Nelder-Mead is deferred -- supported distributions "
                     "in this revision: 'normal', 'exponential', "
                     "'poisson', 'lognormal'",
-                    0, 0, "mle", "", "nk:mle:customFnNYI");
+                    0, 0, "mle", "", "numkit:mle:customFnNYI");
 
     const double *xd = x.doubleData();
 
@@ -616,7 +616,7 @@ void mle_reg(Span<const Value> args, size_t nargout,
         for (std::size_t i = 0; i < N; ++i) {
             if (xd[i] < 0.0)
                 throw Error("mle: exponential requires non-negative data",
-                    0, 0, "mle", "", "nk:mle:badData");
+                    0, 0, "mle", "", "numkit:mle:badData");
             sum += xd[i];
         }
         auto out = Value::matrix(1, 1, ValueType::DOUBLE, mr);
@@ -634,7 +634,7 @@ void mle_reg(Span<const Value> args, size_t nargout,
         for (std::size_t i = 0; i < N; ++i) {
             if (xd[i] < 0.0 || xd[i] != std::floor(xd[i]))
                 throw Error("mle: poisson requires non-negative integer data",
-                    0, 0, "mle", "", "nk:mle:badData");
+                    0, 0, "mle", "", "numkit:mle:badData");
             sum += xd[i];
         }
         auto out = Value::matrix(1, 1, ValueType::DOUBLE, mr);
@@ -652,7 +652,7 @@ void mle_reg(Span<const Value> args, size_t nargout,
         for (std::size_t i = 0; i < N; ++i) {
             if (xd[i] <= 0.0)
                 throw Error("mle: lognormal requires strictly positive data",
-                    0, 0, "mle", "", "nk:mle:badData");
+                    0, 0, "mle", "", "numkit:mle:badData");
             sum_log += std::log(xd[i]);
         }
         const double mu = sum_log / static_cast<double>(N);
@@ -680,7 +680,7 @@ void mle_reg(Span<const Value> args, size_t nargout,
     throw Error("mle: distribution '" + dist + "' not supported "
                 "(supported: normal, exponential, poisson, lognormal). "
                 "Custom pdf/logpdf/nloglf via Nelder-Mead is deferred.",
-                0, 0, "mle", "", "nk:mle:dist");
+                0, 0, "mle", "", "numkit:mle:dist");
 }
 
 // ── fitdist (returns probability-distribution struct) ──────────────
@@ -699,13 +699,13 @@ void fitdist_reg(Span<const Value> args, size_t /*nargout*/,
     argcheck::checkNargin(args.size(), 2, "fitdist");  // no max: name-value tail in the reference
     if (!args[1].isChar() && !args[1].isString())
         throw Error("fitdist: 2nd argument must be a distribution-name string",
-                    0, 0, "fitdist", "", "nk:fitdist:badName");
+                    0, 0, "fitdist", "", "numkit:fitdist:badName");
     auto *mr = ctx.engine->resource();
     const Value &x = args[0];
     const std::size_t N = x.numel();
     if (N < 2)
         throw Error("fitdist: need at least 2 observations",
-                    0, 0, "fitdist", "", "nk:fitdist:tooSmall");
+                    0, 0, "fitdist", "", "numkit:fitdist:tooSmall");
 
     const std::string raw = args[1].toString();
     // Canonicalise.
@@ -730,7 +730,7 @@ void fitdist_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("fitdist: distribution '" + raw + "' not supported "
                     "(supported: 'Normal', 'Exponential', 'Poisson', "
                     "'Lognormal'). Other reference distributions are deferred.",
-                    0, 0, "fitdist", "", "nk:fitdist:dist");
+                    0, 0, "fitdist", "", "numkit:fitdist:dist");
     }
 
     // Compute parameters per MATLAB convention. NB: fitdist uses

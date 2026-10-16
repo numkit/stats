@@ -36,7 +36,7 @@ void normalize_reg(Span<const Value> args, size_t nargout,
     if (args.size() >= 2 && !args[1].isEmpty()) {
         if (!args[1].isChar() && !args[1].isString())
             throw Error("normalize: method must be a string",
-                        0, 0, "normalize", "", "nk:normalize:type");
+                        0, 0, "normalize", "", "numkit:normalize:type");
         method = args[1].toString();
         // Optional method parameter: range bounds / norm-p / scale divisor
         // / center reference. (Previously dropped -> options were ignored.)
@@ -75,14 +75,14 @@ void rescale_reg(Span<const Value> args, size_t /*nargout*/,
     for (; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error("rescale: expected 'InputMin'/'InputMax'",
-                        0, 0, "rescale", "", "nk:rescale:badOpt");
+                        0, 0, "rescale", "", "numkit:rescale:badOpt");
         std::string nm = args[i].toString();
         for (char &c : nm) if (c >= 'A' && c <= 'Z') c = char(c + 32);
         if      (nm == "inputmin") inputMin = args[i + 1].toScalar();
         else if (nm == "inputmax") inputMax = args[i + 1].toScalar();
         else
             throw Error("rescale: name must be 'InputMin' or 'InputMax'",
-                        0, 0, "rescale", "", "nk:rescale:badOpt");
+                        0, 0, "rescale", "", "numkit:rescale:badOpt");
     }
     outs[0] = rescale(args[0], lo, hi, inputMin, inputMax, ctx.engine->resource());
 }

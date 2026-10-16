@@ -99,7 +99,7 @@ CorrTail parseTailChoice(const Value &v, std::string_view fn)
     if (m >= 0) return static_cast<CorrTail>(m);
     throw Error(std::string(fn) + ": Tail must be 'left', 'both', or 'right' "
                 "(aliases 'lt', 'ne', 'gt'), got '" + v.toString() + "'.",
-                0, 0, std::string(fn), "", "nk:" + std::string(fn)
+                0, 0, std::string(fn), "", "numkit:" + std::string(fn)
                     + ":unknownTail");
 }
 
@@ -170,7 +170,7 @@ Value kendallMatrix(const Value &X, const Value &Y, std::pmr::memory_resource *m
                             ? static_cast<std::size_t>(X.dims().dim(1)) : 1;
     if (static_cast<std::size_t>(Y.dims().dim(0)) != n)
         throw Error("corr: X and Y must have the same number of rows",
-                    0, 0, "corr", "", "nk:corr:rows");
+                    0, 0, "corr", "", "numkit:corr:rows");
     const std::size_t q = (Y.dims().ndim() >= 2)
                             ? static_cast<std::size_t>(Y.dims().dim(1)) : 1;
     Value out = Value::matrix(p, q, ValueType::DOUBLE, mr);
@@ -890,7 +890,7 @@ CorrOut corr_full(const Value &x, const Value *Y, Span<const Value> nv,
         throw Error("corr: X and Y must have the same number of rows "
                     "(X has " + std::to_string(n) + ", Y has "
                     + std::to_string(corrRowsOf(*Y)) + ").",
-                    0, 0, "corr", "", "nk:corr:inputSizeMismatch");
+                    0, 0, "corr", "", "numkit:corr:inputSizeMismatch");
     const std::size_t p2 = corrXX ? p1 : corrColsOf(*Y);
     const bool anySingle = (x.type() == ValueType::SINGLE)
                            || (!corrXX && Y->type() == ValueType::SINGLE);
@@ -912,7 +912,7 @@ CorrOut corr_full(const Value &x, const Value *Y, Span<const Value> nv,
                                                 "weights" };
     argcheck::forEachNvPair(
         nv, 0, Span<const std::string_view>(kNv), "corr",
-        "nk:corr:badParamName", [&](std::size_t hit, const Value &v) {
+        "numkit:corr:badParamName", [&](std::size_t hit, const Value &v) {
             switch (hit) {
             case 0: typeRaw = v; break;
             case 1: rowsRaw = v; break;
@@ -934,14 +934,14 @@ CorrOut corr_full(const Value &x, const Value *Y, Span<const Value> nv,
                         + "x1, but the received array is "
                         + std::to_string(wtsRaw.dims().rows()) + "x"
                         + std::to_string(wtsRaw.dims().cols()) + ".",
-                        0, 0, "corr", "", "nk:corr:incorrectSize");
+                        0, 0, "corr", "", "numkit:corr:incorrectSize");
         for (std::size_t k = 0; k < n; ++k) {
             const double w = wtsRaw.elemAsDouble(k);
             if (!(w >= 0.0))
                 throw Error("corr: expected Weights to be nonnegative (got "
                             + std::to_string(w) + " at position "
                             + std::to_string(k + 1) + ").",
-                            0, 0, "corr", "", "nk:corr:expectedNonnegative");
+                            0, 0, "corr", "", "numkit:corr:expectedNonnegative");
         }
         weighted = true;
         wts = wtsRaw;
@@ -958,7 +958,7 @@ CorrOut corr_full(const Value &x, const Value *Y, Span<const Value> nv,
             throw Error("corr: the Rows parameter value must be 'all', "
                         "'complete', or 'pairwise', got '"
                         + rowsRaw.toString() + "'.",
-                        0, 0, "corr", "", "nk:corr:unknownRows");
+                        0, 0, "corr", "", "numkit:corr:unknownRows");
         rows = static_cast<CorrRows>(m);
     }
     // gatherRows/dropCompleteRows read their inputs while writing the
@@ -1009,7 +1009,7 @@ CorrOut corr_full(const Value &x, const Value *Y, Span<const Value> nv,
             throw Error("corr: the Type parameter value must be 'Pearson', "
                         "'Kendall', or 'Spearman', got '" + typeRaw.toString()
                         + "'.",
-                        0, 0, "corr", "", "nk:corr:unknownType");
+                        0, 0, "corr", "", "numkit:corr:unknownType");
         ct = static_cast<CorrType>(m);
     }
     CorrTail tail = CorrTail::Both;
@@ -1022,16 +1022,16 @@ CorrOut corr_full(const Value &x, const Value *Y, Span<const Value> nv,
         if (wantP)
             throw Error("corr: p-values cannot be computed for complex "
                         "inputs (request only rho, or pass real data).",
-                        0, 0, "corr", "", "nk:corr:pValComplexData");
+                        0, 0, "corr", "", "numkit:corr:pValComplexData");
         if (ct != CorrType::Pearson)
             throw Error("corr: rank correlation types cannot be computed "
                         "for complex inputs (use the Pearson type).",
-                        0, 0, "corr", "", "nk:corr:rankCorComplexData");
+                        0, 0, "corr", "", "numkit:corr:rankCorComplexData");
         if (rows == CorrRows::Pairwise)
             throw Error("corr: complex inputs with pairwise row removal "
                         "are not supported in this revision (use 'all' or "
                         "'complete' Rows).",
-                        0, 0, "corr", "", "nk:corr:complexPairwiseUnsupported");
+                        0, 0, "corr", "", "numkit:corr:complexPairwiseUnsupported");
     }
 
     // Voiced capability gaps (filed in the family bug file).
@@ -1039,11 +1039,11 @@ CorrOut corr_full(const Value &x, const Value *Y, Span<const Value> nv,
         throw Error("corr: Weights with the Kendall/Spearman types are not "
                     "supported in this revision (use the Pearson type or "
                     "omit Weights).",
-                    0, 0, "corr", "", "nk:corr:weightsRankUnsupported");
+                    0, 0, "corr", "", "numkit:corr:weightsRankUnsupported");
     if (rows == CorrRows::Pairwise && ct != CorrType::Pearson)
         throw Error("corr: 'pairwise' rows option is supported only for "
                     "the 'Pearson' type in this revision.",
-                    0, 0, "corr", "", "nk:corr:PairwiseType");
+                    0, 0, "corr", "", "numkit:corr:PairwiseType");
 
     // Compute rho (Spearman owns its p-values — its tie-corrected branch
     // needs the ranks, so coef and p come out of one function).
@@ -1098,7 +1098,7 @@ Value partialcorr_full(const Value &x, const Value *y, const Value *z,
         throw Error("partialcorr: all input arrays must be numeric matrices "
                     "(" + what + ").",
                     0, 0, "partialcorr", "",
-                    "nk:partialcorr:inputsMustBeMatrices");
+                    "numkit:partialcorr:inputsMustBeMatrices");
     };
     const auto isMatrixNumeric = [](const Value &M) {
         return M.isNumeric() && M.dims().ndim() <= 2 && M.numel() > 0;
@@ -1109,7 +1109,7 @@ Value partialcorr_full(const Value &x, const Value *y, const Value *z,
                     "of rows (" + which + " has " + std::to_string(got)
                     + " rows, expected " + std::to_string(want) + ").",
                     0, 0, "partialcorr", "",
-                    "nk:partialcorr:inputSizeMismatch");
+                    "numkit:partialcorr:inputSizeMismatch");
     };
     const auto describe = [](const Value &M) {
         return std::string(mtypeName(M.type())) + " "
@@ -1144,7 +1144,7 @@ Value partialcorr_full(const Value &x, const Value *y, const Value *z,
                     "double (integer classes need at least one float input "
                     "to promote; got none).",
                     0, 0, "partialcorr", "",
-                    "nk:partialcorr:inputsMustBeFloats");
+                    "numkit:partialcorr:inputsMustBeFloats");
     const bool wantSingle = (x.type() == ValueType::SINGLE)
                             || (y && y->type() == ValueType::SINGLE)
                             || (z && z->type() == ValueType::SINGLE);
@@ -1162,7 +1162,7 @@ Value partialcorr_full(const Value &x, const Value *y, const Value *z,
     static constexpr std::string_view kNv[] = { "rows", "type", "tail" };
     argcheck::forEachNvPair(
         nv, 0, Span<const std::string_view>(kNv), "partialcorr",
-        "nk:partialcorr:badParamName", [&](std::size_t hit, const Value &v) {
+        "numkit:partialcorr:badParamName", [&](std::size_t hit, const Value &v) {
             switch (hit) {
             case 0: {
                 static constexpr std::string_view kRows[] = { "all",
@@ -1175,7 +1175,7 @@ Value partialcorr_full(const Value &x, const Value *y, const Value *z,
                                 "be 'all', 'complete', or 'pairwise', got '"
                                 + v.toString() + "'.",
                                 0, 0, "partialcorr", "",
-                                "nk:partialcorr:unknownRows");
+                                "numkit:partialcorr:unknownRows");
                 rows = static_cast<CorrRows>(m);
                 break;
             }
@@ -1190,14 +1190,14 @@ Value partialcorr_full(const Value &x, const Value *y, const Value *z,
                                 "be 'Pearson', 'Kendall', or 'Spearman', "
                                 "got '" + v.toString() + "'.",
                                 0, 0, "partialcorr", "",
-                                "nk:partialcorr:unknownType");
+                                "numkit:partialcorr:unknownType");
                 if (m == 1)
                     throw Error("partialcorr: Kendall's partial rank "
                                 "correlation cannot be computed (the "
                                 "reference engine refuses it too; use "
                                 "Pearson or Spearman).",
                                 0, 0, "partialcorr", "",
-                                "nk:partialcorr:kendall");
+                                "numkit:partialcorr:kendall");
                 ct = static_cast<CorrType>(m);
                 break;
             }
@@ -1229,7 +1229,7 @@ Value partialcorr_full(const Value &x, const Value *y, const Value *z,
                         "supported for the (X, Z) / (X, Y, Z) forms in this "
                         "revision (use 'all' or 'complete').",
                         0, 0, "partialcorr", "",
-                        "nk:partialcorr:pairwiseUnsupported");
+                        "numkit:partialcorr:pairwiseUnsupported");
         Value Xv = xD, Yv, Zv = zD;
         if (y) Yv = yD;
         if (rows == CorrRows::Complete) {

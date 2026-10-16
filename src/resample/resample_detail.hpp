@@ -89,7 +89,7 @@ Value combnkImpl(const std::vector<double> &items, int K,
     const int N = static_cast<int>(items.size());
     if (K < 0)
         throw Error("combnk: K must be non-negative", 0, 0, "combnk", "",
-                    "nk:combnk:badK");
+                    "numkit:combnk:badK");
     // MATLAB: choosing K > N elements yields an empty 0xK result (not an
     // error). E.g. combnk(1:4, 5) -> 0x5, combnk(5, 2) -> 0x2 (scalar 5 is
     // the 1-element set {5}, so K=2 > N=1).

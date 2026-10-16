@@ -48,7 +48,7 @@ void gamcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     bool upper = false;
     const Span<const Value> a0 = args.subspan(0, stripUpperFlag(args, upper));
     if (a0.size() < 3)
-        throw Error("gamcdf: requires (x, a, b[, 'upper'])", 0, 0, "gamcdf", "", "nk:gamcdf:nargin");
+        throw Error("gamcdf: requires (x, a, b[, 'upper'])", 0, 0, "gamcdf", "", "numkit:gamcdf:nargin");
     auto *mr = ctx.engine->resource();
     const Value &a = a0[1];
     const Value &b = a0[2];

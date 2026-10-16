@@ -50,7 +50,7 @@ void robustfit_reg(Span<const Value> args, size_t nargout,
             throw Error("robustfit: weight must be one of 'andrews', "
                         "'bisquare', 'cauchy', 'fair', 'huber', 'logistic', "
                         "'ols', 'talwar', 'welsch'",
-                        0, 0, "robustfit", "", "nk:robustfit:badWeight");
+                        0, 0, "robustfit", "", "numkit:robustfit:badWeight");
     }
     double tune = std::numeric_limits<double>::quiet_NaN();
     if (args.size() >= 4 && !args[3].isEmpty())
@@ -67,7 +67,7 @@ void robustfit_reg(Span<const Value> args, size_t nargout,
         else if (c == "on" || c == "On" || c == "ON")     addConst = true;
         else
             throw Error("robustfit: const must be 'on' or 'off'",
-                        0, 0, "robustfit", "", "nk:robustfit:badConst");
+                        0, 0, "robustfit", "", "numkit:robustfit:badConst");
     }
 
     Value Xin = args[0];

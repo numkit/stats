@@ -45,7 +45,7 @@ crosstab(const Value &x, const Value &y_opt, std::pmr::memory_resource *mr)
     const bool have_y = !y_opt.isEmpty();
     if (have_y && y_opt.numel() != Nx)
         throw Error("crosstab: x and y must have the same length",
-                    0, 0, "crosstab", "", "nk:crosstab:LenMismatch");
+                    0, 0, "crosstab", "", "numkit:crosstab:LenMismatch");
 
     auto u_x = sortedUniqueNoNaN(x);
     const size_t R = u_x.size();

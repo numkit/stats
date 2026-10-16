@@ -43,12 +43,12 @@ void grpstats_reg(Span<const Value> args, size_t nargout,
                 if (!(el.isChar() || el.isString()))
                     throw Error("grpstats: cell fn names must be strings",
                                 0, 0, "grpstats", "",
-                                "nk:grpstats:BadCell");
+                                "numkit:grpstats:BadCell");
                 fn_names.push_back(el.toString());
             }
         } else {
             throw Error("grpstats: fn arg must be a string or cell of strings",
-                        0, 0, "grpstats", "", "nk:grpstats:BadFnArg");
+                        0, 0, "grpstats", "", "numkit:grpstats:BadFnArg");
         }
     }
 

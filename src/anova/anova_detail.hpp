@@ -41,7 +41,7 @@ std::vector<Group> bucket(const Value &y, const Value &group)
     const size_t N = y.numel();
     if (group.numel() != N)
         throw Error("anova1: y and group must be the same length",
-                    0, 0, "anova1", "", "nk:anova1:size");
+                    0, 0, "anova1", "", "numkit:anova1:size");
     std::vector<Group> g;
     for (size_t i = 0; i < N; ++i) {
         const double yi = y.elemAsDouble(i);

@@ -47,7 +47,7 @@ Agg parseFnName(const std::string &name)
     if (name == "sem")   return Agg::Sem;
     throw Error("grpstats: unsupported fn name (got '" + name
                 + "'); expected one of {mean,std,sum,numel,min,max,var,sem}",
-                0, 0, "grpstats", "", "nk:grpstats:UnsupportedFn");
+                0, 0, "grpstats", "", "numkit:grpstats:UnsupportedFn");
 }
 
 // Apply aggregator to a vector of values (NaN excluded).
@@ -121,7 +121,7 @@ grpstats(const Value &X, const Value &group, const std::vector<std::string> &fn_
     const size_t Ncols = X.dims().cols();
     if (group.numel() != Nrows && !(Nrows == 1 && group.numel() == Ncols))
         throw Error("grpstats: group length must match number of rows of X",
-                    0, 0, "grpstats", "", "nk:grpstats:LenMismatch");
+                    0, 0, "grpstats", "", "numkit:grpstats:LenMismatch");
 
     // For row-vector input, MATLAB applies per-element groups (treating
     // X as length(X) observations of 1 column).

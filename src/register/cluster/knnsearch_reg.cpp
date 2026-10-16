@@ -51,17 +51,17 @@ void rangesearch_reg(Span<const Value> args, size_t nargout, Span<Value> outs, C
         while (i < args.size()) {
             if (!args[i].isChar() && !args[i].isString())
                 throw Error("rangesearch: expected name-value pair",
-                            0, 0, "rangesearch", "", "nk:rangesearch:nvpair");
+                            0, 0, "rangesearch", "", "numkit:rangesearch:nvpair");
             std::string name = args[i].toString();
             for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
             if (i + 1 >= args.size())
                 throw Error("rangesearch: '" + name + "' missing value",
-                            0, 0, "rangesearch", "", "nk:rangesearch:nvval");
+                            0, 0, "rangesearch", "", "numkit:rangesearch:nvval");
             const Value &v = args[i + 1];
             if (name == "distance") {
                 if (!v.isChar() && !v.isString())
                     throw Error("rangesearch: Distance must be a string",
-                                0, 0, "rangesearch", "", "nk:rangesearch:dist");
+                                0, 0, "rangesearch", "", "numkit:rangesearch:dist");
                 o.metric = v.toString();
             } else if (name == "p" || name == "minkowskiexponent") {
                 o.p = v.toScalar();

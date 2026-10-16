@@ -19,10 +19,10 @@ void nlinfit_reg(Span<const Value> args, size_t nargout,
 {
     if (args.size() < 4)
         throw Error("nlinfit: requires (X, y, fun, beta0)",
-                    0, 0, "nlinfit", "", "nk:nlinfit:nargin");
+                    0, 0, "nlinfit", "", "numkit:nlinfit:nargin");
     if (!args[2].isFuncHandle())
         throw Error("nlinfit: `fun` must be a function handle",
-                    0, 0, "nlinfit", "", "nk:nlinfit:notFuncHandle");
+                    0, 0, "nlinfit", "", "numkit:nlinfit:notFuncHandle");
     const Value &fun = args[2];
     auto model = [&ctx, &fun](Span<const Value> a, Span<Value> o,
                               std::pmr::memory_resource * /*mr*/) {
@@ -58,7 +58,7 @@ void nlpredci_reg(Span<const Value> args, size_t nargout,
         alpha = args[5].toScalar();
     if (!args[0].isFuncHandle())
         throw Error("nlpredci: `fun` must be a function handle",
-                    0, 0, "nlpredci", "", "nk:nlpredci:notFuncHandle");
+                    0, 0, "nlpredci", "", "numkit:nlpredci:notFuncHandle");
     const Value &fun = args[0];
     auto model = [&ctx, &fun](Span<const Value> a, Span<Value> o,
                               std::pmr::memory_resource * /*mr*/) {
@@ -90,12 +90,12 @@ void nlpredci_reg(Span<const Value> args, size_t nargout,
 static const char *kNlinfitMSource = R"NKM(
 function [beta, R, J, CovB, MSE] = nlinfit(X, y, fun, beta0)
   if ~(strcmp(class(fun), 'function_handle') || iscell(fun))
-    error('nk:nlinfit:notFuncHandle', 'nlinfit: `fun` must be a function handle');
+    error('numkit:nlinfit:notFuncHandle', 'nlinfit: `fun` must be a function handle');
   end
   n = numel(y);
   p = numel(beta0);
   if p == 0
-    error('nk:nlinfit:emptyBeta0', 'nlinfit: beta0 cannot be empty');
+    error('numkit:nlinfit:emptyBeta0', 'nlinfit: beta0 cannot be empty');
   end
   beta = beta0(:);
   yv = y(:);

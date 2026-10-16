@@ -45,7 +45,7 @@ void ncx2cdf_reg(Span<const Value> args, size_t /*nargout*/,
     const size_t n = stripUpperFlag(args, upper);
     if (n < 3)
         throw Error("ncx2cdf: requires (x, k, lambda[, 'upper'])",
-                    0, 0, "ncx2cdf", "", "nk:ncx2cdf:nargin");
+                    0, 0, "ncx2cdf", "", "numkit:ncx2cdf:nargin");
     Value v = ncx2cdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);

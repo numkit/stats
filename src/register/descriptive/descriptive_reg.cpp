@@ -53,7 +53,7 @@ double weightedVarFlat(const double *x, const double *w, size_t n,
         if (omitNan && std::isnan(xi)) continue;
         if (wi < 0.0)
             throw Error("var/std: weights must be non-negative",
-                        0, 0, "var/std", "", "nk:varstd:negWeight");
+                        0, 0, "var/std", "", "numkit:varstd:negWeight");
         sw  += wi;
         sxw += wi * xi;
     }
@@ -122,7 +122,7 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::p
         throw Error(std::string(fn) + ": invalid data type. First input "
                     "argument must be single or double (got "
                     + std::string(mtypeName(x.type())) + ").",
-                    0, 0, fn, "", std::string("nk:") + fn + ":integerClass");
+                    0, 0, fn, "", std::string("numkit:") + fn + ":integerClass");
 
     // Parse args[1] (w) and args[2] (dim/'all'/vecdim) into a normalised
     // shape: scalar normFlag (0 or 1), or weight vector + flatten flag.
@@ -138,14 +138,14 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::p
                             + ": invalid option. Option must be 'omitnan', "
                               "'includenan', or a weight vector.",
                         0, 0, fn, "",
-                        std::string("nk:") + fn + ":unknownFlag");
+                        std::string("numkit:") + fn + ":unknownFlag");
         if (args[1].numel() == 1 && args[1].isNumeric()) {
             const double wf = argcheck::expectedReal(args[1], 2, "w", fn);
             if (wf != 0.0 && wf != 1.0)
                 throw Error(std::string(fn) + ": W must be a double or "
                             "single vector of nonnegative weights.",
                             0, 0, fn, "",
-                            std::string("nk:") + fn + ":invalidWgts");
+                            std::string("numkit:") + fn + ":invalidWgts");
             normFlag = static_cast<int>(wf);
         } else {
             isWeightVec = true;
@@ -164,7 +164,7 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::p
                            [](unsigned char c) { return std::tolower(c); });
             if (s == "all") flattenAll = true;
             else throw Error(std::string(fn) + ": unknown dim flag '" + s + "'",
-                              0, 0, fn, "", std::string("nk:") + fn + ":dim");
+                              0, 0, fn, "", std::string("numkit:") + fn + ":dim");
         } else if (a.numel() == 1) {
             dim = argcheck::dimArg(a, fn);
         } else {
@@ -178,7 +178,7 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::p
                     throw Error(std::string(fn) + ": weight vector along a "
                                 "dimension set is supported for 2-D inputs "
                                 "only (N-D deferred)",
-                                0, 0, fn, "", std::string("nk:") + fn + ":wND");
+                                0, 0, fn, "", std::string("numkit:") + fn + ":wND");
                 vecdimSet = std::move(set);
             }
         }
@@ -195,7 +195,7 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::p
             if (xv.size() != wv.size())
                 throw Error(std::string(fn) + ": weight vector length must "
                             "match number of elements",
-                            0, 0, fn, "", std::string("nk:") + fn + ":invalidSizeWgts");
+                            0, 0, fn, "", std::string("numkit:") + fn + ":invalidSizeWgts");
             const double v = weightedVarFlat(xv.data(), wv.data(),
                                              xv.size(), sqrtIt, omitNan);
             return Value::scalar(v, mr);
@@ -207,11 +207,11 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::p
         if (x.dims().ndim() > 2)
             throw Error(std::string(fn) + ": weight vector along a dimension "
                         "is supported for 2-D inputs only (N-D deferred)",
-                        0, 0, fn, "", std::string("nk:") + fn + ":wND");
+                        0, 0, fn, "", std::string("numkit:") + fn + ":wND");
         const int d = (dim == 0) ? firstNonSingletonDim(x) : dim;
         if (d != 1 && d != 2)
             throw Error(std::string(fn) + ": dim out of range",
-                        0, 0, fn, "", std::string("nk:") + fn + ":dim");
+                        0, 0, fn, "", std::string("numkit:") + fn + ":dim");
         const size_t r = static_cast<size_t>(x.dims().dim(0));
         const size_t c = static_cast<size_t>(x.dims().dim(1));
         auto wv = flatten(*wVec);
@@ -219,7 +219,7 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::p
         if (wv.size() != need)
             throw Error(std::string(fn) + ": weight vector length must match "
                         "the length of the operating dimension",
-                        0, 0, fn, "", std::string("nk:") + fn + ":invalidSizeWgts");
+                        0, 0, fn, "", std::string("numkit:") + fn + ":invalidSizeWgts");
         if (d == 1) {
             auto out = Value::matrix(1, c, ValueType::DOUBLE, mr);
             double *od = out.doubleDataMut();
@@ -352,7 +352,7 @@ void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                            [](unsigned char c) { return std::tolower(c); });
             if (s == "all") isAll = true;
             else throw Error("median: unknown option '" + s + "'",
-                              0, 0, "median", "", "nk:median:unknownOption");
+                              0, 0, "median", "", "numkit:median:unknownOption");
         } else if (a.numel() == 1) {
             dim = argcheck::dimArg(a, "median");
         } else {
@@ -465,7 +465,7 @@ QArgs parseQArgs(Span<const Value> args, size_t start, const Value &x,
             for (int d : dims) {
                 if (d < 1 || d > rank)
                     throw Error(std::string(fn) + ": vecdim entries out of range",
-                                0, 0, fn, "", std::string("nk:") + fn + ":vecdim");
+                                0, 0, fn, "", std::string("numkit:") + fn + ":vecdim");
                 seen[d] = true;
             }
             bool allCovered = true;
@@ -474,7 +474,7 @@ QArgs parseQArgs(Span<const Value> args, size_t start, const Value &x,
                 throw Error(std::string(fn) + ": partial vecdim reduction is "
                             "not yet supported in nk (only full-flatten "
                             "vecdim like [1 2] or 'all')",
-                            0, 0, fn, "", std::string("nk:") + fn + ":vecdim");
+                            0, 0, fn, "", std::string("numkit:") + fn + ":vecdim");
             q.flatten = true;
         }
         ++i;
@@ -492,14 +492,14 @@ QArgs parseQArgs(Span<const Value> args, size_t start, const Value &x,
     while (i + 1 < args.size()) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error(std::string(fn) + ": expected Name-Value pair",
-                        0, 0, fn, "", std::string("nk:") + fn + ":nv");
+                        0, 0, fn, "", std::string("numkit:") + fn + ":nv");
         std::string name = args[i].toString();
         std::transform(name.begin(), name.end(), name.begin(),
                        [](unsigned char c) { return std::tolower(c); });
         if (name == "method") {
             if (!args[i + 1].isChar() && !args[i + 1].isString())
                 throw Error(std::string(fn) + ": Method must be a string",
-                            0, 0, fn, "", std::string("nk:") + fn + ":method");
+                            0, 0, fn, "", std::string("numkit:") + fn + ":method");
             std::string m = args[i + 1].toString();
             std::transform(m.begin(), m.end(), m.begin(),
                            [](unsigned char c) { return std::tolower(c); });
@@ -515,10 +515,10 @@ QArgs parseQArgs(Span<const Value> args, size_t start, const Value &x,
             else
                 throw Error(std::string(fn) + ": Method must be 'exact' or "
                             "'approximate'",
-                            0, 0, fn, "", std::string("nk:") + fn + ":method");
+                            0, 0, fn, "", std::string("numkit:") + fn + ":method");
         } else {
             throw Error(std::string(fn) + ": unknown Name-Value '" + name + "'",
-                        0, 0, fn, "", std::string("nk:") + fn + ":nv");
+                        0, 0, fn, "", std::string("numkit:") + fn + ":nv");
         }
         i += 2;
     }
@@ -551,7 +551,7 @@ Value computeModeCell(const Value &x, int dim, bool flatten,
     if (x.type() != ValueType::DOUBLE || x.dims().is3D() || x.dims().ndim() > 2)
         throw Error("mode: the 3rd output C is currently supported only for a "
                     "real double vector or 2-D matrix input",
-                    0, 0, "mode", "", "nk:mode:cellNd");
+                    0, 0, "mode", "", "numkit:mode:cellNd");
     auto tiedCol = [&](const double *s, size_t stride, size_t n) -> Value {
         std::vector<double> v;
         v.reserve(n);
@@ -612,7 +612,7 @@ void mode_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
                 [](unsigned char c){ return std::tolower(c); });
             if (s == "all") flatten = true;
             else throw Error("mode: unknown flag '" + s + "'",
-                              0, 0, "mode", "", "nk:mode:badFlag");
+                              0, 0, "mode", "", "numkit:mode:badFlag");
         } else if (a.numel() == 1) {
             dim = argcheck::dimArg(a, "mode");
         } else {
@@ -755,7 +755,7 @@ void corrcoef_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
         if (isIntegerType(a.type()))
             throw Error("corrcoef: integers can only be combined with "
                         "integers of the same class, or scalar doubles.",
-                        0, 0, "corrcoef", "", "nk:corrcoef:mixedClasses");
+                        0, 0, "corrcoef", "", "numkit:corrcoef:mixedClasses");
     }
 
     const bool twoArg =
@@ -782,7 +782,7 @@ void corrcoef_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
                     throw Error("corrcoef: cannot compute p-values for "
                                 "complex inputs.",
                                 0, 0, "corrcoef", "",
-                                "nk:corrcoef:ComplexInputs");
+                                "numkit:corrcoef:ComplexInputs");
                 outs[1] = corrcoefPValues(R, n, mr);
             }
             outs[0] = std::move(R);
@@ -800,7 +800,7 @@ void corrcoef_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
                     throw Error("corrcoef: cannot compute p-values for "
                                 "complex inputs.",
                                 0, 0, "corrcoef", "",
-                                "nk:corrcoef:ComplexInputs");
+                                "numkit:corrcoef:ComplexInputs");
                 outs[1] = corrcoefPValues(R, n, mr);
             }
             outs[0] = std::move(R);
@@ -826,7 +826,7 @@ void corrcoef_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
         if (nargout >= 2)
             throw Error("corrcoef: [R, P] with 'Rows','pairwise' is not yet "
                         "supported (per-pair degrees of freedom)",
-                        0, 0, "corrcoef", "", "nk:corrcoef:PairwisePValue");
+                        0, 0, "corrcoef", "", "numkit:corrcoef:PairwisePValue");
         outs[0] = isVec ? corrcoefScalarOne(mr) : corrcoefPairwise(M, mr);
         return;
     }

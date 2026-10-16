@@ -40,7 +40,7 @@ void lhsdesign_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     for (std::size_t k = 2; k + 1 < args.size(); k += 2) {
         if (!args[k].isChar() && !args[k].isString())
             throw Error("lhsdesign: name-value arguments expected",
-                        0, 0, "lhsdesign", "", "nk:lhsdesign:badNameValue");
+                        0, 0, "lhsdesign", "", "numkit:lhsdesign:badNameValue");
         std::string name = args[k].toString();
         for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         if (name == "smooth") {
@@ -59,7 +59,7 @@ void lhsdesign_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
             if (iters < 1) iters = 1;
         } else {
             throw Error("lhsdesign: unknown option '" + name + "'",
-                        0, 0, "lhsdesign", "", "nk:lhsdesign:badOption");
+                        0, 0, "lhsdesign", "", "numkit:lhsdesign:badOption");
         }
     }
     outs[0] = lhsdesign(ctx.engine->rng(), n, p, smooth, crit, iters, ctx.engine->resource());

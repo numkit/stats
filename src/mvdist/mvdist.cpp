@@ -135,12 +135,12 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
     if (!isMatrixValue(X))
         throw Error("mvnpdf: X must be a non-empty matrix (got a "
                     + std::string(mtypeName(X.type())) + " array).",
-                    0, 0, "mvnpdf", "", "nk:mvnpdf:invalidData");
+                    0, 0, "mvnpdf", "", "numkit:mvnpdf:invalidData");
     std::size_t n = static_cast<std::size_t>(X.dims().dim(0));
     std::size_t d = static_cast<std::size_t>(X.dims().dim(1));
     if (d < 1)
         throw Error("mvnpdf: X must have at least one column.",
-                    0, 0, "mvnpdf", "", "nk:mvnpdf:tooFewDimensions");
+                    0, 0, "mvnpdf", "", "numkit:mvnpdf:tooFewDimensions");
     bool single = (X.type() == ValueType::SINGLE);
 
     // ── mu: empty | scalar | matrix (row, full, or rep-when-single) ──
@@ -159,7 +159,7 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
             throw Error("mvnpdf: X and MU must have the same number of "
                         "columns (X has " + std::to_string(d) + ", MU has "
                         + std::to_string(d2) + ").",
-                        0, 0, "mvnpdf", "", "nk:mvnpdf:colSizeMismatch");
+                        0, 0, "mvnpdf", "", "numkit:mvnpdf:colSizeMismatch");
         if (n2 == 1 || n2 == n) {
             X0 = Value::matrix(n, d, ValueType::DOUBLE, mr);
             for (std::size_t j = 0; j < d; ++j)
@@ -178,11 +178,11 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
             throw Error("mvnpdf: MU must be a row vector or have one row "
                         "per X row (X has " + std::to_string(n)
                         + " rows, MU has " + std::to_string(n2) + ").",
-                        0, 0, "mvnpdf", "", "nk:mvnpdf:rowSizeMismatch");
+                        0, 0, "mvnpdf", "", "numkit:mvnpdf:rowSizeMismatch");
         }
     } else {
         throw Error("mvnpdf: MU must be a scalar or a matrix.",
-                    0, 0, "mvnpdf", "", "nk:mvnpdf:badMu");
+                    0, 0, "mvnpdf", "", "numkit:mvnpdf:badMu");
     }
     single = single || (mu.type() == ValueType::SINGLE);
 
@@ -229,13 +229,13 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
                 throw Error("mvnpdf: SIGMA must be a square covariance "
                             "matrix, the diagonal of one as a row vector, "
                             "or a stack of matrices.",
-                            0, 0, "mvnpdf", "", "nk:mvnpdf:badCovariance");
+                            0, 0, "mvnpdf", "", "numkit:mvnpdf:badCovariance");
             if (sz1 != d)
                 throw Error("mvnpdf: SIGMA must be " + std::to_string(d)
                             + "-by-" + std::to_string(d) + " to match X "
                             "(got " + std::to_string(sz1) + "-by-"
                             + std::to_string(sz2) + ").",
-                            0, 0, "mvnpdf", "", "nk:mvnpdf:covSizeMismatch");
+                            0, 0, "mvnpdf", "", "numkit:mvnpdf:covSizeMismatch");
             if (sigmaIsDiag) {
                 sd.assign(d, 0.0);
                 for (std::size_t j = 0; j < d; ++j) {
@@ -246,7 +246,7 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
                                     + std::to_string(v) + " at position "
                                     + std::to_string(j + 1) + ").",
                                     0, 0, "mvnpdf", "",
-                                    "nk:mvnpdf:badDiagSigma");
+                                    "numkit:mvnpdf:badDiagSigma");
                     sd[j] = std::sqrt(v);
                 }
             } else {
@@ -269,19 +269,19 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
                             "matrix, the diagonal of one as a row vector, "
                             "or a stack of matrices.",
                             0, 0, "mvnpdf", "",
-                            "nk:mvnpdf:badCovarianceMultiple");
+                            "numkit:mvnpdf:badCovarianceMultiple");
             if (sz1 != d)
                 throw Error("mvnpdf: each SIGMA page must be "
                             + std::to_string(d) + "-by-" + std::to_string(d)
                             + " to match X.",
                             0, 0, "mvnpdf", "",
-                            "nk:mvnpdf:covSizeMismatchMultiple");
+                            "numkit:mvnpdf:covSizeMismatchMultiple");
             if (pages != n)
                 throw Error("mvnpdf: SIGMA must have one page per X row "
                             "(X has " + std::to_string(n) + " rows, SIGMA "
                             "has " + std::to_string(pages) + " pages).",
                             0, 0, "mvnpdf", "",
-                            "nk:mvnpdf:covSizeMismatchPages");
+                            "numkit:mvnpdf:covSizeMismatchPages");
             if (sigmaIsDiag) {
                 // Row diag [1×d×n] → per-page sqrt rows.
                 for (std::size_t j = 0; j < d; ++j) {
@@ -291,7 +291,7 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
                             throw Error("mvnpdf: all elements of the "
                                         "diagonal SIGMA must be positive.",
                                         0, 0, "mvnpdf", "",
-                                        "nk:mvnpdf:badDiagSigma");
+                                        "numkit:mvnpdf:badDiagSigma");
                     }
                 }
             } else {
@@ -323,7 +323,7 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
                                  &degenerate)) {
             throw Error("mvnpdf: SIGMA must be a square, symmetric, "
                         "positive semi-definite matrix.",
-                        0, 0, "mvnpdf", "", "nk:mvnpdf:badMatrixSigma");
+                        0, 0, "mvnpdf", "", "numkit:mvnpdf:badMatrixSigma");
         }
         if (degenerate) {
             for (std::size_t r = 0; r < n; ++r) od[r] = 0.0;
@@ -356,7 +356,7 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
                 throw Error("mvnpdf: SIGMA must be a square, symmetric, "
                             "positive semi-definite matrix.",
                             0, 0, "mvnpdf", "",
-                            "nk:mvnpdf:badMatrixSigmaMultiple");
+                            "numkit:mvnpdf:badMatrixSigmaMultiple");
             od[r] = degenerate ? 0.0
                                : std::exp(base - logHalfDet - 0.5 * quad[0]);
         }
@@ -372,12 +372,12 @@ Value mvtpdf(const Value &X, const Value &C, const Value &df,
 {
     if (X.dims().ndim() != 2)
         throw Error("mvtpdf: X must be a matrix.",
-                    0, 0, "mvtpdf", "", "nk:mvtpdf:invalidData");
+                    0, 0, "mvtpdf", "", "numkit:mvtpdf:invalidData");
     std::size_t n = static_cast<std::size_t>(X.dims().dim(0));
     std::size_t d = static_cast<std::size_t>(X.dims().dim(1));
     if (d < 1)
         throw Error("mvtpdf: X must have at least one column.",
-                    0, 0, "mvtpdf", "", "nk:mvtpdf:tooFewDimensions");
+                    0, 0, "mvtpdf", "", "numkit:mvtpdf:tooFewDimensions");
     bool single = (X.type() == ValueType::SINGLE);
 
     // Row reinterpretation: vector X whose length matches rows(C).
@@ -404,14 +404,14 @@ Value mvtpdfCompute(const Value &X, const Value &C, const Value &df,
         throw Error("mvtpdf: C must be a square matrix (got "
                     + std::to_string(cr) + "-by-" + std::to_string(cc)
                     + ").",
-                    0, 0, "mvtpdf", "", "nk:mvtpdf:badCorrelationNotSquare");
+                    0, 0, "mvtpdf", "", "numkit:mvtpdf:badCorrelationNotSquare");
     if (cr != d)
         throw Error("mvtpdf: C must be a square matrix with size equal to "
                     "the number of columns of X (" + std::to_string(d)
                     + "-by-" + std::to_string(d) + ", got "
                     + std::to_string(cr) + "-by-" + std::to_string(cc)
                     + ").",
-                    0, 0, "mvtpdf", "", "nk:mvtpdf:inputSizeMismatchC");
+                    0, 0, "mvtpdf", "", "numkit:mvtpdf:inputSizeMismatchC");
     single = single || (C.type() == ValueType::SINGLE);
 
     // df: scalar, or one per row.
@@ -424,13 +424,13 @@ Value mvtpdfCompute(const Value &X, const Value &C, const Value &df,
     } else {
         throw Error("mvtpdf: DF must be a scalar or a vector with one "
                     "element for each row of X.",
-                    0, 0, "mvtpdf", "", "nk:mvtpdf:inputSizeMismatchDF");
+                    0, 0, "mvtpdf", "", "numkit:mvtpdf:inputSizeMismatchDF");
     }
     for (double v : dfv)
         if (!(v > 0.0))
             throw Error("mvtpdf: DF must be positive (got "
                         + std::to_string(v) + ").",
-                        0, 0, "mvtpdf", "", "nk:mvtpdf:invalidDF");
+                        0, 0, "mvtpdf", "", "numkit:mvtpdf:invalidDF");
     single = single || (df.type() == ValueType::SINGLE);
 
     // Standardize C to a correlation matrix (the reference does this
@@ -453,7 +453,7 @@ Value mvtpdfCompute(const Value &X, const Value &C, const Value &df,
     if (!psdQuadForms(X, n, d, Cm, quad, logHalfDet, mr))
         throw Error("mvtpdf: C must be a symmetric positive "
                     "(semi-)definite matrix.",
-                    0, 0, "mvtpdf", "", "nk:mvtpdf:badCorrelationSymPos");
+                    0, 0, "mvtpdf", "", "numkit:mvtpdf:badCorrelationSymPos");
 
     Value out = Value::matrix(n, 1, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
@@ -501,7 +501,7 @@ Value mnpdf(const Value &X, const Value &P, std::pmr::memory_resource *mr)
     const std::size_t k = static_cast<std::size_t>(x.dims().dim(1));
     if (k < 1)
         throw Error("mnpdf: X must have at least one column.",
-                    0, 0, "mnpdf", "", "nk:mnpdf:noCategories");
+                    0, 0, "mnpdf", "", "numkit:mnpdf:noCategories");
 
     const std::size_t mm = static_cast<std::size_t>(p.dims().dim(0));
     const std::size_t kk = static_cast<std::size_t>(p.dims().dim(1));
@@ -509,7 +509,7 @@ Value mnpdf(const Value &X, const Value &P, std::pmr::memory_resource *mr)
         throw Error("mnpdf: P and X must have the same number of columns "
                     "(X has " + std::to_string(k) + ", P has "
                     + std::to_string(kk) + ").",
-                    0, 0, "mnpdf", "", "nk:mnpdf:colSizeMismatch");
+                    0, 0, "mnpdf", "", "numkit:mnpdf:colSizeMismatch");
 
     Value out = Value::matrix(m, 1, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
@@ -569,7 +569,7 @@ Value mnpdf(const Value &X, const Value &P, std::pmr::memory_resource *mr)
         throw Error("mnpdf: P and X must have the same number of rows "
                     "(X has " + std::to_string(m) + ", P has "
                     + std::to_string(mm) + ").",
-                    0, 0, "mnpdf", "", "nk:mnpdf:rowSizeMismatch");
+                    0, 0, "mnpdf", "", "numkit:mnpdf:rowSizeMismatch");
     }
     return castDown(out, single, mr);
 }

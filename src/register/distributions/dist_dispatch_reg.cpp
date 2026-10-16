@@ -67,7 +67,7 @@ void dispatchDist(const char *fnName, const char *suffix,
     const std::string fn = fnName;
     if (args.empty() || !args[0].isChar())
         throw Error(fn + ": first argument must be a distribution name",
-                    0, 0, fnName, "", "nk:" + fn + ":name");
+                    0, 0, fnName, "", "numkit:" + fn + ":name");
 
     std::string name = args[0].toString();
     std::transform(name.begin(), name.end(), name.begin(),
@@ -77,7 +77,7 @@ void dispatchDist(const char *fnName, const char *suffix,
     auto it = m.find(name);
     if (it == m.end())
         throw Error(fn + ": unsupported distribution '" + args[0].toString() + "'",
-                    0, 0, fnName, "", "nk:" + fn + ":dist");
+                    0, 0, fnName, "", "numkit:" + fn + ":dist");
 
     // The bare-name resolver finds the function (e.g. "normcdf" →
     // stats.distributions.normcdf) without the removed compat.* prefix.
@@ -85,7 +85,7 @@ void dispatchDist(const char *fnName, const char *suffix,
     const ExternalFunc *target_fn = ctx.engine->findExternal(target, ctx.env);
     if (!target_fn)
         throw Error(fn + ": '" + it->second + suffix + "' is not available",
-                    0, 0, fnName, "", "nk:" + fn + ":missing");
+                    0, 0, fnName, "", "numkit:" + fn + ":missing");
 
     (*target_fn)(args.subspan(1), nargout, outs, ctx);
 }

@@ -88,7 +88,7 @@ void ksdensity_reg(Span<const Value> args, size_t nargout,
                 const std::string s = lower(v.toString());
                 if (s != "normal-approx" && s != "plug-in")
                     throw Error("ksdensity: unknown Bandwidth string '" + s + "'",
-                                0, 0, "ksdensity", "", "nk:ksdensity:bw");
+                                0, 0, "ksdensity", "", "numkit:ksdensity:bw");
                 bw_user = 0.0;
             } else {
                 bw_user = v.toScalar();
@@ -102,7 +102,7 @@ void ksdensity_reg(Span<const Value> args, size_t nargout,
                  || name == "boundarycorrection") {
             if (!v.isEmpty())
                 throw Error("ksdensity: '" + name + "' is not yet supported",
-                            0, 0, "ksdensity", "", "nk:ksdensity:nyi");
+                            0, 0, "ksdensity", "", "numkit:ksdensity:nyi");
         }
         // 'PlotFcn' silently ignored (no-op headless).
         i += 2;
@@ -152,7 +152,7 @@ void bounds_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
                 [](unsigned char c){ return std::tolower(c); });
             if (s == "all") flatten = true;
             else throw Error("bounds: unknown flag '" + s + "'",
-                              0, 0, "bounds", "", "nk:bounds:badFlag");
+                              0, 0, "bounds", "", "numkit:bounds:badFlag");
         } else if (a.numel() == 1) {
             dim = argcheck::dimArg(a, "bounds");
         } else {
@@ -206,7 +206,7 @@ void iqr_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
                 [](unsigned char c){ return std::tolower(c); });
             if (s == "all") flatten = true;
             else throw Error("iqr: unknown flag '" + s + "'",
-                              0, 0, "iqr", "", "nk:iqr:badFlag");
+                              0, 0, "iqr", "", "numkit:iqr:badFlag");
         } else if (a.numel() == 1) {
             dim = argcheck::dimArg(a, "iqr");
         } else {
@@ -261,7 +261,7 @@ void maxk_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
     while (i + 1 < args.size()) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error("maxk: expected Name-Value pair",
-                        0, 0, "maxk", "", "nk:maxk:nv");
+                        0, 0, "maxk", "", "numkit:maxk:nv");
         std::string name = args[i].toString();
         std::transform(name.begin(), name.end(), name.begin(),
                        [](unsigned char c){ return std::tolower(c); });
@@ -271,11 +271,11 @@ void maxk_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
                            [](unsigned char c){ return std::tolower(c); });
             if (m != "real" && m != "abs" && m != "auto")
                 throw Error("maxk: ComparisonMethod must be 'real', 'abs' or 'auto'",
-                            0, 0, "maxk", "", "nk:maxk:cm");
+                            0, 0, "maxk", "", "numkit:maxk:cm");
             byAbs = (m == "abs");
         } else {
             throw Error("maxk: unknown Name-Value '" + name + "'",
-                        0, 0, "maxk", "", "nk:maxk:nv");
+                        0, 0, "maxk", "", "numkit:maxk:nv");
         }
         i += 2;
     }
@@ -302,7 +302,7 @@ void mink_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
     while (i + 1 < args.size()) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error("mink: expected Name-Value pair",
-                        0, 0, "mink", "", "nk:mink:nv");
+                        0, 0, "mink", "", "numkit:mink:nv");
         std::string name = args[i].toString();
         std::transform(name.begin(), name.end(), name.begin(),
                        [](unsigned char c){ return std::tolower(c); });
@@ -312,11 +312,11 @@ void mink_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
                            [](unsigned char c){ return std::tolower(c); });
             if (m != "real" && m != "abs" && m != "auto")
                 throw Error("mink: ComparisonMethod must be 'real', 'abs' or 'auto'",
-                            0, 0, "mink", "", "nk:mink:cm");
+                            0, 0, "mink", "", "numkit:mink:cm");
             byAbs = (m == "abs");
         } else {
             throw Error("mink: unknown Name-Value '" + name + "'",
-                        0, 0, "mink", "", "nk:mink:nv");
+                        0, 0, "mink", "", "numkit:mink:nv");
         }
         i += 2;
     }
@@ -465,7 +465,7 @@ void ecdf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
                 throw Error("ecdf: 'Censoring' is not yet supported "
                             "(Kaplan-Meier estimator). Skip the arg or "
                             "filter censored observations beforehand.",
-                            0, 0, "ecdf", "", "nk:ecdf:censoring_nyi");
+                            0, 0, "ecdf", "", "numkit:ecdf:censoring_nyi");
         }
         else if (key == "iterationlimit" || key == "tolerance"
                  || key == "icmfrequency" || key == "bounds") {
@@ -655,7 +655,7 @@ void filloutliers_reg(Span<const Value> args, size_t /*nargout*/,
                     throw Error("filloutliers: 'percentiles' requires a "
                                 "2-element [lower upper] vector",
                                 0, 0, "filloutliers", "",
-                                "nk:filloutliers:percentiles");
+                                "numkit:filloutliers:percentiles");
                 loP = args[i].elemAsDouble(0);
                 hiP = args[i].elemAsDouble(1);
                 ++i;
@@ -666,21 +666,21 @@ void filloutliers_reg(Span<const Value> args, size_t /*nargout*/,
                             "supports 'grubbs', 'gesd', "
                             "'movmedian', 'movmean' — deferred)",
                             0, 0, "filloutliers", "",
-                            "nk:filloutliers:findmethod");
+                            "numkit:filloutliers:findmethod");
             }
         }
     }
     while (i + 1 < args.size()) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error("filloutliers: expected name-value pair",
-                        0, 0, "filloutliers", "", "nk:filloutliers:nv");
+                        0, 0, "filloutliers", "", "numkit:filloutliers:nv");
         const std::string nm = lower(args[i].toString());
         if (nm == "thresholdfactor") {
             tf = args[i + 1].toScalar(); tf_set = true;
         } else {
             throw Error("filloutliers: unsupported name-value parameter '"
                         + args[i].toString() + "'",
-                        0, 0, "filloutliers", "", "nk:filloutliers:nv");
+                        0, 0, "filloutliers", "", "numkit:filloutliers:nv");
         }
         i += 2;
     }
@@ -732,7 +732,7 @@ bool parseMeanNanFlag(Span<const Value> args, const char *fn, std::size_t &nargs
         if (f == "omitnan")     { --nargs; return true; }
         if (f == "includenan")  { --nargs; return false; }
         throw Error(std::string(fn) + ": unknown option '" + f + "'",
-                    0, 0, fn, "", std::string("nk:") + fn + ":badopt");
+                    0, 0, fn, "", std::string("numkit:") + fn + ":badopt");
     }
     return false;
 }
@@ -801,7 +801,7 @@ void trimmean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
         else if (f == "round") useFloor = false;
         else
             throw Error("trimmean: flag must be 'round' or 'floor'",
-                        0, 0, "trimmean", "", "nk:trimmean:flag");
+                        0, 0, "trimmean", "", "numkit:trimmean:flag");
         ++i;
     }
     if (i < args.size()) {

@@ -48,7 +48,7 @@ Value haltonset(int d, long long skip, long long leap, std::pmr::memory_resource
 {
     if (d < 1)
         throw Error("haltonset: dim must be ≥ 1",
-                    0, 0, "haltonset", "", "nk:haltonset:dim");
+                    0, 0, "haltonset", "", "numkit:haltonset:dim");
     Value s = Value::structure(mr);
     s.field("kind") = Value::fromString("halton", mr);
     s.field("dim")  = Value::scalar(static_cast<double>(d), mr);
@@ -61,14 +61,14 @@ Value net(const Value &stream, long long n, std::pmr::memory_resource *mr)
 {
     if (!stream.isStruct() || !stream.hasField("kind"))
         throw Error("net: input must be a quasi-random stream struct",
-                    0, 0, "net", "", "nk:net:struct");
+                    0, 0, "net", "", "numkit:net:struct");
     const std::string kind = stream.field("kind").toString();
     if (kind != "halton")
         throw Error("net: only halton streams supported in this release",
-                    0, 0, "net", "", "nk:net:kind");
+                    0, 0, "net", "", "numkit:net:kind");
     if (n < 0)
         throw Error("net: n must be ≥ 0",
-                    0, 0, "net", "", "nk:net:n");
+                    0, 0, "net", "", "numkit:net:n");
     const size_t d    = static_cast<size_t>(stream.field("dim").toScalar());
     const long long skip = static_cast<long long>(stream.field("skip").toScalar());
     const long long leap = static_cast<long long>(stream.field("leap").toScalar());

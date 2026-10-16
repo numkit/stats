@@ -32,10 +32,10 @@ RobustfitResult robustfit(const Value &X, const Value &y,
     const std::size_t p = X.dims().cols();
     if (y.numel() != n)
         throw Error("robustfit: length(y) must equal rows(X)",
-                    0, 0, "robustfit", "", "nk:robustfit:shapeMismatch");
+                    0, 0, "robustfit", "", "numkit:robustfit:shapeMismatch");
     if (p == 0 || n <= p)
         throw Error("robustfit: need rows(X) > cols(X)",
-                    0, 0, "robustfit", "", "nk:robustfit:noDOF");
+                    0, 0, "robustfit", "", "numkit:robustfit:noDOF");
 
     if (std::isnan(tune)) tune = defaultTune(weight);
 
@@ -104,7 +104,7 @@ RobustcovResult robustcov(const Value &X, std::pmr::memory_resource *mr)
     const std::size_t d = X.dims().cols();
     if (n <= d + 1)
         throw Error("robustcov: need n > d + 1 observations",
-                    0, 0, "robustcov", "", "nk:robustcov:noDOF");
+                    0, 0, "robustcov", "", "numkit:robustcov:noDOF");
 
     std::vector<double> Xv(n * d);
     for (std::size_t i = 0; i < n * d; ++i) Xv[i] = X.elemAsDouble(i);

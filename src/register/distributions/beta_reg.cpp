@@ -48,7 +48,7 @@ void betacdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     bool upper = false;
     const Span<const Value> a0 = args.subspan(0, stripUpperFlag(args, upper));
     if (a0.size() < 3)
-        throw Error("betacdf: requires (x, a, b[, 'upper'])", 0, 0, "betacdf", "", "nk:betacdf:nargin");
+        throw Error("betacdf: requires (x, a, b[, 'upper'])", 0, 0, "betacdf", "", "numkit:betacdf:nargin");
     auto *mr = ctx.engine->resource();
     const Value &a = a0[1];
     const Value &b = a0[2];

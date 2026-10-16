@@ -44,7 +44,7 @@ void gpcdf_reg(Span<const Value> args, size_t /*nargout*/,
     const size_t n = stripUpperFlag(args, upper);
     if (n < 4)
         throw Error("gpcdf: requires (x, k, sigma, theta[, 'upper'])",
-                    0, 0, "gpcdf", "", "nk:gpcdf:nargin");
+                    0, 0, "gpcdf", "", "numkit:gpcdf:nargin");
     Value v = gpcdf(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), ctx.engine->resource());
     if (upper) applyUpperInPlace(v);
     outs[0] = std::move(v);
