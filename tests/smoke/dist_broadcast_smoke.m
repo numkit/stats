@@ -1,0 +1,92 @@
+clear
+
+% bugs/stats/distribution-array-params.md — *pdf/*cdf/*inv broadcast ARRAY
+% distribution parameters (not just the data x). Reference: MATLAB R2025b.
+% Cycle 29 families: normal + exponential.
+
+fmt = @(v) sprintf('%.8g ', v);
+
+fprintf('--- normal (broadcast mu/sigma) ---\n');
+fprintf('normpdf(0,0,[1 2 4])      = %s (expect 0.39894228 0.19947114 0.099735570)\n', fmt(normpdf(0,0,[1 2 4])));
+fprintf('normpdf([0 1],[0 0],[1 2])= %s (expect 0.39894228 0.17603266)\n', fmt(normpdf([0 1],[0 0],[1 2])));
+fprintf('normcdf(1,[0 1],1)        = %s (expect 0.84134475 0.5)\n', fmt(normcdf(1,[0 1],1)));
+fprintf('norminv(0.5,[0 5],1)      = %s (expect 0 5)\n', fmt(norminv(0.5,[0 5],1)));
+fprintf('normpdf(0,0,[1 -1 2])     = %s (expect 0.39894228 NaN 0.19947114; sigma<=0 -> NaN)\n', fmt(normpdf(0,0,[1 -1 2])));
+
+fprintf('\n--- exponential (broadcast mu) ---\n');
+fprintf('exppdf(1,[1 2 4])         = %s (expect 0.36787944 0.30326533 0.19470020)\n', fmt(exppdf(1,[1 2 4])));
+fprintf('expcdf(1,[1 2 4])         = %s (expect 0.63212056 0.39346934 0.22119922)\n', fmt(expcdf(1,[1 2 4])));
+fprintf('expinv(0.5,[1 2 4])       = %s (expect 0.69314718 1.3862944 2.7725887)\n', fmt(expinv(0.5,[1 2 4])));
+fprintf('expcdf(1,[1 2 4],''upper'') = %s (expect 0.36787944 0.60653066 0.77880078)\n', fmt(expcdf(1,[1 2 4],'upper')));
+
+fprintf('\n--- gamma (broadcast a/b) ---\n');
+fprintf('gampdf(1,[1 2 3],1)       = %s (expect 0.36787944 0.36787944 0.18393972)\n', fmt(gampdf(1,[1 2 3],1)));
+fprintf('gamcdf([1 2 3],2,2)       = %s (expect 0.090204010 0.26424112 0.44217460)\n', fmt(gamcdf([1 2 3],2,2)));
+fprintf('gampdf(1,[0 -1 2],1)      = %s (expect 0 NaN 0.36787944; a==0->0, a<0->NaN)\n', fmt(gampdf(1,[0 -1 2],1)));
+
+fprintf('\n--- beta (broadcast a/b) ---\n');
+fprintf('betapdf(0.5,[2 3],[2 2])  = %s (expect 1.5 1.5)\n', fmt(betapdf(0.5,[2 3],[2 2])));
+fprintf('betacdf(0.5,[2 3],2)      = %s (expect 0.5 0.3125)\n', fmt(betacdf(0.5,[2 3],2)));
+
+fprintf('\n--- chi2 (broadcast k) ---\n');
+fprintf('chi2pdf(2,[1 2 3])        = %s (expect 0.10377687 0.18393972 0.20755375)\n', fmt(chi2pdf(2,[1 2 3])));
+fprintf('chi2cdf(2,[1 2 3])        = %s (expect 0.84270079 0.63212056 0.42759330)\n', fmt(chi2cdf(2,[1 2 3])));
+fprintf('chi2pdf(2,[0 -1 4])       = %s (expect 0 NaN 0.18393972; k==0->0, k<0->NaN)\n', fmt(chi2pdf(2,[0 -1 4])));
+
+fprintf('\n--- inverse (broadcast a/b/k) ---\n');
+fprintf('gaminv(0.5,[1 2 3],1)     = %s (expect 0.69314718 1.6783470 2.6740603)\n', fmt(gaminv(0.5,[1 2 3],1)));
+fprintf('gaminv(0.5,[0 2],1)       = %s (expect 0 1.6783470; a==0->0)\n', fmt(gaminv(0.5,[0 2],1)));
+fprintf('betainv([.1 .5 .9],2,3)   = %s (expect 0.14255932 0.38572757 0.67953942)\n', fmt(betainv([.1 .5 .9],2,3)));
+fprintf('chi2inv(0.5,[1 2 3])      = %s (expect 0.45493642 1.3862944 2.3659739)\n', fmt(chi2inv(0.5,[1 2 3])));
+fprintf('chi2inv(0.5,[0 4])        = %s (expect 0 3.3566940; k==0->0)\n', fmt(chi2inv(0.5,[0 4])));
+
+fprintf('\n--- rayleigh / weibull / lognormal (closed-form broadcast) ---\n');
+fprintf('raylpdf(1,[1 2 3])        = %s (expect 0.60653066 0.22062423 0.10510661)\n', fmt(raylpdf(1,[1 2 3])));
+fprintf('raylinv(0.5,[1 2 3])      = %s (expect 1.1774100 2.3548200 3.5322301)\n', fmt(raylinv(0.5,[1 2 3])));
+fprintf('wblpdf(1,[1 2],[1 2])     = %s (expect 0.36787944 0.38940039)\n', fmt(wblpdf(1,[1 2],[1 2])));
+fprintf('wblinv(0.5,[1 2],2)       = %s (expect 0.83255461 1.6651092)\n', fmt(wblinv(0.5,[1 2],2)));
+fprintf('lognpdf(1,[0 1],1)        = %s (expect 0.39894228 0.24197072)\n', fmt(lognpdf(1,[0 1],1)));
+fprintf('logninv([.1 .5 .9],0,1)   = %s (expect 0.27760624 1 3.6022245)\n', fmt(logninv([.1 .5 .9],0,1)));
+fprintf('lognpdf(1,0,[0 -1 2])     = %s (expect NaN NaN 0.19947114; sigma<=0->NaN)\n', fmt(lognpdf(1,0,[0 -1 2])));
+
+fprintf('\n--- students_t (betainc-based broadcast over nu) ---\n');
+fprintf('tpdf(0,[1 2 10])          = %s (expect 0.31830989 0.35355339 0.38910838)\n', fmt(tpdf(0,[1 2 10])));
+fprintf('tcdf([-1 0 1],5)          = %s (expect 0.18160873 0.5 0.81839127)\n', fmt(tcdf([-1 0 1],5)));
+fprintf('tinv(0.975,[1 2 10])      = %s (expect 12.706205 4.3026527 2.2281389)\n', fmt(tinv(0.975,[1 2 10])));
+fprintf('tcdf(1,[5 Inf])           = %s (expect 0.81839127 0.84134475; nu==Inf->normcdf)\n', fmt(tcdf(1,[5 Inf])));
+
+fprintf('\n--- fisher_f (betainc-based broadcast over d1,d2) ---\n');
+fprintf('fpdf([0.5 1 2],5,10)      = %s (expect 0.68760700 0.49547978 0.16200574)\n', fmt(fpdf([0.5 1 2],5,10)));
+fprintf('fpdf(0,[1 2 3],5)         = %s (expect Inf 1 0; x==0 regimes)\n', fmt(fpdf(0,[1 2 3],5)));
+fprintf('fcdf([0.5 1 2],5,10)      = %s (expect 0.22997512 0.53488057 0.83580505)\n', fmt(fcdf([0.5 1 2],5,10)));
+fprintf('finv([.1 .5 .9],5,10)     = %s (expect 0.30326909 0.93193316 2.5216407)\n', fmt(finv([.1 .5 .9],5,10)));
+
+fprintf('\n--- discrete: binomial + poisson (broadcast n/p/lambda) ---\n');
+fprintf('binopdf(2,[4 5 6],0.5)    = %s (expect 0.375 0.3125 0.234375)\n', fmt(binopdf(2,[4 5 6],0.5)));
+fprintf('binocdf(2,[4 5 6],0.5)    = %s (expect 0.6875 0.5 0.34375)\n', fmt(binocdf(2,[4 5 6],0.5)));
+fprintf('binoinv([.1 .5 .9],10,0.5)= %s (expect 3 5 7)\n', fmt(binoinv([.1 .5 .9],10,0.5)));
+fprintf('poisspdf(2,[1 2 3])       = %s (expect 0.18393972 0.27067057 0.22404181)\n', fmt(poisspdf(2,[1 2 3])));
+fprintf('poisscdf(2,[1 2 3])       = %s (expect 0.91969860 0.67667642 0.42319008)\n', fmt(poisscdf(2,[1 2 3])));
+fprintf('poisspdf(2,[0 -1 2])      = %s (expect 0 NaN 0.27067057; lam==0->0, lam<0->NaN)\n', fmt(poisspdf(2,[0 -1 2])));
+
+fprintf('\n--- discrete closed-form: unid + geometric (broadcast N/p) ---\n');
+fprintf('unidpdf(3,[5 10])         = %s (expect 0.2 0.1)\n', fmt(unidpdf(3,[5 10])));
+fprintf('unidinv(0.5,[10 20])      = %s (expect 5 10)\n', fmt(unidinv(0.5,[10 20])));
+fprintf('geopdf(2,[0.2 0.5])       = %s (expect 0.128 0.125)\n', fmt(geopdf(2,[0.2 0.5])));
+fprintf('geocdf(2,[0.2 0.5])       = %s (expect 0.488 0.875)\n', fmt(geocdf(2,[0.2 0.5])));
+fprintf('geoinv([.1 .5 .9],0.3)    = %s (expect 0 1 6)\n', fmt(geoinv([0.1 0.5 0.9],0.3)));
+
+fprintf('\n--- discrete: negbin + hypergeom (broadcast r,p / M,K,N) ---\n');
+fprintf('nbinpdf(2,[3 5],0.5)      = %s (expect 0.1875 0.1171875)\n', fmt(nbinpdf(2,[3 5],0.5)));
+fprintf('nbininv(0.5,[3 5],0.5)    = %s (expect 2 4)\n', fmt(nbininv(0.5,[3 5],0.5)));
+fprintf('hygepdf(2,[10 20],5,4)    = %s (expect 0.47619048 0.21671827)\n', fmt(hygepdf(2,[10 20],5,4)));
+fprintf('hygecdf(2,20,7,[3 5])     = %s (expect 0.96929825 0.79321465)\n', fmt(hygecdf(2,20,7,[3 5])));
+fprintf('hygepdf(2,20,7,[8 25])    = %s (expect 0.28606811 NaN; N>M->NaN)\n', fmt(hygepdf(2,20,7,[8 25])));
+
+fprintf('\n--- regressions (scalar-param path unchanged) ---\n');
+fprintf('normpdf(0)=%.10g (expect 0.3989422804)  exppdf(2)=%.10g (expect 0.1353352832)\n', normpdf(0), exppdf(2));
+fprintf('binopdf(2,5,0.3)=%.10g (expect 0.3087)  unidpdf(3,10)=%.10g (expect 0.1)\n', binopdf(2,5,0.3), unidpdf(3,10));
+fprintf('nbinpdf(2,3,0.5)=%.10g (expect 0.1875)  hygepdf(2,20,7,5)=%.10g (expect 0.3873839009)\n', nbinpdf(2,3,0.5), hygepdf(2,20,7,5));
+fprintf('gampdf(1,2,2)=%.10g (expect 0.1516326649)  betapdf(0.3,2,3)=%.10g (expect 1.764)\n', gampdf(1,2,2), betapdf(0.3,2,3));
+fprintf('gaminv(0.5,2,2)=%.10g (expect 3.356693980)  chi2inv(0.5,4)=%.10g (expect 3.356693980)\n', gaminv(0.5,2,2), chi2inv(0.5,4));
+fprintf('empty: numel(normpdf([],0,1))=%d (expect 0)\n', numel(normpdf([],0,1)));

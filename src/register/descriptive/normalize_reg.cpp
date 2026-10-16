@@ -1,0 +1,114 @@
+// toolboxes/signal/src/descriptive/normalize_reg.cpp
+//
+// CallContext register half of descriptive/normalize.cpp (Phase 2b compute/register split).
+// Engine-coupled glue: marshals CallContext args/outs into the engine-free
+// compute API declared in the headers below. See project_layering_refactor.
+#include <numkit/sys/plugin.hpp>
+#include <numkit/stats/descriptive/descriptive.hpp>
+#include <numkit/value/argcheck.hpp>
+#include <numkit/value/error.hpp>
+#include <numkit/value/value.hpp>
+#include "descriptive/normalize_detail.hpp"
+#include <numkit/value/error.hpp>
+#include <numkit/value/scratch.hpp>
+#include <numkit/value/span.hpp>
+
+#include <algorithm>
+#include <cctype>
+#include <cmath>
+#include <complex>
+#include <cstddef>
+#include <string>
+#include <tuple>
+#include <utility>
+#include <vector>
+
+namespace numkit::stats {
+
+namespace detail {
+
+void normalize_reg(Span<const Value> args, size_t nargout,
+                   Span<Value> outs, CallContext &ctx)
+{
+    argcheck::checkNargin(args.size(), 1, "normalize");  // no max: name-value tail in the reference
+    std::string method = "zscore";
+    const Value *param = nullptr;
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        if (!args[1].isChar() && !args[1].isString())
+            throw Error("normalize: method must be a string",
+                        0, 0, "normalize", "", "nk:normalize:type");
+        method = args[1].toString();
+        // Optional method parameter: range bounds / norm-p / scale divisor
+        // / center reference. (Previously dropped -> options were ignored.)
+        if (args.size() >= 3 && !args[2].isEmpty())
+            param = &args[2];
+    }
+    // MATLAB [N, C, S] = normalize(...): N normalised, C centering, S scaling,
+    // with N == (A - C) ./ S. Compute returns all three; discard per nargout.
+    NormalizeResult r = normalize(args[0], method,
+                                  param ? *param : Value::Empty,
+                                  ctx.engine->resource());
+    outs[0] = std::move(r.n);
+    if (nargout >= 2 && outs.size() >= 2) outs[1] = std::move(r.c);
+    if (nargout >= 3 && outs.size() >= 3) outs[2] = std::move(r.s);
+}
+
+void rescale_reg(Span<const Value> args, size_t /*nargout*/,
+                 Span<Value> outs, CallContext &ctx)
+{
+    argcheck::checkNargin(args.size(), 1, "rescale");  // no max: name-value tail in the reference
+    double lo = 0.0, hi = 1.0;
+    double inputMin = std::numeric_limits<double>::quiet_NaN();
+    double inputMax = std::numeric_limits<double>::quiet_NaN();
+
+    // Positional lo/hi come first (only when arg[1] is not a NV-name).
+    size_t i = 1;
+    if (args.size() >= 2 && !args[1].isChar() && !args[1].isString()) {
+        if (!args[1].isEmpty()) lo = args[1].toScalar();
+        i = 2;
+        if (args.size() >= 3 && !args[2].isChar() && !args[2].isString()) {
+            if (!args[2].isEmpty()) hi = args[2].toScalar();
+            i = 3;
+        }
+    }
+    // Name-Value: 'InputMin' / 'InputMax' (case-insensitive).
+    for (; i + 1 < args.size(); i += 2) {
+        if (!args[i].isChar() && !args[i].isString())
+            throw Error("rescale: expected 'InputMin'/'InputMax'",
+                        0, 0, "rescale", "", "nk:rescale:badOpt");
+        std::string nm = args[i].toString();
+        for (char &c : nm) if (c >= 'A' && c <= 'Z') c = char(c + 32);
+        if      (nm == "inputmin") inputMin = args[i + 1].toScalar();
+        else if (nm == "inputmax") inputMax = args[i + 1].toScalar();
+        else
+            throw Error("rescale: name must be 'InputMin' or 'InputMax'",
+                        0, 0, "rescale", "", "nk:rescale:badOpt");
+    }
+    outs[0] = rescale(args[0], lo, hi, inputMin, inputMax, ctx.engine->resource());
+}
+
+void zscore_reg(Span<const Value> args, size_t nargout,
+                Span<Value> outs, CallContext &ctx)
+{
+    argcheck::checkNargin(args.size(), 1, 3, "zscore");
+    int flag = 0, dim = 0;
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        const double fv = argcheck::expectedReal(args[1], 2, "flag", "zscore");
+        argcheck::expectedFlag01(fv, 2, "flag", "zscore");
+        flag = static_cast<int>(fv);
+    }
+    if (args.size() >= 3 && !args[2].isEmpty())
+        dim = argcheck::dimArg(args[2], "zscore");
+    auto *mr = ctx.engine->resource();
+    // [Z, MU, SIGMA] = zscore(...): expose the centring mean and scaling std.
+    Value mu, sigma;
+    outs[0] = zscoreCore(args[0], flag, dim,
+                         nargout >= 2 ? &mu : nullptr,
+                         nargout >= 3 ? &sigma : nullptr, mr);
+    if (nargout >= 2) outs[1] = mu;
+    if (nargout >= 3) outs[2] = sigma;
+}
+
+} // namespace detail
+
+} // namespace numkit::stats

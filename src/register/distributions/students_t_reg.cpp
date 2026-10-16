@@ -1,0 +1,199 @@
+// toolboxes/signal/src/distributions/students_t_reg.cpp
+//
+// CallContext register half of distributions/students_t.cpp (Phase 2b compute/register split).
+// Engine-coupled glue: marshals CallContext args/outs into the engine-free
+// compute API declared in the headers below. See project_layering_refactor.
+#include <numkit/sys/plugin.hpp>
+#include <numkit/builtin/datafun.hpp>
+#include <numkit/builtin/specfun.hpp>
+#include <numkit/stats/distributions/students_t.hpp>
+#include <numkit/value/error.hpp>
+#include <numkit/value/value.hpp>
+#include "distributions/dist_helpers.hpp"
+#include "distributions/students_t_detail.hpp"
+#include <numkit/value/error.hpp>
+#include <numkit/value/scratch.hpp>
+#include <numkit/value/span.hpp>
+#include <numkit/value/argcheck.hpp>
+
+#include <algorithm>
+#include <cctype>
+#include <cmath>
+#include <complex>
+#include <cstddef>
+#include <string>
+#include <tuple>
+#include <utility>
+#include <vector>
+
+namespace numkit::stats {
+
+namespace detail {
+
+void tpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    argcheck::checkNargin(args.size(), 2, 2, "tpdf");
+    auto *mr = ctx.engine->resource();
+    const Value &nu = args[1];
+    if (nu.isScalar())
+        outs[0] = tpdf(args[0], nu.toScalar(), mr);
+    else
+        outs[0] = broadcast_dist2(args[0], nu, mr, "tpdf", tpdfK);
+}
+
+void tcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    argcheck::checkNargin(args.size(), 2, 3, "tcdf");
+    bool upper = false;
+    const Span<const Value> a = args.subspan(0, stripUpperFlag(args, upper));
+    if (a.size() < 2)
+        throw Error("tcdf: requires (x, nu[, 'upper'])", 0, 0, "tcdf", "", "nk:tcdf:nargin");
+    auto *mr = ctx.engine->resource();
+    const Value &nu = a[1];
+    Value v;
+    if (nu.isScalar()) {
+        v = tcdf(a[0], nu.toScalar(), mr);
+    } else {
+        // F(x; nu) = 1 - ½·I_z(nu/2, ½) for x≥0 (½·I_z for x<0), z=nu/(nu+x²);
+        // nu→∞ → normcdf. betainc broadcasts (z, nu/2, ½); sign + Inf per element.
+        const Value &x = a[0];
+        const size_t nx = x.numel(), nnu = nu.numel();
+        if (nx == 0 || nnu == 0) {
+            v = dist_empty_like(nx == 0 ? x : nu, mr);
+        } else {
+            const size_t N = dist_match_numel({nx, nnu}, "tcdf");
+            Value z = broadcast_dist2(x, nu, mr, "tcdf", [](double xi, double nui) -> double {
+                if (!(nui > 0.0)) return std::numeric_limits<double>::quiet_NaN();
+                if (std::isinf(nui)) return 1.0;   // placeholder (overridden below)
+                return nui / (nui + xi * xi);
+            });
+            Value hnu = elementwise(nu, [](double ni) { return std::isinf(ni) ? 1.0 : 0.5 * ni; }, mr);
+            Value Iz = ::numkit::builtin::betainc(z, hnu, Value::scalar(0.5, mr), mr);
+            const Value &ref = (nnu == N) ? nu : x;
+            v = dist_empty_like(ref, mr);
+            double *od = v.doubleDataMut();
+            const size_t nIz = Iz.numel();
+            const double NaN = std::numeric_limits<double>::quiet_NaN();
+            for (size_t i = 0; i < N; ++i) {
+                const double nui = nu.elemAsDouble(nnu == 1 ? 0 : i);
+                const double xi = x.elemAsDouble(nx == 1 ? 0 : i);
+                if (!(nui > 0.0)) { od[i] = NaN; continue; }
+                if (std::isinf(nui)) { od[i] = tNormCdf(xi); continue; }
+                const double Ii = Iz.elemAsDouble(nIz == 1 ? 0 : i);
+                od[i] = (xi >= 0.0) ? 1.0 - 0.5 * Ii : 0.5 * Ii;
+            }
+        }
+    }
+    if (upper) applyUpperInPlace(v);
+    outs[0] = std::move(v);
+}
+
+void tinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    argcheck::checkNargin(args.size(), 2, 2, "tinv");
+    auto *mr = ctx.engine->resource();
+    const Value &nu = args[1];
+    if (nu.isScalar()) {
+        outs[0] = tinv(args[0], nu.toScalar(), mr);
+        return;
+    }
+    // z = betaincinv(2·min(p,1-p), nu/2, ½); x = sign·sqrt(nu(1/z - 1));
+    // nu→∞ → norminv(p). Per-element fixup mirrors the scalar tinv exactly.
+    const Value &p = args[0];
+    const size_t np = p.numel(), nnu = nu.numel();
+    if (np == 0 || nnu == 0) {
+        outs[0] = dist_empty_like(np == 0 ? p : nu, mr);
+        return;
+    }
+    const size_t N = dist_match_numel({np, nnu}, "tinv");
+    Value qv = elementwise(p, [](double pi) {
+        if (std::isnan(pi) || pi < 0.0 || pi > 1.0) return 0.5;
+        return (pi >= 0.5) ? 2.0 * (1.0 - pi) : 2.0 * pi;
+    }, mr);
+    Value hnu = elementwise(nu, [](double ni) { return std::isinf(ni) ? 1.0 : 0.5 * ni; }, mr);
+    Value zv = ::numkit::builtin::betaincinv(qv, hnu, Value::scalar(0.5, mr), mr);
+    const Value &ref = (nnu == N) ? nu : p;
+    Value out = dist_empty_like(ref, mr);
+    double *od = out.doubleDataMut();
+    const size_t nzv = zv.numel();
+    const double NaN = std::numeric_limits<double>::quiet_NaN();
+    const double PINF = std::numeric_limits<double>::infinity();
+    for (size_t i = 0; i < N; ++i) {
+        const double pi = p.elemAsDouble(np == 1 ? 0 : i);
+        const double nui = nu.elemAsDouble(nnu == 1 ? 0 : i);
+        if (!(nui > 0.0) || std::isnan(pi) || pi < 0.0 || pi > 1.0) { od[i] = NaN; continue; }
+        if (pi == 0.0) { od[i] = -PINF; continue; }
+        if (pi == 1.0) { od[i] = PINF; continue; }
+        if (std::isinf(nui)) { od[i] = tNormInv(pi); continue; }
+        const double zi = zv.elemAsDouble(nzv == 1 ? 0 : i);
+        if (zi <= 0.0) { od[i] = (pi >= 0.5) ? PINF : -PINF; continue; }
+        const double mag = std::sqrt(nui * (1.0 / zi - 1.0));
+        od[i] = (pi >= 0.5) ? mag : -mag;
+    }
+    outs[0] = std::move(out);
+}
+
+void trnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    argcheck::checkNargin(args.size(), 1, "trnd");  // no max: trailing size args (N-D tail; nk caps at two — bugs/opened/stats/rnd-nd-size-tails.md)
+    const double nu = args[0].toScalar();
+    size_t rows, cols;
+    parse_rng_size(args, 1, rows, cols, "trnd");
+    outs[0] = trnd(ctx.engine->rng(), nu, rows, cols, ctx.engine->resource());
+}
+
+void tstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    argcheck::checkNargin(args.size(), 1, 1, "tstat");
+    emit_vec_stat_1arg(args, nargout, outs, ctx.engine->resource(), "tstat",
+                       [](double nu) { return tstat(nu); });
+}
+
+void nctpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    argcheck::checkNargin(args.size(), 3, 3, "nctpdf");
+    outs[0] = nctpdf(args[0], args[1].toScalar(), args[2].toScalar(),
+                     ctx.engine->resource());
+}
+
+void nctcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    argcheck::checkNargin(args.size(), 3, 4, "nctcdf");
+    bool upper = false;
+    const size_t n = stripUpperFlag(args, upper);
+    if (n < 3)
+        throw Error("nctcdf: requires (x, nu, delta[, 'upper'])",
+                    0, 0, "nctcdf", "", "nk:nctcdf:nargin");
+    outs[0] = nctcdf(args[0], args[1].toScalar(), args[2].toScalar(), upper,
+                     ctx.engine->resource());
+}
+
+void nctinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    argcheck::checkNargin(args.size(), 3, 3, "nctinv");
+    outs[0] = nctinv(args[0], args[1].toScalar(), args[2].toScalar(),
+                     ctx.engine->resource());
+}
+
+void nctstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    argcheck::checkNargin(args.size(), 2, 2, "nctstat");
+    auto [m, v] = nctstat(args[0].toScalar(), args[1].toScalar());
+    outs[0] = Value::scalar(m, ctx.engine->resource());
+    if (nargout >= 2)
+        outs[1] = Value::scalar(v, ctx.engine->resource());
+}
+
+void nctrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    argcheck::checkNargin(args.size(), 2, "nctrnd");  // no max: trailing size args (N-D tail; nk caps at two — bugs/opened/stats/rnd-nd-size-tails.md)
+    const double nu = args[0].toScalar();
+    const double delta = args[1].toScalar();
+    size_t rows, cols;
+    parse_rng_size(args, 2, rows, cols, "nctrnd");
+    outs[0] = nctrnd(ctx.engine->rng(), nu, delta, rows, cols, ctx.engine->resource());
+}
+
+} // namespace detail
+
+} // namespace numkit::stats

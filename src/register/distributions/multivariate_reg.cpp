@@ -1,0 +1,138 @@
+// toolboxes/signal/src/distributions/multivariate_reg.cpp
+//
+// CallContext register half of distributions/multivariate.cpp (Phase 2b compute/register split).
+// Engine-coupled glue: marshals CallContext args/outs into the engine-free
+// compute API declared in the headers below. See project_layering_refactor.
+#include <numkit/sys/plugin.hpp>
+#include <numkit/builtin/datafun.hpp>  // RngContext + rand/randn/randi/randperm (session-scoped, no global/mutex)
+#include <numkit/builtin/specfun.hpp>  // betainc (used by mvtcdf d=1)
+#include <numkit/stats/distributions/multivariate.hpp>
+#include <numkit/value/argcheck.hpp>
+#include <numkit/value/error.hpp>
+#include <numkit/value/scratch.hpp>
+#include <numkit/value/value.hpp>
+#include "distributions/dist_helpers.hpp"
+#include "distributions/multivariate_detail.hpp"
+#include <numkit/value/error.hpp>
+#include <numkit/value/scratch.hpp>
+#include <numkit/value/span.hpp>
+
+#include <algorithm>
+#include <cctype>
+#include <cmath>
+#include <complex>
+#include <cstddef>
+#include <string>
+#include <tuple>
+#include <utility>
+#include <vector>
+
+namespace numkit::stats {
+
+namespace detail {
+
+void mvncdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    argcheck::checkNargin(args.size(), 1, "mvncdf");  // no max: options-struct tail in the reference
+    // Marshalling only — the positional forms (X[, mu[, Sigma]] and the
+    // box (xl, xu, mu, Sigma)), the options-struct strip and every
+    // shape/PSD gate live in mvncdf_full.
+    outs[0] = mvncdf_full(args, ctx.engine->resource());
+}
+
+void mvnrnd_reg(Span<const Value> args, size_t nargout,
+                Span<Value> outs, CallContext &ctx)
+{
+    argcheck::checkNargin(args.size(), 2, 4, "mvnrnd");
+    // cases: extract a validated integer count (fractional / NaN /
+    // complex reject); empty or absent → derive (empty Value). Negative
+    // counts flow through as-is — the contract turns them into 0×d.
+    Value cases;
+    if (args.size() >= 3 && !args[2].isEmpty()) {
+        const double n = argcheck::expectedReal(args[2], 3, "n", "mvnrnd");
+        if (std::isnan(n) || n != std::floor(n))
+            throw Error("mvnrnd: n must be a real integer scalar (got "
+                        + std::to_string(n) + ").",
+                        0, 0, "mvnrnd", "", "nk:mvnrnd:badCases");
+        cases = Value::scalar(n, ctx.engine->resource());
+    }
+    auto r = mvnrnd_full(ctx.engine->rng(), args[0], args[1], cases,
+                         nargout >= 2, ctx.engine->resource());
+    outs[0] = std::move(r.r);
+    if (nargout >= 2) outs[1] = std::move(r.T);
+}
+
+void mvtrnd_reg(Span<const Value> args, size_t /*nargout*/,
+                Span<Value> outs, CallContext &ctx)
+{
+    argcheck::checkNargin(args.size(), 2, 3, "mvtrnd");
+    Value cases;
+    if (args.size() >= 3 && !args[2].isEmpty()) {
+        const double n = argcheck::expectedReal(args[2], 3, "cases", "mvtrnd");
+        if (std::isnan(n) || n != std::floor(n))
+            throw Error("mvtrnd: cases must be a real integer scalar (got "
+                        + std::to_string(n) + ").",
+                        0, 0, "mvtrnd", "", "nk:mvtrnd:badCases");
+        cases = Value::scalar(n, ctx.engine->resource());
+    }
+    outs[0] = mvtrnd_full(ctx.engine->rng(), args[0], args[1], cases,
+                          ctx.engine->resource());
+}
+
+void mnrnd_reg(Span<const Value> args, size_t /*nargout*/,
+               Span<Value> outs, CallContext &ctx)
+{
+    argcheck::checkNargin(args.size(), 2, 3, "mnrnd");
+    const std::size_t N = argcheck::roundLength(args[0], 1, "N", "mnrnd");
+    std::size_t m = 1;
+    if (args.size() >= 3 && !args[2].isEmpty())
+        m = argcheck::arrayDim(args[2], "mnrnd");
+    outs[0] = mnrnd(ctx.engine->rng(), N, args[1], m, ctx.engine->resource());
+}
+
+void wishrnd_reg(Span<const Value> args, size_t nargout,
+                 Span<Value> outs, CallContext &ctx)
+{
+    argcheck::checkNargin(args.size(), 2, 3, "wishrnd");
+    const double df = args[1].toScalar();
+    const Value D_in = (args.size() > 2) ? args[2] : Value::Empty;
+    auto [W, D] = wishrnd_factor(ctx.engine->rng(), args[0], df, D_in, ctx.engine->resource());
+    outs[0] = std::move(W);
+    if (nargout >= 2) outs[1] = std::move(D);
+}
+
+void iwishrnd_reg(Span<const Value> args, size_t nargout,
+                  Span<Value> outs, CallContext &ctx)
+{
+    argcheck::checkNargin(args.size(), 2, 3, "iwishrnd");
+    const double df = args[1].toScalar();
+    const Value DI_in = (args.size() > 2) ? args[2] : Value::Empty;
+    auto [W, DI] = iwishrnd_factor(ctx.engine->rng(), args[0], df, DI_in, ctx.engine->resource());
+    outs[0] = std::move(W);
+    if (nargout >= 2) outs[1] = std::move(DI);
+}
+
+void mvtcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    argcheck::checkNargin(args.size(), 1, "mvtcdf");  // no max: name-value tail in the reference
+    auto *mr = ctx.engine->resource();
+    // 3 args: mvtcdf(X, C, df) — upper-tail form.
+    // 4 args: mvtcdf(L, U, C, df) — box form.
+    // 5 args: mvtcdf(L, U, C, df, tol) — box form with tolerance.
+    if (args.size() == 3) {
+        outs[0] = mvtcdf(args[0], args[1], args[2].toScalar(), 0.01, mr);
+    } else if (args.size() == 4) {
+        outs[0] = mvtcdf_box(args[0], args[1], args[2],
+                             args[3].toScalar(), 0.01, mr);
+    } else if (args.size() == 5) {
+        outs[0] = mvtcdf_box(args[0], args[1], args[2],
+                             args[3].toScalar(), args[4].toScalar(), mr);
+    } else {
+        throw Error("mvtcdf: requires (X, C, df) or (L, U, C, df[, tol])",
+                    0, 0, "mvtcdf", "", "nk:mvtcdf:nargin");
+    }
+}
+
+} // namespace detail
+
+} // namespace numkit::stats
