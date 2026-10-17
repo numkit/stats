@@ -323,10 +323,9 @@ TEST_F(StatsKnownBug, DISABLED_ZeroArgForms)
     EXPECT_DOUBLE_EQ(evalScalar("isscalar(g)"), 1.0);
 }
 
-// bugs/opened/stats/of-helpers-raw-doubledata.md — the *_of compute
-// helpers read doubleData() without a type contract. The eval path is
-// guarded by the m-source dispatcher; the DIRECT C++ path is not.
-TEST_F(StatsKnownBug, DISABLED_DetrendCharRejected)
+// bugs/closed/stats/of-helpers-raw-doubledata.md — the *_of compute
+// helpers now route through the *_full cleaning contracts (FIXED).
+TEST_F(StatsKnownBug, DetrendCharRejected)
 {
     eval("s = 'ab';");
     try {
