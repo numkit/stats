@@ -114,7 +114,7 @@ void gamrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     const double b = args[1].toScalar();
     size_t rows, cols;
     parse_rng_size(args, 2, rows, cols, "gamrnd");
-    outs[0] = gamrnd(ctx.engine->rng(), a, b, rows, cols, ctx.engine->resource());
+    outs[0] = reshape_rng_nd(gamrnd(ctx.engine->rng(), a, b, rows, cols, ctx.engine->resource()), args, 2, ctx.engine->resource(), "gamrnd");
 }
 
 void gamstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -154,7 +154,7 @@ void randg_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     // Scalar shape — pull size from the remaining args (or default 1×1).
     std::size_t rows = 1, cols = 1;
     parse_rng_size(args, 1, rows, cols, "randg");
-    outs[0] = randg(ctx.engine->rng(), shape.toScalar(), rows, cols, mr);
+    outs[0] = reshape_rng_nd(randg(ctx.engine->rng(), shape.toScalar(), rows, cols, mr), args, 1, ctx.engine->resource(), "randg");
 }
 
 } // namespace detail

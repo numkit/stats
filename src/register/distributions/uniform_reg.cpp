@@ -70,7 +70,7 @@ void unifrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     const double b = args[1].toScalar();
     size_t rows, cols;
     parse_rng_size(args, 2, rows, cols, "unifrnd");
-    outs[0] = unifrnd(ctx.engine->rng(), a, b, rows, cols, ctx.engine->resource());
+    outs[0] = reshape_rng_nd(unifrnd(ctx.engine->rng(), a, b, rows, cols, ctx.engine->resource()), args, 2, ctx.engine->resource(), "unifrnd");
 }
 
 void unifstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

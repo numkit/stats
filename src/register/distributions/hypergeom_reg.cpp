@@ -77,7 +77,7 @@ void hygernd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     const double N = args[2].toScalar();
     size_t rows = 1, cols = 1;
     parse_rng_size(args, 3, rows, cols, "hygernd");
-    outs[0] = hygernd(ctx.engine->rng(), M, K, N, rows, cols, ctx.engine->resource());
+    outs[0] = reshape_rng_nd(hygernd(ctx.engine->rng(), M, K, N, rows, cols, ctx.engine->resource()), args, 3, ctx.engine->resource(), "hygernd");
 }
 
 void hygestat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

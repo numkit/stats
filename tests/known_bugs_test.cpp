@@ -225,9 +225,9 @@ TEST_F(StatsKnownBug, JackknifeMean)
     EXPECT_NEAR(evalScalar("J(3,1)"), 1.5, 1e-12);  // drop row 3 -> mean(1,2)
 }
 
-// bugs/opened/stats/rnd-size-vector-nd.md — 3+ element size vectors must
+// bugs/closed/stats/rnd-size-vector-nd.md — 3+ element size vectors must
 // produce N-D output; nk flattens to first × product(rest).
-TEST_F(StatsKnownBug, DISABLED_RndSizeVectorND)
+TEST_F(StatsKnownBug, RndSizeVectorND)
 {
     eval("s = size(geornd(0.5, [2 3 4]));");
     EXPECT_EQ(static_cast<int>(evalScalar("numel(s)")), 3);
@@ -295,11 +295,29 @@ TEST_F(StatsKnownBug, TrimmeanVecdim)
     EXPECT_DOUBLE_EQ(evalScalar("t"), 3.0);
 }
 
-// bugs/opened/stats/rnd-nd-size-tails.md — the reference accepts an
-// unbounded trailing size tail (geornd(p,2,3,4) -> 2x3x4); nk's
-// parse_rng_size kernels are 2-D only and reject a 3rd size arg with
-// nk:<fn>:maxnargin.
-TEST_F(StatsKnownBug, DISABLED_RndNdSizeTails)
+// bugs/closed/stats/vecdim-residual.md — zscore, range, mad, geomean,
+// harmmean, and nan* accept vecdim ([1 2], [1 3]) and 'all'.
+TEST_F(StatsKnownBug, VecdimResidual)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("range(1:5, [1 2])"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("mad(1:5, 0, [1 2])"), 1.2);
+    EXPECT_NEAR(evalScalar("geomean([1 2 4], [1 2])"), 2.0, 1e-12);
+    EXPECT_NEAR(evalScalar("harmmean([1 2 4], [1 2])"), 12.0 / 7.0, 1e-12);
+    eval("[z, mu, sig] = zscore([1 2 3; 4 5 6], 0, [1 2]);");
+    EXPECT_NEAR(evalScalar("mu"), 3.5, 1e-12);
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(z)")), 6);
+    EXPECT_DOUBLE_EQ(evalScalar("nansum([1 2 NaN 4], [1 2])"), 7.0);
+    EXPECT_DOUBLE_EQ(evalScalar("nanmean([1 2 NaN 6], [1 2])"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("nanmedian([1 2 NaN 9], [1 2])"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("nanmax([1 5 NaN 3], [], [1 2])"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("nanmin([1 5 NaN 3], [], [1 2])"), 1.0);
+    EXPECT_NEAR(evalScalar("nanvar([1 2 NaN 3], 0, [1 2])"), 1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("nanstd([1 2 NaN 3], 0, [1 2])"), 1.0, 1e-12);
+}
+
+// bugs/closed/stats/rnd-size-vector-nd.md — the reference accepts an
+// unbounded trailing size tail (geornd(p,2,3,4) -> 2x3x4).
+TEST_F(StatsKnownBug, RndNdSizeTails)
 {
     eval("r = geornd(0.5, 2, 3, 4);");
     eval("s = size(r);");

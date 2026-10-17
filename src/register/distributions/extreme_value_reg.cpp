@@ -71,7 +71,7 @@ void evrnd_reg(Span<const Value> args, size_t /*nargout*/,
     const double sigma = args[1].toScalar();
     size_t rows = 1, cols = 1;
     parse_rng_size(args, 2, rows, cols, "evrnd");
-    outs[0] = evrnd(ctx.engine->rng(), mu, sigma, rows, cols, ctx.engine->resource());
+    outs[0] = reshape_rng_nd(evrnd(ctx.engine->rng(), mu, sigma, rows, cols, ctx.engine->resource()), args, 2, ctx.engine->resource(), "evrnd");
 }
 
 void evstat_reg(Span<const Value> args, size_t nargout,

@@ -141,4 +141,68 @@ inline Value expandReduced(Value reduced, const Value &x, Span<const int> set,
                             Span<const size_t>(shape.data(), shape.size()), mr);
 }
 
+// Parse a dim slot that accepts a positive integer scalar, a vecdim
+// vector of unique positive integers, or 'all'. When 'all' or a vecdim
+// is supplied, `vecdimSet` is non-empty; otherwise `dim` holds the
+// scalar dimension (or 0 if `a` is empty).
+inline void parseDimSlot(const Value &x, const Value &a, std::string_view fn,
+                         int &dim, std::vector<int> &vecdimSet)
+{
+    dim = 0;
+    vecdimSet.clear();
+    if (a.isEmpty())
+        return;
+    if (a.isChar() || a.isString()) {
+        std::string s = a.toString();
+        for (char &c : s)
+            if (c >= 'A' && c <= 'Z') c = static_cast<char>(c + 32);
+        if (s == "all") {
+            const int rank = realRank(x);
+            vecdimSet.reserve(static_cast<size_t>(rank));
+            for (int d = 1; d <= rank; ++d)
+                vecdimSet.push_back(d);
+            return;
+        }
+        throw Error(std::string(fn) + ": unknown flag '" + a.toString() + "'",
+                    0, 0, std::string(fn), "",
+                    "numkit:" + std::string(fn) + ":unknownFlag");
+    }
+    if (a.numel() == 1) {
+        dim = argcheck::dimArg(a, fn);
+        return;
+    }
+    vecdimSet = parseDimSet(a, fn);
+}
+
+// Restore a shape-preserving transform result (such as zscore's Z)
+// computed along the last dimension of collapseDims(x, set, mr) back
+// to x's original dimension order and shape.
+inline Value uncollapseFull(Value collapsedOut, const Value &x,
+                            Span<const int> set,
+                            std::pmr::memory_resource *mr)
+{
+    const int nd = x.dims().ndim();
+    std::vector<char> listed(static_cast<size_t>(nd) + 1, 0);
+    for (int d : set)
+        if (d <= nd)
+            listed[static_cast<size_t>(d)] = 1;
+    std::vector<int> order;
+    order.reserve(static_cast<size_t>(nd));
+    for (int d = 1; d <= nd; ++d)
+        if (!listed[static_cast<size_t>(d)])
+            order.push_back(d);
+    for (int d = 1; d <= nd; ++d)
+        if (listed[static_cast<size_t>(d)])
+            order.push_back(d);
+    std::vector<size_t> permShape(static_cast<size_t>(nd));
+    std::vector<int> invOrder(static_cast<size_t>(nd));
+    for (int i = 0; i < nd; ++i) {
+        permShape[static_cast<size_t>(i)] = x.dims().dim(order[static_cast<size_t>(i)] - 1);
+        invOrder[static_cast<size_t>(order[static_cast<size_t>(i)] - 1)] = i + 1;
+    }
+    Value r = builtin::reshape(std::move(collapsedOut),
+                               Span<const size_t>(permShape.data(), permShape.size()), mr);
+    return builtin::permute(r, Span<const int>(invOrder.data(), invOrder.size()), mr);
+}
+
 } // namespace numkit::vecdim

@@ -66,7 +66,7 @@ void gprnd_reg(Span<const Value> args, size_t /*nargout*/,
     const double theta = args[2].toScalar();
     size_t rows = 1, cols = 1;
     parse_rng_size(args, 3, rows, cols, "gprnd");
-    outs[0] = gprnd(ctx.engine->rng(), k, sigma, theta, rows, cols, ctx.engine->resource());
+    outs[0] = reshape_rng_nd(gprnd(ctx.engine->rng(), k, sigma, theta, rows, cols, ctx.engine->resource()), args, 3, ctx.engine->resource(), "gprnd");
 }
 
 void gpstat_reg(Span<const Value> args, size_t nargout,

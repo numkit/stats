@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <numkit/builtin/elmat.hpp>
 #include <numkit/value/argcheck.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/span.hpp>
@@ -334,47 +335,28 @@ inline Value broadcast_dist4(const Value &av, const Value &bv, const Value &cv,
 //
 //   <fn>(...params)              → scalar (1×1)
 //   <fn>(...params, n)           → n × n
-//   <fn>(...params, [m n])       → m × n  (vector size)
-//   <fn>(...params, m, n)        → m × n  (multi-arg size)
+//   <fn>(...params, [m n ...])   → m × n × ... (vector size)
+//   <fn>(...params, m, n, ...)   → m × n × ... (multi-arg size)
 //
 // `start` is the index of the first size-argument candidate (0-based).
-// On exit, sets rows/cols. The size contract is the array-creation
-// family's, reference-probed (2026-09-17): fractional / NaN / Inf /
-// complex size inputs error (nk:<fn>:sizeNotInteger / sizeNotFinite /
-// sizeNotReal); a NEGATIVE size and an EMPTY size argument both mean a
-// zero dimension (geornd(p, -1) and geornd(p, []) → 0×0, geornd(p, [], 3)
-// → 0×3).
-//
-// nk cap (NOT the reference contract — the reference accepts an
-// unbounded size tail): more than two scalar size inputs rejects with
-// nk:<fn>:maxnargin, and 3+ element size vectors ([m n p …]) flatten to
-// first × product(rest), because the 2-D rnd kernels cannot emit N-D
-// arrays yet — bugs/opened/stats/rnd-size-vector-nd.md.
+// On exit, sets rows/cols (with cols = product of dims 2..k so the 2-D
+// compute kernel generates the right number of draws), and
+// reshape_rng_nd() reshapes the 2-D result to the full N-D shape when
+// 3+ dimensions were requested.
 inline void parse_rng_size(Span<const Value> args, size_t start,
                             size_t &rows, size_t &cols, const char *fn)
 {
     rows = 1;
     cols = 1;
-    if (args.size() > start + 2)
-        throw Error(std::string(fn) + ": too many input arguments — at most "
-                    "two scalar size inputs (or one size vector) are accepted "
-                    "after the parameters (got " + std::to_string(args.size())
-                    + " total).",
-                    0, 0, fn, "", "numkit:" + std::string(fn) + ":maxnargin");
     if (args.size() <= start)
         return;
     const Value &a0 = args[start];
-    if (a0.isEmpty()) {
-        // Empty size argument = a zero dimension (NOT the 1×1 default —
-        // that is reserved for no size argument at all).
-        rows = 0;
-        cols = 0;
-        if (args.size() > start + 1 && !args[start + 1].isEmpty())
-            cols = argcheck::arrayDim(args[start + 1], fn);
-        return;
-    }
-    // Vector size form: numel > 1.
+    // Vector size form: numel > 1. Only valid when it is the sole size arg.
     if (a0.numel() > 1) {
+        if (args.size() > start + 1)
+            throw Error(std::string(fn) + ": too many input arguments — a size "
+                        "vector cannot be followed by additional size inputs.",
+                        0, 0, fn, "", "numkit:" + std::string(fn) + ":maxnargin");
         argcheck::arrayDimReal(a0, fn);
         const size_t n = a0.numel();
         rows = argcheck::arrayDim(a0.elemAsDouble(0), fn);
@@ -383,13 +365,55 @@ inline void parse_rng_size(Span<const Value> args, size_t start,
             cols *= argcheck::arrayDim(a0.elemAsDouble(i), fn);
         return;
     }
-    // Scalar size — 1 or 2 trailing args.
-    rows = argcheck::arrayDim(a0, fn);
-    if (args.size() > start + 1) {
-        cols = args[start + 1].isEmpty() ? 0 : argcheck::arrayDim(args[start + 1], fn);
-    } else {
-        cols = rows;  // n×n
+    if (args.size() == start + 1) {
+        if (a0.isEmpty()) {
+            rows = 0;
+            cols = 0;
+        } else {
+            rows = argcheck::arrayDim(a0, fn);
+            cols = rows;  // n×n
+        }
+        return;
     }
+    // 2 or more scalar (or empty) size args: validate every one and fold
+    // dims[1..] into cols for the 2-D kernel.
+    for (size_t i = start; i < args.size(); ++i) {
+        if (args[i].numel() > 1)
+            throw Error(std::string(fn) + ": size inputs must be scalars when "
+                        "more than one size argument is supplied.",
+                        0, 0, fn, "", "numkit:" + std::string(fn) + ":sizeNotScalar");
+    }
+    rows = a0.isEmpty() ? 0 : argcheck::arrayDim(a0, fn);
+    cols = 1;
+    for (size_t i = start + 1; i < args.size(); ++i) {
+        const size_t d = args[i].isEmpty() ? 0 : argcheck::arrayDim(args[i], fn);
+        cols *= d;
+    }
+}
+
+inline Value reshape_rng_nd(Value v, Span<const Value> args, size_t start,
+                            std::pmr::memory_resource *mr, const char *fn)
+{
+    if (args.size() <= start)
+        return v;
+    std::vector<size_t> shape;
+    if (args.size() == start + 1 && args[start].numel() > 1) {
+        const size_t n = args[start].numel();
+        shape.reserve(n);
+        for (size_t i = 0; i < n; ++i)
+            shape.push_back(argcheck::arrayDim(args[start].elemAsDouble(i), fn));
+    } else if (args.size() >= start + 3) {
+        shape.reserve(args.size() - start);
+        for (size_t i = start; i < args.size(); ++i)
+            shape.push_back(args[i].isEmpty() ? 0 : argcheck::arrayDim(args[i], fn));
+    } else {
+        return v;
+    }
+    while (shape.size() > 2 && shape.back() == 1)
+        shape.pop_back();
+    if (shape.size() <= 2)
+        return v;
+    return builtin::reshape(std::move(v), Span<const size_t>(shape.data(), shape.size()), mr);
 }
 
 } // namespace numkit::stats::detail

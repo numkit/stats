@@ -72,7 +72,7 @@ void geornd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     const double p = args[0].toScalar();
     size_t rows = 1, cols = 1;
     parse_rng_size(args, 1, rows, cols, "geornd");
-    outs[0] = geornd(ctx.engine->rng(), p, rows, cols, ctx.engine->resource());
+    outs[0] = reshape_rng_nd(geornd(ctx.engine->rng(), p, rows, cols, ctx.engine->resource()), args, 1, ctx.engine->resource(), "geornd");
 }
 
 void geostat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

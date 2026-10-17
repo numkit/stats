@@ -118,7 +118,7 @@ void binornd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     const double p = args[1].toScalar();
     size_t rows, cols;
     parse_rng_size(args, 2, rows, cols, "binornd");
-    outs[0] = binornd(ctx.engine->rng(), n, p, rows, cols, ctx.engine->resource());
+    outs[0] = reshape_rng_nd(binornd(ctx.engine->rng(), n, p, rows, cols, ctx.engine->resource()), args, 2, ctx.engine->resource(), "binornd");
 }
 
 void binostat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

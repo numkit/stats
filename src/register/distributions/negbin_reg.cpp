@@ -117,7 +117,7 @@ void nbinrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     const double p = args[1].toScalar();
     size_t rows = 1, cols = 1;
     parse_rng_size(args, 2, rows, cols, "nbinrnd");
-    outs[0] = nbinrnd(ctx.engine->rng(), r, p, rows, cols, ctx.engine->resource());
+    outs[0] = reshape_rng_nd(nbinrnd(ctx.engine->rng(), r, p, rows, cols, ctx.engine->resource()), args, 2, ctx.engine->resource(), "nbinrnd");
 }
 
 void nbinstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

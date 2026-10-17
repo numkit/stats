@@ -66,7 +66,7 @@ void gevrnd_reg(Span<const Value> args, size_t /*nargout*/,
     const double mu    = args[2].toScalar();
     size_t rows = 1, cols = 1;
     parse_rng_size(args, 3, rows, cols, "gevrnd");
-    outs[0] = gevrnd(ctx.engine->rng(), k, sigma, mu, rows, cols, ctx.engine->resource());
+    outs[0] = reshape_rng_nd(gevrnd(ctx.engine->rng(), k, sigma, mu, rows, cols, ctx.engine->resource()), args, 3, ctx.engine->resource(), "gevrnd");
 }
 
 void gevstat_reg(Span<const Value> args, size_t nargout,

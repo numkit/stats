@@ -71,7 +71,7 @@ void exprnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     const double mu = args[0].toScalar();
     size_t rows, cols;
     parse_rng_size(args, 1, rows, cols, "exprnd");
-    outs[0] = exprnd(ctx.engine->rng(), mu, rows, cols, ctx.engine->resource());
+    outs[0] = reshape_rng_nd(exprnd(ctx.engine->rng(), mu, rows, cols, ctx.engine->resource()), args, 1, ctx.engine->resource(), "exprnd");
 }
 
 void expstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

@@ -9,6 +9,7 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 #include "descriptive/normalize_detail.hpp"
+#include "support/reduce_vecdim.hpp"
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
 #include <numkit/value/span.hpp>
@@ -92,16 +93,28 @@ void zscore_reg(Span<const Value> args, size_t nargout,
 {
     argcheck::checkNargin(args.size(), 1, 3, "zscore");
     int flag = 0, dim = 0;
+    std::vector<int> vecdimSet;
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const double fv = argcheck::expectedReal(args[1], 2, "flag", "zscore");
         argcheck::expectedFlag01(fv, 2, "flag", "zscore");
         flag = static_cast<int>(fv);
     }
-    if (args.size() >= 3 && !args[2].isEmpty())
-        dim = argcheck::dimArg(args[2], "zscore");
+    if (args.size() >= 3)
+        vecdim::parseDimSlot(args[0], args[2], "zscore", dim, vecdimSet);
     auto *mr = ctx.engine->resource();
     // [Z, MU, SIGMA] = zscore(...): expose the centring mean and scaling std.
     Value mu, sigma;
+    if (!vecdimSet.empty()) {
+        Value c = vecdim::collapseDims(args[0], vecdimSet, mr);
+        const int lastd = static_cast<int>(c.dims().ndim());
+        Value zc = zscoreCore(c, flag, lastd,
+                              nargout >= 2 ? &mu : nullptr,
+                              nargout >= 3 ? &sigma : nullptr, mr);
+        outs[0] = vecdim::uncollapseFull(std::move(zc), args[0], vecdimSet, mr);
+        if (nargout >= 2) outs[1] = vecdim::expandReduced(std::move(mu), args[0], vecdimSet, mr);
+        if (nargout >= 3) outs[2] = vecdim::expandReduced(std::move(sigma), args[0], vecdimSet, mr);
+        return;
+    }
     outs[0] = zscoreCore(args[0], flag, dim,
                          nargout >= 2 ? &mu : nullptr,
                          nargout >= 3 ? &sigma : nullptr, mr);

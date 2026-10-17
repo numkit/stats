@@ -27,52 +27,40 @@
 #include <utility>
 #include <vector>
 
+#include "support/reduce_vecdim.hpp"
+
 namespace numkit::stats {
 
 namespace detail {
 
-// Probed R2025b: the nan* reductions accept the 'all' flag (flatten
-// over every element; nanmean(X,'all') computes). Returns the
-// flattened column and sets dim=1; errors on other char tails.
-static Value nanAllArg(const Value &x, const Value &a, const char *fn,
-                       int &dim, std::pmr::memory_resource *mr)
-{
-    if (!a.isChar() && !a.isString()) { dim = 0; return x; }
-    std::string s = a.toString();
-    std::transform(s.begin(), s.end(), s.begin(),
-                   [](unsigned char c) { return std::tolower(c); });
-    if (s != "all")
-        throw Error(std::string(fn) + ": unknown flag '" + s + "'",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":unknownFlag");
-    Value flat = Value::matrix(x.numel(), 1, ValueType::DOUBLE, mr);
-    for (std::size_t i = 0; i < x.numel(); ++i)
-        flat.doubleDataMut()[i] = x.elemAsDouble(i);
-    dim = 1;
-    return flat;
-}
 #define NUMKIT_NAN_REDUCTION_ADAPTER(name, fn)                                      \
     void name##_reg(Span<const Value> args, size_t /*nargout*/,                \
                     Span<Value> outs, CallContext &ctx)                        \
     {                                                                            \
-    argcheck::checkNargin(args.size(), 1, 2, #name);                         \
+        argcheck::checkNargin(args.size(), 1, 2, #name);                         \
         int dim = 0;                                                             \
-        Value x = args[0];                                                       \
-        if (args.size() >= 2 && !args[1].isEmpty()) {                            \
-            x = nanAllArg(args[0], args[1], #name, dim, ctx.engine->resource()); \
-            if (dim == 0)                                                        \
-                dim = argcheck::dimArg(args[1], #name);                          \
+        std::vector<int> vecdimSet;                                              \
+        if (args.size() >= 2)                                                    \
+            vecdim::parseDimSlot(args[0], args[1], #name, dim, vecdimSet);       \
+        auto *mr = ctx.engine->resource();                                       \
+        if (!vecdimSet.empty()) {                                                \
+            Value c = vecdim::collapseDims(args[0], vecdimSet, mr);              \
+            outs[0] = vecdim::expandReduced(                                     \
+                fn(c, static_cast<int>(c.dims().ndim()), mr),                    \
+                args[0], vecdimSet, mr);                                         \
+        } else {                                                                 \
+            outs[0] = fn(args[0], dim, mr);                                      \
         }                                                                        \
-        outs[0] = fn(x, dim, ctx.engine->resource());                           \
-        /* single contagion (probed R2025b: nansum(single) -> single) */        \
-        if (args[0].type() == ValueType::SINGLE && !outs[0].isComplex()) {      \
-            Value sg = Value::matrix(outs[0].dims().rows(),                     \
-                                    outs[0].dims().cols(),                      \
-                                    ValueType::SINGLE, ctx.engine->resource()); \
-            for (std::size_t i = 0; i < outs[0].numel(); ++i)                   \
-                sg.singleDataMut()[i] =                                         \
-                    static_cast<float>(outs[0].elemAsDouble(i));                \
-            outs[0] = std::move(sg);                                            \
-        }                                                                       \
+        /* single contagion (probed R2025b: nansum(single) -> single) */         \
+        if (args[0].type() == ValueType::SINGLE && !outs[0].isComplex()) {       \
+            Value sg = Value::matrix(outs[0].dims().rows(),                      \
+                                    outs[0].dims().cols(),                       \
+                                    ValueType::SINGLE, mr);                      \
+            for (std::size_t i = 0; i < outs[0].numel(); ++i)                    \
+                sg.singleDataMut()[i] =                                          \
+                    static_cast<float>(outs[0].elemAsDouble(i));                 \
+            outs[0] = std::move(sg);                                             \
+        }                                                                        \
     }
 
 NUMKIT_NAN_REDUCTION_ADAPTER(nansum,    nansum)
@@ -89,13 +77,22 @@ NUMKIT_NAN_REDUCTION_ADAPTER(nanmedian, nanmedian)
     void name##_reg(Span<const Value> args, size_t /*nargout*/,                 \
                     Span<Value> outs, CallContext &ctx)                         \
     {                                                                             \
-    argcheck::checkNargin(args.size(), 1, #name);  /* no max: flag/option tail in the reference */ \
+        argcheck::checkNargin(args.size(), 1, #name);  /* no max: flag/option tail in the reference */ \
         int dim = 0;                                                              \
+        std::vector<int> vecdimSet;                                               \
         if (args.size() == 2 && !args[1].isEmpty())                               \
-            dim = argcheck::dimArg(args[1], #name);                               \
+            vecdim::parseDimSlot(args[0], args[1], #name, dim, vecdimSet);        \
         else if (args.size() >= 3 && !args[2].isEmpty())                          \
-            dim = argcheck::dimArg(args[2], #name);                               \
-        outs[0] = fn(args[0], dim, ctx.engine->resource());                      \
+            vecdim::parseDimSlot(args[0], args[2], #name, dim, vecdimSet);        \
+        auto *mr = ctx.engine->resource();                                        \
+        if (!vecdimSet.empty()) {                                                 \
+            Value c = vecdim::collapseDims(args[0], vecdimSet, mr);               \
+            outs[0] = vecdim::expandReduced(                                      \
+                fn(c, static_cast<int>(c.dims().ndim()), mr),                     \
+                args[0], vecdimSet, mr);                                          \
+            return;                                                               \
+        }                                                                         \
+        outs[0] = fn(args[0], dim, mr);                                           \
     }
 
 NUMKIT_NAN_MAXMIN_ADAPTER(nanmax, nanmax)
@@ -108,14 +105,23 @@ void nanvar_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     argcheck::checkNargin(args.size(), 1, 3, "nanvar");
     int w = 0, dim = 0;
+    std::vector<int> vecdimSet;
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const double wv = argcheck::expectedReal(args[1], 2, "w", "nanvar");
         argcheck::expectedFlag01(wv, 2, "w", "nanvar");
         w = static_cast<int>(wv);
     }
-    if (args.size() >= 3 && !args[2].isEmpty())
-        dim = argcheck::dimArg(args[2], "nanvar");
-    outs[0] = nanvar(args[0], w, dim, ctx.engine->resource());
+    if (args.size() >= 3)
+        vecdim::parseDimSlot(args[0], args[2], "nanvar", dim, vecdimSet);
+    auto *mr = ctx.engine->resource();
+    if (!vecdimSet.empty()) {
+        Value c = vecdim::collapseDims(args[0], vecdimSet, mr);
+        outs[0] = vecdim::expandReduced(
+            nanvar(c, w, static_cast<int>(c.dims().ndim()), mr),
+            args[0], vecdimSet, mr);
+        return;
+    }
+    outs[0] = nanvar(args[0], w, dim, mr);
 }
 
 void nanstd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -123,14 +129,23 @@ void nanstd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 {
     argcheck::checkNargin(args.size(), 1, 3, "nanstd");
     int w = 0, dim = 0;
+    std::vector<int> vecdimSet;
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const double wv = argcheck::expectedReal(args[1], 2, "w", "nanstd");
         argcheck::expectedFlag01(wv, 2, "w", "nanstd");
         w = static_cast<int>(wv);
     }
-    if (args.size() >= 3 && !args[2].isEmpty())
-        dim = argcheck::dimArg(args[2], "nanstd");
-    outs[0] = nanstdev(args[0], w, dim, ctx.engine->resource());
+    if (args.size() >= 3)
+        vecdim::parseDimSlot(args[0], args[2], "nanstd", dim, vecdimSet);
+    auto *mr = ctx.engine->resource();
+    if (!vecdimSet.empty()) {
+        Value c = vecdim::collapseDims(args[0], vecdimSet, mr);
+        outs[0] = vecdim::expandReduced(
+            nanstdev(c, w, static_cast<int>(c.dims().ndim()), mr),
+            args[0], vecdimSet, mr);
+        return;
+    }
+    outs[0] = nanstdev(args[0], w, dim, mr);
 }
 
 // nancov has two MATLAB call patterns:

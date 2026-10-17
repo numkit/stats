@@ -124,7 +124,7 @@ void frnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     const double v2 = args[1].toScalar();
     size_t rows, cols;
     parse_rng_size(args, 2, rows, cols, "frnd");
-    outs[0] = frnd(ctx.engine->rng(), v1, v2, rows, cols, ctx.engine->resource());
+    outs[0] = reshape_rng_nd(frnd(ctx.engine->rng(), v1, v2, rows, cols, ctx.engine->resource()), args, 2, ctx.engine->resource(), "frnd");
 }
 
 void fstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -177,7 +177,7 @@ void ncfrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     const double delta = args[2].toScalar();
     size_t rows, cols;
     parse_rng_size(args, 3, rows, cols, "ncfrnd");
-    outs[0] = ncfrnd(ctx.engine->rng(), nu1, nu2, delta, rows, cols, ctx.engine->resource());
+    outs[0] = reshape_rng_nd(ncfrnd(ctx.engine->rng(), nu1, nu2, delta, rows, cols, ctx.engine->resource()), args, 3, ctx.engine->resource(), "ncfrnd");
 }
 
 } // namespace detail

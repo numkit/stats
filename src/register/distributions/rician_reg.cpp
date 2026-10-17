@@ -66,7 +66,7 @@ void ricernd_reg(Span<const Value> args, size_t /*nargout*/,
     const double sigma = args[1].toScalar();
     size_t rows = 1, cols = 1;
     parse_rng_size(args, 2, rows, cols, "ricernd");
-    outs[0] = ricernd(ctx.engine->rng(), s, sigma, rows, cols, ctx.engine->resource());
+    outs[0] = reshape_rng_nd(ricernd(ctx.engine->rng(), s, sigma, rows, cols, ctx.engine->resource()), args, 2, ctx.engine->resource(), "ricernd");
 }
 
 void ricestat_reg(Span<const Value> args, size_t nargout,

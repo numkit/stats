@@ -66,7 +66,7 @@ void ncx2rnd_reg(Span<const Value> args, size_t /*nargout*/,
     const double lambda = args[1].toScalar();
     size_t rows = 1, cols = 1;
     parse_rng_size(args, 2, rows, cols, "ncx2rnd");
-    outs[0] = ncx2rnd(ctx.engine->rng(), k, lambda, rows, cols, ctx.engine->resource());
+    outs[0] = reshape_rng_nd(ncx2rnd(ctx.engine->rng(), k, lambda, rows, cols, ctx.engine->resource()), args, 2, ctx.engine->resource(), "ncx2rnd");
 }
 
 void ncx2stat_reg(Span<const Value> args, size_t nargout,

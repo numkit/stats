@@ -105,7 +105,7 @@ void chi2rnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     const double k = args[0].toScalar();
     size_t rows, cols;
     parse_rng_size(args, 1, rows, cols, "chi2rnd");
-    outs[0] = chi2rnd(ctx.engine->rng(), k, rows, cols, ctx.engine->resource());
+    outs[0] = reshape_rng_nd(chi2rnd(ctx.engine->rng(), k, rows, cols, ctx.engine->resource()), args, 1, ctx.engine->resource(), "chi2rnd");
 }
 
 void chi2stat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

@@ -108,8 +108,12 @@ TEST_F(ArgcheckStatsRnd, ComplexSizeErrors)
 
 TEST_F(ArgcheckStatsRnd, TooManySizeInputs)
 {
-    expectError("geornd(0.5, 2, 3, 4)", "numkit:geornd:maxnargin");
-    expectError("normrnd(0, 1, 2, 3, 4)", "numkit:normrnd:maxnargin");
+    // 3+ scalar size args now produce N-D output (bugs/closed/stats/rnd-size-vector-nd.md).
+    EXPECT_EQ(evalInt("ndims(geornd(0.5, 2, 3, 4))"), 3);
+    EXPECT_EQ(evalInt("ndims(normrnd(0, 1, 2, 3, 4))"), 3);
+    // A size vector followed by another size input is still rejected.
+    expectError("geornd(0.5, [2 3], 4)", "numkit:geornd:maxnargin");
+    expectError("normrnd(0, 1, [2 3], 4)", "numkit:normrnd:maxnargin");
 }
 
 TEST_F(ArgcheckStatsRnd, MultivariateCountValidation)

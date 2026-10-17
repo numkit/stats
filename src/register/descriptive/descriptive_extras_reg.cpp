@@ -702,8 +702,19 @@ void filloutliers_reg(Span<const Value> args, size_t /*nargout*/,
 void range_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 2, "range");
-    const int dim = (args.size() >= 2) ? argcheck::dimArg(args[1], "range") : 0;
-    outs[0] = range_of(args[0], dim, ctx.engine->resource());
+    int dim = 0;
+    std::vector<int> vecdimSet;
+    if (args.size() >= 2)
+        vecdim::parseDimSlot(args[0], args[1], "range", dim, vecdimSet);
+    auto *mr = ctx.engine->resource();
+    if (!vecdimSet.empty()) {
+        Value c = vecdim::collapseDims(args[0], vecdimSet, mr);
+        outs[0] = vecdim::expandReduced(
+            range_of(c, static_cast<int>(c.dims().ndim()), mr),
+            args[0], vecdimSet, mr);
+        return;
+    }
+    outs[0] = range_of(args[0], dim, mr);
 }
 
 void mad_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -711,14 +722,23 @@ void mad_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
     argcheck::checkNargin(args.size(), 1, 3, "mad");
     int flag = 0;
     int dim  = 0;
-    if (args.size() >= 2) {
+    std::vector<int> vecdimSet;
+    if (args.size() >= 2 && !args[1].isEmpty()) {
         const double fv = argcheck::expectedReal(args[1], 2, "flag", "mad");
         argcheck::expectedFlag01(fv, 2, "flag", "mad");
         flag = static_cast<int>(fv);
     }
     if (args.size() >= 3)
-        dim = argcheck::dimArg(args[2], "mad");
-    outs[0] = mad_of(args[0], flag, dim, ctx.engine->resource());
+        vecdim::parseDimSlot(args[0], args[2], "mad", dim, vecdimSet);
+    auto *mr = ctx.engine->resource();
+    if (!vecdimSet.empty()) {
+        Value c = vecdim::collapseDims(args[0], vecdimSet, mr);
+        outs[0] = vecdim::expandReduced(
+            mad_of(c, flag, static_cast<int>(c.dims().ndim()), mr),
+            args[0], vecdimSet, mr);
+        return;
+    }
+    outs[0] = mad_of(args[0], flag, dim, mr);
 }
 
 // Parse a trailing 'omitnan'/'includenan' nanflag from a geomean/harmmean
@@ -731,6 +751,7 @@ bool parseMeanNanFlag(Span<const Value> args, const char *fn, std::size_t &nargs
         for (char &c : f) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         if (f == "omitnan")     { --nargs; return true; }
         if (f == "includenan")  { --nargs; return false; }
+        if (f == "all" && nargs == 2) return false;  // 'all' is the dim slot, not a nanflag
         throw Error(std::string(fn) + ": unknown option '" + f + "'",
                     0, 0, fn, "", std::string("numkit:") + fn + ":badopt");
     }
@@ -742,8 +763,19 @@ void geomean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     argcheck::checkNargin(args.size(), 1, "geomean");  // no max: flag/option tail in the reference
     std::size_t nargs;
     const bool omitnan = parseMeanNanFlag(args, "geomean", nargs);
-    const int dim = (nargs >= 2) ? argcheck::dimArg(args[1], "geomean") : 0;
-    outs[0] = geomean_of(args[0], dim, omitnan, ctx.engine->resource());
+    int dim = 0;
+    std::vector<int> vecdimSet;
+    if (nargs >= 2)
+        vecdim::parseDimSlot(args[0], args[1], "geomean", dim, vecdimSet);
+    auto *mr = ctx.engine->resource();
+    if (!vecdimSet.empty()) {
+        Value c = vecdim::collapseDims(args[0], vecdimSet, mr);
+        outs[0] = vecdim::expandReduced(
+            geomean_of(c, static_cast<int>(c.dims().ndim()), omitnan, mr),
+            args[0], vecdimSet, mr);
+        return;
+    }
+    outs[0] = geomean_of(args[0], dim, omitnan, mr);
 }
 
 void harmmean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -751,8 +783,19 @@ void harmmean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     argcheck::checkNargin(args.size(), 1, "harmmean");  // no max: flag/option tail in the reference
     std::size_t nargs;
     const bool omitnan = parseMeanNanFlag(args, "harmmean", nargs);
-    const int dim = (nargs >= 2) ? argcheck::dimArg(args[1], "harmmean") : 0;
-    outs[0] = harmmean_of(args[0], dim, omitnan, ctx.engine->resource());
+    int dim = 0;
+    std::vector<int> vecdimSet;
+    if (nargs >= 2)
+        vecdim::parseDimSlot(args[0], args[1], "harmmean", dim, vecdimSet);
+    auto *mr = ctx.engine->resource();
+    if (!vecdimSet.empty()) {
+        Value c = vecdim::collapseDims(args[0], vecdimSet, mr);
+        outs[0] = vecdim::expandReduced(
+            harmmean_of(c, static_cast<int>(c.dims().ndim()), omitnan, mr),
+            args[0], vecdimSet, mr);
+        return;
+    }
+    outs[0] = harmmean_of(args[0], dim, omitnan, mr);
 }
 
 void moment_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

@@ -72,7 +72,7 @@ void unidrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     const double N = args[0].toScalar();
     size_t rows, cols;
     parse_rng_size(args, 1, rows, cols, "unidrnd");
-    outs[0] = unidrnd(ctx.engine->rng(), N, rows, cols, ctx.engine->resource());
+    outs[0] = reshape_rng_nd(unidrnd(ctx.engine->rng(), N, rows, cols, ctx.engine->resource()), args, 1, ctx.engine->resource(), "unidrnd");
 }
 
 void unidstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
