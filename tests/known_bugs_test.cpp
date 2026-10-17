@@ -378,3 +378,19 @@ TEST_F(StatsKnownBug, SplinePpLayout)
     EXPECT_NEAR(evalScalar("y(1)"), 0.2, 1e-12);
     EXPECT_NEAR(evalScalar("y(2)"), 0.0, 1e-12);
 }
+
+// bugs/closed/stats/var-second-output.md — [v, w] = var(x) and [s, w] = std(x)
+TEST_F(StatsKnownBug, VarSecondOutput)
+{
+    eval("[v, w] = var([1 2 3; 4 5 6; 7 8 9]);");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(w)")), 3);
+    EXPECT_DOUBLE_EQ(evalScalar("w(1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("w(3)"), 1.0);
+
+    eval("[s, sw] = std([1 2 3; 4 5 6; 7 8 9], [1 2 1]);");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(sw)")), 3);
+    EXPECT_DOUBLE_EQ(evalScalar("sw(1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sw(2)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sw(3)"), 1.0);
+}
+

@@ -110,7 +110,8 @@ std::vector<double> flatten(const Value &x)
 // 'all', vecdim full-flatten, weight vector).
 //
 // `sqrtIt = true` makes this `std`.
-Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::pmr::memory_resource *mr)
+Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn,
+                     std::pmr::memory_resource *mr, Value *wOut = nullptr)
 {
     bool omitNan = false;
     size_t n = stripNanFlag(args, omitNan, fn);
@@ -181,6 +182,30 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::p
                                 0, 0, fn, "", std::string("numkit:") + fn + ":wND");
                 vecdimSet = std::move(set);
             }
+        }
+    }
+
+    if (wOut) {
+        if (isWeightVec) {
+            *wOut = *wVec;
+        } else {
+            size_t wLen = 1;
+            if (flattenAll) {
+                wLen = x.numel();
+            } else if (!vecdimSet.empty()) {
+                for (int d : vecdimSet) {
+                    if (d >= 1 && static_cast<size_t>(d) <= x.dims().ndim())
+                        wLen *= x.dims().dim(static_cast<size_t>(d - 1));
+                }
+            } else {
+                const int effDim = (dim == 0) ? firstNonSingletonDim(x) : dim;
+                if (effDim >= 1 && static_cast<size_t>(effDim) <= x.dims().ndim())
+                    wLen = x.dims().dim(static_cast<size_t>(effDim - 1));
+            }
+            Value wv = Value::matrix(1, wLen, ValueType::DOUBLE, mr);
+            double *wd = wv.doubleDataMut();
+            for (size_t i = 0; i < wLen; ++i) wd[i] = 1.0;
+            *wOut = std::move(wv);
         }
     }
 
@@ -286,18 +311,24 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::p
     return sqrtIt ? stdev(x, normFlag, dim, mr) : var(x, normFlag, dim, mr);
 }
 
-void var_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+void var_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
              CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 4, "var");
-    outs[0] = varStdDispatch(args, /*sqrtIt=*/false, "var", ctx.engine->resource());
+    Value wOut;
+    outs[0] = varStdDispatch(args, /*sqrtIt=*/false, "var", ctx.engine->resource(),
+                             (nargout >= 2) ? &wOut : nullptr);
+    if (nargout >= 2) outs[1] = std::move(wOut);
 }
 
-void std_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+void std_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
              CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 4, "std");
-    outs[0] = varStdDispatch(args, /*sqrtIt=*/true, "std", ctx.engine->resource());
+    Value wOut;
+    outs[0] = varStdDispatch(args, /*sqrtIt=*/true, "std", ctx.engine->resource(),
+                             (nargout >= 2) ? &wOut : nullptr);
+    if (nargout >= 2) outs[1] = std::move(wOut);
 }
 
 void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
