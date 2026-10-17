@@ -333,7 +333,7 @@ TEST_F(StatsKnownBug, DISABLED_DetrendCharRejected)
         stats::detrend_of(*engine.getVariable("s"), 1, engine.resource());
         FAIL() << "C++ path should reject a char input";
     } catch (const numkit::Error &e) {
-        EXPECT_NE(e.identifier(), "") << e.what();   // nk-voiced type error
+        EXPECT_EQ(e.identifier().rfind("numkit:detrend:", 0), 0u) << e.identifier() << ": " << e.what();
     }
 }
 
