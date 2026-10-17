@@ -132,28 +132,50 @@ Value ppmak(const Value &breaks, const Value &coefs, int d, std::pmr::memory_res
     const size_t cR = coefs.dims().rows();
     const size_t cC = coefs.dims().cols();
     if (d < 1) d = 1;
-    if (cR != static_cast<size_t>(d) * L)
-        throw Error("ppmak: coefs must be d·L × K (rows = dim·pieces)",
-                    0, 0, "ppmak", "", "numkit:ppmak:coefs");
+    size_t effD = static_cast<size_t>(d);
+    size_t effK = cC;
+    bool reshapeDbyLK = false;
+    if (cR != effD * L) {
+        if (cR >= 1 && cC >= L && (cC % L) == 0 && (d == 1 || cR == effD)) {
+            effD = cR;
+            effK = cC / L;
+            reshapeDbyLK = true;
+        } else {
+            throw Error("ppmak: coefs must be d·L × K (rows = dim·pieces)",
+                        0, 0, "ppmak", "", "numkit:ppmak:coefs");
+        }
+    }
 
     Value bv = Value::matrix(1, L1, ValueType::DOUBLE, mr);
     {
         double *bd = bv.doubleDataMut();
         for (size_t i = 0; i < L1; ++i) bd[i] = breaks.elemAsDouble(i);
     }
-    Value cv = Value::matrix(cR, cC, ValueType::DOUBLE, mr);
+    const size_t outR = effD * L;
+    Value cv = Value::matrix(outR, effK, ValueType::DOUBLE, mr);
     {
         double *cd = cv.doubleDataMut();
-        for (size_t i = 0; i < cR * cC; ++i) cd[i] = coefs.elemAsDouble(i);
+        if (reshapeDbyLK) {
+            for (size_t m = 0; m < effK; ++m) {
+                for (size_t j = 0; j < L; ++j) {
+                    const size_t srcCol = m * L + j;
+                    for (size_t r = 0; r < effD; ++r) {
+                        cd[(r + j * effD) + m * outR] = coefs.elemAsDouble(r + srcCol * cR);
+                    }
+                }
+            }
+        } else {
+            for (size_t i = 0; i < cR * cC; ++i) cd[i] = coefs.elemAsDouble(i);
+        }
     }
 
     Value s = Value::structure(mr);
     s.field("form")   = Value::fromString("pp", mr);
     s.field("breaks") = std::move(bv);
     s.field("coefs")  = std::move(cv);
-    s.field("pieces") = Value::scalar(double(L),  mr);
-    s.field("order")  = Value::scalar(double(cC), mr);
-    s.field("dim")    = Value::scalar(double(d),  mr);
+    s.field("pieces") = Value::scalar(double(L),    mr);
+    s.field("order")  = Value::scalar(double(effK), mr);
+    s.field("dim")    = Value::scalar(double(effD), mr);
     return s;
 }
 

@@ -364,10 +364,10 @@ TEST_F(StatsKnownBug, RescaleTypeContract)
     EXPECT_NO_THROW(eval("rescale(logical([1 0 1]));"));
 }
 
-// bugs/opened/stats/ppmaks-coefs-layout.md — nk's pp-struct coefs are
-// (d·L)×K where the reference uses L×(k·d); the reference reads the
-// 2×4 coefs below as 4 pieces / order 1 / dim 2.
-TEST_F(StatsKnownBug, DISABLED_SplinePpLayout)
+// bugs/closed/stats/ppmaks-coefs-layout.md — nk's pp-struct coefs accept
+// both (d·L)×K and d×(L·k) layouts; the reference reads the 2×4 coefs
+// below as 4 pieces / order 1 / dim 2.
+TEST_F(StatsKnownBug, SplinePpLayout)
 {
     eval("br = 0:4; co = [1 0.5 0.2 1; -1 2 0 0.5];");
     eval("pp = ppmak(br, co);");
