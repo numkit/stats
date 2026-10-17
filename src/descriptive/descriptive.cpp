@@ -6,7 +6,7 @@
 // applyAlongDim from toolboxes/builtin/src/reduction_helpers.hpp.
 //
 // Moved from toolboxes/builtin/src/data_analysis/descriptive_statistics/stats.cpp
-// in Phase 7b — these are Statistics Toolbox content per MATLAB
+// in Phase 7b â€” these are Statistics Toolbox content per MATLAB
 // taxonomy, not core MATLAB. Registration as stats.descriptive.* +
 // compat.* lives in toolboxes/stats/src/library.cpp.
 
@@ -22,7 +22,7 @@
 
 #include <numkit/ops/helpers.hpp>
 #include <numkit/ops/reductions.hpp>
-#include "datafun/var_reduction.hpp"
+#include <numkit/builtin/detail/datafun/var_reduction.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -43,13 +43,13 @@ namespace numkit::stats {
 // (Phase 7b moved this file out, but the helpers stay there). Reg/impl
 // bodies can call applyAlongDim, resolveDim, compactNonNan,
 // firstNonSingletonDim, outShapeForDim, outShapeForDimND, sliceLenForDim,
-// varianceTwoPass, … by short name as before the move.
+// varianceTwoPass, â€¦ by short name as before the move.
 using namespace ::numkit::ops;
 using ::numkit::builtin::varianceTwoPass;
 
-// ────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // var / std
-// ────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //
 // Phase P5 + P2-followup: var / std / nanvar / nanstd all route through
 // the SIMD two-pass kernels in backends/MStdVarReduction_{simd,portable}.cpp
@@ -96,12 +96,12 @@ Value stdev(const Value &x, int normFlag, int dim, std::pmr::memory_resource *mr
     return r;
 }
 
-// ────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // median
-// ────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //
 // nth_element gives O(n) average instead of O(n log n) full sort.
-// The slice is mutated in place — that's fine because the scratch
+// The slice is mutated in place â€” that's fine because the scratch
 // buffer is owned by forEachSlice and reused per output index.
 
 
@@ -124,12 +124,12 @@ Value median(const Value &x, int dim, std::pmr::memory_resource *mr)
     return r;
 }
 
-// ────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // quantile / prctile
-// ────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //
 // Three interpolation methods are supported, matching MATLAB R2025b
-// (`help quantile` → method ∈ {midpoint, inclusive, exclusive,
+// (`help quantile` â†’ method âˆˆ {midpoint, inclusive, exclusive,
 // approximate}):
 //
 //   * Midpoint  (default; R2007a algorithm, Type-5 in Hyndman/Fan)
@@ -144,7 +144,7 @@ Value median(const Value &x, int dim, std::pmr::memory_resource *mr)
 //                positions: k/(N+1)
 //                inverse:   q = p*(N+1), clamp [1, N], linear interp
 //
-//   * Approximate — t-digest, currently falls back to Midpoint
+//   * Approximate â€” t-digest, currently falls back to Midpoint
 //     (no functional gap, just signature compatibility).
 
 Value quantile(const Value &x, const Value &p, int dim, std::pmr::memory_resource *mr)
@@ -163,8 +163,8 @@ Value prctile(const Value &x, const Value &p, int dim, std::pmr::memory_resource
 Value quantileWithOpts(const Value &x, const Value &p, int dim, bool flatten, QMethod method, double pScale, const char *fn, std::pmr::memory_resource *mr)
 {
     if (flatten) {
-        // Reshape into a 1×N row, then reduce along dim 2 (the only
-        // non-singleton dim — gives the canonical "all" semantics).
+        // Reshape into a 1Ã—N row, then reduce along dim 2 (the only
+        // non-singleton dim â€” gives the canonical "all" semantics).
         Value flat = Value::matrix(1, x.numel(), ValueType::DOUBLE, mr);
         if (x.numel() > 0) {
             const double *src = x.doubleData();
@@ -175,14 +175,14 @@ Value quantileWithOpts(const Value &x, const Value &p, int dim, bool flatten, QM
     return quantileImpl(x, p, dim, pScale, method, fn, mr);
 }
 
-// ────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // mode
-// ────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //
 // MATLAB rule: mode preserves the input element type. The value array
 // has the same type as input (DOUBLE/SINGLE/INT*/UINT*/LOGICAL/CHAR);
 // the frequency array is always DOUBLE. NaN values are ignored when
-// counting (floating types only — integers have no NaN). Ties resolve
+// counting (floating types only â€” integers have no NaN). Ties resolve
 // to the smallest value: we sort ascending, then use strict-greater
 // comparison so the first run achieving the max count wins.
 
@@ -202,9 +202,9 @@ mode(const Value &x, int dim, std::pmr::memory_resource *mr)
 
 // skewness / kurtosis moved to toolboxes/stats/src/moments/moments.cpp.
 
-// ────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // cov / corrcoef
-// ────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 Value cov(const Value &x, int normFlag, std::pmr::memory_resource *mr)
 {
@@ -216,7 +216,7 @@ Value cov(const Value &x, int normFlag, std::pmr::memory_resource *mr)
     std::size_t n, p;
     readMatrix(x, data, n, p);
     if (n == 0) {
-        // MATLAB: cov of empty → NaN (or empty p×p depending on shape).
+        // MATLAB: cov of empty â†’ NaN (or empty pÃ—p depending on shape).
         if (p == 1) return Value::scalar(std::nan(""), mr);
         return Value::matrix(p, p, ValueType::DOUBLE, mr);
     }
@@ -227,7 +227,7 @@ Value cov(const Value &x, int normFlag, std::pmr::memory_resource *mr)
         : static_cast<double>(n);
 
     if (p == 1) {
-        // Vector input → return scalar variance.
+        // Vector input â†’ return scalar variance.
         double s = 0.0;
         for (std::size_t i = 0; i < n; ++i) s += data[i] * data[i];
         return Value::scalar(s / divisor, mr);
@@ -265,7 +265,7 @@ Value cov(const Value &x, const Value &y, int normFlag, std::pmr::memory_resourc
 
 Value corrcoef(const Value &x, std::pmr::memory_resource *mr)
 {
-    // Special case: vector input → 1×1 matrix [1] (variable correlated
+    // Special case: vector input â†’ 1Ã—1 matrix [1] (variable correlated
     // with itself). Matches MATLAB's `corrcoef(rand(5,1))` behaviour.
     if (x.dims().isVector() || x.isScalar()) {
         auto R = Value::matrix(1, 1, ValueType::DOUBLE, mr);

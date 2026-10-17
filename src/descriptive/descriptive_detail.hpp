@@ -1,6 +1,6 @@
-// toolboxes/.../descriptive_detail.hpp — private compute/register substrate (anon-in-
+// toolboxes/.../descriptive_detail.hpp â€” private compute/register substrate (anon-in-
 // header, internal linkage per TU) shared by descriptive.cpp + descriptive_reg.cpp.
-// Phase 2b compute/register split — see project_layering_refactor memory.
+// Phase 2b compute/register split â€” see project_layering_refactor memory.
 #pragma once
 
 #include <numkit/value/value.hpp>
@@ -9,7 +9,7 @@
 #include <numkit/value/span.hpp>
 #include <numkit/ops/helpers.hpp>            // createForDims/createMatrix/DimsArg (engine-free)
 #include <numkit/ops/reductions.hpp>  // numkit::builtin::detail dim-infra (engine-free, ops re-export)
-#include "datafun/var_reduction.hpp" // varianceTwoPass (engine-free)
+#include <numkit/builtin/detail/datafun/var_reduction.hpp> // varianceTwoPass (engine-free)
 
 #include <algorithm>
 #include <cmath>
@@ -47,7 +47,7 @@ void validateNormFlag(int w, const char *fn)
 }
 
 // Cast a DOUBLE result to SINGLE in place. Used to preserve SINGLE
-// input type without writing parallel single-precision kernels —
+// input type without writing parallel single-precision kernels â€”
 // arithmetic happens at double precision (more precise than MATLAB)
 // then narrows at the end.
 Value narrowToSingle(Value d, std::pmr::memory_resource *mr)
@@ -64,7 +64,7 @@ Value narrowToSingle(Value d, std::pmr::memory_resource *mr)
 // Cast a DOUBLE result back to an integer class: round half away from zero
 // (std::round) and saturate to the type's range. Matches MATLAB R2025b, which
 // preserves the integer class for median (median(int32([1 2 3 4]))=3 int32,
-// median(int8([-1 -2]))=-2 int8) — the two-middle-element average is rounded
+// median(int8([-1 -2]))=-2 int8) â€” the two-middle-element average is rounded
 // half-away-from-zero and the class is retained.
 Value narrowToInteger(const Value &d, ValueType vt, std::pmr::memory_resource *mr)
 {
@@ -97,7 +97,7 @@ Value narrowToInteger(const Value &d, ValueType vt, std::pmr::memory_resource *m
     return r;
 }
 
-// Complex variance: E[|x - mean|²]. Returns real-valued DOUBLE per
+// Complex variance: E[|x - mean|Â²]. Returns real-valued DOUBLE per
 // MATLAB convention. With normFlag == 0 (default) divides by n-1;
 // normFlag == 1 divides by n. When omitNan is true, NaN-complex
 // elements (real or imag is NaN) are skipped before mean/variance.
@@ -144,7 +144,7 @@ inline Value allocVarianceOutput(const Value &x, int redDim, std::pmr::memory_re
 // (var / std / median / mode), mirroring mean's empty rule:
 //   * default (no explicit dim) of the 0x0 [] -> scalar NaN
 //   * otherwise the operating dim (explicit dim when given, else the first
-//     dim whose size != 1 — MATLAB treats a size-0 dim as non-singleton)
+//     dim whose size != 1 â€” MATLAB treats a size-0 dim as non-singleton)
 //     collapses to 1 and the result is NaN-filled.
 // A size-0 sibling dim keeps the result empty, e.g. var(zeros(3,0))=1x0,
 // median([],2)=0x1. nk previously returned a 0x0 empty for all of these.
@@ -267,7 +267,7 @@ inline bool complexAbsAngleLess(const Complex &a, const Complex &b)
 }
 
 // Median of a complex slice (mutates s by sorting). Propagates NaN (MATLAB
-// 'includenan' default). Even n → mean of the two middle values.
+// 'includenan' default). Even n â†’ mean of the two middle values.
 Complex complexMedianFromSlice(Complex *s, size_t n)
 {
     if (n == 0) return Complex(std::nan(""), std::nan(""));
@@ -351,7 +351,7 @@ double quantileFromSortedSlice(const double *sorted, size_t n, double p,
     }
     if (q <= 1.0) return sorted[0];
     if (q >= static_cast<double>(n)) return sorted[n - 1];
-    const size_t lo = static_cast<size_t>(std::floor(q)) - 1; // → 0-based
+    const size_t lo = static_cast<size_t>(std::floor(q)) - 1; // â†’ 0-based
     const size_t hi = lo + 1;
     const double frac = q - std::floor(q);
     return sorted[lo] + frac * (sorted[hi] - sorted[lo]);
@@ -382,7 +382,7 @@ Value quantileImpl(const Value &x, const Value &p, int dim, double pScale, QMeth
     const size_t k = probs.size();
     const int d = resolveDim(x, dim, fn);
 
-    // Scalar p → standard one-output-per-slice path.
+    // Scalar p â†’ standard one-output-per-slice path.
     if (k == 1) {
         const double pp = probs[0];
         return applyAlongDim(x, d,
@@ -399,7 +399,7 @@ Value quantileImpl(const Value &x, const Value &p, int dim, double pScale, QMeth
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     }
     if (x.dims().isVector() || x.isScalar()) {
-        // Output is 1×k row vector.
+        // Output is 1Ã—k row vector.
         auto sorted = ScratchVec<double>(x.numel(), &scratch);
         std::copy(x.doubleData(), x.doubleData() + x.numel(), sorted.data());
         std::sort(sorted.begin(), sorted.end());
@@ -559,7 +559,7 @@ inline void modeFromSliceT(T *data, size_t n, T &outVal, double &outCount)
 // gather the slice into `scratch`, run modeFromSliceT, and write the
 // (value, count) pair. Handles 2D / 3D / ND uniformly via stride math.
 // On empty slices (sliceLen == 0) fills outputs with NaN/0 (or 0/0 for
-// integer T) — matches MATLAB's mode-of-empty-slice convention.
+// integer T) â€” matches MATLAB's mode-of-empty-slice convention.
 template <typename T>
 void modeAlongDim(const Value &x, int redDim, T *dst, double *dstC, bool typeMatch, std::pmr::memory_resource *mr)
 {
@@ -680,7 +680,7 @@ modeAlongDimT(const Value &x, int dim, ValueType outType, std::pmr::memory_resou
 
 // Dispatch on x.type(). LOGICAL maps to T=uint8_t (storage type) and
 // outType=LOGICAL so the result preserves logical class. CHAR uses
-// T=char. COMPLEX has no defined order → throw.
+// T=char. COMPLEX has no defined order â†’ throw.
 std::tuple<Value, Value>
 dispatchMode(const Value &x, int dim, std::pmr::memory_resource *mr, const char *fn)
 {
@@ -733,7 +733,7 @@ void validateNormFlagCov(int w, const char *fn)
                      0, 0, fn, "", std::string("numkit:") + fn + ":badFlag");
 }
 
-// Build an n×p column-major DOUBLE buffer from x. Vector input is
+// Build an nÃ—p column-major DOUBLE buffer from x. Vector input is
 // treated as a single column. Returns the raw data, n, and p.
 void readMatrix(const Value &x, ScratchVec<double> &out,
                 std::size_t &n, std::size_t &p)
@@ -758,7 +758,7 @@ void readMatrix(const Value &x, ScratchVec<double> &out,
         out[i] = x.elemAsDouble(i);
 }
 
-// In-place: subtract per-column mean from a column-major n×p buffer.
+// In-place: subtract per-column mean from a column-major nÃ—p buffer.
 void centerColumns(double *data, std::size_t n, std::size_t p)
 {
     for (std::size_t c = 0; c < p; ++c) {
@@ -771,7 +771,7 @@ void centerColumns(double *data, std::size_t n, std::size_t p)
     }
 }
 
-// covImpl: take a centered n×p buffer, compute X' * X / divisor → p×p.
+// covImpl: take a centered nÃ—p buffer, compute X' * X / divisor â†’ pÃ—p.
 Value covMatrixFromCentered(const double *X, std::size_t n, std::size_t p, double divisor, std::pmr::memory_resource *mr)
 {
     auto out = Value::matrix(p, p, ValueType::DOUBLE, mr);
@@ -804,7 +804,7 @@ bool parseCovNanFlag(const Value &v, CovNan &mode)
     return false;
 }
 
-// Assemble two equal-length vectors into an n×2 column-major matrix Value
+// Assemble two equal-length vectors into an nÃ—2 column-major matrix Value
 // [x(:) y(:)] for the two-vector NaN-aware path.
 Value assembleXY(const Value &x, const Value &y, std::pmr::memory_resource *mr)
 {
@@ -846,7 +846,7 @@ Value covNanAware(const Value &x, int normFlag, CovNan mode,
                                : static_cast<double>(m);
     };
 
-    // Vector input → scalar variance over the non-NaN elements.
+    // Vector input â†’ scalar variance over the non-NaN elements.
     if (p == 1) {
         double s = 0.0;
         std::size_t m = 0;
@@ -917,7 +917,7 @@ Value covNanAware(const Value &x, int normFlag, CovNan mode,
     return out;
 }
 
-// ── corrcoef 'Rows' NaN policy ────────────────────────────────────────
+// â”€â”€ corrcoef 'Rows' NaN policy â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 enum class CorrcoefRows { All, Complete, Pairwise };
 
 CorrcoefRows parseCorrcoefRows(Span<const Value> args, std::size_t start)
@@ -999,7 +999,7 @@ std::size_t countCompleteRows(const Value &X)
 // Pairwise Pearson correlation: each entry (i,j) uses the rows where both
 // columns are non-NaN, with the means AND the standard deviations taken
 // over exactly those common rows. (corrcov(cov_partialrows) is NOT the
-// same — that normalizes each column by its own per-column rows.)
+// same â€” that normalizes each column by its own per-column rows.)
 Value corrcoefPairwise(const Value &X, std::pmr::memory_resource *mr)
 {
     ScratchArena scratch(mr);
@@ -1086,7 +1086,7 @@ Value corrcoefPValues(const Value &R, double n, std::pmr::memory_resource *mr)
     for (std::size_t k = 0; k < p * p; ++k) {
         const double r = rd[k];
         const double oneMinus = 1.0 - r * r;
-        double t = std::numeric_limits<double>::infinity(); // |r|>=1 → extreme
+        double t = std::numeric_limits<double>::infinity(); // |r|>=1 â†’ extreme
         if (df > 0.0 && oneMinus > 0.0)
             t = std::fabs(r) * std::sqrt(df / oneMinus);
         td[k] = -t;
@@ -1151,7 +1151,7 @@ size_t stripNanFlag(Span<const Value> args, bool &omitNan, const char *fn)
                    [](unsigned char c) { return std::tolower(c); });
     if (s == "omitnan" || s == "omitmissing") { omitNan = true; return args.size() - 1; }
     if (s == "includenan" || s == "includemissing")                 return args.size() - 1;
-    // Not a nan flag — leave it to the caller to handle (e.g. 'all').
+    // Not a nan flag â€” leave it to the caller to handle (e.g. 'all').
     return args.size();
 }
 

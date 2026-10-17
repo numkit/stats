@@ -15,7 +15,7 @@
 #include "descriptive/descriptive_detail.hpp"
 #include "support/reduce_vecdim.hpp"
 #include <numkit/ops/helpers.hpp>
-#include "datafun/var_reduction.hpp"
+#include <numkit/builtin/detail/datafun/var_reduction.hpp>
 #include <numkit/ops/reductions.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
@@ -37,11 +37,11 @@ namespace numkit::stats {
 namespace detail {
 
 // Helper: weighted variance / std on a flat 1-D array.
-//   normFlag = 0  → divide by Σw - 0 (default for scalar w=0; sample)
-//   normFlag = 1  → divide by Σw     (population; ML estimate)
+//   normFlag = 0  â†’ divide by Î£w - 0 (default for scalar w=0; sample)
+//   normFlag = 1  â†’ divide by Î£w     (population; ML estimate)
 //
-// MATLAB's documented denominator for weighted variance is Σw (the
-// "default" for vector weights — equivalent to normFlag=1 semantics).
+// MATLAB's documented denominator for weighted variance is Î£w (the
+// "default" for vector weights â€” equivalent to normFlag=1 semantics).
 // var(A, W, ...) with vector W therefore implies normFlag=1.
 double weightedVarFlat(const double *x, const double *w, size_t n,
                        bool sqrtIt, bool omitNan)
@@ -106,7 +106,7 @@ std::vector<double> flatten(const Value &x)
     return out;
 }
 
-// Common var/std driver — handles every variant (scalar w + scalar dim,
+// Common var/std driver â€” handles every variant (scalar w + scalar dim,
 // 'all', vecdim full-flatten, weight vector).
 //
 // `sqrtIt = true` makes this `std`.
@@ -117,7 +117,7 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::p
 
     const Value &x = args[0];
     // Probed R2025b: the first input must be single or double
-    // (logical, complex and even char pass — integers reject).
+    // (logical, complex and even char pass â€” integers reject).
     if (isIntegerType(x.type()))
         throw Error(std::string(fn) + ": invalid data type. First input "
                     "argument must be single or double (got "
@@ -132,7 +132,7 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::p
 
     if (n >= 2 && !args[1].isEmpty()) {
         if (args[1].isChar() || args[1].isString())
-            // var(X,'all') is NOT a form — flags only live in the dim
+            // var(X,'all') is NOT a form â€” flags only live in the dim
             // position (probed R2025b: unknownFlag).
             throw Error(std::string(fn)
                             + ": invalid option. Option must be 'omitnan', "
@@ -184,7 +184,7 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::p
         }
     }
 
-    // ── Weighted-vector path ──────────────────────────────────────────
+    // â”€â”€ Weighted-vector path â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (isWeightVec) {
         const bool xIsVec = x.dims().isVector() || x.isScalar();
         if (flattenAll || (dim == 0 && xIsVec)) {
@@ -240,7 +240,7 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::p
         return out;
     }
 
-    // ── Partial vecdim: collapse the listed dims and reduce along the
+    // â”€â”€ Partial vecdim: collapse the listed dims and reduce along the
     // last dim of the collapsed view (same kernels as the scalar-dim
     // path, so every flag combination carries over).
     if (!vecdimSet.empty()) {
@@ -263,7 +263,7 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::p
         return vecdim::expandReduced(std::move(r), x, vecdimSet, mr);
     }
 
-    // ── Flatten 'all' / vecdim path ───────────────────────────────────
+    // â”€â”€ Flatten 'all' / vecdim path â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (flattenAll) {
         auto xv = flatten(x);
         const double v = scalarVarFlat(xv.data(), xv.size(), normFlag,
@@ -271,7 +271,7 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn, std::p
         return Value::scalar(v, mr);
     }
 
-    // ── Standard scalar-dim path ──────────────────────────────────────
+    // â”€â”€ Standard scalar-dim path â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (omitNan) {
         if (x.type() == ValueType::COMPLEX) {
             return varianceComplex(x, normFlag, dim, mr, sqrtIt, true);
@@ -366,7 +366,7 @@ void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         }
     }
     if (!vecdimSet.empty()) {
-        // Partial vecdim — same kernels as the scalar-dim path (the
+        // Partial vecdim â€” same kernels as the scalar-dim path (the
         // NarrowGuard above still narrows an all-zero-imaginary result).
         Value c = vecdim::collapseDims(args[0], vecdimSet,
                                        ctx.engine->resource());
@@ -386,7 +386,7 @@ void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         return;
     }
     if (isAll) {
-        // 'all' → flatten + median over all elements (skipping NaN if omitnan).
+        // 'all' â†’ flatten + median over all elements (skipping NaN if omitnan).
         if (args[0].type() == ValueType::COMPLEX) {
             const size_t total = args[0].numel();
             ScratchArena scratch(ctx.engine->resource());
@@ -433,9 +433,9 @@ void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 //   fn(X, p[, dim] [, Method=method])
 //
 // Handles:
-//   * 'all' (string) — flatten input
+//   * 'all' (string) â€” flatten input
 //   * scalar dim
-//   * vecdim — only [1 2] / [1 2 3] / etc. covering ALL dims is supported
+//   * vecdim â€” only [1 2] / [1 2 3] / etc. covering ALL dims is supported
 //     as a synonym for 'all'; partial reductions throw a documented error.
 //   * Method N-V pair: 'midpoint' (default) | 'inclusive' | 'exclusive'
 //                       | 'approximate' (falls back to midpoint).
@@ -455,7 +455,7 @@ QArgs parseQArgs(Span<const Value> args, size_t start, const Value &x,
         if (args[i].numel() == 1) {
             q.dim = argcheck::dimArg(args[i], "median");
         } else {
-            // Vecdim: covers-all-dims → flatten; otherwise error.
+            // Vecdim: covers-all-dims â†’ flatten; otherwise error.
             std::vector<int> dims;
             for (size_t j = 0; j < args[i].numel(); ++j)
                 dims.push_back(argcheck::dimArg(args[i].elemAsDouble(j), "median"));
@@ -627,7 +627,7 @@ void mode_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     }
     auto *mr = ctx.engine->resource();
     if (!vecdimSet.empty()) {
-        // Partial vecdim — same kernels as the scalar-dim path; the
+        // Partial vecdim â€” same kernels as the scalar-dim path; the
         // 3rd output's cell array reshapes through the same mechanism
         // (permute/reshape support cell values).
         Value c = vecdim::collapseDims(args[0], vecdimSet, mr);
@@ -705,7 +705,7 @@ void cov_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         return;
     }
 
-    // 'includenan' (default) → plain cov over the numeric args.
+    // 'includenan' (default) â†’ plain cov over the numeric args.
     if (nargs == 1) {
         outs[0] = cov(args[0], 0, mr);
         return;
@@ -731,7 +731,7 @@ void cov_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 }
 
 // Widen a single matrix to double (stats kernels are double-based; the
-// result narrows back — parity predicates cover the fp difference).
+// result narrows back â€” parity predicates cover the fp difference).
 static Value widenSingleToDouble(const Value &v, std::pmr::memory_resource *mr)
 {
     Value d = Value::matrix(v.dims().rows(), v.dims().cols(), ValueType::DOUBLE, mr);
@@ -762,7 +762,7 @@ void corrcoef_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
         (args.size() >= 2 && !args[1].isChar() && !args[1].isString());
     const std::size_t nvStart = twoArg ? 2 : 1;
     // Single inputs widen to double for the kernels; the result narrows
-    // back to single (the reference computes single end-to-end — parity
+    // back to single (the reference computes single end-to-end â€” parity
     // uses closeness predicates).
     const CorrcoefRows rows = parseCorrcoefRows(args, nvStart);
     const double alpha = parseCorrcoefAlpha(args, nvStart);
@@ -773,7 +773,7 @@ void corrcoef_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
             const Value &x = args[0];
             n = (x.dims().isVector() || x.isScalar())
                     ? static_cast<double>(x.numel())          // single variable
-                    : static_cast<double>(x.dims().rows());   // n obs × p vars
+                    : static_cast<double>(x.dims().rows());   // n obs Ã— p vars
             Value xd = (x.type() == ValueType::SINGLE)
                 ? widenSingleToDouble(x, mr) : Value(x);
             Value R = corrcoef(xd, mr);
