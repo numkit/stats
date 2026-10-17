@@ -45,6 +45,9 @@ Value haltonset(int d, long long skip, long long leap,
 Value net(const Value &stream, long long n,
           std::pmr::memory_resource *mr = nullptr);
 
+/// @brief Apply scrambling to a quasi-random stream (`p = scramble(p, type)`).
+Value scramble(const Value &stream, const std::string &type,
+               std::pmr::memory_resource *mr = nullptr);
 
 /// @}
 } // namespace numkit::stats

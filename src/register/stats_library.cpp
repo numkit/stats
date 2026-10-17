@@ -419,6 +419,7 @@ void fncmb_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 // qmc/qmc.cpp
 void haltonset_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void net_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void scramble_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // sampling/lhs.cpp
 void lhsdesign_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -803,6 +804,7 @@ void StatsLibrary::install(PluginContext &engine)
 
     reg("qmc", "haltonset", &stats::detail::haltonset_reg);
     reg("qmc", "net",       &stats::detail::net_reg);
+    reg("qmc", "scramble",  &stats::detail::scramble_reg);
 
     reg("sampling", "lhsdesign", &stats::detail::lhsdesign_reg);
     reg("sampling", "lhsnorm",   &stats::detail::lhsnorm_reg);

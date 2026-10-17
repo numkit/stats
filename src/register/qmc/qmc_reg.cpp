@@ -54,6 +54,15 @@ void net_reg(Span<const Value> args, size_t /*nargout*/,
     outs[0] = net(args[0], n, ctx.engine->resource());
 }
 
+void scramble_reg(Span<const Value> args, size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{
+    argcheck::checkNargin(args.size(), 1, "scramble");
+    std::string type = (args.size() >= 2 && (args[1].isChar() || args[1].isString()))
+                     ? args[1].toString() : "RR2";
+    outs[0] = scramble(args[0], type, ctx.engine->resource());
+}
+
 } // namespace detail
 
 } // namespace numkit::stats

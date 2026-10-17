@@ -62,7 +62,7 @@
     "glmfit", "glmval", "lasso", "lassoglm", "lscov", "ridge",
     "classify",
     "aveknt", "augknt", "brk2knt", "knt2brk", "ppmak", "fnval", "fnder", "fnint", "csapi", "fnbrk", "fncmb",
-    "haltonset", "net",
+    "haltonset", "net", "scramble",
     "lhsdesign", "lhsnorm",
     "copulapdf", "copulacdf"
   ],
@@ -123,7 +123,7 @@
     "glmfit", "glmval", "lasso", "lassoglm", "lscov", "ridge",
     "classify",
     "aveknt", "augknt", "brk2knt", "knt2brk", "ppmak", "fnval", "fnder", "fnint", "csapi", "fnbrk", "fncmb",
-    "haltonset", "net",
+    "haltonset", "net", "scramble",
     "lhsdesign", "lhsnorm",
     "copulapdf", "copulacdf"
   ]
