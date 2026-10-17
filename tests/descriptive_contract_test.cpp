@@ -76,10 +76,11 @@ TEST_F(DescriptiveContractTest, CorrcoefNameValueStrictness)
                            "numkit:corrcoef:mixedClasses"));
     // Alpha bounds compute fine
     eval("r = corrcoef([1 2; 3 4], 'Alpha', 0.1);");
-    // complex input: [R,P] rejects with ComplexInputs (R alone is a
-    // deferred cov-complex stub — bugs/opened/stats/corrcoef-deferred-branches.md)
-    // complex R is a deferred cov-complex stub — see
-    // bugs/opened/stats/corrcoef-deferred-branches.md
+    // complex input: R alone computes Hermitian correlation; [R,P] rejects with ComplexInputs.
+    eval("rc = corrcoef([1+1i 2-1i; 3+2i 4+3i; 5-1i 6+2i]);");
+    EXPECT_NEAR(evalScalar("real(rc(1,1))"), 1.0, 1e-12);
+    EXPECT_TRUE(throwsWith("[rc, pc] = corrcoef([1+1i 2-1i; 3+2i 4+3i])",
+                           "numkit:corrcoef:ComplexInputs"));
 }
 
 TEST_F(DescriptiveContractTest, NanFamilyAllFlagAndSingle)

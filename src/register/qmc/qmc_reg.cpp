@@ -29,8 +29,8 @@ namespace detail {
 void haltonset_reg(Span<const Value> args, size_t /*nargout*/,
                    Span<Value> outs, CallContext &ctx)
 {
-    argcheck::checkNargin(args.size(), 1, "haltonset");  // no max: name-value tail in the reference
-    const int d = argcheck::expectedPositiveInteger(
+    argcheck::checkNargin(args.size(), 0, "haltonset");  // no max: name-value tail in the reference
+    const int d = args.empty() ? 1 : argcheck::expectedPositiveInteger(
         argcheck::expectedReal(args[0], 1, "d", "haltonset"), 1, "d", "haltonset");
     // MATLAB's default Skip is 0 — the trivial origin [0…0] is the first
     // returned point. 'Skip', 1 starts at index 1 = [0.5, 1/3, …].

@@ -267,9 +267,27 @@ Value corrcoef(const Value &x, std::pmr::memory_resource *mr)
 {
     // Special case: vector input â†’ 1Ã—1 matrix [1] (variable correlated
     // with itself). Matches MATLAB's `corrcoef(rand(5,1))` behaviour.
+    if (x.dims().ndim() > 2)
+        throw Error("corrcoef: input must be 1D or 2D",
+                     0, 0, "corrcoef", "", "numkit:corrcoef:ndim");
+    if (x.isComplex())
+        return corrcoefComplexMatrix(x, mr);
+    if (x.type() != ValueType::DOUBLE && x.type() != ValueType::SINGLE)
+        throw Error("corrcoef: input must be floating-point (double or single)",
+                     0, 0, "corrcoef", "", "numkit:corrcoef:notFloat");
+
+
     if (x.dims().isVector() || x.isScalar()) {
         auto R = Value::matrix(1, 1, ValueType::DOUBLE, mr);
-        R.doubleDataMut()[0] = 1.0;
+        const std::size_t n = x.numel();
+        bool hasNan = false;
+        for (std::size_t i = 0; i < n; ++i) {
+            if (std::isnan(x.elemAsDouble(i))) {
+                hasNan = true;
+                break;
+            }
+        }
+        R.doubleDataMut()[0] = (n == 0 || hasNan) ? std::nan("") : 1.0;
         return R;
     }
     auto C = cov(x, 0, mr);
@@ -278,8 +296,11 @@ Value corrcoef(const Value &x, std::pmr::memory_resource *mr)
 
 Value corrcoef(const Value &x, const Value &y, std::pmr::memory_resource *mr)
 {
+    if (x.isComplex() || y.isComplex())
+        return corrcoefComplexXY(x, y, mr);
     auto C = cov(x, y, 0, mr);
     return corrcoefFromCov(C, mr);
 }
 
 } // namespace numkit::stats
+

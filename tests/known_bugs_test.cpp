@@ -327,18 +327,38 @@ TEST_F(StatsKnownBug, RndNdSizeTails)
     EXPECT_DOUBLE_EQ(evalScalar("s(3)"), 4.0);
 }
 
-// bugs/opened/stats/arity-min-forms.md — 0-argument forms legal in the
+// bugs/closed/stats/arity-min-forms.md — 0-argument forms legal in the
 // reference (fitdist() lists distributions; haltonset() defaults d;
-// randg() -> scalar draw) are rejected by nk's min-1 regs.
-TEST_F(StatsKnownBug, DISABLED_ZeroArgForms)
+// randg() -> scalar draw).
+TEST_F(StatsKnownBug, ZeroArgForms)
 {
     eval("c = fitdist();");
     EXPECT_DOUBLE_EQ(evalScalar("iscell(c)"), 1.0);
     EXPECT_DOUBLE_EQ(evalScalar("numel(c) > 5"), 1.0);
     eval("h = haltonset();");
-    EXPECT_DOUBLE_EQ(evalScalar("isa(h, 'double') + numel(h)"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("isstruct(h) + h.dim"), 2.0);
     eval("g = randg();");
     EXPECT_DOUBLE_EQ(evalScalar("isscalar(g)"), 1.0);
+}
+
+// bugs/closed/stats/corrcoef-deferred-branches.md — complex R, pairwise
+// [R, P, RL, RU], and vector NaN propagation.
+TEST_F(StatsKnownBug, CorrcoefDeferredBranches)
+{
+    eval("R = corrcoef([1+1i 2-1i; 3+2i 4+3i; 5-1i 6+2i]);");
+    EXPECT_NEAR(evalScalar("real(R(1,2))"), 0.5735393346764046, 1e-12);
+    EXPECT_NEAR(evalScalar("imag(R(1,2))"), 0.6882472016116854, 1e-12);
+    EXPECT_NEAR(evalScalar("real(R(2,1))"), 0.5735393346764046, 1e-12);
+    EXPECT_NEAR(evalScalar("imag(R(2,1))"), -0.6882472016116854, 1e-12);
+
+    eval("[Rp, Pp, RLp, RUp] = corrcoef([1 2 3; 2 NaN 5; 3 6 4; 4 8 9; 5 10 NaN], 'Rows', 'pairwise');");
+    EXPECT_NEAR(evalScalar("Rp(1,3)"), 0.8344971792454872, 1e-12);
+    EXPECT_NEAR(evalScalar("Pp(1,3)"), 0.1655028207545126, 1e-12);
+    EXPECT_NEAR(evalScalar("RLp(1,3)"), -0.6394219353328874, 1e-12);
+    EXPECT_NEAR(evalScalar("RUp(1,3)"), 0.9964261319726321, 1e-12);
+
+    eval("[rv, pv] = corrcoef([1 2 NaN]);");
+    EXPECT_DOUBLE_EQ(evalScalar("isnan(rv) && isnan(pv)"), 1.0);
 }
 
 // bugs/closed/stats/of-helpers-raw-doubledata.md — the *_of compute
@@ -393,4 +413,5 @@ TEST_F(StatsKnownBug, VarSecondOutput)
     EXPECT_DOUBLE_EQ(evalScalar("sw(2)"), 2.0);
     EXPECT_DOUBLE_EQ(evalScalar("sw(3)"), 1.0);
 }
+
 

@@ -998,9 +998,10 @@ std::size_t countCompleteRows(const Value &X)
 
 // Pairwise Pearson correlation: each entry (i,j) uses the rows where both
 // columns are non-NaN, with the means AND the standard deviations taken
-// over exactly those common rows. (corrcov(cov_partialrows) is NOT the
-// same â€” that normalizes each column by its own per-column rows.)
-Value corrcoefPairwise(const Value &X, std::pmr::memory_resource *mr)
+// over exactly those common rows. Also optionally fills MCounts with the
+// per-pair non-NaN sample count m_ij for pairwise p-values and CIs.
+Value corrcoefPairwiseWithCounts(const Value &X, Value *MCounts,
+                                 std::pmr::memory_resource *mr)
 {
     ScratchArena scratch(mr);
     ScratchVec<double> data(&scratch);
@@ -1008,6 +1009,11 @@ Value corrcoefPairwise(const Value &X, std::pmr::memory_resource *mr)
     readMatrix(X, data, n, p);
     auto out = Value::matrix(p, p, ValueType::DOUBLE, mr);
     double *o = out.doubleDataMut();
+    double *mc = nullptr;
+    if (MCounts) {
+        *MCounts = Value::matrix(p, p, ValueType::DOUBLE, mr);
+        mc = MCounts->doubleDataMut();
+    }
     for (std::size_t i = 0; i < p; ++i)
         for (std::size_t j = 0; j < p; ++j) {
             double si = 0.0, sj = 0.0;
@@ -1016,6 +1022,7 @@ Value corrcoefPairwise(const Value &X, std::pmr::memory_resource *mr)
                 const double a = data[i * n + r], b = data[j * n + r];
                 if (!std::isnan(a) && !std::isnan(b)) { si += a; sj += b; ++m; }
             }
+            if (mc) mc[i + j * p] = static_cast<double>(m);
             double rij;
             if (m < 2) {
                 rij = std::numeric_limits<double>::quiet_NaN();
@@ -1036,6 +1043,85 @@ Value corrcoefPairwise(const Value &X, std::pmr::memory_resource *mr)
             o[i + j * p] = rij;
         }
     return out;
+}
+
+Value corrcoefPairwise(const Value &X, std::pmr::memory_resource *mr)
+{
+    return corrcoefPairwiseWithCounts(X, nullptr, mr);
+}
+
+// Complex correlation matrix R for 1-arg X (n x p) or 2-arg (x, y).
+// C(i,j) = sum_r conj(Z(r,i)) * Z(r,j) / (n - 1),
+// R(i,j) = C(i,j) / sqrt(real(C(i,i)) * real(C(j,j))).
+Value corrcoefComplexMatrix(const Value &X, std::pmr::memory_resource *mr)
+{
+    const bool isVec = X.dims().isVector() || X.isScalar();
+    const std::size_t n = isVec ? X.numel() : X.dims().rows();
+    const std::size_t p = isVec ? 1 : X.dims().cols();
+    if (p == 0) return Value::complexMatrix(0, 0, mr);
+    ScratchArena scratch(mr);
+    ScratchVec<Complex> Z(n * p, &scratch);
+    const bool xCplx = X.isComplex();
+    for (std::size_t c = 0; c < p; ++c) {
+        for (std::size_t r = 0; r < n; ++r) {
+            const std::size_t idx = c * n + r;
+            Z[idx] = xCplx ? X.complexData()[idx]
+                           : Complex(X.elemAsDouble(idx), 0.0);
+        }
+    }
+    if (n <= 1) {
+        Value R = Value::matrix(p, p, ValueType::DOUBLE, mr);
+        for (std::size_t k = 0; k < p * p; ++k) R.doubleDataMut()[k] = std::nan("");
+        return R;
+    }
+    for (std::size_t c = 0; c < p; ++c) {
+        Complex mean(0.0, 0.0);
+        for (std::size_t r = 0; r < n; ++r) mean += Z[c * n + r];
+        mean /= static_cast<double>(n);
+        for (std::size_t r = 0; r < n; ++r) Z[c * n + r] -= mean;
+    }
+    ScratchVec<double> stds(p, &scratch);
+    for (std::size_t c = 0; c < p; ++c) {
+        double ss = 0.0;
+        for (std::size_t r = 0; r < n; ++r) ss += std::norm(Z[c * n + r]);
+        stds[c] = std::sqrt(ss);
+    }
+    Value R = Value::complexMatrix(p, p, mr);
+    Complex *rd = R.complexDataMut();
+    for (std::size_t i = 0; i < p; ++i) {
+        for (std::size_t j = 0; j < p; ++j) {
+            if (i == j) {
+                rd[j * p + i] = (stds[i] > 0.0) ? Complex(1.0, 0.0)
+                                                : Complex(std::nan(""), std::nan(""));
+                continue;
+            }
+            Complex s(0.0, 0.0);
+            for (std::size_t r = 0; r < n; ++r)
+                s += std::conj(Z[i * n + r]) * Z[j * n + r];
+            const double den = stds[i] * stds[j];
+            rd[j * p + i] = (den > 0.0) ? (s / den)
+                                        : Complex(std::nan(""), std::nan(""));
+        }
+    }
+    return R;
+}
+
+Value corrcoefComplexXY(const Value &x, const Value &y, std::pmr::memory_resource *mr)
+{
+    if (!x.dims().isVector() || !y.dims().isVector())
+        throw Error("corrcoef: two-input form requires vector arguments",
+                     0, 0, "corrcoef", "", "numkit:corrcoef:notVector");
+    if (x.numel() != y.numel())
+        throw Error("corrcoef: x and y must have the same length",
+                     0, 0, "corrcoef", "", "numkit:corrcoef:lengthMismatch");
+    const std::size_t n = x.numel();
+    Value M = Value::complexMatrix(n, 2, mr);
+    Complex *md = M.complexDataMut();
+    for (std::size_t i = 0; i < n; ++i) {
+        md[i]     = x.isComplex() ? x.complexData()[i] : Complex(x.elemAsDouble(i), 0.0);
+        md[n + i] = y.isComplex() ? y.complexData()[i] : Complex(y.elemAsDouble(i), 0.0);
+    }
+    return corrcoefComplexMatrix(M, mr);
 }
 
 Value corrcoefScalarOne(std::pmr::memory_resource *mr)
@@ -1068,9 +1154,9 @@ Value corrcoefFromCov(const Value &C, std::pmr::memory_resource *mr)
 }
 
 // Two-sided p-values for a correlation matrix R computed from n observations.
-// Diagonal is 1; off-diagonal P(i,j) = 2*tcdf(-|t|, n-2) with the test
-// statistic t = r*sqrt((n-2)/(1-r^2)). With n <= 2 (df <= 0) the off-diagonal
-// p-values are NaN (MATLAB).
+// Diagonal is 1 (unless R(i,i) is NaN); off-diagonal P(i,j) = 2*tcdf(-|t|, n-2)
+// with the test statistic t = r*sqrt((n-2)/(1-r^2)). With n <= 2 (df <= 0) the
+// off-diagonal p-values are NaN.
 Value corrcoefPValues(const Value &R, double n, std::pmr::memory_resource *mr)
 {
     const std::size_t p = R.dims().rows();
@@ -1085,8 +1171,12 @@ Value corrcoefPValues(const Value &R, double n, std::pmr::memory_resource *mr)
     double *td = T.doubleDataMut();
     for (std::size_t k = 0; k < p * p; ++k) {
         const double r = rd[k];
+        if (std::isnan(r)) {
+            td[k] = std::nan("");
+            continue;
+        }
         const double oneMinus = 1.0 - r * r;
-        double t = std::numeric_limits<double>::infinity(); // |r|>=1 â†’ extreme
+        double t = std::numeric_limits<double>::infinity(); // |r|>=1 → extreme
         if (df > 0.0 && oneMinus > 0.0)
             t = std::fabs(r) * std::sqrt(df / oneMinus);
         td[k] = -t;
@@ -1097,9 +1187,37 @@ Value corrcoefPValues(const Value &R, double n, std::pmr::memory_resource *mr)
     for (std::size_t i = 0; i < p; ++i)
         for (std::size_t j = 0; j < p; ++j) {
             const std::size_t k = j * p + i;
+            if (std::isnan(rd[k])) { pd[k] = std::nan(""); continue; }
             if (i == j) { pd[k] = 1.0; continue; }
             if (df <= 0.0) { pd[k] = std::nan(""); continue; }
             double pv = 2.0 * cd[k];
+            if (pv > 1.0) pv = 1.0;
+            pd[k] = pv;
+        }
+    return P;
+}
+
+Value corrcoefPValuesPairwise(const Value &R, const Value &MCounts,
+                              std::pmr::memory_resource *mr)
+{
+    const std::size_t p = R.dims().rows();
+    auto P = Value::matrix(p, p, ValueType::DOUBLE, mr);
+    if (p == 0) return P;
+    const double *rd = R.doubleData();
+    const double *mc = MCounts.doubleData();
+    double *pd = P.doubleDataMut();
+    for (std::size_t i = 0; i < p; ++i)
+        for (std::size_t j = 0; j < p; ++j) {
+            const std::size_t k = j * p + i;
+            const double r = rd[k];
+            if (std::isnan(r)) { pd[k] = std::nan(""); continue; }
+            if (i == j) { pd[k] = 1.0; continue; }
+            const double df = mc[k] - 2.0;
+            if (df <= 0.0) { pd[k] = std::nan(""); continue; }
+            const double oneMinus = 1.0 - r * r;
+            if (oneMinus <= 0.0) { pd[k] = 0.0; continue; }
+            const double t = std::fabs(r) * std::sqrt(df / oneMinus);
+            double pv = 2.0 * tcdf(Value::scalar(-t, mr), df, mr).toScalar();
             if (pv > 1.0) pv = 1.0;
             pd[k] = pv;
         }
@@ -1127,7 +1245,34 @@ void corrcoefConfBounds(const Value &R, double n, double alpha,
                                 : std::numeric_limits<double>::infinity();
     for (std::size_t k = 0; k < p * p; ++k) {
         const double r = rd[k];
+        if (std::isnan(r)) { rl[k] = std::nan(""); ru[k] = std::nan(""); continue; }
         if (std::fabs(r) >= 1.0) { rl[k] = r; ru[k] = r; continue; }
+        const double z = std::atanh(r);
+        rl[k] = std::tanh(z - zc * se);
+        ru[k] = std::tanh(z + zc * se);
+    }
+}
+
+void corrcoefConfBoundsPairwise(const Value &R, const Value &MCounts, double alpha,
+                                Value &RL, Value &RU, std::pmr::memory_resource *mr)
+{
+    const std::size_t p = R.dims().rows();
+    RL = Value::matrix(p, p, ValueType::DOUBLE, mr);
+    RU = Value::matrix(p, p, ValueType::DOUBLE, mr);
+    if (p == 0) return;
+    const double *rd = R.doubleData();
+    const double *mc = MCounts.doubleData();
+    double *rl = RL.doubleDataMut();
+    double *ru = RU.doubleDataMut();
+    const double zc =
+        norminv(Value::scalar(1.0 - alpha / 2.0, mr), 0.0, 1.0, mr).toScalar();
+    for (std::size_t k = 0; k < p * p; ++k) {
+        const double r = rd[k];
+        if (std::isnan(r)) { rl[k] = std::nan(""); ru[k] = std::nan(""); continue; }
+        if (std::fabs(r) >= 1.0) { rl[k] = r; ru[k] = r; continue; }
+        const double n_ij = mc[k];
+        const double se = (n_ij > 3.0) ? 1.0 / std::sqrt(n_ij - 3.0)
+                                       : std::numeric_limits<double>::infinity();
         const double z = std::atanh(r);
         rl[k] = std::tanh(z - zc * se);
         ru[k] = std::tanh(z + zc * se);

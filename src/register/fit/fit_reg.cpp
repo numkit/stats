@@ -696,18 +696,34 @@ void mle_reg(Span<const Value> args, size_t nargout,
 void fitdist_reg(Span<const Value> args, size_t /*nargout*/,
                  Span<Value> outs, CallContext &ctx)
 {
-    argcheck::checkNargin(args.size(), 2, "fitdist");  // no max: name-value tail in the reference
-    if (!args[1].isChar() && !args[1].isString())
+    auto *mr = ctx.engine->resource();
+    if (args.empty()) {
+        static const char *const kDistNames[] = {
+            "Beta", "Binomial", "BirnbaumSaunders", "Burr", "Exponential",
+            "ExtremeValue", "Gamma", "GeneralizedExtremeValue",
+            "GeneralizedPareto", "HalfNormal", "InverseGaussian", "Logistic",
+            "Loglogistic", "Lognormal", "Nakagami", "NegativeBinomial",
+            "Normal", "Poisson", "Rayleigh", "Rician", "Stable",
+            "tLocationScale", "Weibull"
+        };
+        constexpr std::size_t nDists = sizeof(kDistNames) / sizeof(kDistNames[0]);
+        Value cell = Value::cell(nDists, 1, mr);
+        for (std::size_t i = 0; i < nDists; ++i)
+            cell.cellAt(i) = Value::fromString(kDistNames[i], mr);
+        outs[0] = std::move(cell);
+        return;
+    }
+    argcheck::checkNargin(args.size(), 1, "fitdist");  // no max: name-value tail in the reference
+    if (args.size() >= 2 && !args[1].isChar() && !args[1].isString())
         throw Error("fitdist: 2nd argument must be a distribution-name string",
                     0, 0, "fitdist", "", "numkit:fitdist:badName");
-    auto *mr = ctx.engine->resource();
     const Value &x = args[0];
     const std::size_t N = x.numel();
     if (N < 2)
         throw Error("fitdist: need at least 2 observations",
                     0, 0, "fitdist", "", "numkit:fitdist:tooSmall");
 
-    const std::string raw = args[1].toString();
+    const std::string raw = (args.size() >= 2) ? args[1].toString() : std::string("Normal");
     // Canonicalise.
     std::string name;
     name.reserve(raw.size());

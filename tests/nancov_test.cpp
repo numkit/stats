@@ -136,8 +136,10 @@ TEST_F(NancovTest, CorrcoefRowsPairwise)
     EXPECT_NEAR(evalScalar("Cp(1,1)"),  1.0,               1e-12);
     // 'all' (default) still NaN-poisons.
     EXPECT_TRUE(std::isnan(evalScalar("Ca = corrcoef(Xn); Ca(2,2)")));
-    // [R,P] with 'pairwise' is deferred (per-pair df) -> clear error.
-    EXPECT_THROW(eval("[R,P] = corrcoef(Xn,'Rows','pairwise');"), std::exception);
+    // [R,P] with 'pairwise' uses per-pair degrees of freedom (df_ij = m_ij - 2).
+    eval("[R,P] = corrcoef(Xn,'Rows','pairwise');");
+    EXPECT_NEAR(evalScalar("P(1,3)"), 0.7098095, 1e-5);
+    EXPECT_NEAR(evalScalar("P(2,3)"), 0.805776,  1e-5);
 }
 
 // ── skewness/kurtosis NaN omission (2026-05-30) ──────────────────────

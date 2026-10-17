@@ -139,7 +139,7 @@ void gamstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 // (each with its own shape parameter).
 void randg_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    argcheck::checkNargin(args.size(), 1, "randg");  // no max: trailing size args (builtin in the reference build)
+    argcheck::checkNargin(args.size(), 0, "randg");  // no max: trailing size args (builtin in the reference build)
     auto *mr = ctx.engine->resource();
     if (args.empty()) {
         outs[0] = randg(ctx.engine->rng(), 1.0, 1, 1, mr);

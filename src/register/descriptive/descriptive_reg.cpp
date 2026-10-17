@@ -797,6 +797,11 @@ void corrcoef_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     // uses closeness predicates).
     const CorrcoefRows rows = parseCorrcoefRows(args, nvStart);
     const double alpha = parseCorrcoefAlpha(args, nvStart);
+    const bool hasComplex = args[0].isComplex() || (twoArg && args[1].isComplex());
+    if (hasComplex && nargout >= 2) {
+        throw Error("corrcoef: cannot compute p-values for complex inputs.",
+                    0, 0, "corrcoef", "", "numkit:corrcoef:ComplexInputs");
+    }
 
     if (rows == CorrcoefRows::All) {
         double n;
@@ -804,39 +809,29 @@ void corrcoef_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
             const Value &x = args[0];
             n = (x.dims().isVector() || x.isScalar())
                     ? static_cast<double>(x.numel())          // single variable
-                    : static_cast<double>(x.dims().rows());   // n obs Ã— p vars
-            Value xd = (x.type() == ValueType::SINGLE)
+                    : static_cast<double>(x.dims().rows());   // n obs × p vars
+            Value xd = (!x.isComplex() && x.type() == ValueType::SINGLE)
                 ? widenSingleToDouble(x, mr) : Value(x);
             Value R = corrcoef(xd, mr);
             if (nargout >= 2) {
-                if (args[0].isComplex())
-                    throw Error("corrcoef: cannot compute p-values for "
-                                "complex inputs.",
-                                0, 0, "corrcoef", "",
-                                "numkit:corrcoef:ComplexInputs");
                 outs[1] = corrcoefPValues(R, n, mr);
             }
             outs[0] = std::move(R);
-            if (x.type() == ValueType::SINGLE)
+            if (!outs[0].isComplex() && x.type() == ValueType::SINGLE)
                 outs[0] = narrowToSingle(std::move(outs[0]), mr);
         } else {
             n = static_cast<double>(args[0].numel());         // corrcoef(x, y)
-            Value x0 = (args[0].type() == ValueType::SINGLE)
+            Value x0 = (!args[0].isComplex() && args[0].type() == ValueType::SINGLE)
                 ? widenSingleToDouble(args[0], mr) : Value(args[0]);
-            Value x1 = (args[1].type() == ValueType::SINGLE)
+            Value x1 = (!args[1].isComplex() && args[1].type() == ValueType::SINGLE)
                 ? widenSingleToDouble(args[1], mr) : Value(args[1]);
             Value R = corrcoef(x0, x1, mr);
             if (nargout >= 2) {
-                if (args[0].isComplex() || args[1].isComplex())
-                    throw Error("corrcoef: cannot compute p-values for "
-                                "complex inputs.",
-                                0, 0, "corrcoef", "",
-                                "numkit:corrcoef:ComplexInputs");
                 outs[1] = corrcoefPValues(R, n, mr);
             }
             outs[0] = std::move(R);
-            if (args[0].type() == ValueType::SINGLE
-                || args[1].type() == ValueType::SINGLE)
+            if (!outs[0].isComplex() &&
+                (args[0].type() == ValueType::SINGLE || args[1].type() == ValueType::SINGLE))
                 outs[0] = narrowToSingle(std::move(outs[0]), mr);
         }
         if (nargout >= 3) {
@@ -854,18 +849,47 @@ void corrcoef_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     const bool isVec = M.dims().isVector() || M.isScalar();
 
     if (rows == CorrcoefRows::Pairwise) {
-        if (nargout >= 2)
-            throw Error("corrcoef: [R, P] with 'Rows','pairwise' is not yet "
-                        "supported (per-pair degrees of freedom)",
-                        0, 0, "corrcoef", "", "numkit:corrcoef:PairwisePValue");
-        outs[0] = isVec ? corrcoefScalarOne(mr) : corrcoefPairwise(M, mr);
+        if (isVec) {
+            const std::size_t nValid = countCompleteRows(M);
+            Value rMat = Value::matrix(1, 1, ValueType::DOUBLE, mr);
+            rMat.doubleDataMut()[0] = (nValid <= 1) ? std::nan("") : 1.0;
+            outs[0] = rMat;
+            if (nargout >= 2) outs[1] = rMat;
+            if (nargout >= 3) {
+                Value RL, RU;
+                corrcoefConfBounds(outs[0], static_cast<double>(nValid), alpha, RL, RU, mr);
+                outs[2] = std::move(RL);
+                if (nargout >= 4) outs[3] = std::move(RU);
+            }
+            return;
+        }
+        Value MCounts;
+        outs[0] = corrcoefPairwiseWithCounts(M, (nargout >= 2) ? &MCounts : nullptr, mr);
+        if (nargout >= 2) {
+            outs[1] = corrcoefPValuesPairwise(outs[0], MCounts, mr);
+            if (nargout >= 3) {
+                Value RL, RU;
+                corrcoefConfBoundsPairwise(outs[0], MCounts, alpha, RL, RU, mr);
+                outs[2] = std::move(RL);
+                if (nargout >= 4) outs[3] = std::move(RU);
+            }
+        }
         return;
     }
 
     // Complete (listwise deletion).
     if (isVec) {
-        outs[0] = corrcoefScalarOne(mr);
-        if (nargout >= 2) outs[1] = corrcoefScalarOne(mr);
+        const std::size_t nValid = countCompleteRows(M);
+        Value rMat = Value::matrix(1, 1, ValueType::DOUBLE, mr);
+        rMat.doubleDataMut()[0] = (nValid <= 1) ? std::nan("") : 1.0;
+        outs[0] = rMat;
+        if (nargout >= 2) outs[1] = rMat;
+        if (nargout >= 3) {
+            Value RL, RU;
+            corrcoefConfBounds(outs[0], static_cast<double>(nValid), alpha, RL, RU, mr);
+            outs[2] = std::move(RL);
+            if (nargout >= 4) outs[3] = std::move(RU);
+        }
         return;
     }
     outs[0] = corrcoefFromCov(covNanAware(M, 0, CovNan::Omitrows, mr), mr);
