@@ -45,13 +45,14 @@ bool isSymmetric(const std::vector<double> &M, std::size_t d)
     return true;
 }
 
-// Factor Sigma = T·T' with T d×d (rows beyond the rank are zero):
-// T = V·diag(sqrt(λ clamped at 0)). Returns false when Sigma is not
-// even semidefinite. `eval`/`evec` out-param the eigendecomposition
-// (ascending eigenvalues; evec column-major).
+// Factor Sigma = L·L' with L d×r (r = rank of Sigma):
+// Strictly PD → r = d and L is lower Cholesky.
+// Rank-deficient PSD → r < d and L has r columns V(:,j)*sqrt(λ_j) for λ_j > tol.
+// Returns false when Sigma has any eigenvalue < -tol.
 bool psdFactor(const std::vector<double> &Sig, std::size_t d,
                std::vector<double> &T, std::vector<double> &eval,
-               std::vector<double> &evec, std::pmr::memory_resource *mr)
+               std::vector<double> &evec, std::pmr::memory_resource *mr,
+               std::size_t *outRank = nullptr)
 {
     Value Mv = Value::matrix(d, d, ValueType::DOUBLE, mr);
     std::copy(Sig.begin(), Sig.end(), Mv.doubleDataMut());
@@ -68,9 +69,8 @@ bool psdFactor(const std::vector<double> &Sig, std::size_t d,
                      * std::max(maxAbs, 1.0);
     for (double e : eval)
         if (e < -tol) return false;
-    // Strictly positive definite → upper Cholesky (matches the
-    // reference's cholcov factor exactly, probe R09). Semidefinite →
-    // the eigendecomposition factor (null-space rows are zero).
+    // Strictly positive definite → lower Cholesky L (so T = L' is upper Cholesky,
+    // matching cholcov output, probe R09). Semidefinite → compact d×r factor.
     bool pd = true;
     for (double e : eval)
         if (e <= tol) pd = false;
@@ -87,14 +87,32 @@ bool psdFactor(const std::vector<double> &Sig, std::size_t d,
             }
             if (!pd) break;
         }
-    }
-    if (!pd) {
-        T.assign(d * d, 0.0);
-        for (std::size_t j = 0; j < d; ++j) {
-            const double s = std::sqrt(std::max(eval[j], 0.0));
-            for (std::size_t i = 0; i < d; ++i)
-                T[i + j * d] = evec[i + j * d] * s;
+        if (pd) {
+            if (outRank) *outRank = d;
+            return true;
         }
+    }
+    // Count positive eigenvalues and build d×r factor (descending eigenvalue order,
+    // with cholcov sign convention: largest-magnitude element in each column positive).
+    std::vector<std::size_t> posCols;
+    for (std::size_t j = d; j-- > 0;) {
+        if (eval[j] > tol) posCols.push_back(j);
+    }
+    const std::size_t r = posCols.size();
+    if (outRank) *outRank = r;
+    T.assign(d * r, 0.0);
+    for (std::size_t col = 0; col < r; ++col) {
+        const std::size_t j = posCols[col];
+        const double s = std::sqrt(std::max(eval[j], 0.0));
+        std::size_t maxIdx = 0;
+        double maxVal = 0.0;
+        for (std::size_t i = 0; i < d; ++i) {
+            const double a = std::abs(evec[i + j * d]);
+            if (a > maxVal) { maxVal = a; maxIdx = i; }
+        }
+        const double sign = (evec[maxIdx + j * d] < 0.0) ? -1.0 : 1.0;
+        for (std::size_t i = 0; i < d; ++i)
+            T[i + col * d] = sign * evec[i + j * d] * s;
     }
     return true;
 }
@@ -260,28 +278,29 @@ MvnrndOut mvnrnd_reinterpreted(::numkit::ops::RngContext &rng, const Value &mu,
                 throw Error("mvnrnd: SIGMA must be symmetric.",
                             0, 0, "mvnrnd", "",
                             "numkit:mvnrnd:badCovariance2DSym");
-            if (!psdFactor(Sig, d, T, eval, evec, mr))
+            std::size_t rank = d;
+            if (!psdFactor(Sig, d, T, eval, evec, mr, &rank))
                 throw Error("mvnrnd: SIGMA must be positive "
                             "semi-definite.",
                             0, 0, "mvnrnd", "",
                             "numkit:mvnrnd:badCovariance2DPos");
             if (wantT) {
-                // Upper factor (Sigma = T'·T), matching the reference's
-                // cholcov output — the transpose of the sampling L.
-                out.T = Value::matrix(d, d, ValueType::DOUBLE, mr);
+                // Upper factor (Sigma = T'·T) of shape rank×d, matching
+                // cholcov output — the transpose of the d×rank sampling L.
+                out.T = Value::matrix(rank, d, ValueType::DOUBLE, mr);
                 double *td = out.T.doubleDataMut();
-                for (std::size_t i = 0; i < d; ++i)
+                for (std::size_t i = 0; i < rank; ++i)
                     for (std::size_t j = 0; j < d; ++j)
-                        td[i + j * d] = T[j + i * d];
+                        td[i + j * rank] = T[j + i * d];
             }
-            std::vector<double> Z(n * d);
-            for (std::size_t k = 0; k < d; ++k)
+            std::vector<double> Z(n * rank);
+            for (std::size_t k = 0; k < rank; ++k)
                 for (std::size_t r = 0; r < n; ++r)
                     Z[r + k * n] = Nz(gen);
             for (std::size_t r = 0; r < n; ++r)
                 for (std::size_t j = 0; j < d; ++j) {
                     double acc = 0.0;
-                    for (std::size_t k = 0; k < d; ++k)
+                    for (std::size_t k = 0; k < rank; ++k)
                         acc += T[j + k * d] * Z[r + k * n];
                     od[j * n + r] = acc + muAt(mu, r, j, muN);
                 }
@@ -341,21 +360,22 @@ MvnrndOut mvnrnd_reinterpreted(::numkit::ops::RngContext &rng, const Value &mu,
                 throw Error("mvnrnd: SIGMA must be symmetric.",
                             0, 0, "mvnrnd", "",
                             "numkit:mvnrnd:badCovariance3DSym");
-            if (!psdFactor(Sig, d, T, eval, evec, mr))
+            std::size_t rank = d;
+            if (!psdFactor(Sig, d, T, eval, evec, mr, &rank))
                 throw Error("mvnrnd: SIGMA must be positive "
                             "semi-definite.",
                             0, 0, "mvnrnd", "",
                             "numkit:mvnrnd:badCovariance3DPos");
             if (wantT) {
                 double *td = out.T.doubleDataMut() + p * d * d;
-                for (std::size_t i = 0; i < d; ++i)
+                for (std::size_t i = 0; i < rank; ++i)
                     for (std::size_t j = 0; j < d; ++j)
                         td[i + j * d] = T[j + i * d];
             }
-            for (std::size_t k = 0; k < d; ++k) z[k] = Nz(gen);
+            for (std::size_t k = 0; k < rank; ++k) z[k] = Nz(gen);
             for (std::size_t j = 0; j < d; ++j) {
                 double acc = 0.0;
-                for (std::size_t k = 0; k < d; ++k)
+                for (std::size_t k = 0; k < rank; ++k)
                     acc += T[j + k * d] * z[k];
                 od[j * n + p] = acc + muAt(mu, p, j, muN);
                 if (Sigma.elemAsDouble(j + j * d + p * d * d) == 0.0)
@@ -425,7 +445,8 @@ Value mvtrnd_full(::numkit::ops::RngContext &rng, const Value &C,
                     "semi-definite matrix.",
                     0, 0, "mvtrnd", "", "numkit:mvtrnd:badCorrelationSymPos");
     std::vector<double> T, eval, evec;
-    if (!psdFactor(Cm, d, T, eval, evec, mr))
+    std::size_t rank = d;
+    if (!psdFactor(Cm, d, T, eval, evec, mr, &rank))
         throw Error("mvtrnd: C must be a symmetric positive "
                     "semi-definite matrix.",
                     0, 0, "mvtrnd", "", "numkit:mvtrnd:badCorrelationSymPos");
@@ -436,8 +457,8 @@ Value mvtrnd_full(::numkit::ops::RngContext &rng, const Value &C,
     auto &gen = rng;
     std::normal_distribution<double> Nz(0.0, 1.0);
     std::chi_squared_distribution<double> Chi;
-    std::vector<double> Z(n * d);
-    for (std::size_t k = 0; k < d; ++k)
+    std::vector<double> Z(n * rank);
+    for (std::size_t k = 0; k < rank; ++k)
         for (std::size_t r = 0; r < n; ++r)
             Z[r + k * n] = Nz(gen);
     std::vector<double> scale(n);
@@ -448,7 +469,7 @@ Value mvtrnd_full(::numkit::ops::RngContext &rng, const Value &C,
     for (std::size_t r = 0; r < n; ++r)
         for (std::size_t j = 0; j < d; ++j) {
             double acc = 0.0;
-            for (std::size_t k = 0; k < d; ++k)
+            for (std::size_t k = 0; k < rank; ++k)
                 acc += T[j + k * d] * Z[r + k * n];
             od[j * n + r] = acc * scale[r];
         }
@@ -460,12 +481,35 @@ Value mvtrnd_full(::numkit::ops::RngContext &rng, const Value &C,
 
 Value mvncdf_full(Span<const Value> args, std::pmr::memory_resource *mr)
 {
-    // A trailing options struct is stripped before parsing (the
-    // reference's statset options; the integrator options are inert
-    // for the closed-form d ≤ 2 paths).
+    // A trailing options struct (e.g. statset('TolFun', 1e-5, 'MaxFunEvals', 20000))
+    // is parsed for TolFun / MaxFunEvals and stripped from positional args.
     std::size_t nin = args.size();
-    if (nin > 0 && args[nin - 1].isObject())
+    std::size_t maxFunEvals = 10000;
+    double tolFun = 1e-5;
+    if (nin > 0 && (args[nin - 1].isObject() || args[nin - 1].isStruct())) {
+        const Value &opts = args[nin - 1];
+        if (opts.isStruct()) {
+            const auto &fields = opts.structFields();
+            auto getFieldCI = [&](const char *key) -> const Value * {
+                for (const auto &kv : fields) {
+                    std::string k = kv.first;
+                    for (char &ch : k) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+                    if (k == key && !kv.second.isEmpty() && kv.second.isNumeric())
+                        return &kv.second;
+                }
+                return nullptr;
+            };
+            if (const Value *tf = getFieldCI("tolfun")) {
+                const double v = tf->elemAsDouble(0);
+                if (v > 0.0 && std::isfinite(v)) tolFun = v;
+            }
+            if (const Value *mf = getFieldCI("maxfunevals")) {
+                const double v = mf->elemAsDouble(0);
+                if (v >= 100.0 && std::isfinite(v)) maxFunEvals = static_cast<std::size_t>(v);
+            }
+        }
         --nin;
+    }
     if (nin == 0)
         throw Error("mvncdf: requires at least one input argument.",
                     0, 0, "mvncdf", "", "numkit:mvncdf:tooFewInputs");
@@ -698,35 +742,17 @@ Value mvncdf_full(Span<const Value> args, std::pmr::memory_resource *mr)
             }
         }
     } else {
-        // d ≥ 3: Monte Carlo over the standardized limits; the box form
-        // uses corner inclusion-exclusion over the 2^d orthant corners.
-        std::mt19937 gen(12345);
-        std::vector<double> q(d);
-        const std::vector<double> zeros(d, 0.0);
+        // d ≥ 3: Genz (1992) Separation-of-Variables (SOV) quasi-Monte Carlo
+        // over standardized lower/upper limits (handles both one-sided and box
+        // forms directly without 2^d corner expansion).
+        std::vector<double> ql(d, -kInf), qu(d);
         for (std::size_t r = 0; r < n; ++r) {
-            if (!box) {
-                for (std::size_t j = 0; j < d; ++j)
-                    q[j] = scaleRow(XU, r, j);
-                od[r] = monteCarloCdf(L.data(), d, zeros.data(), q.data(),
-                                      20000, gen);
-            } else {
-                // P(l < X < u) via corner sums (d ≤ ~10 practical).
-                double acc = 0.0;
-                const std::size_t corners = 1u << d;
-                for (std::size_t mask = 0; mask < corners; ++mask) {
-                    // bit set → upper corner for that coordinate.
-                    std::size_t bits = 0;
-                    for (std::size_t j = 0; j < d; ++j)
-                        if (mask & (1u << j)) ++bits;
-                    const double sign = ((d - bits) % 2 == 0) ? 1.0 : -1.0;
-                    for (std::size_t j = 0; j < d; ++j)
-                        q[j] = (mask & (1u << j)) ? scaleRow(XU, r, j)
-                                                  : scaleRow(XL, r, j);
-                    acc += sign * monteCarloCdf(L.data(), d, zeros.data(),
-                                                q.data(), 20000, gen);
-                }
-                od[r] = std::min(1.0, std::max(0.0, acc));
+            for (std::size_t j = 0; j < d; ++j) {
+                qu[j] = scaleRow(XU, r, j);
+                ql[j] = box ? scaleRow(XL, r, j) : -kInf;
             }
+            od[r] = genzSovCdf(L.data(), d, ql.data(), qu.data(),
+                               maxFunEvals, tolFun);
         }
     }
     return castDown(out, single, mr);

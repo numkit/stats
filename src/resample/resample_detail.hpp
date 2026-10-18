@@ -52,22 +52,29 @@ std::vector<int> sample_indices(int N, int K, bool with_replacement,
         }
     } else {
         // Weighted sampling.
-        std::discrete_distribution<int> dd(weights.begin(), weights.end());
         if (with_replacement) {
+            std::discrete_distribution<int> dd(weights.begin(), weights.end());
             for (int i = 0; i < K; ++i) out.push_back(dd(gen));
         } else {
-            // Without replacement: simple rejection. For small K acceptable;
-            // for large K relative to N, prefer Walker / Vose alias method.
-            std::vector<bool> taken((size_t)N, false);
-            int attempts = 0;
-            while ((int)out.size() < K && attempts < 10 * K * N) {
-                int i = dd(gen);
-                if (!taken[(size_t)i]) {
-                    taken[(size_t)i] = true;
-                    out.push_back(i);
+            // Without replacement: Efraimidis-Spirakis (2006) wswor algorithm.
+            // Each positive-weight item i receives key k_i = u_i^(1/w_i), or
+            // equivalently log(u_i)/w_i = -Exp(1)/w_i; the top K keys are drawn
+            // in descending key order. Exact O(N log N) with zero rejection risk.
+            std::exponential_distribution<double> expDist(1.0);
+            std::vector<std::pair<double, int>> keyed;
+            keyed.reserve(static_cast<std::size_t>(N));
+            for (int i = 0; i < N; ++i) {
+                const double w = weights[static_cast<std::size_t>(i)];
+                if (w > 0.0) {
+                    const double e = std::max(expDist(gen), 1e-300);
+                    keyed.emplace_back(-e / w, i);
                 }
-                ++attempts;
             }
+            const std::size_t take = std::min(static_cast<std::size_t>(K), keyed.size());
+            std::partial_sort(keyed.begin(), keyed.begin() + take, keyed.end(),
+                              [](const auto &a, const auto &b) { return a.first > b.first; });
+            for (std::size_t k = 0; k < take; ++k)
+                out.push_back(keyed[k].second);
         }
     }
     return out;

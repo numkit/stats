@@ -137,6 +137,13 @@ TEST_F(MvContractTest, MvnrndFormsAndContract)
     EXPECT_NEAR(at("Td", 3), 3.0, 1e-12);
     // Single in → single out (R07).
     EXPECT_EQ(cls("mvnrnd(single(mu2), single(S2), 2)"), "single");
+    // Rank-deficient PSD Sigma: T has shape r × d (1 × 2) with T'*T == Sigma.
+    engine.eval("[Rpsd, Tpsd] = mvnrnd([0 0], [4 2; 2 1], 5);");
+    EXPECT_EQ(num("size(Tpsd, 1)"), 1.0);
+    EXPECT_EQ(num("size(Tpsd, 2)"), 2.0);
+    EXPECT_NEAR(at("Tpsd", 0), 2.0, 1e-12);
+    EXPECT_NEAR(at("Tpsd", 1), 1.0, 1e-12);
+    EXPECT_NEAR(num("max(max(abs(Tpsd' * Tpsd - [4 2; 2 1])))"), 0.0, 1e-12);
 }
 
 // ── mvncdf ────────────────────────────────────────────────────────────
@@ -159,9 +166,18 @@ TEST_F(MvContractTest, MvncdfValuesAndForms)
     EXPECT_NEAR(at("P5", 3), 0.28571582739780865, 1e-9);
     engine.eval("P7 = mvncdf(X2, 0.5, S2);");
     EXPECT_NEAR(at("P7", 0), 0.43698700440802107, 1e-9);
-    // d = 3 identity: reference QMC 0.8211 — nk's seeded MC agrees to
-    // ~1e-3 (filed approximation).
-    EXPECT_NEAR(num("mvncdf(1:3, 0, eye(3))"), 0.82109415046357204, 1e-2);
+    // d = 3 identity via Genz SOV quasi-Monte Carlo (< 1e-4 accuracy).
+    EXPECT_NEAR(num("mvncdf(1:3, 0, eye(3))"), 0.82109415046357204, 1e-4);
+    // d = 3 correlated one-sided + box with statset options struct.
+    engine.eval("S3 = [1 0.5 0.25; 0.5 1 0.5; 0.25 0.5 1]; "
+                "opt = struct('TolFun', 1e-6, 'MaxFunEvals', 25000); "
+                "p3a = mvncdf([0 0 0], [0 0 0], S3, opt); "
+                "p3b = mvncdf([-1 -1 -1], [1 1 1], [0 0 0], S3, opt);");
+    // Exact orthant probability for equicorrelated/AR(1) 3-D normal at origin:
+    // 1/8 + (arcsin(0.5) + arcsin(0.25) + arcsin(0.5)) / (4*pi) = 0.2283978223508305
+    EXPECT_NEAR(num("p3a"), 0.2283978223508305, 2e-4);
+    EXPECT_GT(num("p3b"), 0.35);
+    EXPECT_LT(num("p3b"), 0.45);
     // Single in → single out (C09).
     EXPECT_EQ(cls("mvncdf(single(X2), single(mu2), single(S2))"), "single");
 }

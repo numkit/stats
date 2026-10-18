@@ -125,6 +125,13 @@ TEST_F(SamplingContractTest, DatasampleFormsAndClasses)
     engine.eval("rng(4); yw = datasample(1:10, 200, 'Replace', true, "
                 "'Weights', [0 1 0 0 0 0 0 0 0 0]);");
     EXPECT_NEAR(num("all(yw == 2)"), 1.0, 1e-12);
+    // Weighted without replacement (Efraimidis-Spirakis wswor): handles
+    // extreme weight skew in O(N log N) without rejection spinning and
+    // draws distinct positive-weight indices.
+    engine.eval("rng(5); ywo = datasample(1:6, 4, 'Replace', false, "
+                "'Weights', [1e6 1e3 10 1 0 0]);");
+    EXPECT_EQ(num("numel(unique(ywo))"), 4.0);
+    EXPECT_EQ(num("all(ywo <= 4)"), 1.0);
 }
 
 // ── lhsnorm ───────────────────────────────────────────────────────────
@@ -134,16 +141,26 @@ TEST_F(SamplingContractTest, LhsnormContract)
     engine.eval("rng(1); L = lhsnorm([0 0], [1 .5; .5 1], 500);");
     EXPECT_EQ(num("size(L,1)"), 500.0);
     EXPECT_EQ(num("size(L,2)"), 2.0);
-    // Rank-correlation structure survives the LHS transform (loose —
-    // the exact values are RNG-bound).
+    // Rank-correlation structure survives the LHS transform.
     engine.eval("CL = corr(L);");
     EXPECT_NEAR(num("CL(1,2)"), 0.5, 0.15);
-    engine.eval("rng(2); L2 = lhsnorm([0 0], eye(2), 3, 'off'); "
-                "rng(3); L3 = lhsnorm([0 0], eye(2), 3, 7);");
-    EXPECT_EQ(num("size(L2,1)"), 3.0);
+    // Stein (1987) rank-based LHS preserves exact 1-D marginal stratification
+    // in every columneven when off-diagonal correlations are non-zero:
+    // with 'off', normcdf((L(:,j) - mu_j)/sd_j) * n + 0.5 is a permutation of 1..n.
+    engine.eval("rng(2); Loff = lhsnorm([2 -3], [4 2.4; 2.4 9], 20, 'off'); "
+                "r1 = sort(round(normcdf(Loff(:,1), 2, 2) * 20 + 0.5)); "
+                "r2 = sort(round(normcdf(Loff(:,2), -3, 3) * 20 + 0.5));");
+    EXPECT_NEAR(num("max(abs(r1 - (1:20)'))"), 0.0, 1e-9);
+    EXPECT_NEAR(num("max(abs(r2 - (1:20)'))"), 0.0, 1e-9);
+    // Positive semidefinite (rank-deficient) Sigma works via mvnrnd PSD factor.
+    engine.eval("rng(6); Lpsd = lhsnorm([1 2], [4 2; 2 1], 10, 'off');");
+    EXPECT_EQ(num("size(Lpsd, 1)"), 10.0);
+    EXPECT_EQ(num("size(Lpsd, 2)"), 2.0);
+    engine.eval("rng(3); L3 = lhsnorm([0 0], eye(2), 3, 7);");
     EXPECT_EQ(num("size(L3,2)"), 2.0);   // non-'on' → off branch, no error
     // Shape gate.
     EXPECT_THROW(eval("lhsnorm([0 0], eye(3), 4);"), std::exception);
 }
 
 } // namespace
+

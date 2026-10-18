@@ -3,6 +3,7 @@
 // Latin Hypercube sampling (lhsdesign / lhsnorm).
 
 #include <numkit/stats/sampling/lhs.hpp>
+#include <numkit/stats/distributions/multivariate.hpp>
 #include <numkit/stats/distributions/normal.hpp>
 
 #include <numkit/builtin/datafun.hpp>
@@ -18,38 +19,6 @@
 #include <vector>
 
 namespace numkit::stats {
-
-namespace {
-
-// In-place Cholesky factorisation (upper triangle on return; lower zeroed).
-// MATLAB's chol(Sigma) returns the upper R such that R' * R = Sigma.
-void choleskyUpperInPlace(double *S, std::size_t n)
-{
-    // Standard column-by-column Cholesky producing the upper triangle.
-    // We treat S as row-major.
-    for (std::size_t j = 0; j < n; ++j) {
-        double diag = S[j * n + j];
-        for (std::size_t k = 0; k < j; ++k)
-            diag -= S[k * n + j] * S[k * n + j];
-        if (diag <= 0.0)
-            throw Error("lhsnorm: Sigma must be positive definite "
-                        "(Cholesky failed at row " + std::to_string(j + 1) + ")",
-                        0, 0, "lhsnorm", "", "numkit:lhsnorm:notPD");
-        const double Rjj = std::sqrt(diag);
-        S[j * n + j] = Rjj;
-        for (std::size_t i = j + 1; i < n; ++i) {
-            double s = S[j * n + i];
-            for (std::size_t k = 0; k < j; ++k)
-                s -= S[k * n + j] * S[k * n + i];
-            S[j * n + i] = s / Rjj;
-        }
-        // Zero strict-lower triangle column for clarity.
-        for (std::size_t i = j + 1; i < n; ++i)
-            S[i * n + j] = 0.0;
-    }
-}
-
-} // anonymous
 
 namespace {
 
@@ -189,37 +158,50 @@ Value lhsnorm(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigm
         throw Error("lhsnorm: Sigma must be d × d where d = length(mu)",
                     0, 0, "lhsnorm", "", "numkit:lhsnorm:shape");
 
-    // U is the LHS uniform design (n × d).
-    // U is a PLAIN LHS design (no maximin refinement — the reference
-    // builds it from ranks of a raw sample), smoothed (x − rand) or on
-    // the grid midpoints (x − 0.5) per the DOSMOOTH flag.
-    Value U = lhsdesign(rng, n, d, smooth, LhsCriterion::None, 1, mr);
-    // Z = norminv(U), n × d standard-normal samples.
-    Value Z = norminv(U, 0.0, 1.0, mr);
-
-    // Build the Cholesky factor R (upper) of Sigma, row-major.
-    std::vector<double> R(d * d);
-    for (std::size_t i = 0; i < d; ++i)
-        for (std::size_t j = 0; j < d; ++j)
-            R[i * d + j] = Sigma.elemAsDouble(j * d + i);   // col-major → row-major copy
-    choleskyUpperInPlace(R.data(), d);
-
-    // mu values (row vector).
-    std::vector<double> muv(d);
-    for (std::size_t k = 0; k < d; ++k) muv[k] = mu.elemAsDouble(k);
-
     auto out = Value::matrix(n, d, ValueType::DOUBLE, mr);
-    double *od = out.doubleDataMut();   // col-major
-
     if (n == 0) return out;
+    double *od = out.doubleDataMut();
 
-    // Y[i, j] = mu[j] + Σ_k Z[i, k] * R[k, j]
-    for (std::size_t i = 0; i < n; ++i) {
-        for (std::size_t j = 0; j < d; ++j) {
-            double s = muv[j];
-            for (std::size_t k = 0; k <= j; ++k)
-                s += Z.elemAsDouble(k * n + i) * R[k * d + j];
-            od[j * n + i] = s;
+    // Stein (1987) rank-based Latin hypercube with covariance Sigma:
+    // 1. Draw Z = mvnrnd(mu, Sigma, n) (validates PSD Sigma via psdFactor).
+    // 2. For each column j = 1..d, compute the 1-based column ranks r_{i,j}
+    //    of Z(:,j) and map them to stratified normal quantiles:
+    //      u_{i,j} = (r_{i,j} - xi_{i,j}) / n,
+    //      X_{i,j} = mu_j + sqrt(Sigma_{j,j}) * norminv(u_{i,j}).
+    //    This preserves both exact 1-D Latin hypercube stratification in
+    //    every marginal and the rank correlation structure of Sigma.
+    Value muRow = Value::matrix(1, d, ValueType::DOUBLE, mr);
+    for (std::size_t j = 0; j < d; ++j)
+        muRow.doubleDataMut()[j] = mu.elemAsDouble(j);
+    Value casesVal = Value::scalar(static_cast<double>(n), mr);
+    MvnrndOut mv = mvnrnd_full(rng, muRow, Sigma, casesVal, /*wantT=*/false, mr);
+
+    std::uniform_real_distribution<double> U(0.0, 1.0);
+    const double invN = 1.0 / static_cast<double>(n);
+    std::vector<std::size_t> ord(n), rank(n);
+    Value uCol = Value::matrix(n, 1, ValueType::DOUBLE, mr);
+    double *ud = uCol.doubleDataMut();
+
+    for (std::size_t j = 0; j < d; ++j) {
+        std::iota(ord.begin(), ord.end(), std::size_t(0));
+        std::sort(ord.begin(), ord.end(), [&](std::size_t a, std::size_t b) {
+            return mv.r.elemAsDouble(a + j * n) < mv.r.elemAsDouble(b + j * n);
+        });
+        for (std::size_t r = 0; r < n; ++r)
+            rank[ord[r]] = r + 1;
+        for (std::size_t i = 0; i < n; ++i) {
+            const double xi = smooth ? U(rng) : 0.5;
+            ud[i] = (static_cast<double>(rank[i]) - xi) * invN;
+        }
+        const double muj = mu.elemAsDouble(j);
+        const double sdj = std::sqrt(std::max(0.0, Sigma.elemAsDouble(j + j * d)));
+        if (sdj > 0.0) {
+            Value zCol = norminv(uCol, muj, sdj, mr);
+            for (std::size_t i = 0; i < n; ++i)
+                od[j * n + i] = zCol.elemAsDouble(i);
+        } else {
+            for (std::size_t i = 0; i < n; ++i)
+                od[j * n + i] = muj;
         }
     }
     return out;
