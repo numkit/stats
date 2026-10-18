@@ -72,8 +72,20 @@ TEST_F(MleTest, UnknownDistRejected)
     EXPECT_THROW(eval("mle([1 2 3], 'distribution', 'gamma');"), std::exception);
 }
 
-TEST_F(MleTest, CustomFnDeferred)
+TEST_F(MleTest, CustomPdfLogpdfNloglf)
 {
-    eval("pdf_fn = @(x, mu) exp(-(x - mu).^2 / 2);");
-    EXPECT_THROW(eval("mle([1 2 3], 'pdf', pdf_fn, 'start', 1);"), std::exception);
+    eval("x = [1; 2; 3; 4; 5];");
+    eval("pdf_fn = @(d, mu) (1/sqrt(2*pi)) * exp(-(d - mu).^2 / 2);");
+    eval("[phat, pci] = mle(x, 'pdf', pdf_fn, 'start', 1.0);");
+    EXPECT_NEAR(evalScalar("phat(1)"), 3.0, 1e-4);
+    EXPECT_LT(evalScalar("pci(1, 1)"), 3.0);
+    EXPECT_GT(evalScalar("pci(2, 1)"), 3.0);
+
+    eval("logpdf_fn = @(d, mu) -0.5 * (d - mu).^2;");
+    eval("phat2 = mle(x, 'logpdf', logpdf_fn, 'start', 0.5);");
+    EXPECT_NEAR(evalScalar("phat2(1)"), 3.0, 1e-4);
+
+    eval("nloglf_fn = @(p, d, cens, freq) 0.5 * sum((d - p(1)).^2);");
+    eval("phat3 = mle(x, 'nloglf', nloglf_fn, 'start', 0.0);");
+    EXPECT_NEAR(evalScalar("phat3(1)"), 3.0, 1e-4);
 }

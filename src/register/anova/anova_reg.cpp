@@ -308,36 +308,117 @@ void anova2_reg(Span<const Value> args, size_t nargout,
                 Span<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 3, "anova2");
-    // reps argument: only reps=1 (default) supported in this revision.
-    if (args.size() >= 2 && !args[1].isEmpty()) {
-        const int reps = argcheck::expectedPositiveInteger(
+    int reps = 1;
+    if (args.size() >= 2 && !args[1].isEmpty()
+        && !args[1].isChar() && !args[1].isString()) {
+        reps = argcheck::expectedPositiveInteger(
             argcheck::expectedReal(args[1], 2, "reps", "anova2"), 2, "reps", "anova2");
-        if (reps != 1)
-            throw Error("anova2: reps > 1 (with replication / interaction) "
-                        "is deferred -- only reps=1 (without replication) "
-                        "supported in this revision",
-                        0, 0, "anova2", "", "numkit:anova2:reps");
     }
     auto *mr = ctx.engine->resource();
-    auto [pCols, pRows, Fc, Fr, dfC, dfR, dfE, ssC, ssR, ssE] =
-        anova2(args[0], mr);
+    const Value &Y = args[0];
+    if (Y.dims().ndim() != 2)
+        throw Error("anova2: input must be a 2D matrix",
+                    0, 0, "anova2", "", "numkit:anova2:notMatrix");
+    const std::size_t M = Y.dims().rows();
+    const std::size_t c = Y.dims().cols();
+    const std::size_t R = static_cast<std::size_t>(reps);
+    if (c < 2 || M < 2 * R || (M % R) != 0)
+        throw Error("anova2: row count must be an integer multiple (>= 2) of reps and columns >= 2",
+                    0, 0, "anova2", "", "numkit:anova2:tooSmall");
+    const std::size_t r = M / R;
+    const double nan = std::numeric_limits<double>::quiet_NaN();
 
-    // p output: 1×3 row [p_cols, p_rows, p_inter]. p_inter = NaN for reps=1.
+    double pCols = nan, pRows = nan, pInter = nan;
+    double Fc = nan, Fr = nan, Fi = nan;
+    double dfC = 0.0, dfR = 0.0, dfI = 0.0, dfE = 0.0;
+    double ssC = 0.0, ssR = 0.0, ssI = 0.0, ssE = 0.0;
+
+    std::vector<double> rowMean(r, 0.0), colMean(c, 0.0);
+    double grandSum = 0.0;
+    for (std::size_t j = 0; j < c; ++j) {
+        for (std::size_t i = 0; i < r; ++i) {
+            for (std::size_t k = 0; k < R; ++k) {
+                const double v = Y.elemAsDouble((i * R + k) + j * M);
+                rowMean[i] += v;
+                colMean[j] += v;
+                grandSum += v;
+            }
+        }
+    }
+    const double N = static_cast<double>(r * c * R);
+    const double grandMean = grandSum / N;
+    for (std::size_t i = 0; i < r; ++i)
+        rowMean[i] /= static_cast<double>(c * R);
+    for (std::size_t j = 0; j < c; ++j)
+        colMean[j] /= static_cast<double>(r * R);
+
+    if (R == 1) {
+        std::tie(pCols, pRows, Fc, Fr, dfC, dfR, dfE, ssC, ssR, ssE) =
+            anova2(Y, mr);
+    } else {
+        std::vector<double> cellMean(r * c, 0.0);
+        for (std::size_t j = 0; j < c; ++j) {
+            for (std::size_t i = 0; i < r; ++i) {
+                double s = 0.0;
+                for (std::size_t k = 0; k < R; ++k)
+                    s += Y.elemAsDouble((i * R + k) + j * M);
+                cellMean[i + j * r] = s / static_cast<double>(R);
+            }
+        }
+        for (std::size_t i = 0; i < r; ++i) {
+            const double d = rowMean[i] - grandMean;
+            ssR += static_cast<double>(c * R) * d * d;
+        }
+        for (std::size_t j = 0; j < c; ++j) {
+            const double d = colMean[j] - grandMean;
+            ssC += static_cast<double>(r * R) * d * d;
+        }
+        for (std::size_t j = 0; j < c; ++j) {
+            for (std::size_t i = 0; i < r; ++i) {
+                const double cm = cellMean[i + j * r];
+                const double di = cm - rowMean[i] - colMean[j] + grandMean;
+                ssI += static_cast<double>(R) * di * di;
+                for (std::size_t k = 0; k < R; ++k) {
+                    const double de = Y.elemAsDouble((i * R + k) + j * M) - cm;
+                    ssE += de * de;
+                }
+            }
+        }
+        dfC = static_cast<double>(c - 1);
+        dfR = static_cast<double>(r - 1);
+        dfI = static_cast<double>((r - 1) * (c - 1));
+        dfE = static_cast<double>(r * c * (R - 1));
+        const double msE = (dfE > 0.0) ? (ssE / dfE) : nan;
+        if (msE > 0.0) {
+            Fc = (ssC / dfC) / msE;
+            Fr = (ssR / dfR) / msE;
+            Fi = (ssI / dfI) / msE;
+            pCols  = std::max(0.0, 1.0 - fcdf(Value::scalar(Fc, mr), dfC, dfE, mr).toScalar());
+            pRows  = std::max(0.0, 1.0 - fcdf(Value::scalar(Fr, mr), dfR, dfE, mr).toScalar());
+            pInter = std::max(0.0, 1.0 - fcdf(Value::scalar(Fi, mr), dfI, dfE, mr).toScalar());
+        } else if (msE == 0.0) {
+            const double inf = std::numeric_limits<double>::infinity();
+            Fc = Fr = Fi = inf;
+            pCols = pRows = pInter = 0.0;
+        }
+    }
+
+    // p output: 1x3 row [p_cols, p_rows, p_inter] (or 1x2 when reps==1 in some callers,
+    // keep 1x3 with p_inter = NaN for reps=1, and real pInter for reps>1).
     auto pV = Value::matrix(1, 3, ValueType::DOUBLE, mr);
     double *pd = pV.doubleDataMut();
     pd[0] = pCols;
     pd[1] = pRows;
-    pd[2] = std::numeric_limits<double>::quiet_NaN();
+    pd[2] = pInter;
     outs[0] = std::move(pV);
 
     if (nargout > 1) {
-        // 5×6 cell table.
-        Value tbl = Value::cell(5, 6, mr);
-        const double nan = std::numeric_limits<double>::quiet_NaN();
+        const std::size_t tblRows = (R > 1) ? 6 : 5;
+        Value tbl = Value::cell(tblRows, 6, mr);
         auto strV = [&](const char *s){ return Value::fromString(s, mr); };
         auto numV = [&](double v){ return Value::scalar(v, mr); };
-        auto setCell = [&](size_t r, size_t c, const Value &v) {
-            tbl.cellAt(r + c * 5) = v;
+        auto setCell = [&](size_t rr, size_t cc, const Value &v) {
+            tbl.cellAt(rr + cc * tblRows) = v;
         };
         setCell(0, 0, strV("Source"));
         setCell(0, 1, strV("SS"));
@@ -357,19 +438,48 @@ void anova2_reg(Span<const Value> args, size_t nargout,
         setCell(2, 3, numV(dfR > 0 ? ssR / dfR : nan));
         setCell(2, 4, numV(Fr));
         setCell(2, 5, numV(pRows));
-        setCell(3, 0, strV("Error"));
-        setCell(3, 1, numV(ssE));
-        setCell(3, 2, numV(dfE));
-        setCell(3, 3, numV(dfE > 0 ? ssE / dfE : nan));
-        setCell(3, 4, numV(nan));
-        setCell(3, 5, numV(nan));
-        setCell(4, 0, strV("Total"));
-        setCell(4, 1, numV(ssC + ssR + ssE));
-        setCell(4, 2, numV(dfC + dfR + dfE));
-        setCell(4, 3, numV(nan));
-        setCell(4, 4, numV(nan));
-        setCell(4, 5, numV(nan));
+        std::size_t errRow = 3;
+        if (R > 1) {
+            setCell(3, 0, strV("Interaction"));
+            setCell(3, 1, numV(ssI));
+            setCell(3, 2, numV(dfI));
+            setCell(3, 3, numV(dfI > 0 ? ssI / dfI : nan));
+            setCell(3, 4, numV(Fi));
+            setCell(3, 5, numV(pInter));
+            errRow = 4;
+        }
+        setCell(errRow, 0, strV("Error"));
+        setCell(errRow, 1, numV(ssE));
+        setCell(errRow, 2, numV(dfE));
+        setCell(errRow, 3, numV(dfE > 0 ? ssE / dfE : nan));
+        setCell(errRow, 4, numV(nan));
+        setCell(errRow, 5, numV(nan));
+        setCell(errRow + 1, 0, strV("Total"));
+        setCell(errRow + 1, 1, numV(ssC + ssR + ssI + ssE));
+        setCell(errRow + 1, 2, numV(dfC + dfR + dfI + dfE));
+        setCell(errRow + 1, 3, numV(nan));
+        setCell(errRow + 1, 4, numV(nan));
+        setCell(errRow + 1, 5, numV(nan));
         outs[1] = std::move(tbl);
+    }
+    if (nargout > 2) {
+        Value colMeansV = Value::matrix(1, c, ValueType::DOUBLE, mr);
+        for (std::size_t j = 0; j < c; ++j)
+            colMeansV.doubleDataMut()[j] = colMean[j];
+        Value rowMeansV = Value::matrix(1, r, ValueType::DOUBLE, mr);
+        for (std::size_t i = 0; i < r; ++i)
+            rowMeansV.doubleDataMut()[i] = rowMean[i];
+        Value s = Value::structure(mr);
+        s.field("source")   = Value::fromString("anova2", mr);
+        s.field("sigmasq")  = Value::scalar(dfE > 0 ? ssE / dfE : nan, mr);
+        s.field("colmeans") = std::move(colMeansV);
+        s.field("coln")     = Value::scalar(static_cast<double>(r * R), mr);
+        s.field("rowmeans") = std::move(rowMeansV);
+        s.field("rown")     = Value::scalar(static_cast<double>(c * R), mr);
+        s.field("inter")    = Value::logicalScalar(R > 1, mr);
+        s.field("pval")     = Value::scalar(pInter, mr);
+        s.field("df")       = Value::scalar(dfE, mr);
+        outs[2] = std::move(s);
     }
 }
 

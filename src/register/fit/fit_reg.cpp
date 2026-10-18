@@ -540,34 +540,51 @@ void mle_reg(Span<const Value> args, size_t nargout,
                     0, 0, "mle", "", "numkit:mle:tooSmall");
 
     std::string dist = "normal";
-    bool custom_fn = false;
+    std::string custom_kind; // "pdf", "logpdf", or "nloglf"
+    Value custom_fh;
+    Value start_val;
+    Value lower_val;
+    Value upper_val;
+    Value cens_val;
+    Value freq_val;
     double alpha = 0.05;   // 100·(1-alpha)% confidence for the 2nd output pci
+    auto toLower = [](std::string s) {
+        for (char &ch : s)
+            ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+        return s;
+    };
     for (std::size_t i = 1; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error("mle: option name must be a string",
                         0, 0, "mle", "", "numkit:mle:badOption");
-        const std::string opt = args[i].toString();
-        if (opt == "distribution" || opt == "Distribution")
+        const std::string optRaw = args[i].toString();
+        const std::string opt = toLower(optRaw);
+        if (opt == "distribution")
             dist = args[i + 1].toString();
-        else if (opt == "alpha" || opt == "Alpha") {
+        else if (opt == "alpha") {
             alpha = args[i + 1].toScalar();
             if (!(alpha > 0.0 && alpha < 1.0))
                 throw Error("mle: Alpha must be in (0, 1)",
                     0, 0, "mle", "", "numkit:mle:badOption");
         }
-        else if (opt == "pdf" || opt == "PDF" ||
-                 opt == "logpdf" || opt == "LogPDF" ||
-                 opt == "nloglf" || opt == "NLogLF")
-            custom_fn = true;
-        else if (opt == "start" || opt == "Start") { /* paired with custom_fn */ }
+        else if (opt == "pdf" || opt == "logpdf" || opt == "nloglf") {
+            if (!args[i + 1].isFuncHandle())
+                throw Error("mle: '" + optRaw + "' value must be a function handle",
+                            0, 0, "mle", "", "numkit:mle:badFuncHandle");
+            custom_kind = opt;
+            custom_fh = args[i + 1];
+        }
+        else if (opt == "start")      start_val = args[i + 1];
+        else if (opt == "lowerbound") lower_val = args[i + 1];
+        else if (opt == "upperbound") upper_val = args[i + 1];
+        else if (opt == "censoring")  cens_val  = args[i + 1];
+        else if (opt == "frequency")  freq_val  = args[i + 1];
+        else if (opt == "options")    { /* options struct accepted */ }
         else
-            throw Error("mle: unknown option '" + opt + "'",
+            throw Error("mle: unknown option '" + optRaw + "'",
                         0, 0, "mle", "", "numkit:mle:badOption");
     }
 
-    // pci (2nd output): 2×k matrix, row 1 = lower bounds, row 2 = upper bounds,
-    // one column per parameter — taken from the matching *fit CI (which already
-    // matches MATLAB). emitNorm2: two-parameter (mu, sigma) layout.
     auto emitPci2 = [&](const Value &ci1, const Value &ci2) {
         Value pci = Value::matrix(2, 2, ValueType::DOUBLE, mr);
         double *p = pci.doubleDataMut();
@@ -581,12 +598,222 @@ void mle_reg(Span<const Value> args, size_t nargout,
         p[0] = ci.elemAsDouble(0); p[1] = ci.elemAsDouble(1);
         outs[1] = std::move(pci);
     };
-    if (custom_fn)
-        throw Error("mle: custom 'pdf'/'logpdf'/'nloglf' fitting via "
-                    "Nelder-Mead is deferred -- supported distributions "
-                    "in this revision: 'normal', 'exponential', "
-                    "'poisson', 'lognormal'",
-                    0, 0, "mle", "", "numkit:mle:customFnNYI");
+
+    if (!custom_kind.empty()) {
+        if (start_val.isEmpty() || start_val.numel() == 0)
+            throw Error("mle: custom '" + custom_kind + "' requires a non-empty 'start' parameter vector",
+                        0, 0, "mle", "", "numkit:mle:missingStart");
+        const std::size_t K = start_val.numel();
+        std::vector<double> p0(K), lb(K, -std::numeric_limits<double>::infinity()),
+                            ub(K,  std::numeric_limits<double>::infinity());
+        for (std::size_t k = 0; k < K; ++k) p0[k] = start_val.elemAsDouble(k);
+        if (!lower_val.isEmpty()) {
+            for (std::size_t k = 0; k < K && k < lower_val.numel(); ++k)
+                lb[k] = lower_val.elemAsDouble(k);
+        }
+        if (!upper_val.isEmpty()) {
+            for (std::size_t k = 0; k < K && k < upper_val.numel(); ++k)
+                ub[k] = upper_val.elemAsDouble(k);
+        }
+        Value censV = cens_val.isEmpty() ? Value::matrix(x.dims().rows(), x.dims().cols(), ValueType::DOUBLE, mr) : cens_val;
+        Value freqV = freq_val;
+        if (freqV.isEmpty()) {
+            freqV = Value::matrix(x.dims().rows(), x.dims().cols(), ValueType::DOUBLE, mr);
+            double *fd = freqV.doubleDataMut();
+            for (std::size_t i = 0; i < N; ++i) fd[i] = 1.0;
+        }
+
+        const double bigPen = 1e100;
+        auto evalNLL = [&](const std::vector<double> &theta) -> double {
+            for (std::size_t k = 0; k < K; ++k) {
+                if (!std::isfinite(theta[k]) || theta[k] < lb[k] || theta[k] > ub[k])
+                    return bigPen;
+            }
+            try {
+                if (custom_kind == "nloglf") {
+                    Value pVec = Value::matrix(1, K, ValueType::DOUBLE, mr);
+                    for (std::size_t k = 0; k < K; ++k) pVec.doubleDataMut()[k] = theta[k];
+                    Value res;
+                    try {
+                        Value cargs4[4] = { pVec, x, censV, freqV };
+                        res = ctx.engine->callFunctionHandle(custom_fh, Span<const Value>(cargs4, 4), ctx.env);
+                    } catch (...) {
+                        Value cargs2[2] = { pVec, x };
+                        res = ctx.engine->callFunctionHandle(custom_fh, Span<const Value>(cargs2, 2), ctx.env);
+                    }
+                    const double v = res.toScalar();
+                    return std::isfinite(v) ? v : bigPen;
+                }
+                // 'pdf' or 'logpdf': pass (x, p1, p2, ...), fallback to (x, pVec)
+                Value vals;
+                try {
+                    std::vector<Value> cargs;
+                    cargs.reserve(1 + K);
+                    cargs.push_back(x);
+                    for (std::size_t k = 0; k < K; ++k)
+                        cargs.push_back(Value::scalar(theta[k], mr));
+                    vals = ctx.engine->callFunctionHandle(
+                        custom_fh, Span<const Value>(cargs.data(), cargs.size()), ctx.env);
+                } catch (...) {
+                    Value pVec = Value::matrix(1, K, ValueType::DOUBLE, mr);
+                    for (std::size_t k = 0; k < K; ++k) pVec.doubleDataMut()[k] = theta[k];
+                    Value cargs2[2] = { x, pVec };
+                    vals = ctx.engine->callFunctionHandle(custom_fh, Span<const Value>(cargs2, 2), ctx.env);
+                }
+                double nll = 0.0;
+                const bool isLog = (custom_kind == "logpdf");
+                for (std::size_t i = 0; i < N; ++i) {
+                    const double fi = freqV.elemAsDouble(i);
+                    if (fi == 0.0) continue;
+                    const double v = vals.elemAsDouble(vals.numel() == 1 ? 0 : i);
+                    if (isLog) {
+                        if (!std::isfinite(v)) return bigPen;
+                        nll -= fi * v;
+                    } else {
+                        if (!(v > 0.0) || !std::isfinite(v)) return bigPen;
+                        nll -= fi * std::log(v);
+                    }
+                }
+                return std::isfinite(nll) ? nll : bigPen;
+            } catch (...) {
+                return bigPen;
+            }
+        };
+
+        // Nelder-Mead simplex optimization over K parameters.
+        const std::size_t nVerts = K + 1;
+        std::vector<std::vector<double>> simplex(nVerts, p0);
+        std::vector<double> fvals(nVerts);
+        fvals[0] = evalNLL(simplex[0]);
+        for (std::size_t k = 0; k < K; ++k) {
+            double step = (std::abs(p0[k]) > 1e-4) ? 0.05 * std::abs(p0[k]) : 0.00025;
+            if (p0[k] + step > ub[k]) step = -step;
+            simplex[k + 1][k] += step;
+            fvals[k + 1] = evalNLL(simplex[k + 1]);
+        }
+
+        const std::size_t maxIter = 1000 * K;
+        std::vector<std::size_t> ord(nVerts);
+        std::vector<double> centroid(K), xr(K), xe(K), xc(K);
+        for (std::size_t iter = 0; iter < maxIter; ++iter) {
+            for (std::size_t i = 0; i < nVerts; ++i) ord[i] = i;
+            std::sort(ord.begin(), ord.end(), [&](std::size_t a, std::size_t b) {
+                return fvals[a] < fvals[b];
+            });
+            double fspan = std::abs(fvals[ord[K]] - fvals[ord[0]]);
+            double xspan = 0.0;
+            for (std::size_t i = 1; i <= K; ++i)
+                for (std::size_t k = 0; k < K; ++k)
+                    xspan = std::max(xspan, std::abs(simplex[ord[i]][k] - simplex[ord[0]][k]));
+            if (fspan < 1e-11 && xspan < 1e-9) break;
+
+            std::fill(centroid.begin(), centroid.end(), 0.0);
+            for (std::size_t i = 0; i < K; ++i)
+                for (std::size_t k = 0; k < K; ++k)
+                    centroid[k] += simplex[ord[i]][k] / static_cast<double>(K);
+
+            const auto &worst = simplex[ord[K]];
+            for (std::size_t k = 0; k < K; ++k)
+                xr[k] = centroid[k] + 1.0 * (centroid[k] - worst[k]);
+            const double fr = evalNLL(xr);
+
+            if (fr < fvals[ord[0]]) {
+                for (std::size_t k = 0; k < K; ++k)
+                    xe[k] = centroid[k] + 2.0 * (xr[k] - centroid[k]);
+                const double fe = evalNLL(xe);
+                if (fe < fr) { simplex[ord[K]] = xe; fvals[ord[K]] = fe; }
+                else         { simplex[ord[K]] = xr; fvals[ord[K]] = fr; }
+            } else if (fr < fvals[ord[K - 1]]) {
+                simplex[ord[K]] = xr;
+                fvals[ord[K]] = fr;
+            } else {
+                const bool outside = (fr < fvals[ord[K]]);
+                for (std::size_t k = 0; k < K; ++k)
+                    xc[k] = centroid[k] + 0.5 * ((outside ? xr[k] : worst[k]) - centroid[k]);
+                const double fc = evalNLL(xc);
+                if (fc <= (outside ? fr : fvals[ord[K]])) {
+                    simplex[ord[K]] = xc;
+                    fvals[ord[K]] = fc;
+                } else {
+                    for (std::size_t i = 1; i <= K; ++i) {
+                        for (std::size_t k = 0; k < K; ++k)
+                            simplex[ord[i]][k] = simplex[ord[0]][k] + 0.5 * (simplex[ord[i]][k] - simplex[ord[0]][k]);
+                        fvals[ord[i]] = evalNLL(simplex[ord[i]]);
+                    }
+                }
+            }
+        }
+        std::size_t bestIdx = 0;
+        for (std::size_t i = 1; i < nVerts; ++i)
+            if (fvals[i] < fvals[bestIdx]) bestIdx = i;
+        const auto &phat = simplex[bestIdx];
+
+        Value out = Value::matrix(1, K, ValueType::DOUBLE, mr);
+        for (std::size_t k = 0; k < K; ++k) out.doubleDataMut()[k] = phat[k];
+        outs[0] = std::move(out);
+
+        if (nargout >= 2) {
+            // Finite-difference Hessian of NLL at phat for Wald CIs.
+            const double f0 = fvals[bestIdx];
+            std::vector<double> hStep(K);
+            for (std::size_t k = 0; k < K; ++k)
+                hStep[k] = std::max(1e-5, 1e-4 * std::abs(phat[k]));
+            std::vector<double> H(K * K, 0.0);
+            for (std::size_t i = 0; i < K; ++i) {
+                auto tp = phat, tm = phat;
+                tp[i] += hStep[i]; tm[i] -= hStep[i];
+                const double fp = evalNLL(tp), fm = evalNLL(tm);
+                H[i + i * K] = (fp - 2.0 * f0 + fm) / (hStep[i] * hStep[i]);
+                for (std::size_t j = i + 1; j < K; ++j) {
+                    auto tpp = phat, tpm = phat, tmp = phat, tmm = phat;
+                    tpp[i] += hStep[i]; tpp[j] += hStep[j];
+                    tpm[i] += hStep[i]; tpm[j] -= hStep[j];
+                    tmp[i] -= hStep[i]; tmp[j] += hStep[j];
+                    tmm[i] -= hStep[i]; tmm[j] -= hStep[j];
+                    const double hij = (evalNLL(tpp) - evalNLL(tpm) - evalNLL(tmp) + evalNLL(tmm))
+                                     / (4.0 * hStep[i] * hStep[j]);
+                    H[i + j * K] = H[j + i * K] = hij;
+                }
+            }
+            // Invert KxK Hessian via Gauss-Jordan with fallback to 1/H_kk.
+            std::vector<double> aug(K * 2 * K, 0.0);
+            for (std::size_t r = 0; r < K; ++r) {
+                for (std::size_t c = 0; c < K; ++c) aug[r * (2 * K) + c] = H[r + c * K];
+                aug[r * (2 * K) + (K + r)] = 1.0;
+            }
+            bool invOk = true;
+            for (std::size_t col = 0; col < K; ++col) {
+                std::size_t piv = col;
+                for (std::size_t r = col + 1; r < K; ++r)
+                    if (std::abs(aug[r * (2 * K) + col]) > std::abs(aug[piv * (2 * K) + col]))
+                        piv = r;
+                if (std::abs(aug[piv * (2 * K) + col]) < 1e-14) { invOk = false; break; }
+                if (piv != col)
+                    for (std::size_t c = 0; c < 2 * K; ++c)
+                        std::swap(aug[col * (2 * K) + c], aug[piv * (2 * K) + c]);
+                const double d = aug[col * (2 * K) + col];
+                for (std::size_t c = 0; c < 2 * K; ++c) aug[col * (2 * K) + c] /= d;
+                for (std::size_t r = 0; r < K; ++r) {
+                    if (r == col) continue;
+                    const double f = aug[r * (2 * K) + col];
+                    for (std::size_t c = 0; c < 2 * K; ++c)
+                        aug[r * (2 * K) + c] -= f * aug[col * (2 * K) + c];
+                }
+            }
+            const double zCrit = std::sqrt(chi2inv(Value::scalar(1.0 - alpha, mr), 1.0, mr).toScalar());
+            Value pci = Value::matrix(2, K, ValueType::DOUBLE, mr);
+            double *pd = pci.doubleDataMut();
+            for (std::size_t k = 0; k < K; ++k) {
+                double varK = invOk ? aug[k * (2 * K) + (K + k)]
+                                    : (H[k + k * K] > 0.0 ? 1.0 / H[k + k * K] : std::numeric_limits<double>::quiet_NaN());
+                double se = (varK > 0.0) ? std::sqrt(varK) : std::numeric_limits<double>::quiet_NaN();
+                pd[0 + k * 2] = phat[k] - zCrit * se;
+                pd[1 + k * 2] = phat[k] + zCrit * se;
+            }
+            outs[1] = std::move(pci);
+        }
+        return;
+    }
 
     const double *xd = x.doubleData();
 

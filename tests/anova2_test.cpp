@@ -48,13 +48,20 @@ TEST_F(Anova2Test, TableOutput)
     EXPECT_EQ(static_cast<int>(evalScalar("size(tbl, 2)")), 6);
 }
 
-TEST_F(Anova2Test, RepsGreaterThanOneRejected)
+TEST_F(Anova2Test, RepsGreaterThanOneInteraction)
 {
-    EXPECT_THROW(eval("anova2([1 2; 3 4], 2);"), std::exception);
+    eval("Y = [10 20; 11 21; 30 40; 31 41]; [p, tbl, stats] = anova2(Y, 2);");
+    EXPECT_LT(evalScalar("p(1)"), 1e-3);
+    EXPECT_LT(evalScalar("p(2)"), 1e-4);
+    EXPECT_GT(evalScalar("p(3)"), 0.5);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(tbl, 1)")), 6);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(tbl, 2)")), 6);
+    EXPECT_EQ(static_cast<int>(evalScalar("stats.df")), 4);
 }
 
 TEST_F(Anova2Test, TooSmallRejected)
 {
     EXPECT_THROW(eval("anova2([1; 2]);"), std::exception);
     EXPECT_THROW(eval("anova2([1 2 3]);"), std::exception);
+    EXPECT_THROW(eval("anova2([1 2; 3 4; 5 6], 2);"), std::exception);
 }
