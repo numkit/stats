@@ -110,11 +110,32 @@ void gaminv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
 void gamrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "gamrnd");  // no max: trailing size args (N-D tail; nk caps at two — bugs/opened/stats/rnd-nd-size-tails.md)
+    auto *mr = ctx.engine->resource();
+    if (args.size() == 2 && (!args[0].isScalar() || !args[1].isScalar())) {
+        const Value &a = args[0], &b = args[1];
+        const size_t na = a.numel(), nb = b.numel();
+        if (na == 0 || nb == 0) {
+            outs[0] = dist_empty_like(na == 0 ? a : b, mr);
+            return;
+        }
+        const size_t N = dist_match_numel({na, nb}, "gamrnd");
+        const Value &ref = (na == N) ? a : b;
+        Value out = dist_empty_like(ref, mr);
+        double *od = out.doubleDataMut();
+        for (size_t i = 0; i < N; ++i) {
+            const double ai = a.elemAsDouble(na == 1 ? 0 : i);
+            const double bi = b.elemAsDouble(nb == 1 ? 0 : i);
+            Value sample = gamrnd(ctx.engine->rng(), ai, bi, 1, 1, mr);
+            od[i] = sample.elemAsDouble(0);
+        }
+        outs[0] = std::move(out);
+        return;
+    }
     const double a = args[0].toScalar();
     const double b = args[1].toScalar();
     size_t rows, cols;
     parse_rng_size(args, 2, rows, cols, "gamrnd");
-    outs[0] = reshape_rng_nd(gamrnd(ctx.engine->rng(), a, b, rows, cols, ctx.engine->resource()), args, 2, ctx.engine->resource(), "gamrnd");
+    outs[0] = reshape_rng_nd(gamrnd(ctx.engine->rng(), a, b, rows, cols, mr), args, 2, mr, "gamrnd");
 }
 
 void gamstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
