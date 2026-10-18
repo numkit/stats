@@ -134,14 +134,90 @@ GlmfitResult glmfit(const Value &X, const Value &y,
         if (it > 0 && maxStep < tol * std::max(maxBeta, 1.0)) break;
     }
 
-    // Deviance.
+    // Deviance and final working weights / covariance.
     dev = 0.0;
-    for (std::size_t i = 0; i < n; ++i)
+    double pearsonChi2 = 0.0;
+    std::vector<double> wFinal(n, 0.0);
+    for (std::size_t i = 0; i < n; ++i) {
         dev += devTerm(yv[i], mu[i], distr);
+        const double dE = fn.deta_dmu(mu[i]);
+        const double V = std::max(varianceFn(mu[i], distr), 1e-30);
+        wFinal[i] = 1.0 / (V * dE * dE + 1e-30);
+        const double r = yv[i] - mu[i];
+        pearsonChi2 += (r * r) / V;
+    }
+
+    const double dfe = static_cast<double>(n - p);
+    const double sfit = std::sqrt(dev / dfe);
+    const bool estdisp = (distr == GlmDistribution::Normal
+                          || distr == GlmDistribution::Gamma
+                          || distr == GlmDistribution::InverseGaussian);
+    const double sDisp = !estdisp ? 1.0
+                       : (distr == GlmDistribution::Normal
+                              ? sfit
+                              : std::sqrt(pearsonChi2 / dfe));
+
+    // Invert J = Xb' * W * Xb to obtain covb = s^2 * J^{-1}.
+    std::vector<double> J(p * p, 0.0);
+    for (std::size_t i = 0; i < p; ++i)
+        for (std::size_t j = 0; j < p; ++j) {
+            double acc = 0.0;
+            for (std::size_t k = 0; k < n; ++k)
+                acc += Xb[i * n + k] * wFinal[k] * Xb[j * n + k];
+            J[i * p + j] = acc;
+        }
+    Value covb = Value::matrix(p, p, ValueType::DOUBLE, mr);
+    double *covbD = covb.doubleDataMut();
+    for (std::size_t col = 0; col < p; ++col) {
+        std::vector<double> M = J;
+        std::vector<double> rhs(p, 0.0);
+        rhs[col] = 1.0;
+        if (gaussSolve(M.data(), rhs.data(), p)) {
+            for (std::size_t row = 0; row < p; ++row)
+                covbD[row + col * p] = (sDisp * sDisp) * rhs[row];
+        }
+    }
+    Value se = Value::matrix(p, 1, ValueType::DOUBLE, mr);
+    Value tStat = Value::matrix(p, 1, ValueType::DOUBLE, mr);
+    for (std::size_t j = 0; j < p; ++j) {
+        const double sej = std::sqrt(std::max(0.0, covbD[j + j * p]));
+        se.doubleDataMut()[j] = sej;
+        tStat.doubleDataMut()[j] = (sej > 0.0) ? (beta[j] / sej) : 0.0;
+    }
+    Value coeffcorr = Value::matrix(p, p, ValueType::DOUBLE, mr);
+    for (std::size_t j = 0; j < p; ++j)
+        for (std::size_t k = 0; k < p; ++k) {
+            const double sej = se.doubleData()[j];
+            const double sek = se.doubleData()[k];
+            coeffcorr.doubleDataMut()[j + k * p] =
+                (sej > 0.0 && sek > 0.0)
+                    ? covbD[j + k * p] / (sej * sek)
+                    : (j == k ? 1.0 : 0.0);
+        }
+    Value resid = Value::matrix(n, 1, ValueType::DOUBLE, mr);
+    Value wts = Value::matrix(n, 1, ValueType::DOUBLE, mr);
+    for (std::size_t i = 0; i < n; ++i) {
+        resid.doubleDataMut()[i] = yv[i] - mu[i];
+        wts.doubleDataMut()[i] = wFinal[i];
+    }
 
     auto bv = Value::matrix(p, 1, ValueType::DOUBLE, mr);
     std::memcpy(bv.doubleDataMut(), beta.data(), p * sizeof(double));
-    return { std::move(bv), Value::scalar(dev, mr) };
+
+    Value stats = Value::structure(mr);
+    stats.field("beta") = bv;
+    stats.field("dfe") = Value::scalar(dfe, mr);
+    stats.field("sfit") = Value::scalar(sfit, mr);
+    stats.field("s") = Value::scalar(sDisp, mr);
+    stats.field("estdisp") = Value::scalar(estdisp ? 1.0 : 0.0, mr);
+    stats.field("covb") = std::move(covb);
+    stats.field("se") = std::move(se);
+    stats.field("coeffcorr") = std::move(coeffcorr);
+    stats.field("t") = std::move(tStat);
+    stats.field("resid") = std::move(resid);
+    stats.field("wts") = std::move(wts);
+
+    return { std::move(bv), Value::scalar(dev, mr), std::move(stats) };
 }
 
 Value glmval(const Value &b, const Value &X, GlmLink link,

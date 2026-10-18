@@ -57,27 +57,45 @@ void glmfit_reg(Span<const Value> args, size_t nargout,
                 Span<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 3, "glmfit");  // no max: name-value tail in the reference
-    if (!args[2].isChar())
+    if (!args[2].isChar() && !args[2].isString())
         throw Error("glmfit: distr must be a string",
                     0, 0, "glmfit", "", "numkit:glmfit:badDistr");
     const GlmDistribution d = parseDistr(args[2].toString(), "glmfit");
     GlmLink link = GlmLink::Identity;
-    if (args.size() >= 4 && args[3].isChar())
+    if (args.size() >= 4 && (args[3].isChar() || args[3].isString()))
         link = parseLink(args[3].toString(), "glmfit");
     auto r = glmfit(args[0], args[1], d, link, ctx.engine->resource());
     outs[0] = std::move(r.b);
     if (nargout > 1) outs[1] = std::move(r.dev);
+    if (nargout > 2) outs[2] = std::move(r.stats);
 }
 
 void glmval_reg(Span<const Value> args, size_t nargout,
                 Span<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 3, "glmval");  // no max: name-value tail in the reference
-    // Marshalling only — the link/STATS/NV-option contracts live in
-    // glmval_full.
-    outs[0] = glmval_full(args[0], args[1], args[2],
-                          Span<const Value>(args.data() + 3, args.size() - 3),
-                          nargout >= 2, ctx.engine->resource());
+    Value invHandle;
+    if (args[2].isStruct()) {
+        if (args[2].hasField("Inverse")) invHandle = args[2].field("Inverse");
+        else if (args[2].hasField("inverse")) invHandle = args[2].field("inverse");
+    } else if (args[2].isCell() && args[2].numel() >= 3) {
+        invHandle = args[2].cellAt(2);
+    }
+    auto customInvCb = [&ctx, &invHandle](Span<const Value> a, Span<Value> o,
+                                          std::pmr::memory_resource * /*mr*/) {
+        Value r = ctx.engine->callFunctionHandle(invHandle, a);
+        if (!o.empty()) o[0] = std::move(r);
+    };
+    FnHandle customInvLink;
+    if (invHandle.isFuncHandle())
+        customInvLink = customInvCb;
+    auto res = glmval_full_bounds(
+        args[0], args[1], args[2],
+        Span<const Value>(args.data() + 3, args.size() - 3),
+        nargout >= 2, customInvLink, ctx.engine->resource());
+    outs[0] = std::move(res.yhat);
+    if (nargout > 1) outs[1] = std::move(res.dylo);
+    if (nargout > 2) outs[2] = std::move(res.dyhi);
 }
 
 } // namespace detail

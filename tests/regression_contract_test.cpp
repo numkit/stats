@@ -126,6 +126,24 @@ TEST_F(RegressionContractTest, GlmvalFormsAndGates)
     EXPECT_EQ(idOf("glmval([1; 2], [1; 2; 3], 'logit', "
                    "'Offset', [1 2 3])"),
               "numkit:glmval:wrongArgSizeOffset");
+
+    // Confidence bounds ([yhat, dylo, dyhi]) from glmfit stats and Simultaneous NV.
+    engine.eval("x = (1:5)'; y = 2 + 3*x + [0.1; -0.1; 0.05; -0.05; 0];"
+                "[b_fit, dev_fit, st_fit] = glmfit(x, y, 'normal');"
+                "[yh, dlo, dhi] = glmval(b_fit, [2; 4], 'identity', st_fit);"
+                "[yhs, dlos, dhis] = glmval(b_fit, [2; 4], 'identity', st_fit, 'Simultaneous', true);");
+    EXPECT_NEAR(at("yh", 0), 8.0, 0.2);
+    EXPECT_GT(at("dlo", 0), 0.0);
+    EXPECT_NEAR(at("dlo", 0), at("dhi", 0), 1e-12);
+    // Simultaneous bounds must be strictly wider than pointwise bounds (p = 2 > 1).
+    EXPECT_GT(at("dlos", 0), at("dlo", 0));
+
+    // Custom link struct with function handle Inverse.
+    engine.eval("S = struct('Link', @(mu) log(mu), 'Derivative', @(mu) 1./mu, 'Inverse', @(eta) exp(eta));"
+                "yc = glmval([0; 1], [1; 2], S);");
+    EXPECT_NEAR(at("yc", 0), std::exp(1.0), 1e-12);
+    EXPECT_NEAR(at("yc", 1), std::exp(2.0), 1e-12);
 }
 
 } // namespace
+

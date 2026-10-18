@@ -8,7 +8,10 @@
 
 #include <numkit/stats/regress/regress.hpp>   // ridge / nlparci / glmval + full entries
 
-#include <numkit/stats/distributions/students_t.hpp>   // tinv (nlparci)
+#include <numkit/stats/distributions/chi2.hpp>         // chi2inv (glmval simultaneous)
+#include <numkit/stats/distributions/fisher_f.hpp>     // finv (glmval simultaneous)
+#include <numkit/stats/distributions/normal.hpp>       // norminv (glmval bounds)
+#include <numkit/stats/distributions/students_t.hpp>   // tinv (nlparci, glmval bounds)
 #include <numkit/value/argcheck.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/span.hpp>
@@ -17,6 +20,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cctype>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -32,7 +36,7 @@ GlmLink parseGlmLinkName(const Value &v, const char *fn)
     if (s.empty() || s == "canonical") return GlmLink::Identity;
     if (s == "identity")    return GlmLink::Identity;
     if (s == "logit")       return GlmLink::Logit;
-    if (s == "log")         return GlmLink::Log;
+    if (s == "log" || s == "exp") return GlmLink::Log;
     if (s == "reciprocal")  return GlmLink::Reciprocal;
     if (s == "probit")      return GlmLink::Probit;
     throw Error(std::string(fn) + ": unrecognized link function name '"
@@ -223,21 +227,52 @@ Value nlparci_full(const Value &beta, const Value &resid,
 
 // ── glmval ────────────────────────────────────────────────────────────
 
-Value glmval_full(const Value &b, const Value &X, const Value &link,
-                  Span<const Value> tail, bool wantBounds,
-                  std::pmr::memory_resource *mr)
+GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &link,
+                                Span<const Value> tail, bool wantBounds,
+                                FnHandle customInvLink,
+                                std::pmr::memory_resource *mr)
 {
-    if (!(link.isChar() || link.isString()))
-        throw Error("glmval: link must be a char row or string scalar.",
+    GlmLink lk = GlmLink::Identity;
+    bool useCustomCallback = false;
+    if (link.isChar() || link.isString()) {
+        lk = parseGlmLinkName(link, "glmval");
+    } else if (link.isStruct()) {
+        Value invField;
+        if (link.hasField("Inverse")) invField = link.field("Inverse");
+        else if (link.hasField("inverse")) invField = link.field("inverse");
+        else
+            throw Error("glmval: custom link struct must contain an 'Inverse' field.",
+                        0, 0, "glmval", "", "numkit:glmval:badLink");
+        if (invField.isFuncHandle() && static_cast<bool>(customInvLink)) {
+            useCustomCallback = true;
+        } else if (invField.isChar() || invField.isString()) {
+            lk = parseGlmLinkName(invField, "glmval");
+        } else {
+            throw Error("glmval: custom link 'Inverse' field must be a function handle or link name.",
+                        0, 0, "glmval", "", "numkit:glmval:badLink");
+        }
+    } else if (link.isCell() && link.numel() >= 3) {
+        const Value &invField = link.cellAt(2);
+        if (invField.isFuncHandle() && static_cast<bool>(customInvLink)) {
+            useCustomCallback = true;
+        } else if (invField.isChar() || invField.isString()) {
+            lk = parseGlmLinkName(invField, "glmval");
+        } else {
+            throw Error("glmval: custom link cell must have a function handle or link name as 3rd element.",
+                        0, 0, "glmval", "", "numkit:glmval:badLink");
+        }
+    } else {
+        throw Error("glmval: link must be a char row, string scalar, or custom link struct.",
                     0, 0, "glmval", "", "numkit:glmval:badLink");
-    const GlmLink lk = parseGlmLinkName(link, "glmval");
+    }
 
-    // STATS: a non-string 4th argument is the stats struct (used only
-    // by the bounds output).
+    // STATS: a non-string 4th argument is the stats struct (used by the bounds output).
     bool haveStats = false;
+    Value statsVal;
     std::size_t i = 0;
     if (!tail.empty() && !tail[0].isChar() && !tail[0].isString()) {
-        haveStats = true;
+        haveStats = !tail[0].isEmpty();
+        statsVal = tail[0];
         i = 1;
     }
 
@@ -247,24 +282,33 @@ Value glmval_full(const Value &b, const Value &X, const Value &link,
     Value Nv = Value::scalar(1.0, mr);
     Value offset = Value::scalar(0.0, mr);
     bool isconst = true;
+    bool simultaneous = false;
     if (i < tail.size() && (tail[i].isChar() || tail[i].isString())) {
         bool haveConfidence = false, haveAlpha = false;
         bool haveSize = false, haveBinomSize = false;
-        Value binomN;
         for (; i + 1 < tail.size(); i += 2) {
             std::string name = tail[i].toString();
             for (char &c : name)
                 c = static_cast<char>(std::tolower(
                     static_cast<unsigned char>(c)));
             const Value &v = tail[i + 1];
-            if      (name == "confidence")  { clev = v.elemAsDouble(0); haveConfidence = true; }
-            else if (name == "alpha")       { clev = 1.0 - v.elemAsDouble(0); haveAlpha = true; }
-            else if (name == "size")        { Nv = v; haveSize = true; }
+            if      (name == "confidence")   { clev = v.elemAsDouble(0); haveConfidence = true; }
+            else if (name == "alpha")        { clev = 1.0 - v.elemAsDouble(0); haveAlpha = true; }
+            else if (name == "size")         { Nv = v; haveSize = true; }
             else if (name == "binomialsize") { Nv = v; haveBinomSize = true; }
-            else if (name == "offset")      offset = v;
-            else if (name == "constant")    isconst = (v.toString() == "on");
-            else if (name == "simultaneous") { /* bounds option — filed */ }
-            else
+            else if (name == "offset")       offset = v;
+            else if (name == "constant")     isconst = (v.toString() == "on");
+            else if (name == "simultaneous") {
+                if (v.isLogical()) simultaneous = v.toBool();
+                else if (v.isChar() || v.isString()) {
+                    std::string sv = v.toString();
+                    for (char &c : sv)
+                        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                    simultaneous = (sv == "true" || sv == "on");
+                } else {
+                    simultaneous = (v.elemAsDouble(0) != 0.0);
+                }
+            } else
                 throw Error("glmval: unrecognized parameter name '"
                             + tail[i].toString() + "'.",
                             0, 0, "glmval", "", "numkit:glmval:badParamName");
@@ -278,7 +322,7 @@ Value glmval_full(const Value &b, const Value &X, const Value &link,
                         "'BinomialSize' parameters.",
                         0, 0, "glmval", "", "numkit:glmval:argCombination");
     } else {
-        // Legacy positional: (clev, N, offset, const).
+        // Legacy positional: (clev, N, offset, const, simultaneous).
         if (i < tail.size() && !tail[i].isEmpty())
             clev = tail[i].elemAsDouble(0);
         if (i + 1 < tail.size() && !tail[i + 1].isEmpty())
@@ -287,17 +331,14 @@ Value glmval_full(const Value &b, const Value &X, const Value &link,
             offset = tail[i + 2];
         if (i + 3 < tail.size() && !tail[i + 3].isEmpty())
             isconst = (tail[i + 3].toString() == "on");
+        if (i + 4 < tail.size() && !tail[i + 4].isEmpty())
+            simultaneous = (tail[i + 4].elemAsDouble(0) != 0.0);
     }
 
-    if (wantBounds)
-        throw Error(haveStats
-            ? "glmval: the confidence-bounds output is not supported in "
-              "this revision (filed: bugs/opened/stats/"
-              "regression-deferred-forms.md)."
-            : "glmval: the STATS parameter is required to compute "
-              "confidence bounds.",
-            0, 0, "glmval", "",
-            haveStats ? "numkit:glmval:boundsUnsupported" : "numkit:glmval:needSTATS");
+    if (wantBounds && (!haveStats || !statsVal.isStruct()))
+        throw Error("glmval: the STATS parameter is required to compute "
+                    "confidence bounds.",
+                    0, 0, "glmval", "", "numkit:glmval:needSTATS");
 
     // Row X with a 2-coefficient (or scalar-no-const) model is a column
     // of points (probe76 V02).
@@ -325,11 +366,13 @@ Value glmval_full(const Value &b, const Value &X, const Value &link,
                     "with one entry per row of X.",
                     0, 0, "glmval", "", "numkit:glmval:wrongArgSizeOffset");
 
-    // eta = x·beta + offset, then yhat = N·ilink(eta) — computed
-    // directly (the offset enters INSIDE the inverse link). A scalar
-    // beta broadcasts over the const-prepended x exactly like the
-    // reference's x*beta (probe76 V02).
-    auto invLink = [lk](double eta) -> double {
+    auto invLink = [&](double eta) -> double {
+        if (useCustomCallback) {
+            Value arg = Value::scalar(eta, mr);
+            Value res;
+            customInvLink(Span<const Value>(&arg, 1), Span<Value>(&res, 1), mr);
+            return res.elemAsDouble(0);
+        }
         switch (lk) {
         case GlmLink::Identity:   return eta;
         case GlmLink::Logit:      return 1.0 / (1.0 + std::exp(-eta));
@@ -339,6 +382,7 @@ Value glmval_full(const Value &b, const Value &X, const Value &link,
         }
         return eta;
     };
+
     const std::size_t rows = static_cast<std::size_t>(Xw.dims().dim(0));
     const std::size_t cols = static_cast<std::size_t>(Xw.dims().dim(1));
     const bool scalarBeta = b.numel() == 1;
@@ -350,12 +394,10 @@ Value glmval_full(const Value &b, const Value &X, const Value &link,
                     + std::to_string(b.numel()) + " coefficients for "
                     + std::to_string(cols) + " columns).",
                     0, 0, "glmval", "", "numkit:glmval:shapeMismatch");
-    Value out;
-    if (scalarBeta) {
-        // x*beta semantics: every column (including the intercept
-        // column when const is on) times the scalar.
+
+    if (scalarBeta && !wantBounds) {
         const std::size_t width = isconst ? cols + 1 : cols;
-        out = Value::matrix(rows, width, ValueType::DOUBLE, mr);
+        Value out = Value::matrix(rows, width, ValueType::DOUBLE, mr);
         for (std::size_t r = 0; r < rows; ++r)
             for (std::size_t j = 0; j < width; ++j) {
                 const double xj = isconst && j == 0 ? 1.0
@@ -367,9 +409,11 @@ Value glmval_full(const Value &b, const Value &X, const Value &link,
                     (Nv.isScalar() ? Nv.elemAsDouble(0) : Nv.elemAsDouble(r))
                     * invLink(eta);
             }
-        return out;
+        return { std::move(out), Value(), Value() };
     }
-    out = Value::matrix(rows, 1, ValueType::DOUBLE, mr);
+
+    Value yhat = Value::matrix(rows, 1, ValueType::DOUBLE, mr);
+    std::vector<double> etaVec(rows, 0.0);
     for (std::size_t r = 0; r < rows; ++r) {
         double eta = isconst ? b.elemAsDouble(0) : 0.0;
         for (std::size_t j = 0; j < cols; ++j)
@@ -377,11 +421,93 @@ Value glmval_full(const Value &b, const Value &X, const Value &link,
                  * b.elemAsDouble(j + (isconst ? 1 : 0));
         eta += offset.isScalar() ? offset.elemAsDouble(0)
                                  : offset.elemAsDouble(r);
-        out.doubleDataMut()[r] =
+        etaVec[r] = eta;
+        yhat.doubleDataMut()[r] =
             (Nv.isScalar() ? Nv.elemAsDouble(0) : Nv.elemAsDouble(r))
             * invLink(eta);
     }
-    return out;
+
+    if (!wantBounds)
+        return { std::move(yhat), Value(), Value() };
+
+    // Extract covariance matrix C (wantCoef x wantCoef) from statsVal.
+    std::vector<double> covMat(wantCoef * wantCoef, 0.0);
+    if (statsVal.hasField("covb")
+        && static_cast<std::size_t>(statsVal.field("covb").numel()) == wantCoef * wantCoef) {
+        const Value &cb = statsVal.field("covb");
+        for (std::size_t idx = 0; idx < wantCoef * wantCoef; ++idx)
+            covMat[idx] = cb.elemAsDouble(idx);
+    } else if (statsVal.hasField("se")
+               && static_cast<std::size_t>(statsVal.field("se").numel()) == wantCoef) {
+        const Value &se = statsVal.field("se");
+        const bool hasCorr = statsVal.hasField("coeffcorr")
+            && static_cast<std::size_t>(statsVal.field("coeffcorr").numel()) == wantCoef * wantCoef;
+        for (std::size_t j = 0; j < wantCoef; ++j)
+            for (std::size_t k = 0; k < wantCoef; ++k) {
+                const double corr_jk = hasCorr
+                    ? statsVal.field("coeffcorr").elemAsDouble(j + k * wantCoef)
+                    : (j == k ? 1.0 : 0.0);
+                covMat[j + k * wantCoef] = se.elemAsDouble(j) * se.elemAsDouble(k) * corr_jk;
+            }
+    } else {
+        throw Error("glmval: STATS must contain 'covb' or ('se' and 'coeffcorr') matching length(b).",
+                    0, 0, "glmval", "", "numkit:glmval:needSTATS");
+    }
+
+    const double dfe = statsVal.hasField("dfe")
+        ? statsVal.field("dfe").elemAsDouble(0)
+        : std::numeric_limits<double>::infinity();
+    const bool estdisp = statsVal.hasField("estdisp")
+        ? (statsVal.field("estdisp").elemAsDouble(0) != 0.0)
+        : std::isfinite(dfe);
+    const double alpha = 1.0 - clev;
+    const double p_df = static_cast<double>(wantCoef);
+    double crit = 0.0;
+    if (!simultaneous) {
+        crit = (estdisp && std::isfinite(dfe))
+            ? tinv(Value::scalar(1.0 - alpha / 2.0, mr), dfe, mr).toScalar()
+            : norminv(Value::scalar(1.0 - alpha / 2.0, mr), 0.0, 1.0, mr).toScalar();
+    } else {
+        crit = (estdisp && std::isfinite(dfe))
+            ? std::sqrt(p_df * finv(Value::scalar(1.0 - alpha, mr), p_df, dfe, mr).toScalar())
+            : std::sqrt(chi2inv(Value::scalar(1.0 - alpha, mr), p_df, mr).toScalar());
+    }
+
+    Value dylo = Value::matrix(rows, 1, ValueType::DOUBLE, mr);
+    Value dyhi = Value::matrix(rows, 1, ValueType::DOUBLE, mr);
+    std::vector<double> xr(wantCoef, 0.0);
+    for (std::size_t r = 0; r < rows; ++r) {
+        if (isconst) {
+            xr[0] = 1.0;
+            for (std::size_t j = 0; j < cols; ++j)
+                xr[j + 1] = Xw.elemAsDouble(r + j * rows);
+        } else {
+            for (std::size_t j = 0; j < cols; ++j)
+                xr[j] = Xw.elemAsDouble(r + j * rows);
+        }
+        double varEta = 0.0;
+        for (std::size_t j = 0; j < wantCoef; ++j)
+            for (std::size_t k = 0; k < wantCoef; ++k)
+                varEta += xr[j] * covMat[j + k * wantCoef] * xr[k];
+        const double seEta = std::sqrt(std::max(0.0, varEta));
+        const double nr = Nv.isScalar() ? Nv.elemAsDouble(0) : Nv.elemAsDouble(r);
+        const double y1 = nr * invLink(etaVec[r] - crit * seEta);
+        const double y2 = nr * invLink(etaVec[r] + crit * seEta);
+        const double ymin = std::min(y1, y2);
+        const double ymax = std::max(y1, y2);
+        const double yh = yhat.doubleData()[r];
+        dylo.doubleDataMut()[r] = yh - ymin;
+        dyhi.doubleDataMut()[r] = ymax - yh;
+    }
+
+    return { std::move(yhat), std::move(dylo), std::move(dyhi) };
+}
+
+Value glmval_full(const Value &b, const Value &X, const Value &link,
+                  Span<const Value> tail, bool wantBounds,
+                  std::pmr::memory_resource *mr)
+{
+    return glmval_full_bounds(b, X, link, tail, wantBounds, FnHandle{}, mr).yhat;
 }
 
 } // namespace numkit::stats

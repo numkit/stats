@@ -251,10 +251,11 @@ enum class GlmLink {
 struct GlmfitResult {
     Value b;     ///< Coefficients `(p + 1) × 1` — intercept first.
     Value dev;   ///< Deviance (scalar).
+    Value stats; ///< Fit statistics struct (`se`, `coeffcorr`, `covb`, `dfe`, `s`, `sfit`, `estdisp`, `beta`, `t`, `resid`, `wts`).
 };
 
 /// @brief Fit a generalised linear model
-/// (`[b, dev] = glmfit(X, y, distr [, link])`).
+/// (`[b, dev, stats] = glmfit(X, y, distr [, link])`).
 ///
 /// Solves `μ = g^{-1}(X · β)` via iteratively-reweighted least
 /// squares (IRLS) with the natural / canonical link by default.
@@ -269,21 +270,13 @@ struct GlmfitResult {
 /// intercept term (MATLAB convention). Pass `[]` for `link` to use
 /// the canonical link.
 ///
-/// KNOWN GAPs (v1):
-///   - `y` for `'binomial'` must be a proportion (`y ∈ [0, 1]`); the
-///     `[successes, trials]` two-column form is not yet supported.
-///   - Returned stats reduced to `dev` (deviance) only — no standard
-///     errors, t-statistics, p-values, residuals struct.
-///   - `'constant'` name-value pair (off/on) not supported — intercept
-///     is always added.
-///
 /// @param X      Design matrix (`n × p`, no intercept column).
 /// @param y      Response (`n × 1`).
 /// @param distr  Distribution family.
 /// @param link   Link function (default = canonical for `distr`).
 /// @param mr     Memory resource (nullptr → process default).
-/// @return       `{b, dev}` — coefficients with intercept first, and
-///               total deviance.
+/// @return       `{b, dev, stats}` — coefficients with intercept first,
+///               total deviance, and fit statistics struct.
 GlmfitResult glmfit(const Value &X, const Value &y,
                      GlmDistribution distr,
                      GlmLink link = GlmLink::Identity,
@@ -303,12 +296,20 @@ GlmfitResult glmfit(const Value &X, const Value &y,
 Value glmval(const Value &b, const Value &X, GlmLink link,
               std::pmr::memory_resource *mr = nullptr);
 
-/// @brief Full `glmval` entry (probed R2025b, probe76.m G-series): the
-/// link-name gate, the STATS-struct position, the NV option set
-/// (Confidence/Alpha/Size/BinomialSize/Offset/Constant/Simultaneous)
-/// with the Confidence+Alpha and Size+BinomialSize conflicts, the
-/// legacy positional form, the row-x reinterpretation, the
-/// BinomialSize/Offset shape gates, and the bounds-output contract.
+/// @brief GLM prediction result with confidence bounds (`[yhat, dylo, dyhi] = glmval(...)`).
+struct GlmvalResult {
+    Value yhat;
+    Value dylo;
+    Value dyhi;
+};
+
+/// @brief Full `glmval` entry returning predictions and optional confidence bounds.
+GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &link,
+                                Span<const Value> tail, bool wantBounds,
+                                FnHandle customInvLink,
+                                std::pmr::memory_resource *mr = nullptr);
+
+/// @brief Full `glmval` entry (single-output convenience wrapper).
 Value glmval_full(const Value &b, const Value &X, const Value &link,
                   Span<const Value> tail, bool wantBounds,
                   std::pmr::memory_resource *mr = nullptr);
