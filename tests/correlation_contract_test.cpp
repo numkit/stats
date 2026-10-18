@@ -78,9 +78,14 @@ TEST_F(CorrContractTest, NearcorrOptionalInputs)
               "numkit:nearcorr:optionalInputError");  // exact match, no prefix
     EXPECT_EQ(idOf("nearcorr(eye(2), 'Bogus', 1)"),
               "numkit:nearcorr:optionalInputError");
-    // Weights → voiced stub (filed: correlation-deferred-forms.md).
-    EXPECT_EQ(idOf("nearcorr(eye(2), 'Weights', [1 1]')"),
-              "numkit:nearcorr:weightsUnsupported");
+    // Weights: positive vector or symmetric positive matrix is accepted;
+    // negative or wrong-size weights reject with optionalInputError.
+    EXPECT_NEAR(num("all(all(nearcorr(eye(2), 'Weights', [1 1]') == eye(2)))"),
+                1.0, 1e-12);
+    EXPECT_EQ(idOf("nearcorr(eye(2), 'Weights', [1 -1]')"),
+              "numkit:nearcorr:optionalInputError");
+    EXPECT_EQ(idOf("nearcorr(eye(2), 'Weights', [1 2 3]')"),
+              "numkit:nearcorr:optionalInputError");
     // Both Method values accepted and agree with the default result.
     engine.eval("A3 = [1 0.9 0.5; 0.9 1 0.3; 0.5 0.3 1];");
     engine.eval("Yn = nearcorr(A3); Yp = nearcorr(A3, 'Method', 'projection'); "
@@ -89,11 +94,15 @@ TEST_F(CorrContractTest, NearcorrOptionalInputs)
     EXPECT_NEAR(at("Yp", 1), 0.9, 1e-9);
     EXPECT_NEAR(at("Yw", 1), 0.9, 1e-9);
     // A non-PSD input is actually repaired: perturb then project back.
-    engine.eval("B3 = [1 1 1; 1 1 1; 1 1 1] * 0.5 + eye(3) * 0.5; "
-                "B3(1,2) = 0.95; B3(2,1) = 0.95; "
-                "Rr = nearcorr(B3);");
+    engine.eval("B3 = [1 0.95 0.9; 0.95 1 -0.5; 0.9 -0.5 1]; "
+                "Rr = nearcorr(B3); "
+                "Rrw = nearcorr(B3, 'Weights', [10 10 1]');");
     EXPECT_NEAR(at("Rr", 0), 1.0, 1e-9);
     EXPECT_NEAR(num("min(eig(Rr)) >= -1e-9"), 1.0, 1e-12);
+    EXPECT_NEAR(at("Rrw", 0), 1.0, 1e-9);
+    EXPECT_NEAR(num("min(eig(Rrw)) >= -1e-9"), 1.0, 1e-12);
+    // Heavier weights on (1,2) keep Rrw(1,2) closer to B3(1,2)=0.95 than unweighted Rr(1,2).
+    EXPECT_GT(at("Rrw", 1), at("Rr", 1));
 }
 
 TEST_F(CorrContractTest, NearcorrSingle)
@@ -135,9 +144,16 @@ TEST_F(CorrContractTest, CorrWeightsContract)
     EXPECT_NEAR(at("Ca", 0), 0.98681073936895169, 1e-9);
     EXPECT_NEAR(at("Cb", 0), 0.98681073936895169, 1e-9);
     EXPECT_NEAR(at("Cp", 0), 0.98681073936895169, 1e-9);
-    // Weights + rank type → voiced stub (filed).
-    EXPECT_EQ(idOf("corr(X, Y, 'Type', 'Spearman', 'Weights', ones(5, 1))"),
-              "numkit:corr:weightsRankUnsupported");
+    // Weights + rank types: unit weights match unweighted Spearman/Kendall;
+    // weighted p-values remain NaN.
+    engine.eval("[rsw, psw] = corr(X, Y, 'Type', 'Spearman', 'Weights', ones(5, 1)); "
+                "rsu = corr(X, Y, 'Type', 'Spearman'); "
+                "[rkw, pkw] = corr(X, Y, 'Type', 'Kendall', 'Weights', ones(5, 1)); "
+                "rku = corr(X, Y, 'Type', 'Kendall');");
+    EXPECT_NEAR(num("max(max(abs(rsw - rsu)))"), 0.0, 1e-12);
+    EXPECT_NEAR(num("max(max(abs(rkw - rku)))"), 0.0, 1e-12);
+    EXPECT_TRUE(std::isnan(at("psw", 0)));
+    EXPECT_TRUE(std::isnan(at("pkw", 0)));
 }
 
 // ── corr: Tail ────────────────────────────────────────────────────────
@@ -182,10 +198,12 @@ TEST_F(CorrContractTest, CorrSmallNAndClasses)
     engine.eval("S3 = corr(single(X), Y);");
     EXPECT_EQ(cls("S3"), "single");
     EXPECT_NEAR(at("S3", 0), 0.96281337738037109, 1e-6);
-    // Complex Pearson returns complex rho (C10)...
-    engine.eval("CX = corr(complex(X, X), Y);");
+    // Complex Pearson returns complex rho (C10), including pairwise...
+    engine.eval("CX = corr(complex(X, X), Y); "
+                "CXp = corr(complex(X, X), Y, 'Rows', 'pairwise');");
     EXPECT_EQ(cls("CX"), "double");
     EXPECT_NEAR(at("CX", 0), 0.68081190074796161, 1e-9);
+    EXPECT_NEAR(num("max(max(abs(CXp - CX)))"), 0.0, 1e-12);
     // ...but errors on p-values (C11) and on rank types.
     EXPECT_EQ(idOf("[cp1, cp2] = corr(complex(X, X), Y);"),
               "numkit:corr:pValComplexData");
@@ -204,6 +222,19 @@ TEST_F(CorrContractTest, CorrSpearmanPValues)
     EXPECT_NEAR(at("ps", 0), 0.016666666666666666, 1e-9);
     EXPECT_NEAR(at("ps", 3), 0.4, 1e-9);
     EXPECT_NEAR(at("ps", 4), 0.033333333333333333, 1e-9);
+    // Pairwise Spearman and Kendall re-rank per column pair on non-NaN rows.
+    engine.eval("Xpw = X; Xpw(1, 2) = NaN; "
+                "[rsp, psp] = corr(Xpw, Y, 'Type', 'Spearman', 'Rows', 'pairwise'); "
+                "[rs1, ps1] = corr(Xpw(:, 1), Y(:, 1), 'Type', 'Spearman'); "
+                "[rs2, ps2] = corr(Xpw(2:end, 2), Y(2:end, 1), 'Type', 'Spearman'); "
+                "[rkp, pkp] = corr(Xpw, Y, 'Type', 'Kendall', 'Rows', 'pairwise'); "
+                "[rk2, pk2] = corr(Xpw(2:end, 2), Y(2:end, 1), 'Type', 'Kendall');");
+    EXPECT_NEAR(num("rsp(1, 1) - rs1"), 0.0, 1e-12);
+    EXPECT_NEAR(num("psp(1, 1) - ps1"), 0.0, 1e-12);
+    EXPECT_NEAR(num("rsp(2, 1) - rs2"), 0.0, 1e-12);
+    EXPECT_NEAR(num("psp(2, 1) - ps2"), 0.0, 1e-12);
+    EXPECT_NEAR(num("rkp(2, 1) - rk2"), 0.0, 1e-12);
+    EXPECT_NEAR(num("pkp(2, 1) - pk2"), 0.0, 1e-12);
     // 'sp' prefix works; unknown type value rejects.
     engine.eval("rs2 = corr(X, Y, 'Type', 'sp');");
     EXPECT_NEAR(num("rs2(2) - rs(2)"), 0.0, 1e-12);
@@ -232,26 +263,30 @@ TEST_F(CorrContractTest, PartialcorrGates)
 
 TEST_F(CorrContractTest, PartialcorrValuesAndOptions)
 {
-    // combinedXZ default (P01).
-    engine.eval("R1 = partialcorr(X);");
+    // combinedXZ default + 2nd output pval (P01).
+    engine.eval("[R1, P1] = partialcorr(X);");
     EXPECT_NEAR(at("R1", 1), -0.89588471005352044, 1e-9);
     EXPECT_NEAR(at("R1", 2), 0.92309308324574424, 1e-9);
     EXPECT_NEAR(at("R1", 5), 0.99481826471109192, 1e-9);
+    // df = 5 - 1 - 2 = 2; diagonal of P1 is 1, off-diagonal is 2*tcdf(-|t|, 2).
+    EXPECT_NEAR(at("P1", 0), 1.0, 1e-12);
+    EXPECT_NEAR(at("P1", 1), 0.10411528994647956, 1e-9);
     // Spearman ranks before residualising; 'sp' prefix matches (P07/P08).
     engine.eval("R7 = partialcorr(X, Z, 'Type', 'spearman'); "
                 "R8 = partialcorr(X, Z, 'Type', 'sp');");
     EXPECT_NEAR(at("R7", 1), -0.53582588123382013, 1e-9);
     EXPECT_NEAR(at("R7", 5), 1.0, 1e-12);
     EXPECT_NEAR(num("R8(2) - R7(2)"), 0.0, 1e-12);
-    // Rows 'comp' prefix (P09) and Tail parses (P11/P12 — inert while
-    // the p-value output stays a filed missing output).
-    engine.eval("R9 = partialcorr(X, Z, 'Rows', 'comp'); "
-                "R11 = partialcorr(X, Z, 'Tail', 'left'); "
-                "R12 = partialcorr(X, Z, 'Tail', 'lt');");
+    // Rows 'comp' prefix (P09) and Tail one-sided p-values (P11/P12).
+    engine.eval("[R9, P9b] = partialcorr(X, Z, 'Rows', 'comp'); "
+                "[R11, P11l] = partialcorr(X, Z, 'Tail', 'left'); "
+                "[R12, P12r] = partialcorr(X, Z, 'Tail', 'right');");
     EXPECT_NEAR(at("R9", 1), -1.0, 1e-12);
     EXPECT_NEAR(at("R9", 2), -0.98764038293883094, 1e-9);
     EXPECT_NEAR(num("R11(2) - R9(2)"), 0.0, 1e-12);
     EXPECT_NEAR(num("R12(3) - R9(3)"), 0.0, 1e-12);
+    EXPECT_NEAR(num("P11l(1, 3) + P12r(1, 3)"), 1.0, 1e-12);
+    EXPECT_NEAR(num("2 * P11l(1, 3) - P9b(1, 3)"), 0.0, 1e-12);
     // Unknown option values / names (P10/P13).
     EXPECT_EQ(idOf("partialcorr(X, Z, 'Rows', 'bogus')"),
               "numkit:partialcorr:unknownRows");
@@ -262,19 +297,27 @@ TEST_F(CorrContractTest, PartialcorrValuesAndOptions)
     EXPECT_EQ(idOf("partialcorr(X, Z, 'Foo', 1)"),
               "numkit:partialcorr:badParamName");
     // Single input → single output (P14; double-compute cast, ~1e-6).
-    engine.eval("R14 = partialcorr(single(X), Z);");
+    engine.eval("[R14, P14] = partialcorr(single(X), Z);");
     EXPECT_EQ(cls("R14"), "single");
+    EXPECT_EQ(cls("P14"), "single");
     EXPECT_NEAR(at("R14", 2), -0.98764038293883094, 1e-6);
     // combinedXZ 'pairwise' == 'complete' (P15 == P01).
     engine.eval("R15 = partialcorr(X, 'Rows', 'pairwise');");
     EXPECT_NEAR(num("R15(2) - R1(2)"), 0.0, 1e-12);
-    // (X, Y, Z) cross form — pearson (PC1) and spearman (PC2).
+    // (X, Y, Z) cross form — pearson (PC1) and spearman (PC2), plus pairwise.
     engine.eval("RC1 = partialcorr(X, Y, Z); "
-                "RC2 = partialcorr(X, Y, Z, 'Type', 'Spearman');");
+                "RC2 = partialcorr(X, Y, Z, 'Type', 'Spearman'); "
+                "Xpw = X; Xpw(1, 2) = NaN; "
+                "[Rpw, Ppw] = partialcorr(Xpw, Y, Z(:, 1), 'Rows', 'pairwise'); "
+                "[Rp21, Pp21] = partialcorr(Xpw(2:end, 2), Y(2:end, 1), Z(2:end, 1)); "
+                "[RC1z1, ~] = partialcorr(X, Y, Z(:, 1));");
     EXPECT_NEAR(at("RC1", 0), 0.90289389814326915, 1e-9);
     EXPECT_NEAR(at("RC1", 3), -0.97737564830250234, 1e-9);
     EXPECT_NEAR(at("RC2", 0), 1.0, 1e-12);
     EXPECT_NEAR(at("RC2", 3), -0.53582588123382058, 1e-9);
+    EXPECT_NEAR(num("Rpw(1, 1) - RC1z1(1, 1)"), 0.0, 1e-12);
+    EXPECT_NEAR(num("Rpw(2, 1) - Rp21"), 0.0, 1e-12);
+    EXPECT_NEAR(num("Ppw(2, 1) - Pp21"), 0.0, 1e-12);
 }
 
 } // namespace

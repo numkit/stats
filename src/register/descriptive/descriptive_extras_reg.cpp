@@ -493,7 +493,7 @@ void ecdfhist_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 
 // ── partialcorr adapter ──────────────────────────────────────────────
 
-void partialcorr_reg(Span<const Value> args, size_t /*nargout*/,
+void partialcorr_reg(Span<const Value> args, size_t nargout,
                      Span<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "partialcorr");  // no max: name-value tail in the reference
@@ -513,10 +513,12 @@ void partialcorr_reg(Span<const Value> args, size_t /*nargout*/,
             posN = 3;
         }
     }
-    outs[0] = partialcorr_full(
+    CorrOut r = partialcorr_full(
         args[0], y, z,
         Span<const Value>(args.data() + posN, args.size() - posN),
-        ctx.engine->resource());
+        nargout >= 2, ctx.engine->resource());
+    outs[0] = std::move(r.rho);
+    if (nargout >= 2) outs[1] = std::move(r.p);
 }
 
 // ── corr / detrend adapters ──────────────────────────────────────────
@@ -596,9 +598,12 @@ void fillmissing_reg(Span<const Value> args, size_t nargout, Span<Value> outs, C
 {
     argcheck::checkNargin(args.size(), 2, "fillmissing");  // no max: name-value tail in the reference
     auto *mr = ctx.engine->resource();
+    auto callFn = [&ctx](const Value &fh, Span<const Value> fargs) -> Value {
+        return ctx.engine->callFunctionHandle(fh, fargs, ctx.env);
+    };
     FillMissingOut r = fillmissing_full(args[0],
                                         Span<const Value>(args.data() + 1, args.size() - 1),
-                                        nargout > 1, mr);
+                                        nargout > 1, mr, callFn);
     outs[0] = std::move(r.B);
     if (nargout > 1) outs[1] = std::move(r.filled);
 }

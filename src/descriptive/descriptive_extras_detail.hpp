@@ -10,12 +10,14 @@
 #include <numkit/ops/helpers.hpp>            // createForDims/createMatrix/DimsArg (engine-free)
 #include <numkit/ops/reductions.hpp>  // numkit::builtin::detail dim-infra (engine-free, ops re-export)
 #include <numkit/ops/quantile_select.hpp>   // ops::sliceQuantile (visible via the using-directive below)
+#include <numkit/builtin/polyfun.hpp>       // spline / pchip / makima
 
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <functional>
 #include <limits>
 #include <memory_resource>
 #include <numeric>
@@ -45,8 +47,9 @@ struct KsdensityFull { Value f, xi, bw; };
 struct CorrOut { Value rho, p; };   // p empty unless requested
 CorrOut corr_full(const Value &x, const Value *y, Span<const Value> nv,
                   bool wantP, std::pmr::memory_resource *mr);
-Value partialcorr_full(const Value &x, const Value *y, const Value *z,
-                       Span<const Value> nv, std::pmr::memory_resource *mr);
+CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
+                         Span<const Value> nv, bool wantP,
+                         std::pmr::memory_resource *mr);
 Value nearcorr_full(const Value &A, Span<const Value> nv,
                     std::pmr::memory_resource *mr);
 
@@ -59,12 +62,16 @@ struct IsOutlierPlan {
     std::string method = "median";
     bool haveWin = false;
     long hb = 0, hf = 0;
+    bool winTwoElem = false;
+    double hbSpan = 0.0, hfSpan = 0.0;
     bool haveTf = false;
     double tf = 0.0;
     double loP = 0.0, hiP = 100.0;
     long maxOut = -1;
     long minNum = 1;
     int dim = 0;                 // 0 → first non-singleton dim
+    const Value *samplePointsRaw = nullptr;
+    std::vector<double> samplePoints;
     std::vector<std::size_t> dropIdx;  // rm-only NV positions to strip
 };                                      // before detection delegation
 struct IsOutlierOut { Value tf, lo, hi, center; };
@@ -79,8 +86,10 @@ RmMissingOut rmmissing_full(const Value &A, Span<const Value> in,
 Value standardizeMissing_full(const Value &A, const Value &indicators,
                               std::pmr::memory_resource *mr);
 struct FillMissingOut { Value B, filled; };
-FillMissingOut fillmissing_full(const Value &A, Span<const Value> in,
-                                bool wantFilled, std::pmr::memory_resource *mr);
+FillMissingOut fillmissing_full(
+    const Value &A, Span<const Value> in, bool wantFilled,
+    std::pmr::memory_resource *mr,
+    std::function<Value(const Value &, Span<const Value>)> callFn = nullptr);
 Value detrend_full(const Value &x, Span<const Value> in,
                    std::pmr::memory_resource *mr);
 
@@ -535,7 +544,8 @@ namespace {
 // Forward-declare the per-column fillmissing kernel (defined later in
 // this TU). We need it for the previous/next/nearest/linear fill paths.
 void fill_one_column(double *p, std::size_t len, const std::string &method,
-                     double constVal);
+                     double constVal, const double *s = nullptr,
+                     std::pmr::memory_resource *mr = nullptr);
 
 struct FoDetect {
     std::vector<uint8_t> mask;  // 1 where outlier
@@ -572,8 +582,8 @@ FoDetect detect_one_column(const double *x, std::size_t n,
             if (!std::isnan(x[i])) buf.push_back(x[i]);
         if (buf.size() < 4) return r;
         std::sort(buf.begin(), buf.end());
-        // MATLAB uses the linear-interpolation 'lower' definition for
-        // quartiles by default (R-default '7' percentile rule).
+        // The reference engine uses the linear-interpolation 'lower'
+        // definition for quartiles by default (R-default '7' percentile rule).
         auto quant = [&](double p) {
             const double h = (double(buf.size()) - 1.0) * p;
             const std::size_t f = static_cast<std::size_t>(std::floor(h));
@@ -585,7 +595,7 @@ FoDetect detect_one_column(const double *x, std::size_t n,
         const double q3 = quant(0.75);
         const double iqr = q3 - q1;
         r.center = 0.5 * (q1 + q3);
-        r.lo = q1 - tf * 0.5 * iqr;   // tf = 3 → 1.5·IQR (MATLAB default tf=1.5)
+        r.lo = q1 - tf * 0.5 * iqr;   // tf = 3 → 1.5·IQR (default tf=1.5)
         r.hi = q3 + tf * 0.5 * iqr;
     } else {  // "median" (default)
         std::vector<double> buf;
@@ -605,9 +615,8 @@ FoDetect detect_one_column(const double *x, std::size_t n,
         for (double v : buf) dev.push_back(std::fabs(v - med));
         std::sort(dev.begin(), dev.end());
         const double mad = medOf(dev);
-        // MATLAB-exact normal-consistency constant: 1/norminv(0.75)
-        // = -1/(sqrt(2)*erfcinv(3/2)) ≈ 1.4826022185056. Using the
-        // looser 1.4826 misses MATLAB's 'clip' threshold by ~1e-5.
+        // Normal-consistency constant: 1/norminv(0.75)
+        // = -1/(sqrt(2)*erfcinv(3/2)) ≈ 1.4826022185056.
         constexpr double kMADc = 1.4826022185056;
         const double scaled = mad * kMADc;
         const double t = tf * scaled;
@@ -675,9 +684,9 @@ std::vector<uint8_t> detect_moving_column(const double *x, std::size_t n,
 
 // Percentiles detector (isoutlier/filloutliers/rmoutliers 'percentiles'
 // method): elements below the loP-th or above the hiP-th percentile are
-// outliers, using MATLAB's prctile convention (sorted positions at
+// outliers, using the prctile convention (sorted positions at
 // 100*(k-0.5)/n, clamped at the ends, linear interp). center = midpoint
-// of the two percentile bounds (matches MATLAB's 'center' fill).
+// of the two percentile bounds.
 FoDetect detect_percentile_column(const double *x, std::size_t n,
                                   double loP, double hiP)
 {
@@ -749,10 +758,14 @@ namespace {
 // Fill a single column of length `len` (stride 1 in column-major
 // storage) according to the named method.
 void fill_one_column(double *p, std::size_t len, const std::string &method,
-                     double constVal)
+                     double constVal, const double *s,
+                     std::pmr::memory_resource *mr)
 {
     if (len == 0) return;
     auto is_nan = [&](std::size_t i) { return std::isnan(p[i]); };
+    auto s_at = [&](std::size_t i) {
+        return s ? s[i] : static_cast<double>(i + 1);
+    };
 
     if (method == "constant") {
         for (std::size_t i = 0; i < len; ++i)
@@ -779,8 +792,7 @@ void fill_one_column(double *p, std::size_t len, const std::string &method,
     }
     if (method == "nearest") {
         // For each NaN, fill with whichever of (previous-good,
-        // next-good) is closer in index. Ties → NEXT wins
-        // (matches MATLAB R2025b, probed).
+        // next-good) is closer in SamplePoints. Ties → NEXT wins.
         std::vector<std::size_t> good_idx;
         good_idx.reserve(len);
         for (std::size_t i = 0; i < len; ++i)
@@ -797,7 +809,7 @@ void fill_one_column(double *p, std::size_t len, const std::string &method,
             const std::size_t pi = good_idx[k - 1];
             const std::size_t ni = good_idx[k];
             // Tie → next.
-            p[i] = ((i - pi) < (ni - i)) ? p[pi] : p[ni];
+            p[i] = ((s_at(i) - s_at(pi)) < (s_at(ni) - s_at(i))) ? p[pi] : p[ni];
         }
         return;
     }
@@ -806,8 +818,7 @@ void fill_one_column(double *p, std::size_t len, const std::string &method,
         // flanking good values. Leading / trailing NaN runs: linearly
         // extrapolate using the slope of the closest interior good-
         // value pair. With < 2 good values, extrapolation slope is
-        // undefined → leave leading/trailing NaNs in place (matches
-        // MATLAB R2025b probed behaviour).
+        // undefined → leave leading/trailing NaNs in place.
         std::vector<std::size_t> good_idx;
         good_idx.reserve(len);
         for (std::size_t i = 0; i < len; ++i)
@@ -821,9 +832,9 @@ void fill_one_column(double *p, std::size_t len, const std::string &method,
             if (b == a + 1) continue;
             const double va = p[a];
             const double vb = p[b];
-            const double slope = (vb - va) / double(b - a);
+            const double slope = (vb - va) / (s_at(b) - s_at(a));
             for (std::size_t j = a + 1; j < b; ++j)
-                p[j] = va + slope * double(j - a);
+                p[j] = va + slope * (s_at(j) - s_at(a));
         }
         if (G < 2) return;
         // Leading NaNs: extrapolate via slope of first two good values.
@@ -831,19 +842,49 @@ void fill_one_column(double *p, std::size_t len, const std::string &method,
             const std::size_t a = good_idx[0];
             const std::size_t b = good_idx[1];
             const double va = p[a];
-            const double slope = (p[b] - va) / double(b - a);
+            const double slope = (p[b] - va) / (s_at(b) - s_at(a));
             for (std::size_t i = 0; i < a; ++i)
-                p[i] = va - slope * double(a - i);
+                p[i] = va - slope * (s_at(a) - s_at(i));
         }
         // Trailing NaNs: slope of last two good values.
         if (good_idx.back() + 1 < len) {
             const std::size_t a = good_idx[G - 2];
             const std::size_t b = good_idx[G - 1];
             const double vb = p[b];
-            const double slope = (vb - p[a]) / double(b - a);
+            const double slope = (vb - p[a]) / (s_at(b) - s_at(a));
             for (std::size_t i = b + 1; i < len; ++i)
-                p[i] = vb + slope * double(i - b);
+                p[i] = vb + slope * (s_at(i) - s_at(b));
         }
+        return;
+    }
+    if (method == "spline" || method == "pchip" || method == "makima") {
+        std::vector<std::size_t> good_idx, miss_idx;
+        good_idx.reserve(len);
+        miss_idx.reserve(len);
+        for (std::size_t i = 0; i < len; ++i) {
+            if (is_nan(i)) miss_idx.push_back(i);
+            else           good_idx.push_back(i);
+        }
+        if (good_idx.size() < 2 || miss_idx.empty()) return;
+        Value xg = Value::matrix(good_idx.size(), 1, ValueType::DOUBLE, mr);
+        Value yg = Value::matrix(good_idx.size(), 1, ValueType::DOUBLE, mr);
+        Value xq = Value::matrix(miss_idx.size(), 1, ValueType::DOUBLE, mr);
+        double *xgd = xg.doubleDataMut();
+        double *ygd = yg.doubleDataMut();
+        double *xqd = xq.doubleDataMut();
+        for (std::size_t k = 0; k < good_idx.size(); ++k) {
+            xgd[k] = s_at(good_idx[k]);
+            ygd[k] = p[good_idx[k]];
+        }
+        for (std::size_t q = 0; q < miss_idx.size(); ++q)
+            xqd[q] = s_at(miss_idx[q]);
+        Value yq = (method == "spline")
+                       ? ::numkit::builtin::spline(xg, yg, xq, mr)
+                   : (method == "pchip")
+                       ? ::numkit::builtin::pchip(xg, yg, xq, mr)
+                       : ::numkit::builtin::makima(xg, yg, xq, mr);
+        for (std::size_t q = 0; q < miss_idx.size(); ++q)
+            p[miss_idx[q]] = yq.elemAsDouble(q);
         return;
     }
     // Other methods handled by caller (mean/median use whole column).

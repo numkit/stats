@@ -108,7 +108,8 @@ TEST_F(CorrXYTest, RowsPairwiseDeletion)
     EXPECT_NEAR(evalScalar("Cp(1,1)"),  1.0,               1e-12);
     // 'all' (default) still NaN-poisons.
     EXPECT_TRUE(std::isnan(evalScalar("Ca = corr(Xn); Ca(2,2)")));
-    // 'pairwise' is Pearson-only for now.
-    EXPECT_THROW(eval("corr(Xn,'rows','pairwise','type','Spearman');"),
-                 std::exception);
+    // 'pairwise' also works for Spearman and Kendall.
+    eval("Cs = corr(Xn,'rows','pairwise','type','Spearman');");
+    EXPECT_NEAR(evalScalar("Cs(1,1)"), 1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("Cs(1,2)"), 1.0, 1e-12);
 }

@@ -237,9 +237,14 @@ TEST_F(CleaningTest, FillmissingConstantContract)
               "numkit:fillmissing:methodInvalid");
     EXPECT_EQ(idOf("fillmissing([1 NaN 3], 'p')"),
               "numkit:fillmissing:methodInvalid");
-    // deferred methods are voiced
-    EXPECT_EQ(idOf("fillmissing([1 NaN 3], 'spline')"),
-              "numkit:fillmissing:methodDeferred");
+    // spline / pchip / makima interpolation
+    EXPECT_NEAR(num("fillmissing([1 NaN 9 16], 'spline')(2)"), 4.0, 1e-12);
+    EXPECT_NEAR(num("fillmissing([1 NaN 3 4], 'pchip')(2)"), 2.0, 1e-12);
+    EXPECT_NEAR(num("fillmissing([1 NaN 3 4], 'makima')(2)"), 2.0, 1e-12);
+    // complex fill constant on real input promotes output to complex
+    engine.eval("zc = fillmissing([1 NaN 3], 'constant', 2 + 3i);");
+    EXPECT_NEAR(num("real(zc(2))"), 2.0, 1e-12);
+    EXPECT_NEAR(num("imag(zc(2))"), 3.0, 1e-12);
     // EndValues is legal with constant
     EXPECT_EQ(num("fillmissing([1 NaN 3], 'constant', 9, "
                   "'EndValues', 'none')(2)"), 9.0);
@@ -287,6 +292,39 @@ TEST_F(CleaningTest, FillmissingMovingAndEndValues)
     // dim positional (per-row fill for dim 2)
     engine.eval("r = fillmissing([1 NaN 3; 4 NaN 6], 'previous', 2);");
     EXPECT_NEAR(num("r(1, 2)"), 1.0, 1e-12);
+}
+
+TEST_F(CleaningTest, SamplePointsAndAdvancedFillmissing)
+{
+    // detrend with SamplePoints
+    engine.eval("s = [0 1 3 6 10]; x = 2 * s + 5; d = detrend(x, 1, 'SamplePoints', s);");
+    EXPECT_NEAR(num("max(abs(d))"), 0.0, 1e-11);
+    EXPECT_EQ(idOf("detrend([1 2 3], 1, 'SamplePoints', [1 3 2])"),
+              "numkit:detrend:samplePointsSorted");
+
+    // isoutlier and rmoutliers with SamplePoints
+    engine.eval("tf_sp = isoutlier([1 2 100 3 4], 'movmedian', 4, 'SamplePoints', [0 1 2 3 10]);");
+    EXPECT_EQ(num("tf_sp(3)"), 1.0);
+    EXPECT_EQ(num("numel(rmoutliers([1 2 100 3 4], 'movmedian', 4, 'SamplePoints', [0 1 2 3 10]))"), 4.0);
+
+    // fillmissing with SamplePoints and MaxGap
+    engine.eval("y_sp = fillmissing([0 NaN 6], 'linear', 'SamplePoints', [0 1 3]);");
+    EXPECT_NEAR(num("y_sp(2)"), 2.0, 1e-12);
+    engine.eval("y_mg = fillmissing([1 NaN NaN 4 5 NaN 7], 'linear', 'MaxGap', 2);");
+    EXPECT_TRUE(std::isnan(num("y_mg(2)")));
+    EXPECT_TRUE(std::isnan(num("y_mg(3)")));
+    EXPECT_NEAR(num("y_mg(6)"), 6.0, 1e-12);
+
+    // fillmissing with 'knn'
+    engine.eval("A_knn = [1 10; 1.1 NaN; 5 50; 5.1 52]; B_knn = fillmissing(A_knn, 'knn', 1);");
+    EXPECT_NEAR(num("B_knn(2, 2)"), 10.0, 1e-12);
+    engine.eval("B_knn_s = fillmissing(A_knn, 'knn', 1, 'Distance', 'seuclidean');");
+    EXPECT_NEAR(num("B_knn_s(2, 2)"), 10.0, 1e-12);
+
+    // fillmissing with custom function handle
+    engine.eval("fh = @(xs, ts, tq) repmat(mean(xs), numel(tq), 1); "
+                "y_fh = fillmissing([2 NaN 6 10], fh, 3);");
+    EXPECT_NEAR(num("y_fh(2)"), 4.0, 1e-12);
 }
 
 // ── standardizeMissing ────────────────────────────────────────────────

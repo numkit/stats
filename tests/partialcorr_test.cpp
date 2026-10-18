@@ -166,6 +166,12 @@ TEST_F(PartialCorrTest, RowsCompleteListwise)
     eval("Rp = partialcorr(Xn,'Rows','pairwise');");
     EXPECT_NEAR(evalScalar("Rp(1,2)"), evalScalar("Rc(1,2)"), 1e-12);
     EXPECT_NEAR(evalScalar("Rp(2,3)"), evalScalar("Rc(2,3)"), 1e-12);
-    // ...but the (X, Z) / (X, Y, Z) pairwise loop stays a voiced stub.
-    EXPECT_THROW(eval("partialcorr(Xn,Xn,'Rows','pairwise');"), std::exception);
+    // (X, Z) 'pairwise' drops NaNs per column pair of X (plus any NaNs in Z).
+    eval("Z1 = [2; 1; 4; 3; 7; 5; 8]; "
+         "Rpw = partialcorr(Xn, Z1, 'Rows', 'pairwise'); "
+         "R12 = partialcorr(Xn([1 2 4 5 6 7], 1), Xn([1 2 4 5 6 7], 2), Z1([1 2 4 5 6 7])); "
+         "R23 = partialcorr(Xn([1 2 4 5 7], 2), Xn([1 2 4 5 7], 3), Z1([1 2 4 5 7]));");
+    EXPECT_NEAR(evalScalar("Rpw(1, 2)"), evalScalar("R12"), 1e-12);
+    EXPECT_NEAR(evalScalar("Rpw(2, 1)"), evalScalar("R12"), 1e-12);
+    EXPECT_NEAR(evalScalar("Rpw(2, 3)"), evalScalar("R23"), 1e-12);
 }

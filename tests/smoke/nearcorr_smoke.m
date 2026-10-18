@@ -53,12 +53,8 @@ try
 catch e
     fprintf('  Method proj-prefix rejected: %s (expect optionalInputError)\n', e.identifier);
 end
-try
-    nearcorr(eye(2), 'Weights', [1 1]');
-    fprintf('  Weights: NO ERROR (unexpected! voiced stub)\n');
-catch e
-    fprintf('  Weights stub: %s (expect weightsUnsupported)\n', e.identifier);
-end
+Yw = nearcorr(A1, 'Weights', [10 10 1]');
+fprintf('  Weights [10 10 1]'': Yw(1,2) = %.6f (closer to -0.5 than unweighted %.6f)\n', Yw(1,2), Y1(1,2));
 % Defaults Tolerance=1e-6 / MaxIterations=200 (reference values).
 Yt = nearcorr(A1, 'Tolerance', 1e-12, 'MaxIterations', 500, 'Method', 'projection');
 fprintf('  tight-tolerance run (1,2): %.10f (expect ~ -0.4041...)\n', Yt(1,2));

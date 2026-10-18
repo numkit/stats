@@ -94,7 +94,9 @@ inline constexpr argcheck::ClassMask kFloatReal =
 // Window semantics shared by isoutlier('mov*') and fillmissing('mov*'):
 // scalar k > 0 → centered (odd k: (k-1)/2 each side; even: one more in
 // back); 2-element [back forward] → as given.
-void parseWindowHalfSpans(const Value &wl, const char *fn, long &hb, long &hf)
+void parseWindowHalfSpans(const Value &wl, const char *fn, long &hb, long &hf,
+                          double *hbSpan = nullptr, double *hfSpan = nullptr,
+                          bool *twoElem = nullptr)
 {
     const bool numeric = wl.isNumeric() && !wl.isComplex();
     auto bad = [&]() {
@@ -110,14 +112,74 @@ void parseWindowHalfSpans(const Value &wl, const char *fn, long &hb, long &hf)
         const long ki = static_cast<long>(k);
         if (ki % 2 == 1) { hb = hf = (ki - 1) / 2; }
         else             { hb = ki / 2; hf = ki / 2 - 1; }
+        if (hbSpan) *hbSpan = 0.5 * k;
+        if (hfSpan) *hfSpan = 0.5 * k;
+        if (twoElem) *twoElem = false;
     } else if (wl.numel() == 2) {
         const double b = wl.elemAsDouble(0), f = wl.elemAsDouble(1);
         if (b < 0.0 || f < 0.0 || !std::isfinite(b) || !std::isfinite(f)) bad();
         hb = static_cast<long>(b);
         hf = static_cast<long>(f);
+        if (hbSpan) *hbSpan = b;
+        if (hfSpan) *hfSpan = f;
+        if (twoElem) *twoElem = true;
     } else {
         bad();
     }
+}
+
+std::vector<double> validateSamplePoints(const Value &sp, std::size_t expectedLen,
+                                         bool arrayIsEmpty, bool floatOnly,
+                                         const char *fn)
+{
+    const bool isFloat = (sp.type() == ValueType::DOUBLE ||
+                          sp.type() == ValueType::SINGLE);
+    if (floatOnly && !isFloat)
+        throw Error(std::string(fn) + ": 'SamplePoints' must be a floating-point vector",
+                    0, 0, fn, "",
+                    std::string("numkit:") + fn + ":samplePointsInvalidDatatype");
+    if (arrayIsEmpty) {
+        if (sp.isNumeric() && !sp.isEmpty())
+            throw Error(std::string(fn) + ": 'SamplePoints' length must match the operating dimension",
+                        0, 0, fn, "",
+                        std::string("numkit:") + fn + ":samplePointsLength");
+        return {};
+    }
+    if ((!sp.dims().isVector() && !sp.isEmpty()) || !sp.isNumeric())
+        throw Error(std::string(fn) + ": 'SamplePoints' must be a numeric vector",
+                    0, 0, fn, "",
+                    std::string("numkit:") + fn + ":samplePointsInvalidDatatype");
+    if (sp.numel() != expectedLen)
+        throw Error(std::string(fn) + ": 'SamplePoints' length (" +
+                    std::to_string(sp.numel()) +
+                    ") must match the operating dimension (" +
+                    std::to_string(expectedLen) + ")",
+                    0, 0, fn, "",
+                    std::string("numkit:") + fn + ":samplePointsLength");
+    if (sp.isComplex())
+        throw Error(std::string(fn) + ": 'SamplePoints' must be real",
+                    0, 0, fn, "",
+                    std::string("numkit:") + fn + ":samplePointsComplex");
+    std::vector<double> out(expectedLen);
+    for (std::size_t j = 0; j < expectedLen; ++j) {
+        const double v = sp.elemAsDouble(j);
+        if (!std::isfinite(v))
+            throw Error(std::string(fn) + ": 'SamplePoints' must contain finite values",
+                        0, 0, fn, "",
+                        std::string("numkit:") + fn + ":samplePointsNonFinite");
+        out[j] = v;
+    }
+    for (std::size_t j = 1; j < expectedLen; ++j) {
+        if (out[j] == out[j - 1])
+            throw Error(std::string(fn) + ": 'SamplePoints' must contain unique values",
+                        0, 0, fn, "",
+                        std::string("numkit:") + fn + ":samplePointsDuplicate");
+        if (out[j] < out[j - 1])
+            throw Error(std::string(fn) + ": 'SamplePoints' must be sorted in strictly increasing order",
+                        0, 0, fn, "",
+                        std::string("numkit:") + fn + ":samplePointsSorted");
+    }
+    return out;
 }
 
 // ── outlier detection (mirrors locateoutliers.m) ──────────────────────
@@ -243,7 +305,9 @@ ColStats detectRun(const std::vector<double> &x, const std::string &method,
                    double tf, long hb, long hf, double loP, double hiP,
                    long maxOut, std::vector<double> *movCenter,
                    std::vector<double> *movLo, std::vector<double> *movHi,
-                   std::pmr::memory_resource *mr)
+                   std::pmr::memory_resource *mr,
+                   const double *sp = nullptr, double hbSpan = 0.0,
+                   double hfSpan = 0.0, bool winTwoElem = false)
 {
     const std::size_t n = x.size();
     ColStats r;
@@ -270,13 +334,24 @@ ColStats detectRun(const std::vector<double> &x, const std::string &method,
         };
         std::vector<double> win, dev, sorted;
         for (std::size_t i = 0; i < n; ++i) {
-            long lo = static_cast<long>(i) - hb; if (lo < 0) lo = 0;
-            long hi = static_cast<long>(i) + hf;
-            if (hi > static_cast<long>(n) - 1) hi = static_cast<long>(n) - 1;
             win.clear();
-            for (long j = lo; j <= hi; ++j)
-                if (!std::isnan(x[static_cast<std::size_t>(j)]))
-                    win.push_back(x[static_cast<std::size_t>(j)]);
+            if (sp) {
+                const double loS = sp[i] - hbSpan;
+                const double hiS = sp[i] + hfSpan;
+                for (std::size_t j = 0; j < n; ++j) {
+                    const bool inWin = winTwoElem
+                                           ? (sp[j] >= loS && sp[j] <= hiS)
+                                           : (sp[j] >= loS && sp[j] < hiS);
+                    if (inWin && !std::isnan(x[j])) win.push_back(x[j]);
+                }
+            } else {
+                long lo = static_cast<long>(i) - hb; if (lo < 0) lo = 0;
+                long hi = static_cast<long>(i) + hf;
+                if (hi > static_cast<long>(n) - 1) hi = static_cast<long>(n) - 1;
+                for (long j = lo; j <= hi; ++j)
+                    if (!std::isnan(x[static_cast<std::size_t>(j)]))
+                        win.push_back(x[static_cast<std::size_t>(j)]);
+            }
             if (win.empty()) continue;
             double center, scale;
             if (isMed) {
@@ -362,7 +437,8 @@ void isoutlierParse(const Value &A, Span<const Value> in, bool forRmoutliers,
                 throw Error("isoutlier: specify a window length after '" +
                             std::string(m) + "'",
                             0, 0, "isoutlier", "", "numkit:isoutlier:missingWindow");
-            parseWindowHalfSpans(in[1], "isoutlier", p.hb, p.hf);
+            parseWindowHalfSpans(in[1], "isoutlier", p.hb, p.hf,
+                                 &p.hbSpan, &p.hfSpan, &p.winTwoElem);
             i = 2;
         } else if (m == "percentiles") {
             p.method = "percentiles";
@@ -467,9 +543,7 @@ void isoutlierParse(const Value &A, Span<const Value> in, bool forRmoutliers,
             p.dropIdx.push_back(i);
             p.dropIdx.push_back(i + 1);
         } else if (name == "samplepoints") {
-            throw Error("isoutlier: 'SamplePoints' is not supported in this "
-                        "revision",
-                        0, 0, "isoutlier", "", "numkit:isoutlier:samplePoints");
+            p.samplePointsRaw = &v;
         } else if (name == "datavariables") {
             throw Error("isoutlier: 'DataVariables' is supported only for "
                         "table inputs",
@@ -552,6 +626,11 @@ IsOutlierOut isoutlier_full(const Value &A, Span<const Value> in,
     const std::size_t runLen = along2 ? cols : r;
     const std::size_t nRuns = along2 ? r : cols;
 
+    if (p.samplePointsRaw) {
+        p.samplePoints = validateSamplePoints(
+            *p.samplePointsRaw, runLen, A.numel() == 0, false, "isoutlier");
+    }
+
     IsOutlierOut out;
     if (A.numel() == 0) {
         out.tf = Value::matrix(0, 0, ValueType::LOGICAL, mr);
@@ -583,6 +662,7 @@ IsOutlierOut isoutlier_full(const Value &A, Span<const Value> in,
         ced = ceM.doubleDataMut();
     }
 
+    const double *spPtr = p.samplePoints.empty() ? nullptr : p.samplePoints.data();
     std::vector<double> run(runLen);
     std::vector<double> movC, movL, movH;
     for (std::size_t k = 0; k < nRuns; ++k) {
@@ -592,7 +672,8 @@ IsOutlierOut isoutlier_full(const Value &A, Span<const Value> in,
                                 p.maxOut,
                                 isMoving ? &movC : nullptr,
                                 isMoving ? &movL : nullptr,
-                                isMoving ? &movH : nullptr, mr);
+                                isMoving ? &movH : nullptr, mr,
+                                spPtr, p.hbSpan, p.hfSpan, p.winTwoElem);
         for (std::size_t j = 0; j < runLen; ++j) {
             const std::size_t lin = along2 ? k + j * r : k * runLen + j;
             md[lin] = st.mask[j];
@@ -1002,8 +1083,10 @@ std::vector<double> parseConstants(const Value &C, std::size_t nVects,
 
 } // anonymous namespace
 
-FillMissingOut fillmissing_full(const Value &A, Span<const Value> in,
-                                bool wantFilled, std::pmr::memory_resource *mr)
+FillMissingOut fillmissing_full(
+    const Value &A, Span<const Value> in, bool wantFilled,
+    std::pmr::memory_resource *mr,
+    std::function<Value(const Value &, Span<const Value>)> callFn)
 {
     // fillmissingFull_argcheck: supported-array gate + method contract.
     const char *fn = "fillmissing";
@@ -1022,41 +1105,95 @@ FillMissingOut fillmissing_full(const Value &A, Span<const Value> in,
         "spline", "pchip", "movmean", "movmedian", "makima", "knn"};
     const Span<const std::string_view> methods =
         Span<const std::string_view>(kFmMethods);
-    if (in.empty() || !isStringValue(in[0]))
-        throw Error(std::string(fn) + ": fill method must be one of "
-                    "'constant', 'previous', 'next', 'nearest', 'linear', "
-                    "'movmean', 'movmedian' (spline/pchip/makima/knn and "
-                    "custom function handles are deferred)",
+    if (in.empty())
+        throw Error(std::string(fn) + ": specify a fill method",
                     0, 0, fn, "", std::string("numkit:") + fn + ":methodInvalid");
-    const int mhit = argcheck::matchStringChoice(in[0], methods);
-    if (mhit < 0)
-        throw Error(std::string(fn) + ": fill method must be one of "
-                    "'constant', 'previous', 'next', 'nearest', 'linear', "
-                    "'movmean', 'movmedian' (got '" + in[0].toString() +
-                    "'; ambiguous or unrecognized)",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":methodInvalid");
-    const std::string m(methods[static_cast<std::size_t>(mhit)]);
-    if (m == "spline" || m == "pchip" || m == "makima" || m == "knn")
-        throw Error(std::string(fn) + ": the '" + m + "' fill method is not "
-                    "supported in this revision (constant, previous, next, "
-                    "nearest, linear, movmean, movmedian)",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":methodDeferred");
 
+    bool isFnHandle = false;
+    const Value *fhVal = nullptr;
+    double fhA = 0.0, fhB = 0.0;
+    bool fhTwoElem = false;
+    std::string m;
     long hb = 0, hf = 0;
+    double hbSpan = 0.0, hfSpan = 0.0;
+    bool winTwoElem = false;
+    std::size_t knnK = 1;
     std::size_t i = 1;
-    if (m == "constant") {
-        if (in.size() < 2)
-            throw Error(std::string(fn) + ": specify a fill value after the "
-                        "'constant' method",
-                        0, 0, fn, "", std::string("numkit:") + fn + ":constantInput");
-        ++i;
-    } else if (m == "movmean" || m == "movmedian") {
+
+    if (in[0].isFuncHandle()) {
+        isFnHandle = true;
+        fhVal = &in[0];
         if (in.size() < 2)
             throw Error(std::string(fn) + ": specify a window length after "
-                        "the '" + m + "' method",
-                        0, 0, fn, "", std::string("numkit:") + fn + ":windowInput");
-        parseWindowHalfSpans(in[1], fn, hb, hf);
-        ++i;
+                        "the function handle",
+                        0, 0, fn, "",
+                        std::string("numkit:") + fn + ":functionHandleInput");
+        const Value &wl = in[1];
+        const bool okNum = wl.isNumeric() && !wl.isComplex() &&
+                           (wl.numel() == 1 || wl.numel() == 2);
+        bool okVal = okNum;
+        if (okNum) {
+            bool anyPos = false;
+            for (std::size_t q = 0; q < wl.numel(); ++q) {
+                const double wv = wl.elemAsDouble(q);
+                if (!std::isfinite(wv) || wv < 0.0) okVal = false;
+                if (wv > 0.0) anyPos = true;
+            }
+            if (!anyPos) okVal = false;
+        }
+        if (!okVal)
+            throw Error(std::string(fn) + ": function-handle window must be "
+                        "a positive scalar or 2-element nonnegative finite vector",
+                        0, 0, fn, "",
+                        std::string("numkit:") + fn + ":functionHandleInvalidWindow");
+        if (wl.numel() == 2) {
+            fhA = wl.elemAsDouble(0);
+            fhB = wl.elemAsDouble(1);
+            fhTwoElem = true;
+        } else {
+            fhA = fhB = wl.elemAsDouble(0);
+            fhTwoElem = false;
+        }
+        i = 2;
+    } else if (isStringValue(in[0])) {
+        const int mhit = argcheck::matchStringChoice(in[0], methods);
+        if (mhit < 0)
+            throw Error(std::string(fn) + ": fill method must be one of "
+                        "'constant', 'previous', 'next', 'nearest', 'linear', "
+                        "'spline', 'pchip', 'makima', 'movmean', 'movmedian', "
+                        "'knn', or a function handle (got '" +
+                        in[0].toString() + "'; ambiguous or unrecognized)",
+                        0, 0, fn, "", std::string("numkit:") + fn + ":methodInvalid");
+        m = std::string(methods[static_cast<std::size_t>(mhit)]);
+        if (m == "constant") {
+            if (in.size() < 2)
+                throw Error(std::string(fn) + ": specify a fill value after the "
+                            "'constant' method",
+                            0, 0, fn, "", std::string("numkit:") + fn + ":constantInput");
+            ++i;
+        } else if (m == "movmean" || m == "movmedian") {
+            if (in.size() < 2)
+                throw Error(std::string(fn) + ": specify a window length after "
+                            "the '" + m + "' method",
+                            0, 0, fn, "", std::string("numkit:") + fn + ":windowInput");
+            parseWindowHalfSpans(in[1], fn, hb, hf, &hbSpan, &hfSpan, &winTwoElem);
+            ++i;
+        } else if (m == "knn") {
+            if (in.size() >= 2 && in[1].isNumeric()) {
+                const Value &kv = in[1];
+                const double kd = (kv.numel() == 1 && !kv.isComplex())
+                                      ? kv.elemAsDouble(0) : -1.0;
+                if (!(kd >= 1.0) || std::floor(kd) != kd || !std::isfinite(kd))
+                    throw Error(std::string(fn) + ": number of nearest neighbors k "
+                                "must be a positive integer scalar",
+                                0, 0, fn, "", std::string("numkit:") + fn + ":invalidK");
+                knnK = static_cast<std::size_t>(kd);
+                ++i;
+            }
+        }
+    } else {
+        throw Error(std::string(fn) + ": fill method must be a string or function handle",
+                    0, 0, fn, "", std::string("numkit:") + fn + ":methodInvalid");
     }
 
     // Optional positional dim.
@@ -1087,6 +1224,12 @@ FillMissingOut fillmissing_full(const Value &A, Span<const Value> in,
     bool haveEnd = false;
     double endConst = 0.0;
     const Value *missingLocations = nullptr;
+    const Value *samplePointsRaw = nullptr;
+    double maxGap = std::numeric_limits<double>::infinity();
+    bool hasMaxGap = false;
+    std::string knnDist = "euclidean";
+    const Value *distFnVal = nullptr;
+
     if ((in.size() - i) % 2 != 0)
         throw Error(std::string(fn) + ": each parameter name needs a value "
                     "(unmatched value in the name-value list)",
@@ -1104,6 +1247,11 @@ FillMissingOut fillmissing_full(const Value &A, Span<const Value> in,
         const std::string_view name = nvNames[static_cast<std::size_t>(hit)];
         const Value &v = in[i + 1];
         if (name == "endvalues") {
+            if (m == "knn")
+                throw Error(std::string(fn) + ": 'EndValues' is not supported "
+                            "for the 'knn' method",
+                            0, 0, fn, "",
+                            std::string("numkit:") + fn + ":unsupportedNVPair");
             haveEnd = true;
             if (isStringValue(v)) {
                 static constexpr std::string_view kEndModes[] = {
@@ -1130,18 +1278,65 @@ FillMissingOut fillmissing_full(const Value &A, Span<const Value> in,
                             0, 0, fn, "",
                             std::string("numkit:") + fn + ":badMissingLocations");
             missingLocations = &v;
-        } else if (name == "samplepoints" || name == "maxgap" ||
-                   name == "distance") {
-            throw Error(std::string(fn) + ": '" + std::string(name) +
-                        "' is not supported " "in this revision",
-                        0, 0, fn, "",
-                        std::string("numkit:") + fn + ":optionDeferred");
+        } else if (name == "samplepoints") {
+            if (m == "knn")
+                throw Error(std::string(fn) + ": 'SamplePoints' is not supported "
+                            "for the 'knn' method",
+                            0, 0, fn, "",
+                            std::string("numkit:") + fn + ":unsupportedNVPair");
+            samplePointsRaw = &v;
+        } else if (name == "maxgap") {
+            if (m == "knn")
+                throw Error(std::string(fn) + ": 'MaxGap' is not supported "
+                            "for the 'knn' method",
+                            0, 0, fn, "",
+                            std::string("numkit:") + fn + ":unsupportedNVPair");
+            if (!v.isNumeric() || v.isComplex() || v.numel() != 1 ||
+                std::isnan(v.elemAsDouble(0)) || !(v.elemAsDouble(0) > 0.0))
+                throw Error(std::string(fn) + ": 'MaxGap' must be a positive "
+                            "real scalar",
+                            0, 0, fn, "",
+                            std::string("numkit:") + fn + ":maxGapInvalid");
+            maxGap = v.elemAsDouble(0);
+            hasMaxGap = true;
+        } else if (name == "distance") {
+            if (m != "knn")
+                throw Error(std::string(fn) + ": 'Distance' is supported only "
+                            "for the 'knn' method",
+                            0, 0, fn, "",
+                            std::string("numkit:") + fn + ":distanceNonKNNMethod");
+            if (isStringValue(v)) {
+                static constexpr std::string_view kDist[] = {
+                    "euclidean", "seuclidean"};
+                const int dh = argcheck::matchStringChoice(
+                    v, Span<const std::string_view>(kDist));
+                if (dh < 0)
+                    throw Error(std::string(fn) + ": 'Distance' must be "
+                                "'euclidean', 'seuclidean', or a function handle",
+                                0, 0, fn, "",
+                                std::string("numkit:") + fn + ":invalidDistance");
+                knnDist = std::string(kDist[static_cast<std::size_t>(dh)]);
+                distFnVal = nullptr;
+            } else if (v.isFuncHandle()) {
+                distFnVal = &v;
+            } else {
+                throw Error(std::string(fn) + ": 'Distance' must be "
+                            "'euclidean', 'seuclidean', or a function handle",
+                            0, 0, fn, "",
+                            std::string("numkit:") + fn + ":invalidDistance");
+            }
         } else {
             throw Error(std::string(fn) + ": '" + std::string(name) +
-                        "' is supported " "only for table inputs",
+                        "' is supported only for table inputs",
                         0, 0, fn, "", std::string("numkit:") + fn + ":tableOnly");
         }
     }
+
+    if (missingLocations && hasMaxGap)
+        throw Error(std::string(fn) + ": 'MaxGap' and 'MissingLocations' "
+                    "cannot be specified together",
+                    0, 0, fn, "",
+                    std::string("numkit:") + fn + ":maxGapMissingLocations");
 
     // Direction: default = first non-singleton (row vectors along 2).
     if (dim == 0) {
@@ -1157,24 +1352,39 @@ FillMissingOut fillmissing_full(const Value &A, Span<const Value> in,
     const std::size_t runLen = along2 ? c : r;
     const std::size_t nRuns = along2 ? r : c;
 
-    std::vector<double> constVals, constImag;
-    if (constRaw) {
-        if (at == ValueType::COMPLEX) constImag.resize(1, 0.0);
-        constVals = parseConstants(*constRaw, nRuns, fn, "",
-                                   at == ValueType::COMPLEX ? &constImag
-                                                            : nullptr);
-    }
-    std::vector<double> endImag;
-    if (endRaw) {
-        if (at == ValueType::COMPLEX) endImag.resize(1, 0.0);
-        endConst = parseConstants(*endRaw, nRuns, fn, "Extrap",
-                                  at == ValueType::COMPLEX ? &endImag
-                                                           : nullptr)[0];
+    std::vector<double> samplePoints;
+    if (samplePointsRaw) {
+        samplePoints = validateSamplePoints(
+            *samplePointsRaw, runLen, A.numel() == 0, false, fn);
     }
 
-    // Integer / logical / char inputs cannot represent NaN: flow-through.
+    const bool complex = (at == ValueType::COMPLEX);
+    const bool outComplex = complex ||
+                            (constRaw && constRaw->isComplex()) ||
+                            (endRaw && endRaw->isComplex());
+    std::vector<double> constVals, constImag;
+    if (constRaw) {
+        if (outComplex) constImag.resize(1, 0.0);
+        constVals = parseConstants(*constRaw, nRuns, fn, "",
+                                   outComplex ? &constImag : nullptr);
+    }
+    std::vector<double> endVals, endImag;
+    if (endRaw) {
+        if (outComplex) endImag.resize(1, 0.0);
+        endVals = parseConstants(*endRaw, nRuns, fn, "Extrap",
+                                 outComplex ? &endImag : nullptr);
+        endConst = endVals[0];
+    }
+
+    // Integer / logical / char inputs cannot represent NaN: flow-through
+    // unless MissingLocations is explicitly provided or knn rejects non-float.
     const bool floaty = (at == ValueType::DOUBLE || at == ValueType::SINGLE ||
                          at == ValueType::COMPLEX);
+    if (m == "knn" && !floaty && !distFnVal)
+        throw Error(std::string(fn) + ": built-in 'knn' distances require "
+                    "floating-point input",
+                    0, 0, fn, "",
+                    std::string("numkit:") + fn + ":distanceNonFloatsNotSupported");
     FillMissingOut out;
     if (!floaty || A.numel() == 0) {
         out.B = A;
@@ -1186,14 +1396,14 @@ FillMissingOut fillmissing_full(const Value &A, Span<const Value> in,
         return out;
     }
 
-    const bool single = (at == ValueType::SINGLE);
-    const bool complex = (at == ValueType::COMPLEX);
-    Value B = complex ? Value::matrix(r, c, ValueType::COMPLEX, mr)
-             : single ? Value::matrix(r, c, ValueType::SINGLE, mr)
-                      : Value::matrix(r, c, ValueType::DOUBLE, mr);
+    const bool single = (at == ValueType::SINGLE) && !outComplex;
+    Value B = outComplex ? Value::matrix(r, c, ValueType::COMPLEX, mr)
+             : single    ? Value::matrix(r, c, ValueType::SINGLE, mr)
+                         : Value::matrix(r, c, ValueType::DOUBLE, mr);
     Value filledMap = wantFilled ? Value::matrix(r, c, ValueType::LOGICAL, mr)
                                  : Value();
     uint8_t *fmd = wantFilled ? filledMap.logicalDataMut() : nullptr;
+    if (fmd) std::fill_n(fmd, A.numel(), 0);
 
     // Original missing map (or the explicit override).
     std::vector<uint8_t> missMap(A.numel(), 0);
@@ -1210,16 +1420,221 @@ FillMissingOut fillmissing_full(const Value &A, Span<const Value> in,
             missMap[j] = std::isnan(A.elemAsDouble(j)) ? 1 : 0;
     }
 
+    // ── knn fill path ─────────────────────────────────────────────────
+    if (m == "knn") {
+        // Initialize B from A.
+        for (std::size_t j = 0; j < A.numel(); ++j) {
+            if (outComplex) {
+                B.complexDataMut()[j] = complex ? A.complexData()[j]
+                                                : Complex(A.elemAsDouble(j), 0.0);
+            } else if (single) {
+                B.singleDataMut()[j] = static_cast<float>(A.elemAsDouble(j));
+            } else {
+                B.doubleDataMut()[j] = A.elemAsDouble(j);
+            }
+        }
+        if (dim > 2) {
+            out.B = std::move(B);
+            out.filled = std::move(filledMap);
+            return out;
+        }
+        // When dim == 1, vectors are rows (M = r, N = c); when dim == 2,
+        // vectors are columns (M = c, N = r).
+        const bool transpose = (dim == 2);
+        const std::size_t M = transpose ? c : r;
+        const std::size_t N = transpose ? r : c;
+        auto linAt = [&](std::size_t row, std::size_t col) -> std::size_t {
+            return transpose ? (col + row * r) : (row + col * r);
+        };
+        auto reAt = [&](std::size_t row, std::size_t col) -> double {
+            const std::size_t idx = linAt(row, col);
+            return complex ? A.complexData()[idx].real() : A.elemAsDouble(idx);
+        };
+        auto imAt = [&](std::size_t row, std::size_t col) -> double {
+            if (!complex) return 0.0;
+            return A.complexData()[linAt(row, col)].imag();
+        };
+
+        std::vector<double> scale(N, 1.0);
+        if (!distFnVal && knnDist == "seuclidean") {
+            for (std::size_t col = 0; col < N; ++col) {
+                double mRe = 0.0, mIm = 0.0;
+                std::size_t cnt = 0;
+                for (std::size_t row = 0; row < M; ++row) {
+                    if (!missMap[linAt(row, col)]) {
+                        mRe += reAt(row, col);
+                        mIm += imAt(row, col);
+                        ++cnt;
+                    }
+                }
+                if (cnt < 2) {
+                    scale[col] = 0.0;
+                } else {
+                    mRe /= double(cnt);
+                    mIm /= double(cnt);
+                    double ss = 0.0;
+                    for (std::size_t row = 0; row < M; ++row) {
+                        if (!missMap[linAt(row, col)]) {
+                            const double dr = reAt(row, col) - mRe;
+                            const double di = imAt(row, col) - mIm;
+                            ss += dr * dr + di * di;
+                        }
+                    }
+                    scale[col] = std::sqrt(ss / double(cnt - 1));
+                }
+            }
+        }
+
+        const double nanv = std::numeric_limits<double>::quiet_NaN();
+        std::vector<double> dists(M, nanv);
+        std::vector<std::size_t> ord(M);
+        for (std::size_t ii = 0; ii < M; ++ii) {
+            bool anyMiss = false, allMiss = true;
+            for (std::size_t col = 0; col < N; ++col) {
+                if (missMap[linAt(ii, col)]) anyMiss = true;
+                else                         allMiss = false;
+            }
+            if (!anyMiss || allMiss) continue;
+
+            for (std::size_t jj = 0; jj < M; ++jj) {
+                if (jj == ii) {
+                    dists[jj] = nanv;
+                    continue;
+                }
+                if (distFnVal) {
+                    if (!callFn)
+                        throw Error(std::string(fn) + ": custom distance function "
+                                    "handle requires an execution context",
+                                    0, 0, fn, "",
+                                    std::string("numkit:") + fn + ":invalidCustomDistance");
+                    Value X2 = outComplex ? Value::matrix(2, N, ValueType::COMPLEX, mr)
+                                          : Value::matrix(2, N, ValueType::DOUBLE, mr);
+                    Value M2 = Value::matrix(2, N, ValueType::LOGICAL, mr);
+                    for (std::size_t col = 0; col < N; ++col) {
+                        if (outComplex) {
+                            X2.complexDataMut()[0 + col * 2] =
+                                Complex(reAt(ii, col), imAt(ii, col));
+                            X2.complexDataMut()[1 + col * 2] =
+                                Complex(reAt(jj, col), imAt(jj, col));
+                        } else {
+                            X2.doubleDataMut()[0 + col * 2] = reAt(ii, col);
+                            X2.doubleDataMut()[1 + col * 2] = reAt(jj, col);
+                        }
+                        M2.logicalDataMut()[0 + col * 2] = missMap[linAt(ii, col)];
+                        M2.logicalDataMut()[1 + col * 2] = missMap[linAt(jj, col)];
+                    }
+                    Value fargs[2] = {std::move(X2), std::move(M2)};
+                    Value dv = callFn(*distFnVal, Span<const Value>(fargs, 2));
+                    if (!dv.isNumeric() || dv.isComplex() || dv.numel() != 1)
+                        throw Error(std::string(fn) + ": custom distance function "
+                                    "must return a real scalar",
+                                    0, 0, fn, "",
+                                    std::string("numkit:") + fn + ":invalidCustomDistance");
+                    dists[jj] = dv.elemAsDouble(0);
+                } else {
+                    double sumSq = 0.0;
+                    for (std::size_t col = 0; col < N; ++col) {
+                        if (missMap[linAt(ii, col)]) continue;
+                        if (missMap[linAt(jj, col)]) {
+                            sumSq = nanv;
+                            break;
+                        }
+                        const double dr = reAt(ii, col) - reAt(jj, col);
+                        const double di = imAt(ii, col) - imAt(jj, col);
+                        const double d2 = dr * dr + di * di;
+                        if (knnDist == "seuclidean") {
+                            const double sc = scale[col];
+                            sumSq += d2 / (sc * sc);
+                        } else {
+                            sumSq += d2;
+                        }
+                    }
+                    dists[jj] = std::sqrt(sumSq);
+                }
+            }
+
+            ord.clear();
+            for (std::size_t jj = 0; jj < M; ++jj)
+                if (!std::isnan(dists[jj])) ord.push_back(jj);
+            std::stable_sort(ord.begin(), ord.end(),
+                             [&](std::size_t a, std::size_t b) {
+                                 return dists[a] < dists[b];
+                             });
+            if (ord.empty()) continue;
+
+            for (std::size_t col = 0; col < N; ++col) {
+                const std::size_t dstLin = linAt(ii, col);
+                if (!missMap[dstLin]) continue;
+                double sumRe = 0.0, sumIm = 0.0;
+                std::size_t used = 0;
+                for (std::size_t cand : ord) {
+                    if (!missMap[linAt(cand, col)]) {
+                        sumRe += reAt(cand, col);
+                        sumIm += imAt(cand, col);
+                        if (++used == knnK) break;
+                    }
+                }
+                if (used > 0) {
+                    const double fRe = sumRe / double(used);
+                    const double fIm = sumIm / double(used);
+                    if (outComplex) {
+                        B.complexDataMut()[dstLin] = Complex(fRe, fIm);
+                    } else if (single) {
+                        B.singleDataMut()[dstLin] = static_cast<float>(fRe);
+                    } else {
+                        B.doubleDataMut()[dstLin] = fRe;
+                    }
+                    if (fmd) fmd[dstLin] = 1;
+                }
+            }
+        }
+        out.B = std::move(B);
+        out.filled = std::move(filledMap);
+        return out;
+    }
+
+    // ── standard 1-D slice fill path ──────────────────────────────────
     const double nanv = std::numeric_limits<double>::quiet_NaN();
-    std::vector<double> re(runLen), im, origRe(runLen);
-    if (complex) im.resize(runLen);
+    const bool useSp = !samplePoints.empty();
+    std::vector<double> sVec(runLen);
+    for (std::size_t j = 0; j < runLen; ++j)
+        sVec[j] = useSp ? samplePoints[j] : static_cast<double>(j + 1);
+    const double *spPtr = useSp ? sVec.data() : nullptr;
+
+    std::vector<double> re(runLen), im(runLen, 0.0), origRe(runLen), origIm(runLen, 0.0);
+    std::vector<uint8_t> ma(runLen), maBeforeInterp(runLen), origMiss(runLen);
+
+    auto removeLargeGapsSlice = [&](std::vector<uint8_t> &mask) {
+        if (!std::isfinite(maxGap) || runLen == 0) return;
+        std::size_t j = 0;
+        while (j < runLen) {
+            if (!mask[j]) { ++j; continue; }
+            std::size_t k = j;
+            while (k + 1 < runLen && mask[k + 1]) ++k;
+            const double leftX = (j == 0) ? sVec[0] : sVec[j - 1];
+            const double rightX = (k + 1 == runLen) ? sVec[runLen - 1] : sVec[k + 1];
+            if (!(leftX + maxGap >= rightX)) {
+                for (std::size_t q = j; q <= k; ++q) mask[q] = 0;
+            }
+            j = k + 1;
+        }
+    };
+
     for (std::size_t k = 0; k < nRuns; ++k) {
         const double cv = (constVals.size() > 1) ? constVals[k]
                           : (constVals.empty() ? 0.0 : constVals[0]);
-        const double cim = (complex && constVals.size() > 1)
+        const double cim = (outComplex && constImag.size() > 1)
                                ? constImag[k]
-                               : (complex && !constImag.empty()
+                               : (outComplex && !constImag.empty()
                                       ? constImag[0] : 0.0);
+        const double evRe = (endVals.size() > 1) ? endVals[k]
+                            : (endVals.empty() ? endConst : endVals[0]);
+        const double evIm = (outComplex && endImag.size() > 1)
+                                ? endImag[k]
+                                : (outComplex && !endImag.empty()
+                                       ? endImag[0] : 0.0);
+
+        std::size_t numNonMissing = 0;
         for (std::size_t j = 0; j < runLen; ++j) {
             const std::size_t lin = along2 ? k + j * r : k * runLen + j;
             if (complex) {
@@ -1228,86 +1643,293 @@ FillMissingOut fillmissing_full(const Value &A, Span<const Value> in,
                 im[j] = z.imag();
             } else {
                 re[j] = A.elemAsDouble(lin);
+                im[j] = 0.0;
             }
             origRe[j] = re[j];
+            origIm[j] = im[j];
+            origMiss[j] = missMap[lin];
+            ma[j] = missMap[lin];
+            if (!ma[j]) ++numNonMissing;
         }
-        // Main fill (on the real part; complex positional methods split).
-        if (m == "constant") {
-            if (complex) {
-                // A complex element is missing when EITHER part is NaN
-                // (the other part may be a stored 0).
-                for (std::size_t j = 0; j < runLen; ++j)
-                    if (std::isnan(re[j]) || std::isnan(im[j])) {
+
+        // All-missing column special case (matches fillArrayColumn lines 413-434).
+        if (numNonMissing == 0) {
+            if (!std::isfinite(maxGap)) {
+                if (isFnHandle && endMode == 0 && callFn) {
+                    Value xs = Value::matrix(0, 1, ValueType::DOUBLE, mr);
+                    Value ts = Value::matrix(0, 1, ValueType::DOUBLE, mr);
+                    Value tq = Value::matrix(runLen, 1, ValueType::DOUBLE, mr);
+                    for (std::size_t j = 0; j < runLen; ++j)
+                        tq.doubleDataMut()[j] = sVec[j];
+                    Value fargs[3] = {std::move(xs), std::move(ts), std::move(tq)};
+                    Value ytmp = callFn(*fhVal, Span<const Value>(fargs, 3));
+                    if (ytmp.numel() == 1 || (ytmp.dims().isVector() && ytmp.numel() == runLen)) {
+                        for (std::size_t j = 0; j < runLen; ++j) {
+                            const std::size_t yi = (ytmp.numel() == 1) ? 0 : j;
+                            re[j] = ytmp.elemAsDouble(yi);
+                            if (ytmp.isComplex()) im[j] = ytmp.complexData()[yi].imag();
+                        }
+                    } else {
+                        throw Error(std::string(fn) + ": function handle output "
+                                    "must be a scalar or a vector matching the gap length",
+                                    0, 0, fn, "",
+                                    std::string("numkit:") + fn + ":functionHandleInvalidOutputSize");
+                    }
+                } else if (endMode == 5) {
+                    for (std::size_t j = 0; j < runLen; ++j) {
+                        re[j] = evRe;
+                        im[j] = evIm;
+                    }
+                } else if (m == "constant" && endMode == 0) {
+                    for (std::size_t j = 0; j < runLen; ++j) {
                         re[j] = cv;
                         im[j] = cim;
                     }
+                } else {
+                    std::fill(ma.begin(), ma.end(), 0);
+                }
             } else {
-                for (std::size_t j = 0; j < runLen; ++j)
-                    if (std::isnan(re[j])) re[j] = cv;
+                std::fill(ma.begin(), ma.end(), 0);
+            }
+            for (std::size_t j = 0; j < runLen; ++j) {
+                const std::size_t lin = along2 ? k + j * r : k * runLen + j;
+                if (outComplex) {
+                    B.complexDataMut()[lin] = Complex(re[j], im[j]);
+                } else if (single) {
+                    B.singleDataMut()[lin] = static_cast<float>(re[j]);
+                } else {
+                    B.doubleDataMut()[lin] = re[j];
+                }
+                if (fmd) {
+                    const bool stillNaN = std::isnan(re[j]) ||
+                                          (outComplex && std::isnan(im[j]));
+                    fmd[lin] = (ma[j] && !stillNaN) ? 1 : 0;
+                }
+            }
+            continue;
+        }
+
+        // Ignore gaps larger than MaxGap.
+        removeLargeGapsSlice(ma);
+        maBeforeInterp = ma;
+
+        // Find leading/trailing gap boundaries from maBeforeInterp.
+        std::size_t indBeg = 0;
+        if (maBeforeInterp[0]) {
+            while (indBeg < runLen && maBeforeInterp[indBeg]) ++indBeg;
+        }
+        std::size_t indEnd = runLen - 1;
+        if (maBeforeInterp[runLen - 1]) {
+            while (indEnd > 0 && maBeforeInterp[indEnd]) --indEnd;
+        }
+
+        if (isFnHandle) {
+            if (!callFn)
+                throw Error(std::string(fn) + ": function handle fill requires "
+                            "an execution context",
+                            0, 0, fn, "",
+                            std::string("numkit:") + fn + ":functionHandleInput");
+            const bool isExtrap = (endMode == 0);
+            if (!isExtrap) {
+                for (std::size_t j = 0; j < indBeg; ++j) ma[j] = 0;
+                for (std::size_t j = indEnd + 1; j < runLen; ++j) ma[j] = 0;
+            }
+            const double aSpan = fhTwoElem ? fhA : (useSp ? 0.5 * fhA : std::floor(0.5 * fhA));
+            const double bSpan = fhTwoElem ? fhB : (useSp ? 0.5 * fhB : std::floor(0.5 * fhB));
+            std::size_t j0 = 0;
+            while (j0 < runLen) {
+                if (!ma[j0]) { ++j0; continue; }
+                std::size_t j1 = j0;
+                while (j1 + 1 < runLen && ma[j1 + 1]) ++j1;
+                std::vector<std::size_t> ind;
+                for (std::size_t q = 0; q < runLen; ++q) {
+                    if (origMiss[q]) continue;
+                    bool inW = false;
+                    if (useSp) {
+                        inW = ((sVec[q] >= sVec[j0] - aSpan) && (sVec[q] < sVec[j0])) ||
+                              ((sVec[q] > sVec[j1]) && (sVec[q] <= sVec[j1] + bSpan));
+                    } else {
+                        const double q1 = static_cast<double>(q + 1);
+                        const double g0 = static_cast<double>(j0 + 1);
+                        const double g1 = static_cast<double>(j1 + 1);
+                        inW = (q1 >= std::ceil(g0 - aSpan) && q1 <= g0 - 1.0) ||
+                              (q1 >= g1 + 1.0 && q1 <= std::floor(g1 + bSpan));
+                    }
+                    if (inW) ind.push_back(q);
+                }
+                const std::size_t gapLen = j1 - j0 + 1;
+                Value xs = outComplex ? Value::matrix(ind.size(), 1, ValueType::COMPLEX, mr)
+                                      : Value::matrix(ind.size(), 1, ValueType::DOUBLE, mr);
+                Value ts = Value::matrix(ind.size(), 1, ValueType::DOUBLE, mr);
+                Value tq = Value::matrix(gapLen, 1, ValueType::DOUBLE, mr);
+                for (std::size_t q = 0; q < ind.size(); ++q) {
+                    if (outComplex)
+                        xs.complexDataMut()[q] = Complex(origRe[ind[q]], origIm[ind[q]]);
+                    else
+                        xs.doubleDataMut()[q] = origRe[ind[q]];
+                    ts.doubleDataMut()[q] = sVec[ind[q]];
+                }
+                for (std::size_t q = 0; q < gapLen; ++q)
+                    tq.doubleDataMut()[q] = sVec[j0 + q];
+                Value fargs[3] = {std::move(xs), std::move(ts), std::move(tq)};
+                Value ytmp = callFn(*fhVal, Span<const Value>(fargs, 3));
+                if (!(ytmp.numel() == 1 ||
+                      (ytmp.dims().isVector() && ytmp.numel() == gapLen)))
+                    throw Error(std::string(fn) + ": function handle output "
+                                "must be a scalar or a vector matching the gap length",
+                                0, 0, fn, "",
+                                std::string("numkit:") + fn + ":functionHandleInvalidOutputSize");
+                for (std::size_t q = 0; q < gapLen; ++q) {
+                    const std::size_t yi = (ytmp.numel() == 1) ? 0 : q;
+                    re[j0 + q] = ytmp.elemAsDouble(yi);
+                    if (ytmp.isComplex())
+                        im[j0 + q] = ytmp.complexData()[yi].imag();
+                }
+                j0 = j1 + 1;
+            }
+        } else if (m == "constant") {
+            for (std::size_t j = 0; j < runLen; ++j) {
+                if (ma[j]) {
+                    re[j] = cv;
+                    im[j] = cim;
+                }
             }
         } else if (m == "movmean" || m == "movmedian") {
             // The moving statistic is computed on the ORIGINAL data
             // (NaN-omitted shrunk windows) — earlier fills must not
             // feed later windows.
             const bool isMean = (m == "movmean");
-            std::vector<double> win;
+            std::vector<double> winRe, winIm;
             for (std::size_t j = 0; j < runLen; ++j) {
-                if (!std::isnan(re[j])) continue;
-                long lo = static_cast<long>(j) - hb; if (lo < 0) lo = 0;
-                long hi = static_cast<long>(j) + hf;
-                if (hi > static_cast<long>(runLen) - 1)
-                    hi = static_cast<long>(runLen) - 1;
-                win.clear();
-                for (long q = lo; q <= hi; ++q)
-                    if (!std::isnan(origRe[static_cast<std::size_t>(q)]))
-                        win.push_back(origRe[static_cast<std::size_t>(q)]);
-                if (win.empty()) continue;
+                if (!ma[j]) continue;
+                winRe.clear();
+                winIm.clear();
+                if (useSp) {
+                    const double loS = sVec[j] - hbSpan;
+                    const double hiS = sVec[j] + hfSpan;
+                    for (std::size_t q = 0; q < runLen; ++q) {
+                        const bool inW = winTwoElem
+                                             ? (sVec[q] >= loS && sVec[q] <= hiS)
+                                             : (sVec[q] >= loS && sVec[q] < hiS);
+                        if (inW && !origMiss[q]) {
+                            winRe.push_back(origRe[q]);
+                            if (outComplex) winIm.push_back(origIm[q]);
+                        }
+                    }
+                } else {
+                    long lo = static_cast<long>(j) - hb; if (lo < 0) lo = 0;
+                    long hi = static_cast<long>(j) + hf;
+                    if (hi > static_cast<long>(runLen) - 1)
+                        hi = static_cast<long>(runLen) - 1;
+                    for (long q = lo; q <= hi; ++q) {
+                        const std::size_t qi = static_cast<std::size_t>(q);
+                        if (!origMiss[qi]) {
+                            winRe.push_back(origRe[qi]);
+                            if (outComplex) winIm.push_back(origIm[qi]);
+                        }
+                    }
+                }
+                if (winRe.empty()) continue;
                 if (isMean) {
                     double s = 0.0;
-                    for (double vv : win) s += vv;
-                    re[j] = s / double(win.size());
+                    for (double vv : winRe) s += vv;
+                    re[j] = s / double(winRe.size());
+                    if (outComplex) {
+                        double si = 0.0;
+                        for (double vv : winIm) si += vv;
+                        im[j] = si / double(winIm.size());
+                    }
                 } else {
-                    std::sort(win.begin(), win.end());
-                    const std::size_t k2 = win.size();
-                    re[j] = (k2 % 2 == 1) ? win[k2 / 2]
-                                          : 0.5 * (win[k2 / 2 - 1] + win[k2 / 2]);
+                    std::sort(winRe.begin(), winRe.end());
+                    const std::size_t k2 = winRe.size();
+                    re[j] = (k2 % 2 == 1) ? winRe[k2 / 2]
+                                          : 0.5 * (winRe[k2 / 2 - 1] + winRe[k2 / 2]);
+                    if (outComplex) {
+                        std::sort(winIm.begin(), winIm.end());
+                        im[j] = (k2 % 2 == 1) ? winIm[k2 / 2]
+                                              : 0.5 * (winIm[k2 / 2 - 1] + winIm[k2 / 2]);
+                    }
                 }
             }
-            if (complex)
-                for (std::size_t j = 0; j < runLen; ++j)
-                    if (std::isnan(im[j])) im[j] = 0.0;
         } else {
-            fill_one_column(re.data(), runLen, m, 0.0);
-            if (complex)
-                fill_one_column(im.data(), runLen, m, 0.0);
+            // Prepare working copy where origMiss positions are NaN so
+            // fill_one_column sees true known points, then copy back only
+            // at ma[j] == 1 (respecting MaxGap).
+            std::vector<double> workRe(runLen), workIm(runLen, 0.0);
+            for (std::size_t j = 0; j < runLen; ++j) {
+                workRe[j] = origMiss[j] ? nanv : origRe[j];
+                if (outComplex) workIm[j] = origMiss[j] ? nanv : origIm[j];
+            }
+            fill_one_column(workRe.data(), runLen, m, 0.0, spPtr, mr);
+            if (outComplex)
+                fill_one_column(workIm.data(), runLen, m, 0.0, spPtr, mr);
+            for (std::size_t j = 0; j < runLen; ++j) {
+                if (ma[j]) {
+                    re[j] = workRe[j];
+                    if (outComplex) im[j] = workIm[j];
+                }
+            }
         }
-        // EndValues post-pass on the leading/trailing gap runs.
-        if (haveEnd) {
-            const FmEndMode mode = (endMode == 0) ? FmEndMode::Extrap
-                               : (endMode == 1) ? FmEndMode::None
-                               : (endMode == 2) ? FmEndMode::Nearest
-                               : (endMode == 3) ? FmEndMode::PrevEnd
-                               : (endMode == 4) ? FmEndMode::NextEnd
-                                                : FmEndMode::Const;
-            apply_end_values_column(origRe.data(), re.data(), runLen, mode,
-                                    endConst);
-            if (complex)
-                apply_end_values_column(origRe.data(), im.data(), runLen,
-                                        mode, endMode == 5 ? 0.0 : endConst);
+
+        // EndValues post-pass on the leading [0..indBeg-1] and trailing
+        // [indEnd+1..runLen-1] gaps that survived MaxGap.
+        if (haveEnd && (indBeg > 0 || indEnd + 1 < runLen)) {
+            auto applyEndAt = [&](std::size_t j, bool leading) {
+                if (endMode == 1) { // 'none'
+                    re[j] = origRe[j];
+                    im[j] = origIm[j];
+                    ma[j] = 0;
+                } else if (endMode == 2) { // 'nearest'
+                    const std::size_t src = leading ? indBeg : indEnd;
+                    re[j] = origRe[src];
+                    im[j] = origIm[src];
+                    ma[j] = 1;
+                } else if (endMode == 3) { // 'previous'
+                    if (leading) {
+                        re[j] = origRe[j];
+                        im[j] = origIm[j];
+                        ma[j] = 0;
+                    } else {
+                        re[j] = origRe[indEnd];
+                        im[j] = origIm[indEnd];
+                        ma[j] = 1;
+                    }
+                } else if (endMode == 4) { // 'next'
+                    if (leading) {
+                        re[j] = origRe[indBeg];
+                        im[j] = origIm[indBeg];
+                        ma[j] = 1;
+                    } else {
+                        re[j] = origRe[j];
+                        im[j] = origIm[j];
+                        ma[j] = 0;
+                    }
+                } else if (endMode == 5) { // constant
+                    re[j] = evRe;
+                    im[j] = evIm;
+                    ma[j] = 1;
+                }
+            };
+            for (std::size_t j = 0; j < indBeg; ++j) applyEndAt(j, true);
+            for (std::size_t j = indEnd + 1; j < runLen; ++j) applyEndAt(j, false);
         }
+
         for (std::size_t j = 0; j < runLen; ++j) {
             const std::size_t lin = along2 ? k + j * r : k * runLen + j;
-            if (complex) {
+            if (outComplex) {
                 B.complexDataMut()[lin] = Complex(re[j], im[j]);
             } else if (single) {
                 B.singleDataMut()[lin] = static_cast<float>(re[j]);
             } else {
                 B.doubleDataMut()[lin] = re[j];
             }
-            if (fmd) fmd[lin] = missMap[lin];
+            if (fmd) {
+                const bool stillNaN = std::isnan(re[j]) ||
+                                      (outComplex && std::isnan(im[j]));
+                fmd[lin] = (ma[j] && !stillNaN) ? 1 : 0;
+            }
         }
     }
-    (void)nanv;
     out.B = std::move(B);
     out.filled = std::move(filledMap);
     return out;
@@ -1390,6 +2012,7 @@ Value detrend_full(const Value &x, Span<const Value> in,
     std::vector<std::size_t> bpLogIdx;
     bool omitNan = false;
     bool continuity = true;
+    const Value *samplePointsRaw = nullptr;
 
     std::size_t i = 0;
     if (!in.empty()) {
@@ -1465,12 +2088,10 @@ Value detrend_full(const Value &x, Span<const Value> in,
         if (nm.size() >= 4 && std::string("continuous").rfind(nm, 0) == 0) {
             continuity = !((v.isLogical() || v.isNumeric()) && v.numel() == 1 &&
                            v.elemAsDouble(0) == 0.0);
-        } else if (std::string("samplepoints").rfind(nm, 0) == 0) {
-            throw Error("detrend: 'SamplePoints' is not supported in this "
-                        "revision",
-                        0, 0, "detrend", "", "numkit:detrend:samplePoints");
-        } else if (std::string("datavariables").rfind(nm, 0) == 0 ||
-                   std::string("replacevalues").rfind(nm, 0) == 0) {
+        } else if (!nm.empty() && std::string("samplepoints").rfind(nm, 0) == 0) {
+            samplePointsRaw = &v;
+        } else if ((!nm.empty() && std::string("datavariables").rfind(nm, 0) == 0) ||
+                   (!nm.empty() && std::string("replacevalues").rfind(nm, 0) == 0)) {
             throw Error("detrend: '" + in[i].toString() + "' is supported "
                         "only for table inputs",
                         0, 0, "detrend", "", "numkit:detrend:tableOnly");
@@ -1491,22 +2112,33 @@ Value detrend_full(const Value &x, Span<const Value> in,
     const bool single = (x.type() == ValueType::SINGLE);
     const bool complex = (x.type() == ValueType::COMPLEX);
 
+    std::vector<double> sVec(N);
+    double minS = 1.0;
+    if (samplePointsRaw) {
+        std::vector<double> sp = validateSamplePoints(
+            *samplePointsRaw, N, x.isEmpty(), true, "detrend");
+        minS = sp.empty() ? 0.0 : sp[0];
+        for (std::size_t j = 0; j < N; ++j) sVec[j] = sp[j] - minS;
+    } else {
+        for (std::size_t j = 0; j < N; ++j) sVec[j] = static_cast<double>(j);
+    }
+
     auto detrendRun = [&](const double *src, double *dst, std::size_t n) {
         const double nanv = std::numeric_limits<double>::quiet_NaN();
         if (n == 0) return;
-        // Knots on the default abscissa s = 0..n-1.
+        // Knots on the centered abscissa sVec (0..sVec.back()).
         std::vector<double> knots;
         if (bpLogical) {
             for (std::size_t j : bpLogIdx)
-                if (j < n) knots.push_back(double(j));
+                if (j < n) knots.push_back(sVec[j]);
         } else {
-            for (double v : bp) knots.push_back(v - 1.0);   // ref shift
+            for (double v : bp) knots.push_back(v - minS);
         }
         knots.push_back(0.0);                               // bookend s(1)
         if (n > 1) {
             std::vector<double> keep;
             for (double v : knots)
-                if (v >= 0.0 && v < double(n - 1)) keep.push_back(v);
+                if (v >= 0.0 && v < sVec[n - 1]) keep.push_back(v);
             knots = keep;
         }
         std::sort(knots.begin(), knots.end());
@@ -1522,7 +2154,7 @@ Value detrend_full(const Value &x, Span<const Value> in,
             if (anyNaN && !omitNan) return;   // includenan poisons the run
             for (std::size_t j = 0; j < n; ++j) {
                 if (omitNan && std::isnan(src[j])) continue;
-                xs.push_back(double(j));
+                xs.push_back(sVec[j]);
                 ys.push_back(src[j]);
                 orig.push_back(j);
             }
@@ -1564,7 +2196,7 @@ Value detrend_full(const Value &x, Span<const Value> in,
             for (std::size_t k = 0; k < knots.size(); ++k) {
                 const double lo = knots[k];
                 const double hi = (k + 1 < knots.size())
-                                      ? knots[k + 1] : double(n);
+                                      ? knots[k + 1] : (sVec.back() + 1.0);
                 std::vector<std::size_t> seg;
                 for (std::size_t j = 0; j < m; ++j)
                     if (xs[j] >= lo && xs[j] < hi) seg.push_back(j);

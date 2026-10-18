@@ -157,6 +157,8 @@ Value nearcorr_full(const Value &A, Span<const Value> nv,
     // ── name-value parse (probe71 N05-N07: one optional-input class) ────
     double tol = 1e-6;
     double maxIterD = 200.0;
+    bool hasWeights = false;
+    std::vector<double> wScale;
     static constexpr std::string_view kNv[] = {"tolerance", "maxiterations",
                                                "method", "weights"};
     const auto badOpt = [&](const std::string &why) {
@@ -199,13 +201,35 @@ Value nearcorr_full(const Value &A, Span<const Value> nv,
                            + v.toString() + "'");
                 break;  // both accepted — see the divergence note above
             }
-            case 3: {  // Weights: voiced stub (filed)
-                throw Error("nearcorr: 'Weights' is not supported in this "
-                            "revision (weighted nearest-correlation changes "
-                            "the minimizer). Omit 'Weights' for the "
-                            "unweighted problem.",
-                            0, 0, "nearcorr", "",
-                            "numkit:nearcorr:weightsUnsupported");
+            case 3: {  // Weights: positive length-N vector or symmetric positive N×N matrix
+                if (!v.isNumeric() || v.isComplex() || v.numel() == 0
+                    || v.dims().ndim() > 2
+                    || !argcheck::maskAccepts(kFloatReal, argcheck::classBitOf(v.type())))
+                    badOpt("'Weights' must be a real float vector or symmetric matrix");
+                const bool isVec = v.dims().isVector() && v.numel() == N;
+                const bool isMat = (v.dims().rows() == N && v.dims().cols() == N);
+                if (!isVec && !isMat)
+                    badOpt("'Weights' must be a length-N vector or N-by-N matrix");
+                for (size_t k = 0; k < v.numel(); ++k) {
+                    const double wk = v.elemAsDouble(k);
+                    if (!(wk > 0.0) || !std::isfinite(wk))
+                        badOpt("'Weights' entries must be finite and positive");
+                }
+                wScale.resize(N * N);
+                if (isVec) {
+                    for (size_t j = 0; j < N; ++j)
+                        for (size_t i = 0; i < N; ++i)
+                            wScale[i + j * N] = std::sqrt(v.elemAsDouble(i) * v.elemAsDouble(j));
+                } else {
+                    for (size_t j = 0; j < N; ++j)
+                        for (size_t i = 0; i < N; ++i) {
+                            if (i < j && v.elemAsDouble(i + j * N) != v.elemAsDouble(j + i * N))
+                                badOpt("'Weights' matrix must be symmetric");
+                            wScale[i + j * N] = std::sqrt(v.elemAsDouble(i + j * N));
+                        }
+                }
+                hasWeights = true;
+                break;
             }
             default: break;
             }
@@ -224,10 +248,19 @@ Value nearcorr_full(const Value &A, Span<const Value> nv,
     std::vector<double> dS(N * N, 0.0), Y = Yold;
 
     for (long it = 0; it <= maxIter; ++it) {
-        // R = Yold - dS; X = proj_PSD(R); dS = X - R; Y = X, unit diag.
+        // R = Yold - dS; X = proj_PSD_W(R); dS = X - R; Y = X, unit diag.
         std::vector<double> R(N * N);
         for (size_t k = 0; k < N * N; ++k) R[k] = Yold[k] - dS[k];
-        std::vector<double> X = projPSD(R, N, mr);
+        std::vector<double> X;
+        if (hasWeights) {
+            std::vector<double> Rw(N * N);
+            for (size_t k = 0; k < N * N; ++k) Rw[k] = R[k] * wScale[k];
+            std::vector<double> Xw = projPSD(Rw, N, mr);
+            X.resize(N * N);
+            for (size_t k = 0; k < N * N; ++k) X[k] = Xw[k] / wScale[k];
+        } else {
+            X = projPSD(R, N, mr);
+        }
         for (size_t k = 0; k < N * N; ++k) dS[k] = X[k] - R[k];
         Y = X;
         for (size_t i = 0; i < N; ++i) Y[i + i * N] = 1.0;

@@ -105,10 +105,12 @@ CorrTail parseTailChoice(const Value &v, std::string_view fn)
 
 // ── rank / Kendall kernels (moved from the register adapter) ──────────
 
-// Replace each column of X (n×p) with its tied (average) ranks. Pearson of
-// the ranks is exactly the Spearman correlation.
-Value rankColumns(const Value &X, std::pmr::memory_resource *mr)
+// Replace each column of X (n×p) with its tied (average) ranks, or weighted
+// midranks when wts is non-null.
+Value rankColumnsWeighted(const Value &X, const Value *wts,
+                          std::pmr::memory_resource *mr)
 {
+    if (!wts) return tiedrank(X, mr).first;
     const std::size_t n = static_cast<std::size_t>(X.dims().dim(0));
     const std::size_t p = (X.dims().ndim() >= 2)
                             ? static_cast<std::size_t>(X.dims().dim(1)) : 1;
@@ -116,54 +118,75 @@ Value rankColumns(const Value &X, std::pmr::memory_resource *mr)
     double *rd = R.doubleDataMut();
     ScratchArena scratch(mr);
     for (std::size_t c = 0; c < p; ++c) {
+        bool hasNaN = false;
+        for (std::size_t i = 0; i < n; ++i)
+            if (std::isnan(X.elemAsDouble(i + c * n))) { hasNaN = true; break; }
+        if (hasNaN) {
+            for (std::size_t i = 0; i < n; ++i) rd[i + c * n] = kNaN;
+            continue;
+        }
         ScratchVec<std::size_t> idx(n, static_cast<std::size_t>(0), &scratch);
         for (std::size_t i = 0; i < n; ++i) idx[i] = i;
         std::stable_sort(idx.begin(), idx.end(), [&](std::size_t a, std::size_t b) {
             return X.elemAsDouble(a + c * n) < X.elemAsDouble(b + c * n);
         });
+        double wPrev = 0.0;
         std::size_t i = 0;
         while (i < n) {
             std::size_t j = i;
             const double v = X.elemAsDouble(idx[i] + c * n);
-            while (j + 1 < n && X.elemAsDouble(idx[j + 1] + c * n) == v) ++j;
-            const double avg =
-                (static_cast<double>(i + 1) + static_cast<double>(j + 1)) / 2.0;
+            double wGroup = wts->elemAsDouble(idx[i]);
+            while (j + 1 < n && X.elemAsDouble(idx[j + 1] + c * n) == v) {
+                ++j;
+                wGroup += wts->elemAsDouble(idx[j]);
+            }
+            const double avg = wPrev + 0.5 * (1.0 + wGroup);
             for (std::size_t k = i; k <= j; ++k) rd[idx[k] + c * n] = avg;
+            wPrev += wGroup;
             i = j + 1;
         }
     }
     return R;
 }
 
-// Kendall tau-b between column ci of X and column cj of Y (length n).
+// Kendall tau-b between column ci of X and column cj of Y (length n),
+// with optional nonnegative observation weights wts.
 double kendallTauB(const Value &X, std::size_t ci,
-                   const Value &Y, std::size_t cj, std::size_t n)
+                   const Value &Y, std::size_t cj, std::size_t n,
+                   const Value *wts = nullptr)
 {
-    long nc = 0, nd = 0, n1 = 0, n2 = 0; // concordant, discordant, ties in x, ties in y
+    double s = 0.0, n0 = 0.0, n1 = 0.0, n2 = 0.0;
     for (std::size_t i = 0; i < n; ++i) {
         const double ai = X.elemAsDouble(i + ci * n);
         const double bi = Y.elemAsDouble(i + cj * n);
+        if (std::isnan(ai) || std::isnan(bi)) return kNaN;
+        const double wi = wts ? wts->elemAsDouble(i) : 1.0;
         for (std::size_t j = i + 1; j < n; ++j) {
-            const double da = X.elemAsDouble(j + ci * n) - ai;
-            const double db = Y.elemAsDouble(j + cj * n) - bi;
+            const double aj = X.elemAsDouble(j + ci * n);
+            const double bj = Y.elemAsDouble(j + cj * n);
+            if (std::isnan(aj) || std::isnan(bj)) return kNaN;
+            const double wj = wts ? wts->elemAsDouble(j) : 1.0;
+            const double wij = wi * wj;
+            n0 += wij;
+            const double da = aj - ai;
+            const double db = bj - bi;
             const bool tiea = (da == 0.0);
             const bool tieb = (db == 0.0);
-            if (tiea) ++n1;
-            if (tieb) ++n2;
+            if (tiea) n1 += wij;
+            if (tieb) n2 += wij;
             if (!tiea && !tieb) {
-                if ((da > 0.0) == (db > 0.0)) ++nc; else ++nd;
+                s += ((da > 0.0) == (db > 0.0)) ? wij : -wij;
             }
         }
     }
-    const double n0 = static_cast<double>(n) * (static_cast<double>(n) - 1.0) / 2.0;
-    const double denom = std::sqrt((n0 - static_cast<double>(n1)) *
-                                   (n0 - static_cast<double>(n2)));
+    const double denom = std::sqrt((n0 - n1) * (n0 - n2));
     if (denom <= 0.0) return std::numeric_limits<double>::quiet_NaN();
-    return (static_cast<double>(nc) - static_cast<double>(nd)) / denom;
+    return s / denom;
 }
 
 // p×q matrix of Kendall tau-b for every column pair of X (n×p), Y (n×q).
-Value kendallMatrix(const Value &X, const Value &Y, std::pmr::memory_resource *mr)
+Value kendallMatrix(const Value &X, const Value &Y, const Value *wts,
+                    std::pmr::memory_resource *mr)
 {
     const std::size_t n = static_cast<std::size_t>(X.dims().dim(0));
     const std::size_t p = (X.dims().ndim() >= 2)
@@ -177,7 +200,7 @@ Value kendallMatrix(const Value &X, const Value &Y, std::pmr::memory_resource *m
     double *od = out.doubleDataMut();
     for (std::size_t j = 0; j < q; ++j)
         for (std::size_t i = 0; i < p; ++i)
-            od[i + j * p] = kendallTauB(X, i, Y, j, n);
+            od[i + j * p] = kendallTauB(X, i, Y, j, n, wts);
     return out;
 }
 
@@ -192,6 +215,15 @@ std::size_t corrColsOf(const Value &X)
     return (X.dims().ndim() >= 2) ? static_cast<std::size_t>(X.dims().dim(1)) : 1;
 }
 
+bool elemIsNaN(const Value &V, std::size_t idx)
+{
+    if (V.type() == ValueType::COMPLEX) {
+        const Complex c = V.complexData()[idx];
+        return std::isnan(c.real()) || std::isnan(c.imag());
+    }
+    return std::isnan(V.elemAsDouble(idx));
+}
+
 // Gather X (and Y, sharing the row index) keeping only rows where keep
 // is true; weights filtered alongside. keep has n entries.
 void gatherRows(const Value &X, const Value *Y, const Value *wts,
@@ -203,17 +235,33 @@ void gatherRows(const Value &X, const Value *Y, const Value *wts,
     const std::size_t pY = Y ? corrColsOf(*Y) : 0;
     const std::size_t m = static_cast<std::size_t>(
         std::count(keep.begin(), keep.end(), 1));
-    Xo = Value::matrix(m, pX, ValueType::DOUBLE, mr);
-    double *xo = Xo.doubleDataMut();
-    for (std::size_t c = 0; c < pX; ++c)
-        for (std::size_t r = 0, w = 0; r < n; ++r)
-            if (keep[r]) xo[w++ + c * m] = X.elemAsDouble(r + c * n);
-    if (Y && Yo) {
-        *Yo = Value::matrix(m, pY, ValueType::DOUBLE, mr);
-        double *yo = Yo->doubleDataMut();
-        for (std::size_t c = 0; c < pY; ++c)
+    if (X.type() == ValueType::COMPLEX) {
+        Xo = Value::matrix(m, pX, ValueType::COMPLEX, mr);
+        Complex *xo = Xo.complexDataMut();
+        for (std::size_t c = 0; c < pX; ++c)
             for (std::size_t r = 0, w = 0; r < n; ++r)
-                if (keep[r]) yo[w++ + c * m] = Y->elemAsDouble(r + c * n);
+                if (keep[r]) xo[w++ + c * m] = X.complexData()[r + c * n];
+    } else {
+        Xo = Value::matrix(m, pX, ValueType::DOUBLE, mr);
+        double *xo = Xo.doubleDataMut();
+        for (std::size_t c = 0; c < pX; ++c)
+            for (std::size_t r = 0, w = 0; r < n; ++r)
+                if (keep[r]) xo[w++ + c * m] = X.elemAsDouble(r + c * n);
+    }
+    if (Y && Yo) {
+        if (Y->type() == ValueType::COMPLEX) {
+            *Yo = Value::matrix(m, pY, ValueType::COMPLEX, mr);
+            Complex *yo = Yo->complexDataMut();
+            for (std::size_t c = 0; c < pY; ++c)
+                for (std::size_t r = 0, w = 0; r < n; ++r)
+                    if (keep[r]) yo[w++ + c * m] = Y->complexData()[r + c * n];
+        } else {
+            *Yo = Value::matrix(m, pY, ValueType::DOUBLE, mr);
+            double *yo = Yo->doubleDataMut();
+            for (std::size_t c = 0; c < pY; ++c)
+                for (std::size_t r = 0, w = 0; r < n; ++r)
+                    if (keep[r]) yo[w++ + c * m] = Y->elemAsDouble(r + c * n);
+        }
     }
     if (wts) {
         wo = Value::matrix(m, 1, ValueType::DOUBLE, mr);
@@ -236,10 +284,10 @@ void dropCompleteRows(const Value &X, const Value *Y, const Value *wts,
     std::vector<uint8_t> keep(n, 1);
     for (std::size_t r = 0; r < n; ++r) {
         for (std::size_t c = 0; c < pX && keep[r]; ++c)
-            if (std::isnan(X.elemAsDouble(r + c * n))) keep[r] = 0;
+            if (elemIsNaN(X, r + c * n)) keep[r] = 0;
         if (Y)
             for (std::size_t c = 0; c < pY && keep[r]; ++c)
-                if (std::isnan(Y->elemAsDouble(r + c * n))) keep[r] = 0;
+                if (elemIsNaN(*Y, r + c * n)) keep[r] = 0;
         if (wts && keep[r] && !(wts->elemAsDouble(r) > 0.0)) keep[r] = 0;
     }
     gatherRows(X, Y, wts, keep, mr, Xo, Yo, wo);
@@ -357,10 +405,108 @@ Value pearsonMatrixFull(const Value &X, const Value &Y, const Value *wts,
     return out;
 }
 
-// Pairwise Pearson with per-pair NaN removal, optional weights, and the
-// per-pair observation counts (nij — the p-value denominator for 'pairwise').
+// Pairwise Pearson with per-pair NaN removal, optional weights, complex
+// support, and the per-pair observation counts (nij — the p-value
+// denominator for 'pairwise').
 struct PairwisePearsonOut { Value coef, nij; };
 PairwisePearsonOut corrPairwisePearson(const Value &X, const Value &Y,
+                                       const Value *wts, bool corrXX,
+                                       bool complexData,
+                                       std::pmr::memory_resource *mr)
+{
+    const std::size_t n = corrRowsOf(X);
+    const std::size_t p = corrColsOf(X);
+    const std::size_t q = corrColsOf(Y);
+    Value out = complexData ? Value::matrix(p, q, ValueType::COMPLEX, mr)
+                            : Value::matrix(p, q, ValueType::DOUBLE, mr);
+    Value nij = Value::matrix(p, q, ValueType::DOUBLE, mr);
+    double *nd = nij.doubleDataMut();
+
+    auto readC = [](const Value &V, std::size_t idx) -> std::complex<double> {
+        if (V.type() == ValueType::COMPLEX)
+            return std::complex<double>(V.complexData()[idx]);
+        return std::complex<double>(V.elemAsDouble(idx), 0.0);
+    };
+
+    // One (xi, yj) pair over the rows where both are non-NaN.
+    auto pairDot = [&](const Value &A, std::size_t ci,
+                       const Value &B, std::size_t cj) {
+        std::size_t m = 0;
+        double sw = 0.0;
+        std::complex<double> sai(0.0, 0.0), sbj(0.0, 0.0);
+        for (std::size_t k = 0; k < n; ++k) {
+            if (elemIsNaN(A, k + ci * n) || elemIsNaN(B, k + cj * n)) continue;
+            const auto a = readC(A, k + ci * n);
+            const auto b = readC(B, k + cj * n);
+            const double w = wts ? wts->elemAsDouble(k) : 1.0;
+            sw += w; sai += w * a; sbj += w * b;
+            ++m;
+        }
+        nd[ci + cj * p] = static_cast<double>(m);
+        std::complex<double> rij(kNaN, 0.0);
+        if (m >= 1 && sw > 0.0) {
+            const auto ma = sai / sw, mb = sbj / sw;
+            std::complex<double> sab(0.0, 0.0);
+            double saa = 0.0, sbb = 0.0;
+            for (std::size_t k = 0; k < n; ++k) {
+                if (elemIsNaN(A, k + ci * n) || elemIsNaN(B, k + cj * n)) continue;
+                const auto a = readC(A, k + ci * n);
+                const auto b = readC(B, k + cj * n);
+                const double w = wts ? wts->elemAsDouble(k) : 1.0;
+                const double s = std::sqrt(w);
+                const auto da = (a - ma) * s, db = (b - mb) * s;
+                sab += std::conj(da) * db;
+                saa += std::norm(da);
+                sbb += std::norm(db);
+            }
+            const double den = std::sqrt(saa * sbb);
+            if (den > 0.0) {
+                rij = sab / den;
+                if (std::abs(rij) > 1.0) rij /= std::abs(rij);
+            }
+        }
+        if (complexData) {
+            out.complexDataMut()[ci + cj * p] = Complex(rij.real(), rij.imag());
+        } else {
+            out.doubleDataMut()[ci + cj * p] = rij.real();
+        }
+    };
+
+    for (std::size_t i = 0; i < p; ++i) {
+        const std::size_t j1 = corrXX ? i : q;   // corrXX: lower triangle only
+        for (std::size_t j = 0; j < j1; ++j)
+            pairDot(X, i, Y, j);
+        if (corrXX) {
+            // Diagonal: 1 unless the column is all-NaN.
+            std::size_t m = 0;
+            for (std::size_t k = 0; k < n; ++k)
+                if (!elemIsNaN(X, k + i * n)) ++m;
+            nd[i + i * p] = static_cast<double>(m);
+            if (complexData) {
+                out.complexDataMut()[i + i * p] = (m >= 1)
+                    ? Complex(1.0, 0.0) : Complex(kNaN, 0.0);
+            } else {
+                out.doubleDataMut()[i + i * p] = (m >= 1) ? 1.0 : kNaN;
+            }
+        }
+    }
+    if (corrXX) {
+        for (std::size_t i = 0; i < p; ++i)
+            for (std::size_t j = 0; j < i; ++j) {
+                if (complexData) {
+                    const Complex c = out.complexData()[i + j * p];
+                    out.complexDataMut()[j + i * p] = Complex(c.real(), -c.imag());
+                } else {
+                    out.doubleDataMut()[j + i * p] = out.doubleData()[i + j * p];
+                }
+                nd[j + i * p] = nd[i + j * p];
+            }
+    }
+    return { std::move(out), std::move(nij) };
+}
+
+// Pairwise Kendall tau-b with per-pair NaN removal and optional weights.
+PairwisePearsonOut corrPairwiseKendall(const Value &X, const Value &Y,
                                        const Value *wts, bool corrXX,
                                        std::pmr::memory_resource *mr)
 {
@@ -372,52 +518,37 @@ PairwisePearsonOut corrPairwisePearson(const Value &X, const Value &Y,
     double *od = out.doubleDataMut();
     double *nd = nij.doubleDataMut();
 
-    // One (xi, yj) pair over the rows where both are non-NaN.
-    auto pairDot = [&](const Value &A, std::size_t ci,
-                       const Value &B, std::size_t cj) {
-        std::size_t m = 0;
-        double sw = 0.0, sai = 0.0, sbj = 0.0;
-        for (std::size_t k = 0; k < n; ++k) {
-            const double a = A.elemAsDouble(k + ci * n);
-            const double b = B.elemAsDouble(k + cj * n);
-            if (std::isnan(a) || std::isnan(b)) continue;
-            const double w = wts ? wts->elemAsDouble(k) : 1.0;
-            sw += w; sai += w * a; sbj += w * b;
-            ++m;
-        }
-        nd[ci + cj * p] = static_cast<double>(m);
-        double rij = std::numeric_limits<double>::quiet_NaN();
-        if (m >= 1 && sw > 0.0) {
-            const double ma = sai / sw, mb = sbj / sw;
-            double sab = 0.0, saa = 0.0, sbb = 0.0;
-            for (std::size_t k = 0; k < n; ++k) {
-                const double a = A.elemAsDouble(k + ci * n);
-                const double b = B.elemAsDouble(k + cj * n);
-                if (std::isnan(a) || std::isnan(b)) continue;
-                const double w = wts ? wts->elemAsDouble(k) : 1.0;
-                const double s = std::sqrt(w);
-                const double da = (a - ma) * s, db = (b - mb) * s;
-                sab += da * db; saa += da * da; sbb += db * db;
-            }
-            const double den = std::sqrt(saa * sbb);
-            rij = (den > 0.0) ? sab / den
-                              : std::numeric_limits<double>::quiet_NaN();
-        }
-        od[ci + cj * p] = rij;
-    };
-
     for (std::size_t i = 0; i < p; ++i) {
-        const std::size_t j1 = corrXX ? i : q;   // corrXX: lower triangle only
-        for (std::size_t j = 0; j < j1; ++j)
-            pairDot(X, i, Y, j);
-        if (corrXX) {
-            // Diagonal: 1 unless the column is NaN-poisoned or constant.
+        const std::size_t j1 = corrXX ? (i + 1) : q;
+        for (std::size_t j = 0; j < j1; ++j) {
+            std::vector<uint8_t> keep(n, 0);
             std::size_t m = 0;
-            for (std::size_t k = 0; k < n; ++k)
-                if (!std::isnan(X.elemAsDouble(k + i * n))) ++m;
-            nd[i + i * p] = static_cast<double>(m);
-            od[i + i * p] = (m >= 1)
-                ? 1.0 : std::numeric_limits<double>::quiet_NaN();
+            for (std::size_t k = 0; k < n; ++k) {
+                if (!std::isnan(X.elemAsDouble(k + i * n)) &&
+                    !std::isnan(Y.elemAsDouble(k + j * n))) {
+                    keep[k] = 1;
+                    ++m;
+                }
+            }
+            nd[i + j * p] = static_cast<double>(m);
+            if (m < 2) {
+                od[i + j * p] = kNaN;
+                continue;
+            }
+            Value Xa = Value::matrix(m, 1, ValueType::DOUBLE, mr);
+            Value Yb = Value::matrix(m, 1, ValueType::DOUBLE, mr);
+            Value Wa;
+            if (wts) Wa = Value::matrix(m, 1, ValueType::DOUBLE, mr);
+            for (std::size_t k = 0, w = 0; k < n; ++k) {
+                if (keep[k]) {
+                    Xa.doubleDataMut()[w] = X.elemAsDouble(k + i * n);
+                    Yb.doubleDataMut()[w] = Y.elemAsDouble(k + j * n);
+                    if (wts) Wa.doubleDataMut()[w] = wts->elemAsDouble(k);
+                    ++w;
+                }
+            }
+            const double tau = kendallTauB(Xa, 0, Yb, 0, m, wts ? &Wa : nullptr);
+            od[i + j * p] = (corrXX && i == j && !std::isnan(tau)) ? 1.0 : tau;
         }
     }
     if (corrXX) {
@@ -742,10 +873,77 @@ void spearmanFull(const Value &X, const Value &Y, bool corrXX, CorrTail tail,
     }
 }
 
+// Pairwise Spearman with per-pair NaN removal, per-pair midranks, optional
+// weights, and per-pair p-values.
+void corrPairwiseSpearman(const Value &X, const Value &Y, const Value *wts,
+                          bool corrXX, CorrTail tail, bool wantP,
+                          std::pmr::memory_resource *mr,
+                          Value &coef, Value &p)
+{
+    const std::size_t n = corrRowsOf(X);
+    const std::size_t p1 = corrColsOf(X);
+    const std::size_t p2 = corrXX ? p1 : corrColsOf(Y);
+    coef = Value::matrix(p1, p2, ValueType::DOUBLE, mr);
+    double *cd = coef.doubleDataMut();
+    if (wantP) p = Value::matrix(p1, p2, ValueType::DOUBLE, mr);
+    double *pd = wantP ? p.doubleDataMut() : nullptr;
+
+    for (std::size_t i = 0; i < p1; ++i) {
+        const std::size_t j1 = corrXX ? (i + 1) : p2;
+        for (std::size_t j = 0; j < j1; ++j) {
+            std::vector<uint8_t> keep(n, 0);
+            std::size_t m = 0;
+            for (std::size_t k = 0; k < n; ++k) {
+                if (!std::isnan(X.elemAsDouble(k + i * n)) &&
+                    !std::isnan(Y.elemAsDouble(k + j * n))) {
+                    keep[k] = 1;
+                    ++m;
+                }
+            }
+            if (m < 2) {
+                cd[i + j * p1] = kNaN;
+                if (pd) pd[i + j * p1] = kNaN;
+                continue;
+            }
+            Value Xa = Value::matrix(m, 1, ValueType::DOUBLE, mr);
+            Value Yb = Value::matrix(m, 1, ValueType::DOUBLE, mr);
+            Value Wa;
+            if (wts) Wa = Value::matrix(m, 1, ValueType::DOUBLE, mr);
+            for (std::size_t k = 0, w = 0; k < n; ++k) {
+                if (keep[k]) {
+                    Xa.doubleDataMut()[w] = X.elemAsDouble(k + i * n);
+                    Yb.doubleDataMut()[w] = Y.elemAsDouble(k + j * n);
+                    if (wts) Wa.doubleDataMut()[w] = wts->elemAsDouble(k);
+                    ++w;
+                }
+            }
+            if (wts) {
+                Value xr = rankColumnsWeighted(Xa, &Wa, mr);
+                Value yr = (corrXX && i == j) ? xr : rankColumnsWeighted(Yb, &Wa, mr);
+                Value r1 = pearsonMatrixFull(xr, yr, &Wa, corrXX && (i == j), false, mr);
+                cd[i + j * p1] = r1.elemAsDouble(0);
+                if (pd) pd[i + j * p1] = kNaN;
+            } else {
+                Value r1, pv1;
+                spearmanFull(Xa, Yb, corrXX && (i == j), tail, wantP, mr, r1, pv1);
+                cd[i + j * p1] = r1.elemAsDouble(0);
+                if (pd) pd[i + j * p1] = pv1.elemAsDouble(0);
+            }
+        }
+    }
+    if (corrXX) {
+        for (std::size_t i = 0; i < p1; ++i)
+            for (std::size_t j = 0; j < i; ++j) {
+                cd[j + i * p1] = cd[i + j * p1];
+                if (pd) pd[j + i * p1] = pd[i + j * p1];
+            }
+    }
+}
+
 // Large-n Kendall: tie-free normal approximation z = 3τ√(n(n-1)/2(2n+5)).
 double corrKendallNormalP(CorrTail tail, double tau, std::size_t n)
 {
-    if (std::isnan(tau)) return kNaN;
+    if (n < 2 || std::isnan(tau)) return kNaN;
     if (std::fabs(tau) >= 1.0)
         return rankTailFromLU(tail, tau > 0 ? 1.0 : 0.0, tau > 0 ? 0.0 : 1.0);
     const double z = 3.0 * tau * std::sqrt(static_cast<double>(n) * (n - 1))
@@ -772,7 +970,6 @@ Value corrPValueMatrix(const Value &r, const Value *nij, std::size_t n,
     double *pd = P.doubleDataMut();
     const double *rd = r.doubleData();
     const double *nd = nij ? nij->doubleData() : nullptr;
-    const bool kendallExact = (ct == CorrType::Kendall && n <= 100);
     for (std::size_t j = 0; j < q; ++j)
         for (std::size_t i = 0; i < p; ++i) {
             const double rij = rd[i + j * p];
@@ -784,11 +981,11 @@ Value corrPValueMatrix(const Value &r, const Value *nij, std::size_t n,
             double pv;
             if (ct == CorrType::Pearson)
                 pv = corrPearsonTailP(tail, rij, nn, mr);
-            else if (kendallExact) {
-                const auto [lo, up] = corrKendallExactLU(rij, n, mr);
+            else if (ct == CorrType::Kendall && nn <= 100) {
+                const auto [lo, up] = corrKendallExactLU(rij, nn, mr);
                 pv = rankTailFromLU(tail, lo, up);
             } else {
-                pv = corrKendallNormalP(tail, rij, n);
+                pv = corrKendallNormalP(tail, rij, nn);
             }
             pd[i + j * p] = pv;
         }
@@ -874,6 +1071,61 @@ void dropNaNRowsAny(std::vector<Value> &M, std::pmr::memory_resource *mr)
                 if (keep[r]) od[w++ + c * m] = Mt.elemAsDouble(r + c * nn);
         Mt = std::move(out);
     }
+}
+
+// Numerical column rank of centered Z (m × pZ), used to compute df = m - dz0 - 2
+// in partialcorr p-values.
+std::size_t centeredRank(const Value &Z, std::pmr::memory_resource *mr)
+{
+    const std::size_t m = static_cast<std::size_t>(Z.dims().dim(0));
+    const std::size_t pZ = static_cast<std::size_t>(Z.dims().dim(1));
+    if (m < 2 || pZ == 0) return 0;
+    ScratchArena sc(mr);
+    ScratchVec<double> A(m * pZ, 0.0, &sc);
+    const double *zd = Z.doubleData();
+    double maxNorm = 0.0;
+    for (std::size_t j = 0; j < pZ; ++j) {
+        double mean = 0.0;
+        for (std::size_t i = 0; i < m; ++i) mean += zd[i + j * m];
+        mean /= static_cast<double>(m);
+        double colNorm2 = 0.0;
+        for (std::size_t i = 0; i < m; ++i) {
+            const double d = zd[i + j * m] - mean;
+            A[i + j * m] = d;
+            colNorm2 += d * d;
+        }
+        maxNorm = std::max(maxNorm, std::sqrt(colNorm2));
+    }
+    if (maxNorm == 0.0) return 0;
+    const double tol = static_cast<double>(std::max(m, pZ))
+                     * std::numeric_limits<double>::epsilon() * maxNorm;
+    // Modified Gram-Schmidt / column-pivoted QR rank count.
+    std::size_t rnk = 0;
+    ScratchVec<uint8_t> used(pZ, 0, &sc);
+    for (std::size_t step = 0; step < std::min(m, pZ); ++step) {
+        std::size_t bestCol = 0;
+        double bestNorm = -1.0;
+        for (std::size_t j = 0; j < pZ; ++j) {
+            if (used[j]) continue;
+            double s = 0.0;
+            for (std::size_t i = 0; i < m; ++i) s += A[i + j * m] * A[i + j * m];
+            const double nrm = std::sqrt(s);
+            if (nrm > bestNorm) { bestNorm = nrm; bestCol = j; }
+        }
+        if (bestNorm <= tol) break;
+        used[bestCol] = 1;
+        ++rnk;
+        for (std::size_t i = 0; i < m; ++i) A[i + bestCol * m] /= bestNorm;
+        for (std::size_t j = 0; j < pZ; ++j) {
+            if (used[j]) continue;
+            double dot = 0.0;
+            for (std::size_t i = 0; i < m; ++i)
+                dot += A[i + bestCol * m] * A[i + j * m];
+            for (std::size_t i = 0; i < m; ++i)
+                A[i + j * m] -= dot * A[i + bestCol * m];
+        }
+    }
+    return rnk;
 }
 
 } // namespace
@@ -1027,23 +1279,7 @@ CorrOut corr_full(const Value &x, const Value *Y, Span<const Value> nv,
             throw Error("corr: rank correlation types cannot be computed "
                         "for complex inputs (use the Pearson type).",
                         0, 0, "corr", "", "numkit:corr:rankCorComplexData");
-        if (rows == CorrRows::Pairwise)
-            throw Error("corr: complex inputs with pairwise row removal "
-                        "are not supported in this revision (use 'all' or "
-                        "'complete' Rows).",
-                        0, 0, "corr", "", "numkit:corr:complexPairwiseUnsupported");
     }
-
-    // Voiced capability gaps (filed in the family bug file).
-    if (wActive && ct != CorrType::Pearson)
-        throw Error("corr: Weights with the Kendall/Spearman types are not "
-                    "supported in this revision (use the Pearson type or "
-                    "omit Weights).",
-                    0, 0, "corr", "", "numkit:corr:weightsRankUnsupported");
-    if (rows == CorrRows::Pairwise && ct != CorrType::Pearson)
-        throw Error("corr: 'pairwise' rows option is supported only for "
-                    "the 'Pearson' type in this revision.",
-                    0, 0, "corr", "", "numkit:corr:PairwiseType");
 
     // Compute rho (Spearman owns its p-values — its tie-corrected branch
     // needs the ranks, so coef and p come out of one function).
@@ -1053,22 +1289,46 @@ CorrOut corr_full(const Value &x, const Value *Y, Span<const Value> nv,
     Value nijStore;
     const Value *nij = nullptr;
     if (rows == CorrRows::Pairwise) {
-        auto pw = corrPairwisePearson(Xe, corrXX ? Xe : Ye,
-                                      wActive ? &wEff : nullptr, corrXX, mr);
-        r = std::move(pw.coef);
-        nijStore = std::move(pw.nij);
-        nij = &nijStore;
+        if (ct == CorrType::Pearson) {
+            auto pw = corrPairwisePearson(Xe, corrXX ? Xe : Ye,
+                                          wActive ? &wEff : nullptr, corrXX,
+                                          complexData, mr);
+            r = std::move(pw.coef);
+            nijStore = std::move(pw.nij);
+            nij = &nijStore;
+        } else if (ct == CorrType::Kendall) {
+            auto pw = corrPairwiseKendall(Xe, corrXX ? Xe : Ye,
+                                          wActive ? &wEff : nullptr, corrXX, mr);
+            r = std::move(pw.coef);
+            nijStore = std::move(pw.nij);
+            nij = &nijStore;
+        } else {
+            corrPairwiseSpearman(Xe, corrXX ? Xe : Ye,
+                                 wActive ? &wEff : nullptr, corrXX,
+                                 tail, wantP, mr, r, pmat);
+            pDone = wantP;
+        }
     } else if (ct == CorrType::Spearman) {
-        spearmanFull(Xe, corrXX ? Xe : Ye, corrXX, tail, wantP, mr, r, pmat);
-        pDone = wantP;
+        if (wActive) {
+            Value xr = rankColumnsWeighted(Xe, &wEff, mr);
+            Value yr = corrXX ? xr : rankColumnsWeighted(Ye, &wEff, mr);
+            r = pearsonMatrixFull(xr, yr, &wEff, corrXX, false, mr);
+        } else {
+            spearmanFull(Xe, corrXX ? Xe : Ye, corrXX, tail, wantP, mr, r, pmat);
+            pDone = wantP;
+        }
     } else if (complexData) {
         r = pearsonMatrixFull(Xe, corrXX ? Xe : Ye, wActive ? &wEff : nullptr,
                               corrXX, true, mr);
     } else if (wActive) {
-        r = pearsonMatrixFull(Xe, corrXX ? Xe : Ye, &wEff, corrXX, false, mr);
+        if (ct == CorrType::Kendall) {
+            r = kendallMatrix(Xe, corrXX ? Xe : Ye, &wEff, mr);
+        } else {
+            r = pearsonMatrixFull(Xe, corrXX ? Xe : Ye, &wEff, corrXX, false, mr);
+        }
     } else {
         if (ct == CorrType::Kendall) {
-            r = kendallMatrix(Xe, corrXX ? Xe : Ye, mr);
+            r = kendallMatrix(Xe, corrXX ? Xe : Ye, nullptr, mr);
         } else {
             r = corrXX ? corr_xx(Xe, mr) : corr_xy(Xe, Ye, mr);
         }
@@ -1084,15 +1344,17 @@ CorrOut corr_full(const Value &x, const Value *Y, Span<const Value> nv,
     }
     out.rho = std::move(r);
     out.p = std::move(pmat);
-    if (anySingle) out.rho = castToSingle(out.rho, mr);
-    if (anySingle && !out.p.isEmpty()) out.p = castToSingle(out.p, mr);
+    if (anySingle && !out.rho.isComplex()) out.rho = castToSingle(out.rho, mr);
+    if (anySingle && !out.p.isEmpty() && !out.p.isComplex())
+        out.p = castToSingle(out.p, mr);
     return out;
 }
 
 // ── partialcorr full entry ────────────────────────────────────────────
 
-Value partialcorr_full(const Value &x, const Value *y, const Value *z,
-                       Span<const Value> nv, std::pmr::memory_resource *mr)
+CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
+                         Span<const Value> nv, bool wantP,
+                         std::pmr::memory_resource *mr)
 {
     const auto matricesErr = [](const std::string &what) {
         throw Error("partialcorr: all input arrays must be numeric matrices "
@@ -1155,10 +1417,10 @@ Value partialcorr_full(const Value &x, const Value *y, const Value *z,
     if (y) yD = asComputeDouble(*y, mr);
     if (z) zD = asComputeDouble(*z, mr);
 
-    // NV: Rows / Type / Tail. Kendall is a parity error; Tail parses and
-    // is inert (the p-value output is a filed missing output).
+    // NV: Rows / Type / Tail. Kendall is a parity error.
     CorrRows rows = CorrRows::All;
     CorrType ct = CorrType::Pearson;
+    CorrTail tail = CorrTail::Both;
     static constexpr std::string_view kNv[] = { "rows", "type", "tail" };
     argcheck::forEachNvPair(
         nv, 0, Span<const std::string_view>(kNv), "partialcorr",
@@ -1202,34 +1464,144 @@ Value partialcorr_full(const Value &x, const Value *y, const Value *z,
                 break;
             }
             case 2:
-                (void)parseTailChoice(v, "partialcorr");
+                tail = parseTailChoice(v, "partialcorr");
                 break;
             default: break;
             }
         });
 
     const bool combinedXZ = (z == nullptr);   // partialcorr(X, ...)
+    const bool crossCorr = (y != nullptr);
     const std::size_t dx = d;
     const std::size_t dy = y ? static_cast<std::size_t>(y->dims().dim(1)) : d;
 
-    Value R;
+    auto makeNanOut = [&]() -> CorrOut {
+        CorrOut co;
+        co.rho = nanMatrix(dx, dy, wantSingle, mr);
+        if (wantP) co.p = nanMatrix(dx, dy, wantSingle, mr);
+        return co;
+    };
+
+    auto buildPMatrix = [&](const Value &R, long df) -> Value {
+        Value P = Value::matrix(dx, dy, ValueType::DOUBLE, mr);
+        double *pd = P.doubleDataMut();
+        const double *rd = R.doubleData();
+        for (std::size_t j = 0; j < dy; ++j) {
+            for (std::size_t i = 0; i < dx; ++i) {
+                const double rij = rd[i + j * dx];
+                if (!crossCorr && i == j) {
+                    pd[i + j * dx] = std::isnan(rij) ? kNaN : 1.0;
+                    continue;
+                }
+                if (df < 1 || std::isnan(rij)) {
+                    pd[i + j * dx] = kNaN;
+                } else {
+                    pd[i + j * dx] = corrPearsonTailP(
+                        tail, rij, static_cast<std::size_t>(df) + 2, mr);
+                }
+            }
+        }
+        return P;
+    };
+
+    Value R, P;
     if (combinedXZ) {
         // 'complete' and 'pairwise' coincide here: every column of X is a
         // control for every pair, so row removal is necessarily listwise.
         std::vector<Value> M{ xD };
         if (rows != CorrRows::All) dropNaNRowsAny(M, mr);
-        if (!allFinite(M[0]))
-            return wantSingle ? nanMatrix(d, d, true, mr)
-                              : nanMatrix(d, d, false, mr);
+        const std::size_t m = static_cast<std::size_t>(M[0].dims().dim(0));
+        const long dz = (d >= 2) ? static_cast<long>(d - 2) : 0;
+        const long df = static_cast<long>(m) - dz - 2;
+        if (!allFinite(M[0]) || m < 2 || df < 0)
+            return makeNanOut();
         if (ct == CorrType::Spearman) M[0] = tiedrank(M[0], mr).first;
         R = partialcorr_xx(M[0], mr);
+        if (wantP) P = buildPMatrix(R, df);
+    } else if (rows == CorrRows::Pairwise) {
+        const std::size_t dz = static_cast<std::size_t>(zD.dims().dim(1));
+        const Value &yRef = y ? yD : xD;
+        R = Value::matrix(dx, dy, ValueType::DOUBLE, mr);
+        double *rd = R.doubleDataMut();
+        if (wantP) P = Value::matrix(dx, dy, ValueType::DOUBLE, mr);
+        double *pd = wantP ? P.doubleDataMut() : nullptr;
+
+        for (std::size_t i = 0; i < dx; ++i) {
+            const std::size_t j1 = crossCorr ? dy : (i + 1);
+            for (std::size_t j = 0; j < j1; ++j) {
+                std::vector<uint8_t> keep(n, 1);
+                std::size_t m = 0;
+                for (std::size_t r = 0; r < n; ++r) {
+                    if (std::isnan(xD.elemAsDouble(r + i * n)) ||
+                        std::isnan(yRef.elemAsDouble(r + j * n))) {
+                        keep[r] = 0;
+                        continue;
+                    }
+                    for (std::size_t c = 0; c < dz; ++c) {
+                        if (std::isnan(zD.elemAsDouble(r + c * n))) {
+                            keep[r] = 0;
+                            break;
+                        }
+                    }
+                    if (keep[r]) ++m;
+                }
+                if (m < 2) {
+                    rd[i + j * dx] = kNaN;
+                    if (pd) pd[i + j * dx] = kNaN;
+                    continue;
+                }
+                Value xSub = Value::matrix(m, 1, ValueType::DOUBLE, mr);
+                Value ySub = Value::matrix(m, 1, ValueType::DOUBLE, mr);
+                Value zSub = Value::matrix(m, dz, ValueType::DOUBLE, mr);
+                for (std::size_t r = 0, w = 0; r < n; ++r) {
+                    if (!keep[r]) continue;
+                    xSub.doubleDataMut()[w] = xD.elemAsDouble(r + i * n);
+                    ySub.doubleDataMut()[w] = yRef.elemAsDouble(r + j * n);
+                    for (std::size_t c = 0; c < dz; ++c)
+                        zSub.doubleDataMut()[w + c * m] = zD.elemAsDouble(r + c * n);
+                    ++w;
+                }
+                if (!allFinite(xSub) || !allFinite(ySub) || !allFinite(zSub)) {
+                    rd[i + j * dx] = kNaN;
+                    if (pd) pd[i + j * dx] = kNaN;
+                    continue;
+                }
+                if (ct == CorrType::Spearman) {
+                    xSub = tiedrank(xSub, mr).first;
+                    ySub = tiedrank(ySub, mr).first;
+                    zSub = tiedrank(zSub, mr).first;
+                }
+                const std::size_t dz0 = centeredRank(zSub, mr);
+                const long df = static_cast<long>(m) - static_cast<long>(dz0) - 2;
+                if (df < 0) {
+                    rd[i + j * dx] = kNaN;
+                    if (pd) pd[i + j * dx] = kNaN;
+                    continue;
+                }
+                if (!crossCorr && i == j) {
+                    rd[i + i * dx] = 1.0;
+                    if (pd) pd[i + i * dx] = 1.0;
+                    continue;
+                }
+                Value r1 = partialcorr_of(xSub, ySub, zSub, mr);
+                double rij = r1.elemAsDouble(0);
+                if (std::fabs(rij) > 1.0) rij = (rij > 0.0) ? 1.0 : -1.0;
+                rd[i + j * dx] = rij;
+                if (pd) {
+                    pd[i + j * dx] = (df >= 1 && !std::isnan(rij))
+                        ? corrPearsonTailP(tail, rij, static_cast<std::size_t>(df) + 2, mr)
+                        : kNaN;
+                }
+            }
+        }
+        if (!crossCorr) {
+            for (std::size_t i = 0; i < dx; ++i)
+                for (std::size_t j = 0; j < i; ++j) {
+                    rd[j + i * dx] = rd[i + j * dx];
+                    if (pd) pd[j + i * dx] = pd[i + j * dx];
+                }
+        }
     } else {
-        if (rows == CorrRows::Pairwise)
-            throw Error("partialcorr: the 'pairwise' rows option is not "
-                        "supported for the (X, Z) / (X, Y, Z) forms in this "
-                        "revision (use 'all' or 'complete').",
-                        0, 0, "partialcorr", "",
-                        "numkit:partialcorr:pairwiseUnsupported");
         Value Xv = xD, Yv, Zv = zD;
         if (y) Yv = yD;
         if (rows == CorrRows::Complete) {
@@ -1241,18 +1613,27 @@ Value partialcorr_full(const Value &x, const Value *y, const Value *z,
             if (y) Yv = std::move(M[1]);
             Zv = std::move(M.back());
         }
-        if (!allFinite(Zv))
-            return wantSingle ? nanMatrix(dx, dy, true, mr)
-                              : nanMatrix(dx, dy, false, mr);
+        const std::size_t m = static_cast<std::size_t>(Zv.dims().dim(0));
+        if (!allFinite(Zv) || m < 2)
+            return makeNanOut();
         if (ct == CorrType::Spearman) {
             Xv = tiedrank(Xv, mr).first;
             Zv = tiedrank(Zv, mr).first;
             if (y) Yv = tiedrank(Yv, mr).first;
         }
+        const std::size_t dz0 = centeredRank(Zv, mr);
+        const long df = static_cast<long>(m) - static_cast<long>(dz0) - 2;
+        if (df < 0)
+            return makeNanOut();
         R = y ? partialcorr_of(Xv, Yv, Zv, mr)
               : partialcorr_xz(Xv, Zv, mr);
+        if (wantP) P = buildPMatrix(R, df);
     }
-    return wantSingle ? castToSingle(R, mr) : R;
+
+    CorrOut out;
+    out.rho = wantSingle ? castToSingle(R, mr) : std::move(R);
+    if (wantP) out.p = wantSingle ? castToSingle(P, mr) : std::move(P);
+    return out;
 }
 
 } // namespace numkit::stats
