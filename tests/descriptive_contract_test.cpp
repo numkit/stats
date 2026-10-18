@@ -91,7 +91,8 @@ TEST_F(DescriptiveContractTest, NanFamilyAllFlagAndSingle)
     // single contagion (probed N09)
     EXPECT_EQ(evalClass("class(nansum(single([1 NaN 3])))"), "single");
     EXPECT_EQ(evalClass("class(nanmean(single([1 NaN 3])))"), "single");
-    // nanstdev does not exist in the reference either (removed; std
-    // with 'omitnan' replaces it) — nk keeps parity by not shipping it.
+    // Language-level nanstd is backed by C++ stats::nanstdev (matching
+    // stats::stdev for std, since std is a C++ reserved namespace).
+    EXPECT_NEAR(evalScalar("nanstd([1 NaN 3])"), 1.41421356237, 1e-9);
     EXPECT_NEAR(evalScalar("std([1 NaN 3], 'omitnan')"), 1.41421356237, 1e-9);
 }

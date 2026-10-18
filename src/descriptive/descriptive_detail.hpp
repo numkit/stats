@@ -133,7 +133,7 @@ inline Value allocVarianceOutput(const Value &x, int redDim, std::pmr::memory_re
 {
     if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
         ScratchArena scratch(mr);
-        auto shape = outShapeForDimND(&scratch, x, redDim);
+        auto shape = outShapeForDimND(x, redDim, &scratch);
         return Value::matrixND(shape.data(), (int) shape.size(), ValueType::DOUBLE, mr);
     }
     auto outShape = outShapeForDim(x, redDim);
@@ -312,7 +312,7 @@ Value medianComplex(const Value &x, int dim, std::pmr::memory_resource *mr)
     Value out;
     if (x.dims().ndim() >= 4 && d >= 1 && d <= x.dims().ndim()) {
         ScratchArena sc(mr);
-        auto shape = outShapeForDimND(&sc, x, d);
+        auto shape = outShapeForDimND(x, d, &sc);
         out = Value::matrixND(shape.data(), static_cast<int>(shape.size()),
                               ValueType::COMPLEX, mr);
     } else {
@@ -606,7 +606,7 @@ allocModeOutputs(const Value &x, int redDim, ValueType outType, std::pmr::memory
 {
     if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
         ScratchArena scratch(mr);
-        auto shape = outShapeForDimND(&scratch, x, redDim);
+        auto shape = outShapeForDimND(x, redDim, &scratch);
         return {Value::matrixND(shape.data(), (int) shape.size(), outType, mr),
                 Value::matrixND(shape.data(), (int) shape.size(), ValueType::DOUBLE, mr)};
     }

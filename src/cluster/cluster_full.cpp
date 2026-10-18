@@ -10,10 +10,8 @@
 // (case-insensitive, unique prefix) — the same semantics the
 // reference's getParamVal applies. Rejection voices follow the probed
 // classes: an unknown pdist metric is DistanceFunctionNotFound, an
-// unknown pdist2 DISTANCE argument is UnrecognizedDistance (note:
-// the reference REMOVED the 'Smallest'/'Largest' options in R2025b —
-// nk keeps them as a documented extension, filed), an unknown linkage
-// METHOD / cluster Criterion is the value-list class.
+// unknown pdist2 DISTANCE argument is UnrecognizedDistance, an unknown
+// linkage METHOD / cluster Criterion is the value-list class.
 
 #include <numkit/stats/cluster/distance.hpp>
 #include <numkit/stats/cluster/linkage.hpp>
@@ -119,20 +117,20 @@ Value pdist_full(const Value &X, Span<const Value> tail,
 Pdist2Out pdist2_full(const Value &X, const Value &Y, Span<const Value> tail,
                       std::pmr::memory_resource *mr)
 {
-    // Smallest/Largest top-k selection (nk extension — the reference
-    // removed these options; accepting them is filed as an acceptance
-    // divergence in the family bug file). The option may appear
-    // anywhere in the tail (metric first or option first).
+    // Smallest/Largest top-k selection follows the positional Distance
+    // argument (tail index >= 1): pdist2(X, Y, Distance, 'Smallest', K).
+    // Passing 'Smallest'/'Largest' in the Distance slot (tail[0]) falls
+    // through to parseClusterTail and raises unrecognizedDistance (probe P09).
     bool topk = false, largest = false;
     std::size_t k = 0;
     std::vector<Value> rest;
     for (std::size_t i = 0; i < tail.size(); ++i) {
-        if ((tail[i].isChar() || tail[i].isString())
+        if (i >= 1 && (tail[i].isChar() || tail[i].isString())
             && i + 1 < tail.size()) {
             const std::string s = lowerCopy(tail[i].toString());
             if (s == "smallest" || s == "largest") {
                 const double kv = argcheck::expectedReal(
-                    tail[i + 1], 3, "k", "pdist2");
+                    tail[i + 1], 4, "k", "pdist2");
                 if (!(kv >= 1.0 && kv == std::floor(kv)))
                     throw Error("pdist2: the 'Smallest'/'Largest' count "
                                 "must be a positive integer scalar (got "

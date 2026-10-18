@@ -68,11 +68,14 @@ TEST_F(ClusterContractTest, Pdist2MahalFormsAndGates)
 {
     engine.eval("D8 = pdist2(X, X(1:2,:));");
     EXPECT_NEAR(num("sum(D8(:))"), 14.676619087329465, 1e-9);
-    // The nk top-k extension (removed in the reference — filed) still
-    // works with the metric in any position.
+    // 'Smallest'/'Largest' follows the Distance argument; omitting
+    // Distance puts 'Smallest' in the Distance slot and rejects with
+    // unrecognizedDistance (probe P09).
     engine.eval("[D9, I9] = pdist2(X, X(1:2,:), 'euclidean', 'Smallest', 2);");
     EXPECT_EQ(num("size(D9,1)"), 2.0);
     EXPECT_EQ(num("size(D9,2)"), 2.0);
+    EXPECT_EQ(idOf("pdist2(X, X(1:2,:), 'Smallest', 2)"),
+              "numkit:pdist2:unrecognizedDistance");
     // Unknown distance (probe P10).
     EXPECT_EQ(idOf("pdist2(X, X(1:2,:), 'bogus')"),
               "numkit:pdist2:unrecognizedDistance");
