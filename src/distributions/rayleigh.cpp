@@ -59,17 +59,23 @@ Value raylinv(const Value &p, double b, std::pmr::memory_resource *mr)
 
 Value raylrnd(::numkit::ops::RngContext &rng, double b, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
-    auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
-    if (b <= 0.0 || rows * cols == 0) return out;
-    double *od = out.doubleDataMut();
     const size_t n = rows * cols;
-    // Inverse-cdf sampling: X = b·sqrt(-2 log U), U ~ U(0,1).
-    std::uniform_real_distribution<double> ud(0.0, 1.0);
+    if (n == 0) return out;
+    double *od = out.doubleDataMut();
+    if (!(b > 0.0)) {
+        const double fillVal = (b == 0.0) ? 0.0 : std::numeric_limits<double>::quiet_NaN();
+        for (size_t i = 0; i < n; ++i) od[i] = fillVal;
+        return out;
+    }
+    // Reference engine formula: r = sqrt(randn(sizeOut).^2 + randn(sizeOut).^2) .* b
     for (size_t i = 0; i < n; ++i) {
-        double u;
-        do { u = ud(gen); } while (u == 0.0);
-        od[i] = b * std::sqrt(-2.0 * std::log(u));
+        const double z1 = rng.nextNormal();
+        od[i] = z1 * z1;
+    }
+    for (size_t i = 0; i < n; ++i) {
+        const double z2 = rng.nextNormal();
+        od[i] = std::sqrt(od[i] + z2 * z2) * b;
     }
     return out;
 }

@@ -55,21 +55,29 @@ Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
 
 double erfinvScalar(double y)
 {
-    // Use the Winitzki approximation as a closed-form fallback if a
-    // direct erfinv isn't reachable from the stats lib without a
-    // public dep on toolboxes/builtin internals. Accuracy ~1e-3; we then
-    // refine with one Newton step on erf.
     if (y >= 1.0) return std::numeric_limits<double>::infinity();
     if (y <= -1.0) return -std::numeric_limits<double>::infinity();
+    if (y == 0.0) return 0.0;
+    const double ay = std::abs(y);
+    const double q = 1.0 - ay; // tail probability erfc(|x|) = q
     const double a = 0.147;
-    const double ln1m = std::log(1.0 - y * y);
+    const double ln1m = std::log((1.0 + ay) * q);
     const double term = 2.0 / (M_PI * a) + 0.5 * ln1m;
     double x = std::copysign(std::sqrt(std::sqrt(term * term - ln1m / a) - term), y);
-    // 2 Newton iterations on erf(x) - y for full precision.
-    for (int i = 0; i < 2; ++i) {
-        const double e = std::erf(x) - y;
-        const double de = 2.0 * std::exp(-x * x) / std::sqrt(M_PI);
-        x -= e / de;
+    const double invSqrtPi2 = 2.0 / std::sqrt(M_PI);
+    // 4 Halley iterations for full 53-bit precision across central and tail regions.
+    for (int i = 0; i < 4; ++i) {
+        double err;
+        if (ay <= 0.5) {
+            err = std::erf(x) - y;
+        } else {
+            const double tailErr = (q - std::erfc(std::abs(x)));
+            err = (y > 0.0) ? tailErr : -tailErr;
+        }
+        const double de = invSqrtPi2 * std::exp(-x * x);
+        if (de == 0.0) break;
+        const double u = err / de;
+        x -= u / (1.0 + x * u);
     }
     return x;
 }
@@ -90,7 +98,7 @@ inline double normpdfK(double x, double mu, double sigma)
 inline double normcdfK(double x, double mu, double sigma)
 {
     if (!(sigma > 0.0)) return std::numeric_limits<double>::quiet_NaN();
-    return 0.5 * (1.0 + std::erf((x - mu) / (sigma * kSqrt2)));
+    return 0.5 * std::erfc(-(x - mu) / (sigma * kSqrt2));
 }
 
 inline double norminvK(double p, double mu, double sigma)
