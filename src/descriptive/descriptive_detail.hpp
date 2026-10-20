@@ -414,59 +414,36 @@ Value quantileImpl(const Value &x, const Value &p, int dim, double pScale, QMeth
 
     // Build output shape: same as input but the reduced dim has size k.
     const auto &dd = x.dims();
-    DimsArg outShape{dd.rows(), dd.cols(),
-                     dd.is3D() ? dd.pages() : 0};
-    switch (d) {
-        case 1: outShape.rows  = k; break;
-        case 2: outShape.cols  = k; break;
-        case 3: outShape.pages = k; break;
-        default: break;
-    }
-    auto out = createMatrix(outShape, ValueType::DOUBLE, mr);
+    const int nd = std::max(dd.ndim(), d);
+    std::vector<size_t> outShape(nd);
+    for (int i = 0; i < nd; ++i)
+        outShape[i] = (i == d - 1) ? k : ((i < dd.ndim()) ? dd.dim(i) : 1);
+    Value out = (nd <= 2) ? Value::matrix(outShape[0], outShape[1], ValueType::DOUBLE, mr)
+              : (nd == 3) ? Value::matrix3d(outShape[0], outShape[1], outShape[2], ValueType::DOUBLE, mr)
+                          : Value::matrixND(outShape.data(), nd, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
 
-    const size_t R = dd.rows(), C = dd.cols();
-    const size_t P = dd.is3D() ? dd.pages() : 1;
-    const size_t outR = outShape.rows, outC = outShape.cols;
-    const size_t outP = outShape.pages == 0 ? 1 : outShape.pages;
-    const size_t N = sliceLenForDim(x, d);
+    size_t B = 1;
+    for (int i = 0; i < d - 1; ++i)
+        B *= (i < dd.ndim()) ? dd.dim(i) : 1;
+    const size_t N = (d - 1 < dd.ndim()) ? dd.dim(d - 1) : 1;
+    size_t O = 1;
+    for (int i = d; i < nd; ++i)
+        O *= (i < dd.ndim()) ? dd.dim(i) : 1;
+
     auto sorted = ScratchVec<double>(N, &scratch);
     const double *src = x.doubleData();
 
-    auto writeOut = [&](size_t rr, size_t cc, size_t pp, double v) {
-        dst[pp * outR * outC + cc * outR + rr] = v;
-    };
-
-    if (d == 1) {
-        for (size_t pp = 0; pp < P; ++pp)
-            for (size_t c = 0; c < C; ++c) {
-                const double *base = src + pp * R * C + c * R;
-                std::copy(base, base + N, sorted.data());
-                std::sort(sorted.begin(), sorted.end());
-                for (size_t i = 0; i < k; ++i)
-                    writeOut(i, c, pp,
-                             quantileFromSortedSlice(sorted.data(), N, probs[i], method));
-            }
-    } else if (d == 2) {
-        for (size_t pp = 0; pp < P; ++pp)
-            for (size_t r = 0; r < R; ++r) {
-                for (size_t c = 0; c < C; ++c)
-                    sorted[c] = src[pp * R * C + c * R + r];
-                std::sort(sorted.begin(), sorted.end());
-                for (size_t i = 0; i < k; ++i)
-                    writeOut(r, i, pp,
-                             quantileFromSortedSlice(sorted.data(), N, probs[i], method));
-            }
-    } else if (d == 3) {
-        for (size_t c = 0; c < C; ++c)
-            for (size_t r = 0; r < R; ++r) {
-                for (size_t pp = 0; pp < P; ++pp)
-                    sorted[pp] = src[pp * R * C + c * R + r];
-                std::sort(sorted.begin(), sorted.end());
-                for (size_t i = 0; i < k; ++i)
-                    writeOut(r, c, i,
-                             quantileFromSortedSlice(sorted.data(), N, probs[i], method));
-            }
+    for (size_t o = 0; o < O; ++o) {
+        for (size_t b = 0; b < B; ++b) {
+            const double *srcBase = src + o * (B * N) + b;
+            for (size_t s = 0; s < N; ++s)
+                sorted[s] = srcBase[s * B];
+            std::sort(sorted.begin(), sorted.end());
+            double *dstBase = dst + o * (B * k) + b;
+            for (size_t i = 0; i < k; ++i)
+                dstBase[i * B] = quantileFromSortedSlice(sorted.data(), N, probs[i], method);
+        }
     }
     return out;
 }
