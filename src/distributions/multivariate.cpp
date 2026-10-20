@@ -9,6 +9,7 @@
 // trivially if needed.
 
 #include <numkit/stats/distributions/multivariate.hpp>
+#include <numkit/stats/distributions/gamma_dist.hpp>
 
 #include <numkit/builtin/datafun.hpp>  // RngContext + rand/randn/randi/randperm (session-scoped, no global/mutex)
 #include <numkit/builtin/specfun.hpp>  // betainc (used by mvtcdf d=1)
@@ -257,7 +258,7 @@ Value mnrnd(::numkit::ops::RngContext &rng, std::size_t N, const Value &P, std::
     for (std::size_t r = 0; r < m; ++r) {
         std::fill(counts.begin(), counts.end(), 0u);
         for (std::size_t t = 0; t < N; ++t) {
-            const double u = U(gen);
+            const double u = gen.nextUniform();
             // Linear scan; k is typically small.
             std::size_t cat = k - 1;
             for (std::size_t i = 0; i < k; ++i) {
@@ -332,7 +333,37 @@ wishrnd_factor(::numkit::ops::RngContext &rng, const Value &Sigma, double df, co
         choleskyLowerInPlace(L.data(), d);
     }
 
-    // Sample Bartlett factor B (lower-tri).
+    // Sample Bartlett factor B (lower-tri) or Krzanowski X (when df <= 81+d and integer).
+    if (df <= 81.0 + static_cast<double>(d) && df == std::floor(df)) {
+        auto W = Value::matrix(d, d, ValueType::DOUBLE, mr);
+        double *od = W.doubleDataMut();
+        const std::size_t m = static_cast<std::size_t>(df);
+        std::vector<double> X(m * d);
+        for (std::size_t c = 0; c < d; ++c)
+            for (std::size_t r = 0; r < m; ++r)
+                X[r * d + c] = rng.nextNormal();
+        std::vector<double> XD(m * d, 0.0);
+        for (std::size_t r = 0; r < m; ++r)
+            for (std::size_t j = 0; j < d; ++j) {
+                double s = 0.0;
+                for (std::size_t k = 0; k <= j; ++k)
+                    s += X[r * d + k] * L[j * d + k];
+                XD[r * d + j] = s;
+            }
+        for (std::size_t i = 0; i < d; ++i)
+            for (std::size_t j = 0; j < d; ++j) {
+                double s = 0.0;
+                for (std::size_t r = 0; r < m; ++r)
+                    s += XD[r * d + i] * XD[r * d + j];
+                od[j * d + i] = s;
+            }
+        auto D = Value::matrix(d, d, ValueType::DOUBLE, mr);
+        double *dd = D.doubleDataMut();
+        for (std::size_t i = 0; i < d; ++i)
+            for (std::size_t j = 0; j < d; ++j)
+                dd[j * d + i] = (j >= i) ? L[j * d + i] : 0.0;
+        return {std::move(W), std::move(D)};
+    }
     auto &gen = rng;
     std::normal_distribution<double> Nz(0.0, 1.0);
 
@@ -437,7 +468,56 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, double df, con
         choleskyLowerInPlace(L.data(), d);
     }
 
-    // Bartlett sample Y ~ W(inv(Tau), df).
+    // Bartlett sample Y ~ W(inv(Tau), df), or Krzanowski X when df <= 81+d and integer.
+    std::vector<double> Y(d * d, 0.0);
+    if (df <= 81.0 + static_cast<double>(d) && df == std::floor(df)) {
+        const std::size_t m = static_cast<std::size_t>(df);
+        std::vector<double> X(m * d);
+        for (std::size_t c = 0; c < d; ++c)
+            for (std::size_t r = 0; r < m; ++r)
+                X[r * d + c] = rng.nextNormal();
+        std::vector<double> XL(m * d, 0.0);
+        for (std::size_t r = 0; r < m; ++r)
+            for (std::size_t j = 0; j < d; ++j) {
+                double s = 0.0;
+                for (std::size_t k = j; k < d; ++k)
+                    s += X[r * d + k] * L[k * d + j];
+                XL[r * d + j] = s;
+            }
+        for (std::size_t i = 0; i < d; ++i)
+            for (std::size_t j = 0; j < d; ++j) {
+                double s = 0.0;
+                for (std::size_t r = 0; r < m; ++r)
+                    s += XL[r * d + i] * XL[r * d + j];
+                Y[i * d + j] = s;
+            }
+    } else {
+        std::vector<double> B(d * d, 0.0);
+        for (std::size_t i = 0; i < d; ++i) {
+            const double dfi = df - static_cast<double>(i);
+            B[i * d + i] = std::sqrt(2.0 * randg(rng, dfi * 0.5, 1, 1, mr).toScalar());
+        }
+        for (std::size_t j = 1; j < d; ++j)
+            for (std::size_t i = 0; i < j; ++i)
+                B[j * d + i] = rng.nextNormal();
+        std::vector<double> M(d * d, 0.0);
+        for (std::size_t i = 0; i < d; ++i)
+            for (std::size_t j = 0; j <= i; ++j) {
+                double s = 0.0;
+                for (std::size_t k = j; k <= i; ++k)
+                    s += L[i * d + k] * B[k * d + j];
+                M[i * d + j] = s;
+            }
+        for (std::size_t i = 0; i < d; ++i)
+            for (std::size_t j = 0; j < d; ++j) {
+                double s = 0.0;
+                const std::size_t mlim = std::min(i, j);
+                for (std::size_t k = 0; k <= mlim; ++k)
+                    s += M[i * d + k] * M[j * d + k];
+                Y[i * d + j] = s;
+            }
+    }
+    if (false) {
     auto &gen = rng;
     std::normal_distribution<double> Nz(0.0, 1.0);
 
@@ -469,6 +549,7 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, double df, con
         }
     }
 
+    }
     // W = inv(Y) via Cholesky.
     std::vector<double> LY = Y;
     choleskyLowerInPlace(LY.data(), d);

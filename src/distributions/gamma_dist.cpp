@@ -3,7 +3,7 @@
 // Gamma distribution. Uses MATLAB convention: gampdf(x, a, b) interprets a
 // as shape and b as scale (NOT rate). So f(x) = x^(a-1) exp(-x/b) /
 // (b^a · Γ(a)). cdf composes gammainc on x/b; icdf uses gammaincinv;
-// rnd uses std::gamma_distribution directly.
+// rnd uses MATLAB-exact Marsaglia-Tsang on RngContext.
 
 #include <numkit/stats/distributions/gamma_dist.hpp>
 
@@ -24,6 +24,34 @@
 
 namespace numkit::stats {
 
+namespace {
+
+double sampleGamma1(::numkit::ops::RngContext &rng, double a)
+{
+    if (!(a > 0.0))
+        return (a == 0.0) ? 0.0 : std::numeric_limits<double>::quiet_NaN();
+    const double d = (a < 1.0 ? (a + 1.0) : a) - 1.0 / 3.0;
+    const double c = 1.0 / std::sqrt(9.0 * d);
+    double u = rng.nextUniform();
+    const double u_boost = (a < 1.0) ? rng.nextUniform() : 1.0;
+    double v = 0.0;
+    for (;;) {
+        const double z = rng.nextNormal();
+        v = 1.0 + c * z;
+        if (v > 0.0) {
+            v = v * v * v;
+            const double z2 = z * z;
+            if (u < 1.0 - 0.0331 * z2 * z2 ||
+                std::log(u) < 0.5 * z2 + d * (1.0 - v + std::log(v))) {
+                break;
+            }
+        }
+        u = rng.nextUniform();
+    }
+    return (a < 1.0) ? (d * v * std::pow(u_boost, 1.0 / a)) : (d * v);
+}
+
+} // namespace
 
 Value gampdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
 {
@@ -78,13 +106,11 @@ Value gaminv(const Value &p, double a, double b, std::pmr::memory_resource *mr)
 
 Value gamrnd(::numkit::ops::RngContext &rng, double a, double b, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
-    auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (a <= 0.0 || b <= 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
     const size_t n = rows * cols;
-    std::gamma_distribution<double> gd(a, b);
-    for (size_t i = 0; i < n; ++i) od[i] = gd(gen);
+    for (size_t i = 0; i < n; ++i) od[i] = b * sampleGamma1(rng, a);
     return out;
 }
 
@@ -103,15 +129,9 @@ Value randg(::numkit::ops::RngContext &rng, const Value &shapeArray, std::pmr::m
     const std::size_t n = rows * cols;
     if (n == 0) return out;
     double *od = out.doubleDataMut();
-    auto &gen = rng;
     for (std::size_t i = 0; i < n; ++i) {
         const double a = shapeArray.elemAsDouble(i);
-        if (a <= 0.0) {
-            od[i] = std::numeric_limits<double>::quiet_NaN();
-            continue;
-        }
-        std::gamma_distribution<double> gd(a, 1.0);
-        od[i] = gd(gen);
+        od[i] = sampleGamma1(rng, a);
     }
     return out;
 }
