@@ -236,13 +236,22 @@ Value mnrnd(::numkit::ops::RngContext &rng, std::size_t N, const Value &P, std::
     // Build cumulative probability table (renormalised).
     std::vector<double> cdf(k);
     double sumP = 0.0;
+    bool anyNan = false;
     for (std::size_t i = 0; i < k; ++i) {
         const double pi = P.elemAsDouble(i);
+        if (std::isnan(pi)) { anyNan = true; continue; }
         if (pi < 0.0)
             throw Error("mnrnd: probabilities must be non-negative",
                         0, 0, "mnrnd", "", "numkit:mnrnd:negProb");
         sumP += pi;
         cdf[i] = sumP;
+    }
+    if (anyNan) {
+        auto out = Value::matrix(m, k, ValueType::DOUBLE, mr);
+        double *od = out.doubleDataMut();
+        for (std::size_t i = 0; i < m * k; ++i)
+            od[i] = std::numeric_limits<double>::quiet_NaN();
+        return out;
     }
     if (!(sumP > 0.0))
         throw Error("mnrnd: sum(P) must be positive",

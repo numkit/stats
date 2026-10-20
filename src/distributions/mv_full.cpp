@@ -95,7 +95,7 @@ bool psdFactor(const std::vector<double> &Sig, std::size_t d,
     // Count positive eigenvalues and build d×r factor (descending eigenvalue order,
     // with cholcov sign convention: largest-magnitude element in each column positive).
     std::vector<std::size_t> posCols;
-    for (std::size_t j = d; j-- > 0;) {
+    for (std::size_t j = 0; j < d; ++j) {
         if (eval[j] > tol) posCols.push_back(j);
     }
     const std::size_t r = posCols.size();

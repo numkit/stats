@@ -298,6 +298,13 @@ void dispatchDist(const char *fnName, const char *suffix,
         throw Error(fn + ": '" + it->second + suffix + "' is not available",
                     0, 0, fnName, "", "numkit:" + fn + ":missing");
 
+    if (it->second == "norm" && std::string(suffix) != "rnd" && args.size() < 4) {
+        std::vector<Value> padded(args.begin() + 1, args.end());
+        while (padded.size() < 3)
+            padded.push_back(Value::scalar(0.0, ctx.engine->resource()));
+        (*target_fn)(Span<const Value>(padded.data(), padded.size()), nargout, outs, ctx);
+        return;
+    }
     (*target_fn)(args.subspan(1), nargout, outs, ctx);
 }
 
