@@ -31,10 +31,9 @@ Value randsample(::numkit::ops::RngContext &rng, int N, int K, bool with_replace
         throw Error("randsample: weights length must equal N",
                     0, 0, "randsample", "", "numkit:randsample:size");
 
-    auto &gen = rng;
     std::vector<int> idx;
     {
-        idx = sample_indices(N, K, with_replacement, w, gen.engine());
+        idx = sample_indices(N, K, with_replacement, w, rng);
     }
     Value out = Value::matrix((size_t)idx.size(), 1, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
@@ -57,10 +56,9 @@ Value datasample(::numkit::ops::RngContext &rng, const Value &X, int K, int dim,
         throw Error("datasample: weights length must equal sample-axis size",
                     0, 0, "datasample", "", "numkit:datasample:size");
 
-    auto &gen = rng;
     std::vector<int> idx;
     {
-        idx = sample_indices(N, K, with_replacement, w, gen.engine());
+        idx = sample_indices(N, K, with_replacement, w, rng);
     }
 
     if (dim == 2) {
@@ -215,9 +213,8 @@ Value randsample_full(::numkit::ops::RngContext &rng, Span<const Value> args,
                     0, 0, "randsample", "", "numkit:randsample:emptyPopulation");
     }
 
-    auto &gen = rng;
     std::vector<int> idx = sample_indices(
-        static_cast<int>(N), static_cast<int>(K), replace, w, gen.engine());
+        static_cast<int>(N), static_cast<int>(K), replace, w, rng);
 
     // Population form: index the population values (orientation kept —
     // a row population returns a row, probe S12); count form returns a
@@ -225,8 +222,20 @@ Value randsample_full(::numkit::ops::RngContext &rng, Span<const Value> args,
     if (havePopulation) {
         const bool row = population.dims().dim(0) == 1
                          && population.dims().dim(1) > 1;
-        const bool single = (population.type() == ValueType::SINGLE);
         const std::size_t m = idx.size();
+        if (population.isCell()) {
+            Value out = row ? Value::cell(1, m, mr) : Value::cell(m, 1, mr);
+            for (std::size_t i = 0; i < m; ++i)
+                out.cellAt(i) = population.cellAt(static_cast<std::size_t>(idx[i]));
+            return out;
+        }
+        if (population.isString()) {
+            Value out = row ? Value::stringArray(1, m, mr) : Value::stringArray(m, 1, mr);
+            for (std::size_t i = 0; i < m; ++i)
+                out.stringElemSet(i, population.stringElem(static_cast<std::size_t>(idx[i])));
+            return out;
+        }
+        const bool single = (population.type() == ValueType::SINGLE);
         Value out = row ? Value::matrix(1, m, single ? ValueType::SINGLE
                                                      : ValueType::DOUBLE, mr)
                         : Value::matrix(m, 1, single ? ValueType::SINGLE
@@ -330,14 +339,29 @@ Value datasample_full(::numkit::ops::RngContext &rng, Span<const Value> args,
         }
     }
 
-    auto &gen = rng;
     std::vector<int> idx = sample_indices(
-        static_cast<int>(n), static_cast<int>(K), replace, w, gen.engine());
+        static_cast<int>(n), static_cast<int>(K), replace, w, rng);
 
     // Gather along dim (1 → rows, 2 → columns).
     if (dim == 1) {
         const std::size_t cols = nd >= 2
             ? static_cast<std::size_t>(X.dims().dim(1)) : 1;
+        if (X.isCell()) {
+            Value out = Value::cell(idx.size(), cols, mr);
+            for (std::size_t c = 0; c < cols; ++c)
+                for (std::size_t k = 0; k < idx.size(); ++k)
+                    out.cellAt(c * idx.size() + k) =
+                        X.cellAt(c * n + static_cast<std::size_t>(idx[k]));
+            return out;
+        }
+        if (X.isString()) {
+            Value out = Value::stringArray(idx.size(), cols, mr);
+            for (std::size_t c = 0; c < cols; ++c)
+                for (std::size_t k = 0; k < idx.size(); ++k)
+                    out.stringElemSet(c * idx.size() + k,
+                        X.stringElem(c * n + static_cast<std::size_t>(idx[k])));
+            return out;
+        }
         Value out = Value::matrix(idx.size(), cols, ValueType::DOUBLE, mr);
         double *od = out.doubleDataMut();
         for (std::size_t c = 0; c < cols; ++c)
@@ -348,6 +372,22 @@ Value datasample_full(::numkit::ops::RngContext &rng, Span<const Value> args,
     }
     if (dim == 2) {
         const std::size_t rows = static_cast<std::size_t>(X.dims().dim(0));
+        if (X.isCell()) {
+            Value out = Value::cell(rows, idx.size(), mr);
+            for (std::size_t k = 0; k < idx.size(); ++k)
+                for (std::size_t r = 0; r < rows; ++r)
+                    out.cellAt(k * rows + r) =
+                        X.cellAt(static_cast<std::size_t>(idx[k]) * rows + r);
+            return out;
+        }
+        if (X.isString()) {
+            Value out = Value::stringArray(rows, idx.size(), mr);
+            for (std::size_t k = 0; k < idx.size(); ++k)
+                for (std::size_t r = 0; r < rows; ++r)
+                    out.stringElemSet(k * rows + r,
+                        X.stringElem(static_cast<std::size_t>(idx[k]) * rows + r));
+            return out;
+        }
         Value out = Value::matrix(rows, idx.size(), ValueType::DOUBLE, mr);
         double *od = out.doubleDataMut();
         for (std::size_t k = 0; k < idx.size(); ++k)

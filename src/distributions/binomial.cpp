@@ -48,7 +48,18 @@ Value binornd(::numkit::ops::RngContext &rng, double n, double p, size_t rows, s
     if (n < 0.0 || std::floor(n) != n || p < 0.0 || p > 1.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
     const size_t cnt = rows * cols;
-    std::binomial_distribution<int> bd(static_cast<int>(n), p);
+    const int ntrials = static_cast<int>(n);
+    if (ntrials <= 1000000) {
+        std::fill(od, od + cnt, 0.0);
+        for (int t = 0; t < ntrials; ++t) {
+            for (size_t i = 0; i < cnt; ++i) {
+                if (rng.nextUniform() < p)
+                    od[i] += 1.0;
+            }
+        }
+        return out;
+    }
+    std::binomial_distribution<int> bd(ntrials, p);
     for (size_t i = 0; i < cnt; ++i) od[i] = static_cast<double>(bd(gen));
     return out;
 }

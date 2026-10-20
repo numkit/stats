@@ -66,11 +66,55 @@ void norminv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 void normrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "normrnd");  // no max: trailing size args (N-D tail; nk caps at two — bugs/opened/stats/rnd-nd-size-tails.md)
-    const double mu = args[0].toScalar();
-    const double sigma = args[1].toScalar();
-    size_t rows, cols;
-    parse_rng_size(args, 2, rows, cols, "normrnd");
-    outs[0] = reshape_rng_nd(normrnd(ctx.engine->rng(), mu, sigma, rows, cols, ctx.engine->resource()), args, 2, ctx.engine->resource(), "normrnd");
+    auto *mr = ctx.engine->resource();
+    const Value &muVal = args[0];
+    const Value &sigVal = args[1];
+    if (muVal.isScalar() && sigVal.isScalar()) {
+        const double mu = muVal.toScalar();
+        const double sigma = sigVal.toScalar();
+        size_t rows, cols;
+        parse_rng_size(args, 2, rows, cols, "normrnd");
+        outs[0] = reshape_rng_nd(normrnd(ctx.engine->rng(), mu, sigma, rows, cols, mr), args, 2, mr, "normrnd");
+        return;
+    }
+    const size_t nmu = muVal.numel();
+    const size_t nsig = sigVal.numel();
+    size_t rows = 0, cols = 0;
+    if (args.size() > 2) {
+        parse_rng_size(args, 2, rows, cols, "normrnd");
+    } else {
+        const Value &ref = (nmu >= nsig) ? muVal : sigVal;
+        rows = ref.dims().rows();
+        cols = ref.dims().cols();
+        for (int d = 2; d < ref.dims().ndim(); ++d)
+            cols *= ref.dims().dim(d);
+    }
+    const size_t n = rows * cols;
+    if ((nmu != 1 && nmu != n) || (nsig != 1 && nsig != n))
+        throw Error("normrnd: Non-scalar arguments must match in size.",
+                    0, 0, "normrnd", "", "numkit:normrnd:size");
+    auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    auto &rng = ctx.engine->rng();
+    for (size_t i = 0; i < n; ++i) {
+        const double m = muVal.elemAsDouble(nmu == 1 ? 0 : i);
+        const double s = sigVal.elemAsDouble(nsig == 1 ? 0 : i);
+        od[i] = (s < 0.0) ? std::numeric_limits<double>::quiet_NaN()
+                          : (m + s * rng.nextNormal());
+    }
+    if (args.size() > 2) {
+        outs[0] = reshape_rng_nd(std::move(out), args, 2, mr, "normrnd");
+    } else {
+        const Value &ref = (nmu >= nsig) ? muVal : sigVal;
+        if (ref.dims().ndim() > 2) {
+            std::vector<size_t> shape(ref.dims().ndim());
+            for (int d = 0; d < ref.dims().ndim(); ++d)
+                shape[d] = ref.dims().dim(d);
+            outs[0] = builtin::reshape(std::move(out), Span<const size_t>(shape.data(), shape.size()), mr);
+        } else {
+            outs[0] = std::move(out);
+        }
+    }
 }
 
 void normstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

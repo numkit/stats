@@ -4,6 +4,7 @@
 #pragma once
 
 #include <numkit/value/value.hpp>
+#include <numkit/builtin/datafun.hpp>
 #include <numkit/ops/matlab_mt19937.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/scratch.hpp>
@@ -34,23 +35,29 @@ namespace {
 // Sample K indices in [0..N-1] given (optional) weights.
 std::vector<int> sample_indices(int N, int K, bool with_replacement,
                                 const std::vector<double> &weights,
-                                numkit::ops::MatlabMT19937 &gen)
+                                numkit::ops::RngContext &rng)
 {
     std::vector<int> out;
     out.reserve((size_t)K);
 
     if (weights.empty()) {
         if (with_replacement) {
-            std::uniform_int_distribution<int> ud(0, N - 1);
-            for (int i = 0; i < K; ++i) out.push_back(ud(gen));
+            for (int i = 0; i < K; ++i) {
+                const double u = rng.nextUniform();
+                int idx = static_cast<int>(std::floor(u * static_cast<double>(N)));
+                if (idx >= N) idx = N - 1;
+                out.push_back(idx);
+            }
         } else {
-            // Reservoir-style: shuffle 0..N-1 and take first K.
-            std::vector<int> all(N);
-            std::iota(all.begin(), all.end(), 0);
-            std::shuffle(all.begin(), all.end(), gen);
-            out.assign(all.begin(), all.begin() + std::min(K, N));
+            const int take = std::min(K, N);
+            Value rp = numkit::ops::randperm(rng, static_cast<size_t>(N),
+                                             static_cast<size_t>(take), nullptr);
+            const double *rpd = rp.doubleData();
+            for (int i = 0; i < take; ++i)
+                out.push_back(static_cast<int>(rpd[i]) - 1);
         }
     } else {
+        auto &gen = rng.engine();
         // Weighted sampling.
         if (with_replacement) {
             std::discrete_distribution<int> dd(weights.begin(), weights.end());

@@ -1228,9 +1228,21 @@ ksdensity_full(const Value &x, const Value &pts, double bw_user, const std::stri
     const double inv_h = 1.0 / h_eff;
 
     if (mode == "pdf") {
+        const bool useWindow = (N * M > 30000);
+        const double cutoff = (kernel == KsKernel::Normal ? 4.0 : 1.0) * h_eff;
         for (size_t j = 0; j < M; ++j) {
+            size_t i0 = 0, i1 = N;
+            if (useWindow && N > 0) {
+                const double lo = grid[j] - cutoff;
+                const double hi = grid[j] + cutoff;
+                i0 = static_cast<size_t>(
+                    std::lower_bound(xs.begin(), xs.end(), lo) - xs.begin());
+                const size_t rIdx = static_cast<size_t>(
+                    std::lower_bound(xs.begin(), xs.end(), hi) - xs.begin());
+                i1 = std::min(N, rIdx + 1);
+            }
             double sum = 0.0;
-            for (size_t i = 0; i < N; ++i) {
+            for (size_t i = i0; i < i1; ++i) {
                 const double u = (grid[j] - xs[i]) * inv_h;
                 sum += ws[i] * ks_pdf(u, kernel);
             }
@@ -1238,9 +1250,23 @@ ksdensity_full(const Value &x, const Value &pts, double bw_user, const std::stri
         }
     } else if (mode == "cdf" || mode == "survivor" || mode == "cumhazard"
                || mode == "cumulative hazard") {
+        const double cutoff = (kernel == KsKernel::Normal ? 4.0 : 1.0) * h_eff;
+        std::vector<double> w_prefix(N + 1, 0.0);
+        for (size_t i = 0; i < N; ++i)
+            w_prefix[i + 1] = w_prefix[i] + ws[i];
         for (size_t j = 0; j < M; ++j) {
-            double sum = 0.0;
-            for (size_t i = 0; i < N; ++i) {
+            size_t i0 = 0, i1 = N;
+            if (N > 0) {
+                const double lo = grid[j] - cutoff;
+                const double hi = grid[j] + cutoff;
+                i0 = static_cast<size_t>(
+                    std::lower_bound(xs.begin(), xs.end(), lo) - xs.begin());
+                const size_t rIdx = static_cast<size_t>(
+                    std::lower_bound(xs.begin(), xs.end(), hi) - xs.begin());
+                i1 = std::min(N, rIdx + 1);
+            }
+            double sum = w_prefix[i0];
+            for (size_t i = i0; i < i1; ++i) {
                 const double u = (grid[j] - xs[i]) * inv_h;
                 sum += ws[i] * ks_cdf(u, kernel);
             }

@@ -1,6 +1,8 @@
 // toolboxes/stats/src/distributions/negbin.cpp
 
 #include <numkit/stats/distributions/negbin.hpp>
+#include <numkit/stats/distributions/gamma_dist.hpp>
+#include <numkit/stats/distributions/poisson.hpp>
 
 #include <numkit/builtin/datafun.hpp>
 #include <numkit/builtin/specfun.hpp>
@@ -43,23 +45,21 @@ Value nbininv(const Value &q, double r, double p, std::pmr::memory_resource *mr)
 
 Value nbinrnd(::numkit::ops::RngContext &rng, double r, double p, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
-    auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (r <= 0.0 || p <= 0.0 || p > 1.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
     const size_t cnt = rows * cols;
-    // For real (non-integer) r, std::negative_binomial_distribution requires
-    // integer k; sample via Gamma-Poisson mixture: λ ~ Gamma(r, (1-p)/p),
-    // K | λ ~ Poisson(λ).
-    std::gamma_distribution<double> gd(r, (1.0 - p) / p);
-    std::poisson_distribution<int>  pd_dummy(1.0); (void)pd_dummy;
+    if (p == 1.0) {
+        for (size_t i = 0; i < cnt; ++i) od[i] = 0.0;
+        return out;
+    }
+    // Sample via Gamma-Poisson mixture matching the reference engine's nbinrnd:
+    // lambda ~ Gamma(r, (1-p)/p), K | lambda ~ Poisson(lambda).
+    Value g = gamrnd(rng, r, (1.0 - p) / p, rows, cols, mr);
+    const double *gd = g.doubleData();
     for (size_t i = 0; i < cnt; ++i) {
-        const double lam = gd(gen);
-        // Gamma can return exactly 0 (degenerate draw); poisson requires
-        // a POSITIVE mean (MSVC Debug asserts) — a zero-λ draw is 0.
-        od[i] = (lam <= 0.0) ? 0.0
-                             : static_cast<double>(
-                                   std::poisson_distribution<int>(lam)(gen));
+        const double lam = gd[i];
+        od[i] = (lam <= 0.0) ? 0.0 : poissrnd(rng, lam, 1, 1, mr).toScalar();
     }
     return out;
 }

@@ -88,6 +88,8 @@ void nanvar_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void nanstd_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void nancov_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 // distributions/dist_dispatch.cpp — generic name-dispatching wrappers
+void makedist_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void truncate_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void cdf_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void pdf_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void icdf_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -506,6 +508,8 @@ void StatsLibrary::install(PluginContext &engine)
     reg("descriptive", "grpstats",  &stats::detail::grpstats_reg);
     reg("descriptive", "nearcorr",  &stats::detail::nearcorr_reg);
 
+    reg("dist", "makedist", &stats::detail::makedist_reg);
+    reg("dist", "truncate", &stats::detail::truncate_reg);
     reg("dist", "cdf",      &stats::detail::cdf_reg);
     reg("dist", "pdf",      &stats::detail::pdf_reg);
     reg("dist", "icdf",     &stats::detail::icdf_reg);
