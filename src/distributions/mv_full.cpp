@@ -227,7 +227,7 @@ MvnrndOut mvnrnd_reinterpreted(::numkit::ops::RngContext &rng, const Value &mu,
     }
 
     auto &gen = rng;
-    std::normal_distribution<double> Nz(0.0, 1.0);
+    auto Nz = [](::numkit::ops::RngContext &g) { return g.nextNormal(); };
     out.r = Value::matrix(n, d, ValueType::DOUBLE, mr);
     double *od = out.r.doubleDataMut();
 
@@ -455,7 +455,7 @@ Value mvtrnd_full(::numkit::ops::RngContext &rng, const Value &C,
     Value out = Value::matrix(n, d, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
     auto &gen = rng;
-    std::normal_distribution<double> Nz(0.0, 1.0);
+    auto Nz = [](::numkit::ops::RngContext &g) { return g.nextNormal(); };
     std::chi_squared_distribution<double> Chi;
     std::vector<double> Z(n * rank);
     for (std::size_t k = 0; k < rank; ++k)

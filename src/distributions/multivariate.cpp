@@ -92,17 +92,17 @@ Value mvnrnd(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigma
     auto out = Value::matrix(n, d, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
 
-    auto &gen = rng;
-    std::normal_distribution<double> Nz(0.0, 1.0);
+    ScratchVec<double> Z(n * d, &scratch);
+    for (std::size_t k = 0; k < d; ++k)
+        for (std::size_t r = 0; r < n; ++r)
+            Z[r + k * n] = rng.nextNormal();
 
-    ScratchVec<double> z(d, &scratch);
     for (std::size_t r = 0; r < n; ++r) {
-        for (std::size_t k = 0; k < d; ++k) z[k] = Nz(gen);
         // sample = mu + L · z  (one row per call; column-major output)
         for (std::size_t j = 0; j < d; ++j) {
             double acc = 0.0;
             for (std::size_t k = 0; k <= j; ++k)
-                acc += L[j * d + k] * z[k];
+                acc += L[j * d + k] * Z[r + k * n];
             od[j * n + r] = getMu(r, j) + acc;
         }
     }
