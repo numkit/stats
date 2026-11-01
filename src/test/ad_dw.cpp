@@ -45,14 +45,34 @@ double adPvalueEstimatedParams(double A2star)
     return std::max(0.0, std::min(1.0, p));
 }
 
+void adtest_argcheck(double alpha)
+{
+    if (alpha <= 0.0 || alpha >= 1.0)
+        throw Error("adtest: alpha must be in (0, 1)",
+                    0, 0, "adtest", "", "numkit:adtest:badAlpha");
+}
+
+void dwtest_argcheck(const Value &r, const Value &X)
+{
+    const std::size_t n = r.numel();
+    if (n < 3)
+        throw Error("dwtest: need at least 3 residuals",
+                    0, 0, "dwtest", "", "numkit:dwtest:tooFewObs");
+    const std::size_t k = X.dims().cols();
+    if (X.dims().rows() != n)
+        throw Error("dwtest: rows(X) must equal length(r)",
+                    0, 0, "dwtest", "", "numkit:dwtest:shapeMismatch");
+    if (k >= n)
+        throw Error("dwtest: design matrix has no degrees of freedom",
+                    0, 0, "dwtest", "", "numkit:dwtest:noDOF");
+}
+
 } // namespace
 
 std::tuple<Value, Value, Value, Value>
 adtest(const Value &x, double alpha, std::pmr::memory_resource *mr)
 {
-    if (alpha <= 0.0 || alpha >= 1.0)
-        throw Error("adtest: alpha must be in (0, 1)",
-                    0, 0, "adtest", "", "numkit:adtest:badAlpha");
+    adtest_argcheck(alpha);
 
     // Pull data as DOUBLE vector, drop NaNs.
     const std::size_t N = x.numel();
@@ -300,17 +320,9 @@ double dwApproxPLeft(double dw, std::size_t n, std::pmr::memory_resource *mr)
 double dwStatAndPLeft(const Value &r, const Value &X, bool exact,
                              double &dwOut, std::pmr::memory_resource *mr)
 {
+    dwtest_argcheck(r, X);
     const std::size_t n = r.numel();
-    if (n < 3)
-        throw Error("dwtest: need at least 3 residuals",
-                    0, 0, "dwtest", "", "numkit:dwtest:tooFewObs");
     const std::size_t k = X.dims().cols();
-    if (X.dims().rows() != n)
-        throw Error("dwtest: rows(X) must equal length(r)",
-                    0, 0, "dwtest", "", "numkit:dwtest:shapeMismatch");
-    if (k >= n)
-        throw Error("dwtest: design matrix has no degrees of freedom",
-                    0, 0, "dwtest", "", "numkit:dwtest:noDOF");
 
     std::vector<double> rv(n);
     for (std::size_t i = 0; i < n; ++i) rv[i] = r.elemAsDouble(i);

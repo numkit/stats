@@ -124,7 +124,7 @@ void fnbrk_reg(Span<const Value> args, size_t /*nargout*/,
 {
     argcheck::checkNargin(args.size(), 2, "fnbrk");  // no max: name-value tail in the reference
     if (!args[1].isChar() && !args[1].isString())
-        throw Error("fnbrk: nk only supports the named-part form",
+        throw Error("fnbrk: numkit only supports the named-part form",
                     0, 0, "fnbrk", "", "numkit:fnbrk:type");
     outs[0] = fnbrk(args[0], args[1].toString(), ctx.engine->resource());
 }

@@ -71,12 +71,41 @@ Value mink(const Value &x, int k, int dim, std::pmr::memory_resource *mr)
     return topKAlongDim(x, dim, k, /*ascending=*/true, "mink", mr);
 }
 
-// ── rmse ──────────────────────────────────────────────────────────────
-Value rmse(const Value &f, const Value &a, int dim, std::pmr::memory_resource *mr)
+namespace {
+
+void rmse_argcheck(const Value &f, const Value &a)
 {
     if (f.dims() != a.dims() && !(f.isScalar() || a.isScalar()))
         throw Error("rmse: F and A must have compatible sizes",
                      0, 0, "rmse", "", "numkit:rmse:sizeMismatch");
+}
+
+void mape_argcheck(const Value &f, const Value &a)
+{
+    if (f.dims() != a.dims() && !(f.isScalar() || a.isScalar()))
+        throw Error("mape: F and A must have compatible sizes",
+                     0, 0, "mape", "", "numkit:mape:sizeMismatch");
+}
+
+void partialcorr_of_argcheck(const Value &X, const Value &Y, const Value &Z)
+{
+    if (X.dims().ndim() != 2 || Y.dims().ndim() != 2 || Z.dims().ndim() != 2)
+        throw Error("partialcorr: X, Y, Z must be 2D matrices",
+                    0, 0, "partialcorr", "", "numkit:partialcorr:notMatrix");
+    const std::size_t m = static_cast<std::size_t>(X.dims().dim(0));
+    const std::size_t mY = static_cast<std::size_t>(Y.dims().dim(0));
+    const std::size_t mZ = static_cast<std::size_t>(Z.dims().dim(0));
+    if (mY != m || mZ != m)
+        throw Error("partialcorr: X, Y, Z must have the same number of rows",
+                    0, 0, "partialcorr", "", "numkit:partialcorr:dimMismatch");
+}
+
+} // namespace
+
+// ── rmse ──────────────────────────────────────────────────────────────
+Value rmse(const Value &f, const Value &a, int dim, std::pmr::memory_resource *mr)
+{
+    rmse_argcheck(f, a);
     // Build the squared-difference array, then reduce.
     const size_t n = std::max(f.numel(), a.numel());
     auto diff = (f.numel() >= a.numel())
@@ -115,9 +144,7 @@ Value rmse(const Value &f, const Value &a, int dim, std::pmr::memory_resource *m
 // ── mape ──────────────────────────────────────────────────────────────
 Value mape(const Value &f, const Value &a, int dim, std::pmr::memory_resource *mr)
 {
-    if (f.dims() != a.dims() && !(f.isScalar() || a.isScalar()))
-        throw Error("mape: F and A must have compatible sizes",
-                     0, 0, "mape", "", "numkit:mape:sizeMismatch");
+    mape_argcheck(f, a);
     const size_t n = std::max(f.numel(), a.numel());
     auto pct = (f.numel() >= a.numel())
                   ? createLike(f, ValueType::DOUBLE, mr)
@@ -158,15 +185,8 @@ Value mape(const Value &f, const Value &a, int dim, std::pmr::memory_resource *m
 
 Value partialcorr_of(const Value &X, const Value &Y, const Value &Z, std::pmr::memory_resource *mr)
 {
-    if (X.dims().ndim() != 2 || Y.dims().ndim() != 2 || Z.dims().ndim() != 2)
-        throw Error("partialcorr: X, Y, Z must be 2D matrices",
-                    0, 0, "partialcorr", "", "numkit:partialcorr:notMatrix");
+    partialcorr_of_argcheck(X, Y, Z);
     const std::size_t m = static_cast<std::size_t>(X.dims().dim(0));
-    const std::size_t mY = static_cast<std::size_t>(Y.dims().dim(0));
-    const std::size_t mZ = static_cast<std::size_t>(Z.dims().dim(0));
-    if (mY != m || mZ != m)
-        throw Error("partialcorr: X, Y, Z must have the same number of rows",
-                    0, 0, "partialcorr", "", "numkit:partialcorr:dimMismatch");
     const std::size_t pX = static_cast<std::size_t>(X.dims().dim(1));
     const std::size_t pY = static_cast<std::size_t>(Y.dims().dim(1));
     const std::size_t pZ = static_cast<std::size_t>(Z.dims().dim(1));

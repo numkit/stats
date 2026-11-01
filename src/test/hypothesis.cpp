@@ -26,6 +26,31 @@
 namespace numkit::stats {
 
 
+namespace {
+
+void ztest_argcheck(double sigma)
+{
+    if (sigma <= 0.0)
+        throw Error("ztest: sigma must be positive", 0, 0, "ztest", "",
+                    "numkit:ztest:badsigma");
+}
+
+void vartest_argcheck(double v)
+{
+    if (v <= 0.0)
+        throw Error("vartest: v must be positive", 0, 0, "vartest", "",
+                    "numkit:vartest:badv");
+}
+
+void kstest_argcheck(const Value &x)
+{
+    if (x.numel() < 1)
+        throw Error("kstest: empty sample", 0, 0, "kstest", "",
+                    "numkit:kstest:nsamples");
+}
+
+} // namespace
+
 // ════════════════════════════════════════════════════════════════════
 // ttest — one-sample
 // ════════════════════════════════════════════════════════════════════
@@ -146,10 +171,8 @@ ttest2(const Value &x, const Value &y, double alpha, TestTail tail, const std::s
 std::tuple<Value, Value, Value, Value>
 ztest(const Value &x, double m, double sigma, double alpha, TestTail tail, std::pmr::memory_resource *mr)
 {
+    ztest_argcheck(sigma);
     if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
-    if (sigma <= 0.0)
-        throw Error("ztest: sigma must be positive", 0, 0, "ztest", "",
-                    "numkit:ztest:badsigma");
 
     double mu_hat, var_hat; size_t n;
     mean_var(x, mu_hat, var_hat, n);
@@ -181,10 +204,8 @@ ztest(const Value &x, double m, double sigma, double alpha, TestTail tail, std::
 std::tuple<Value, Value, Value, Value>
 vartest(const Value &x, double v, double alpha, TestTail tail, std::pmr::memory_resource *mr)
 {
+    vartest_argcheck(v);
     if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
-    if (v <= 0.0)
-        throw Error("vartest: v must be positive", 0, 0, "vartest", "",
-                    "numkit:vartest:badv");
 
     double mu_hat, var_hat; size_t n;
     mean_var(x, mu_hat, var_hat, n);
@@ -286,11 +307,9 @@ vartest2(const Value &x, const Value &y, double alpha, TestTail tail, std::pmr::
 std::tuple<Value, Value, Value, Value>
 kstest(const Value &x, const Value &cdf, double alpha, TestTail tail, std::pmr::memory_resource *mr)
 {
+    kstest_argcheck(x);
     if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
     const size_t N = x.numel();
-    if (N < 1)
-        throw Error("kstest: empty sample", 0, 0, "kstest", "",
-                    "numkit:kstest:nsamples");
 
     std::vector<double> xs(N);
     for (size_t i = 0; i < N; ++i) xs[i] = x.elemAsDouble(i);
