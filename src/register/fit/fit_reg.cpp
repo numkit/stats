@@ -568,11 +568,14 @@ void mle_reg(Span<const Value> args, size_t nargout,
                     0, 0, "mle", "", "numkit:mle:badOption");
         }
         else if (opt == "pdf" || opt == "logpdf" || opt == "nloglf") {
-            if (!args[i + 1].isFuncHandle())
+            const Value &fh = args[i + 1];
+            const bool isFh = fh.isFuncHandle()
+                           || (fh.isCell() && fh.numel() >= 1 && fh.cellAt(0).isFuncHandle());
+            if (!isFh)
                 throw Error("mle: '" + optRaw + "' value must be a function handle",
                             0, 0, "mle", "", "numkit:mle:badFuncHandle");
             custom_kind = opt;
-            custom_fh = args[i + 1];
+            custom_fh = fh;
         }
         else if (opt == "start")      start_val = args[i + 1];
         else if (opt == "lowerbound") lower_val = args[i + 1];

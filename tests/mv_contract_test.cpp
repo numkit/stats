@@ -202,9 +202,11 @@ TEST_F(MvContractTest, MvtrndContract)
     engine.eval("rng(14); T7 = mvtrnd([1 .5; .5 1], 3);");
     EXPECT_EQ(num("size(T7,1)*10 + size(T7,2)"), 12);
     // Auto-normalization of a non-unit diagonal (T06): the scaled C
-    // gives correlation-consistent samples.
-    engine.eval("rng(13); T6 = mvtrnd([4 2; 2 9], 3, 4000); "
-                "C6 = corr(T6); ok6 = abs(C6(1,2) - 1/3) < 0.05;");
+    // matches unit-diagonal [1 1/3; 1/3 1] identically and gives
+    // correlation-consistent samples.
+    engine.eval("rng(3); T6 = mvtrnd([4 2; 2 9], 3, 4000); "
+                "rng(3); T6u = mvtrnd([1 1/3; 1/3 1], 3, 4000); "
+                "C6 = corr(T6); ok6 = (max(max(abs(T6 - T6u))) == 0) && (abs(C6(1,2) - 1/3) < 0.05);");
     EXPECT_NEAR(num("ok6"), 1.0, 1e-12);
     // Gates (T03/T04/T05).
     EXPECT_EQ(idOf("mvtrnd([1 .5; .5 1], -3, 4)"), "numkit:mvtrnd:badDF");

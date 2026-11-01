@@ -2,7 +2,6 @@
 // norminv. Reference values from MATLAB R2025b.
 
 #include <numkit/core/standard_engine.hpp>
-#include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
 using namespace numkit;
@@ -19,25 +18,25 @@ public:
 TEST_F(NorminvTest, StandardNormalQuantiles)
 {
     eval("x = norminv([0.025 0.5 0.975]);");
-    EXPECT_NEAR(evalScalar("x(1)"), -1.9599639845393952, 1e-12);  // 95% CI lower
-    EXPECT_DOUBLE_EQ(evalScalar("x(2)"),                  0.0);
-    EXPECT_NEAR(evalScalar("x(3)"),  1.9599639845393952, 1e-12);  // 95% CI upper
+    EXPECT_NEAR(evalScalar("x(1)"), -1.959963984540054, 1e-12);  // 95% CI lower
+    EXPECT_DOUBLE_EQ(evalScalar("x(2)"),                 0.0);
+    EXPECT_NEAR(evalScalar("x(3)"),  1.959963984540054, 1e-12);  // 95% CI upper
 }
 
 TEST_F(NorminvTest, NonZeroMean)
 {
     eval("x = norminv([0.025 0.5 0.975], 5, 1);");
-    EXPECT_NEAR(evalScalar("x(1)"), 3.0400360154606050, 1e-12);
+    EXPECT_NEAR(evalScalar("x(1)"), 3.040036015459946, 1e-12);
     EXPECT_DOUBLE_EQ(evalScalar("x(2)"), 5.0);
-    EXPECT_NEAR(evalScalar("x(3)"), 6.9599639845393950, 1e-12);
+    EXPECT_NEAR(evalScalar("x(3)"), 6.959963984540054, 1e-12);
 }
 
 TEST_F(NorminvTest, NonUnitSigma)
 {
     eval("x = norminv([0.025 0.5 0.975], 0, 2);");
-    EXPECT_NEAR(evalScalar("x(1)"), -3.9199279690787905, 1e-12);
-    EXPECT_DOUBLE_EQ(evalScalar("x(2)"),                   0.0);
-    EXPECT_NEAR(evalScalar("x(3)"),  3.9199279690787905, 1e-12);
+    EXPECT_NEAR(evalScalar("x(1)"), -3.919927969080108, 1e-12);
+    EXPECT_DOUBLE_EQ(evalScalar("x(2)"),                  0.0);
+    EXPECT_NEAR(evalScalar("x(3)"),  3.919927969080108, 1e-12);
 }
 
 TEST_F(NorminvTest, BoundaryProbabilities)

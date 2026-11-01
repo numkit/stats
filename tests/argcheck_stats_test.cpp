@@ -228,7 +228,7 @@ TEST_F(ArgcheckStatsRnd, BatchThreeValidation)
     expectError("haltonset(2.5)", "numkit:haltonset:dNotInteger");
     expectError("haltonset(0)", "numkit:haltonset:dNotPositive");
     expectError("crossval(@sum, rand(8,1), rand(8,1), 'KFold', 2.5)", "numkit:crossval:KFoldNotInteger");
-    expectError("pdist2([1 2 3]', [1 2 3]', 'Smallest', 2.5)", "numkit:pdist2:badK");
+    expectError("pdist2([1 2 3]', [1 2 3]', 'euclidean', 'Smallest', 2.5)", "numkit:pdist2:badK");
     // Happy paths stay intact.
     EXPECT_EQ(evalInt("numel(nansum([1 2 NaN 4], 2))"), 1);
     EXPECT_EQ(evalInt("numel(smoothdata(1:10, 3))"), 10);

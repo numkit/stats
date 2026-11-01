@@ -20,7 +20,8 @@ void nlinfit_reg(Span<const Value> args, size_t nargout,
     if (args.size() < 4)
         throw Error("nlinfit: requires (X, y, fun, beta0)",
                     0, 0, "nlinfit", "", "numkit:nlinfit:nargin");
-    if (!args[2].isFuncHandle())
+    if (!args[2].isFuncHandle()
+        && !(args[2].isCell() && args[2].numel() >= 1 && args[2].cellAt(0).isFuncHandle()))
         throw Error("nlinfit: `fun` must be a function handle",
                     0, 0, "nlinfit", "", "numkit:nlinfit:notFuncHandle");
     const Value &fun = args[2];
@@ -56,7 +57,8 @@ void nlpredci_reg(Span<const Value> args, size_t nargout,
     double alpha = 0.05;
     if (args.size() >= 6 && !args[5].isEmpty())
         alpha = args[5].toScalar();
-    if (!args[0].isFuncHandle())
+    if (!args[0].isFuncHandle()
+        && !(args[0].isCell() && args[0].numel() >= 1 && args[0].cellAt(0).isFuncHandle()))
         throw Error("nlpredci: `fun` must be a function handle",
                     0, 0, "nlpredci", "", "numkit:nlpredci:notFuncHandle");
     const Value &fun = args[0];

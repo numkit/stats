@@ -1120,7 +1120,8 @@ FillMissingOut fillmissing_full(
     std::size_t knnK = 1;
     std::size_t i = 1;
 
-    if (in[0].isFuncHandle()) {
+    if (in[0].isFuncHandle()
+        || (in[0].isCell() && in[0].numel() >= 1 && in[0].cellAt(0).isFuncHandle())) {
         isFnHandle = true;
         fhVal = &in[0];
         if (in.size() < 2)
@@ -1317,7 +1318,8 @@ FillMissingOut fillmissing_full(
                                 std::string("numkit:") + fn + ":invalidDistance");
                 knnDist = std::string(kDist[static_cast<std::size_t>(dh)]);
                 distFnVal = nullptr;
-            } else if (v.isFuncHandle()) {
+            } else if (v.isFuncHandle()
+                       || (v.isCell() && v.numel() >= 1 && v.cellAt(0).isFuncHandle())) {
                 distFnVal = &v;
             } else {
                 throw Error(std::string(fn) + ": 'Distance' must be "
