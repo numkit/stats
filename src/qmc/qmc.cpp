@@ -65,11 +65,18 @@ double radical_inverse(long long i, int p, const std::vector<int> *perm = nullpt
 
 } // anonymous
 
-Value haltonset(int d, long long skip, long long leap, std::pmr::memory_resource *mr)
+namespace {
+void haltonset_argcheck(int d)
 {
     if (d < 1)
         throw Error("haltonset: dim must be >= 1",
                     0, 0, "haltonset", "", "numkit:haltonset:dim");
+}
+} // namespace
+
+Value haltonset(int d, long long skip, long long leap, std::pmr::memory_resource *mr)
+{
+    haltonset_argcheck(d);
     Value s = Value::structure(mr);
     s.field("kind") = Value::fromString("halton", mr);
     s.field("dim")  = Value::scalar(static_cast<double>(d), mr);

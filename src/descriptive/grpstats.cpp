@@ -112,16 +112,23 @@ double aggregate(Agg fn, const std::vector<double> &vals)
     return std::numeric_limits<double>::quiet_NaN();
 }
 
-} // namespace
-
-std::vector<Value>
-grpstats(const Value &X, const Value &group, const std::vector<std::string> &fn_names, std::pmr::memory_resource *mr)
+void grpstats_argcheck(const Value &X, const Value &group)
 {
     const size_t Nrows = X.dims().rows();
     const size_t Ncols = X.dims().cols();
     if (group.numel() != Nrows && !(Nrows == 1 && group.numel() == Ncols))
         throw Error("grpstats: group length must match number of rows of X",
                     0, 0, "grpstats", "", "numkit:grpstats:LenMismatch");
+}
+
+} // namespace
+
+std::vector<Value>
+grpstats(const Value &X, const Value &group, const std::vector<std::string> &fn_names, std::pmr::memory_resource *mr)
+{
+    grpstats_argcheck(X, group);
+    const size_t Nrows = X.dims().rows();
+    const size_t Ncols = X.dims().cols();
 
     // For row-vector input, MATLAB applies per-element groups (treating
     // X as length(X) observations of 1 column).

@@ -18,6 +18,12 @@
 
 namespace numkit::stats {
 
+namespace {
+inline bool exp_argcheck(double mu) noexcept
+{
+    return mu > 0.0;
+}
+} // namespace
 
 Value exppdf(const Value &x, double mu, std::pmr::memory_resource *mr)
 {
@@ -37,7 +43,7 @@ Value expinv(const Value &p, double mu, std::pmr::memory_resource *mr)
 Value exprnd(::numkit::ops::RngContext &rng, double mu, size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
-    if (mu <= 0.0 || rows * cols == 0) return out;
+    if (!exp_argcheck(mu) || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
     const size_t n = rows * cols;
     for (size_t i = 0; i < n; ++i) od[i] = -mu * std::log(rng.nextUniform());

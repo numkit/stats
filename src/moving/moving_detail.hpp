@@ -35,7 +35,7 @@ using ::numkit::ops::firstNonSingletonDim;
 using ::numkit::ops::resolveDim;   // 0 -> first non-singleton, else validate
 using ::numkit::ops::validateDim;
 
-// Decode the `k` argument: scalar → MATLAB backward-leaning window
+// Decode the `k` argument: scalar → reference-engine backward-leaning window
 // [floor(k/2), floor((k-1)/2)] (even k centred on current+previous; odd k
 // symmetric); 2-element vector → [kb, kf].
 struct Window {
@@ -54,11 +54,10 @@ Window decodeWindow(Span<const size_t> k, const char *fn)
     if (k.size() == 1) {
         const size_t n = k[0];
         if (n == 0) badK();
-        // MATLAB: a scalar window of even length is centred about the CURRENT
+        // A scalar window of even length is centred about the CURRENT
         // and PREVIOUS elements — it leans BACKWARD: kb = floor(k/2),
         // kf = floor((k-1)/2). e.g. movsum([1 2 3 4],2) = [1 3 5 7] (window
-        // [i-1, i]). Odd k is symmetric (kb == kf). nk previously leaned
-        // forward (kb/kf swapped), diverging from MATLAB for even windows.
+        // [i-1, i]). Odd k is symmetric (kb == kf).
         return {static_cast<long>(n / 2), static_cast<long>((n - 1) / 2)};
     }
     if (k.size() == 2) {
@@ -101,12 +100,12 @@ ScratchVec<size_t> decodeWindowValueToScratch(const Value &k, const char *fn,
 }
 
 // ── Mov-extras options (nanflag + Endpoints + SamplePoints) ───────────
-// Parses the trailing args of mov*(x, k, ...). Supports MATLAB R2025b:
+// Parses the trailing args of mov*(x, k, ...). Supports:
 //   * positional `dim` (numeric scalar, before any string)
 //   * positional `nanflag` ∈ {"includemissing","includenan",
 //                              "omitmissing","omitnan"}; default "includenan"
 //   * Name-Value pairs: `Endpoints` ∈ {"shrink","discard","fill"} | scalar
-//   * SamplePoints: NOT IMPLEMENTED (throws if requested) — see TODO.
+//   * Name-Value pairs: `SamplePoints` (strictly increasing finite vector)
 enum class EndpointMode { Shrink, Discard, Fill, Scalar };
 
 struct MovOpts {
@@ -114,6 +113,11 @@ struct MovOpts {
     bool omit_nan = false;       // default = includenan
     EndpointMode ep = EndpointMode::Shrink;
     double ep_fill = std::numeric_limits<double>::quiet_NaN();
+    bool has_sample_points = false;
+    std::vector<double> sample_points;
+    double sp_kb = 0.0;
+    double sp_kf = 0.0;
+    const char *fn_name = "movmean";
 };
 
 inline std::string toLower(std::string s)
@@ -126,6 +130,7 @@ inline std::string toLower(std::string s)
 MovOpts parseMovExtras(Span<const Value> args, size_t start, const char *fn)
 {
     MovOpts o;
+    o.fn_name = fn;
     size_t i = start;
 
     // Optional positional `dim`: numeric scalar that's not a string and
@@ -174,9 +179,24 @@ MovOpts parseMovExtras(Span<const Value> args, size_t start, const char *fn)
                             0, 0, fn, "", std::string("numkit:") + fn + ":ep");
             }
         } else if (name == "samplepoints") {
-            throw Error(std::string(fn) + ": 'SamplePoints' is not yet "
-                        "supported in nk (parity gap)",
-                        0, 0, fn, "", std::string("numkit:") + fn + ":samplePts");
+            if (val.isEmpty() || (!val.dims().isVector() && !val.isScalar())
+                || val.isChar() || val.isString() || val.isCell() || val.isStruct()
+                || val.type() == ValueType::COMPLEX || val.type() == ValueType::LOGICAL) {
+                throw Error(std::string(fn) + ": 'SamplePoints' must be a non-empty real numeric vector of strictly increasing finite values",
+                            0, 0, fn, "", std::string("numkit:") + fn + ":samplePts");
+            }
+            const size_t nt = val.numel();
+            o.sample_points.clear();
+            o.sample_points.reserve(nt);
+            for (size_t idx = 0; idx < nt; ++idx) {
+                const double tj = val.elemAsDouble(idx);
+                if (!std::isfinite(tj) || (idx > 0 && tj <= o.sample_points.back())) {
+                    throw Error(std::string(fn) + ": 'SamplePoints' must be strictly increasing and finite",
+                                0, 0, fn, "", std::string("numkit:") + fn + ":samplePts");
+                }
+                o.sample_points.push_back(tj);
+            }
+            o.has_sample_points = true;
         } else if (name == "datavariables" || name == "replacevalues") {
             throw Error(std::string(fn) + ": '" + name + "' is for table/"
                         "timetable inputs (nk does not implement those)",
@@ -192,6 +212,42 @@ MovOpts parseMovExtras(Span<const Value> args, size_t start, const char *fn)
                     std::to_string(i + 1),
                     0, 0, fn, "", std::string("numkit:") + fn + ":nargin");
     return o;
+}
+
+ScratchVec<size_t> decodeWindowWithOpts(const Value &k, const char *fn,
+                                        ScratchArena &scratch, MovOpts &opt)
+{
+    if (!opt.has_sample_points)
+        return decodeWindowValueToScratch(k, fn, scratch);
+
+    auto badK = [&]() {
+        throw Error(std::string(fn) + ": Window length must be a finite, "
+                    "positive, real scalar or 2-element vector of finite, "
+                    "nonnegative, real scalars.",
+                    0, 0, fn, "", std::string("numkit:") + fn + ":badK");
+    };
+    if (k.isEmpty() || k.isChar() || k.isString() || k.type() == ValueType::COMPLEX || k.type() == ValueType::LOGICAL)
+        badK();
+    ScratchVec<size_t> out(&scratch);
+    if (k.isScalar()) {
+        const double v = k.toScalar();
+        if (!std::isfinite(v) || v <= 0.0) badK();
+        opt.sp_kb = 0.5 * v;
+        opt.sp_kf = 0.5 * v;
+        out.push_back(1);
+        return out;
+    }
+    if (k.numel() == 2) {
+        const double a = k.elemAsDouble(0);
+        const double b = k.elemAsDouble(1);
+        if (!std::isfinite(a) || !std::isfinite(b) || a < 0.0 || b < 0.0) badK();
+        opt.sp_kb = a;
+        opt.sp_kf = b;
+        out.push_back(1);
+        return out;
+    }
+    badK();
+    return out;
 }
 
 // Allocate a same-shape DOUBLE output via createLike.
@@ -251,6 +307,10 @@ Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &o
     if (x.isEmpty())
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     if (x.isScalar()) {
+        if (opt.has_sample_points && opt.sample_points.size() != 1) {
+            throw Error(std::string(opt.fn_name) + ": 'SamplePoints' length must match the operating dimension length",
+                        0, 0, opt.fn_name, "", std::string("numkit:") + opt.fn_name + ":samplePts");
+        }
         auto out = Value::scalar(0.0, mr);
         const double v = x.toScalar();
         // Single-element window: 'Discard' would empty out — but a scalar
@@ -262,6 +322,50 @@ Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &o
     }
     ScratchArena scratch(mr);
     const double *src = x.doubleData();
+
+    auto runSamplePoints = [&](const double *colSrc, size_t n, ptrdiff_t step,
+                               double *colDst) {
+        if (n == 0) return;
+        const auto &t = opt.sample_points;
+        const double kb = opt.sp_kb;
+        const double kf = opt.sp_kf;
+        const double span = (n > 1) ? std::fabs(t[n - 1] - t[0]) : 1.0;
+        const double tol = 1e-12 * std::max(1.0, span);
+        auto buf = ScratchVec<double>(n + 2, &scratch);
+        size_t outI = 0;
+        for (size_t i = 0; i < n; ++i) {
+            const bool leftOut  = (t[i] - kb < t[0] - tol);
+            const bool rightOut = (t[i] + kf > t[n - 1] + tol);
+            if (opt.ep == EndpointMode::Discard && (leftOut || rightOut))
+                continue;
+            const double tLo = t[i] - kb - tol;
+            const double tHi = t[i] + kf + tol;
+            size_t bufN = 0;
+            if (leftOut) {
+                if (opt.ep == EndpointMode::Fill && !opt.omit_nan)
+                    buf[bufN++] = std::numeric_limits<double>::quiet_NaN();
+                else if (opt.ep == EndpointMode::Scalar && !(opt.omit_nan && std::isnan(opt.ep_fill)))
+                    buf[bufN++] = opt.ep_fill;
+            }
+            for (size_t j = 0; j < n; ++j) {
+                if (t[j] < tLo) continue;
+                if (t[j] > tHi) break;
+                const double v = colSrc[static_cast<ptrdiff_t>(j) * step];
+                if (opt.omit_nan && std::isnan(v)) continue;
+                buf[bufN++] = v;
+            }
+            if (rightOut) {
+                if (opt.ep == EndpointMode::Fill && !opt.omit_nan)
+                    buf[bufN++] = std::numeric_limits<double>::quiet_NaN();
+                else if (opt.ep == EndpointMode::Scalar && !(opt.omit_nan && std::isnan(opt.ep_fill)))
+                    buf[bufN++] = opt.ep_fill;
+            }
+            colDst[static_cast<ptrdiff_t>(outI) * step] =
+                (bufN == 0) ? std::numeric_limits<double>::quiet_NaN()
+                            : fn(buf.data(), bufN);
+            ++outI;
+        }
+    };
 
     auto runDiscard = [&](const double *colSrc, size_t n, ptrdiff_t step,
                           double *colDst) {
@@ -293,6 +397,18 @@ Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &o
 
     // Compute output dims for Discard mode.
     auto reducedLen = [&](size_t L) -> size_t {
+        if (opt.has_sample_points) {
+            if (L == 0) return 0;
+            const auto &t = opt.sample_points;
+            const double span = (L > 1) ? std::fabs(t[L - 1] - t[0]) : 1.0;
+            const double tol = 1e-12 * std::max(1.0, span);
+            size_t cnt = 0;
+            for (size_t i = 0; i < L; ++i) {
+                if (t[i] - opt.sp_kb >= t[0] - tol && t[i] + opt.sp_kf <= t[L - 1] + tol)
+                    ++cnt;
+            }
+            return cnt;
+        }
         const long delta = w.kb + w.kf;
         if (static_cast<long>(L) <= delta) return 0;
         return L - static_cast<size_t>(delta);
@@ -300,6 +416,10 @@ Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &o
 
     if (x.dims().isVector()) {
         const size_t N = x.numel();
+        if (opt.has_sample_points && opt.sample_points.size() != N) {
+            throw Error(std::string(opt.fn_name) + ": 'SamplePoints' length must match the operating dimension length",
+                        0, 0, opt.fn_name, "", std::string("numkit:") + opt.fn_name + ":samplePts");
+        }
         size_t outN = N;
         if (opt.ep == EndpointMode::Discard) outN = reducedLen(N);
         const size_t r = (x.dims().rows() > 1) ? outN : 1;
@@ -307,7 +427,9 @@ Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &o
         Value out = Value::matrix(r, c, ValueType::DOUBLE, mr);
         if (outN == 0) return out;
         double *dst = out.doubleDataMut();
-        if (opt.ep == EndpointMode::Discard) {
+        if (opt.has_sample_points) {
+            runSamplePoints(src, N, /*step=*/1, dst);
+        } else if (opt.ep == EndpointMode::Discard) {
             runDiscard(src, N, /*step=*/1, dst);
         } else {
             runMoving(src, N, /*step=*/1, dst, w, scratch,
@@ -320,6 +442,14 @@ Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &o
     const size_t R = d.rows(), C = d.cols();
     const size_t P = d.is3D() ? d.pages() : 1;
     const size_t pageStride = R * C;
+
+    if (opt.has_sample_points) {
+        const size_t expectedLen = (dim == 1) ? R : (dim == 2 ? C : (dim == 3 && d.is3D() ? P : 1));
+        if (opt.sample_points.size() != expectedLen) {
+            throw Error(std::string(opt.fn_name) + ": 'SamplePoints' length must match the operating dimension length",
+                        0, 0, opt.fn_name, "", std::string("numkit:") + opt.fn_name + ":samplePts");
+        }
+    }
 
     // Determine output dims.
     size_t outR = R, outC = C, outP = P;
@@ -337,7 +467,8 @@ Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &o
 
     auto run = [&](const double *colSrc, size_t inLen, ptrdiff_t step,
                    double *colDst) {
-        if (opt.ep == EndpointMode::Discard) runDiscard(colSrc, inLen, step, colDst);
+        if (opt.has_sample_points)           runSamplePoints(colSrc, inLen, step, colDst);
+        else if (opt.ep == EndpointMode::Discard) runDiscard(colSrc, inLen, step, colDst);
         else                                 runMoving(colSrc, inLen, step, colDst, w, scratch,
                                                        opt.omit_nan, opt.ep, opt.ep_fill, fn);
     };
@@ -431,7 +562,7 @@ double winMedianInPlace(double *w, size_t n)
 double winVar(const double *w, size_t n, int normFlag)
 {
     if (n == 0) return std::numeric_limits<double>::quiet_NaN();
-    // MATLAB defines std/var of a single value as 0 regardless of the
+    // The reference engine defines std/var of a single value as 0 regardless of the
     // normalization (the degenerate 0/0 from N-1 is taken as 0). This is
     // hit at edge windows of length 1 and, under 'omitnan', at interior
     // windows that reduce to a single valid element.
@@ -494,11 +625,10 @@ Value cplxCombine(const Value &re, const Value &im, std::pmr::memory_resource *m
     return out;
 }
 
-// MATLAB promotes an integer/logical operand to DOUBLE for the arithmetic
+// The reference engine promotes an integer/logical operand to DOUBLE for the arithmetic
 // moving functions (movsum/movprod/movmean) — e.g. movsum(int8(...)) returns
 // double, NOT int8. Promote element-wise here; double/single/complex pass
-// through unchanged. char is NOT promoted (MATLAB errors: "First input must be
-// double or single"), so the doubleData() path keeps throwing for it.
+// through unchanged. char is NOT promoted, so the doubleData() path keeps throwing for it.
 // bugs/builtin/movfun-typeclass.md.
 static Value movPromoteIntLogical(const Value &x, std::pmr::memory_resource *mr)
 {
@@ -596,7 +726,7 @@ Value movmedian_impl(const Value &x, Span<const size_t> k, const MovOpts &opt, s
             return winMedianInPlace(heap.data(), n);
         }, mr);
     if (isIntegerType(ot)) {
-        // MATLAB rounds a fractional window median to the int class (round half
+        // The reference engine rounds a fractional window median to the int class (round half
         // away from zero), unlike the truncating doubleToIntegerExact — so round
         // into the double buffer first. LOGICAL input returns DOUBLE (a 0.5
         // median has no logical representation), so no narrow there.

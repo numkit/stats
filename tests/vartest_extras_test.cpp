@@ -34,9 +34,26 @@ TEST_F(VartestExtrasTest, TailNVRecognised)
     EXPECT_NO_THROW(eval("vartest(x, 1, 'Tail', 'left');"));
 }
 
-TEST_F(VartestExtrasTest, DimRejected)
+TEST_F(VartestExtrasTest, Dim1AndDim2)
 {
-    EXPECT_THROW(eval("vartest(x, 1, 'Dim', 1);"), numkit::Error);
+    eval("M = [x, y];");
+    eval("[h1, p1, ci1, st1] = vartest(M, 1, 'Dim', 1);");
+    eval("[hx, px, cix, stx] = vartest(x, 1);");
+    eval("[hy, py, ciy, sty] = vartest(y, 1);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(h1, 1)")), 1);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(h1, 2)")), 2);
+    EXPECT_NEAR(evalScalar("p1(1)"), evalScalar("px"), 1e-12);
+    EXPECT_NEAR(evalScalar("p1(2)"), evalScalar("py"), 1e-12);
+    EXPECT_NEAR(evalScalar("st1.chisqstat(1)"), evalScalar("stx.chisqstat"), 1e-12);
+    EXPECT_NEAR(evalScalar("st1.chisqstat(2)"), evalScalar("sty.chisqstat"), 1e-12);
+
+    eval("[h2, p2, ci2, st2] = vartest(M', 1, 'Dim', 2);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(h2, 1)")), 2);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(h2, 2)")), 1);
+    EXPECT_NEAR(evalScalar("p2(1)"), evalScalar("px"), 1e-12);
+    EXPECT_NEAR(evalScalar("p2(2)"), evalScalar("py"), 1e-12);
+    EXPECT_NEAR(evalScalar("ci2(1, 1)"), evalScalar("cix(1)"), 1e-12);
+    EXPECT_NEAR(evalScalar("ci2(2, 2)"), evalScalar("ciy(2)"), 1e-12);
 }
 
 TEST_F(VartestExtrasTest, Vartest2AlphaNVRecognised)
@@ -49,9 +66,26 @@ TEST_F(VartestExtrasTest, Vartest2TailNV)
     EXPECT_NO_THROW(eval("vartest2(x, y, 'Tail', 'right');"));
 }
 
-TEST_F(VartestExtrasTest, Vartest2DimRejected)
+TEST_F(VartestExtrasTest, Vartest2Dim1AndDim2)
 {
-    EXPECT_THROW(eval("vartest2(x, y, 'Dim', 1);"), numkit::Error);
+    eval("X = [x, x * 1.5]; Y = [y, y * 1.2];");
+    eval("[h1, p1, ci1, st1] = vartest2(X, Y, 'Dim', 1);");
+    eval("[hc1, pc1, cic1, stc1] = vartest2(X(:,1), Y(:,1));");
+    eval("[hc2, pc2, cic2, stc2] = vartest2(X(:,2), Y(:,2));");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(h1, 1)")), 1);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(h1, 2)")), 2);
+    EXPECT_NEAR(evalScalar("p1(1)"), evalScalar("pc1"), 1e-12);
+    EXPECT_NEAR(evalScalar("p1(2)"), evalScalar("pc2"), 1e-12);
+    EXPECT_NEAR(evalScalar("st1.fstat(1)"), evalScalar("stc1.fstat"), 1e-12);
+    EXPECT_NEAR(evalScalar("st1.fstat(2)"), evalScalar("stc2.fstat"), 1e-12);
+
+    eval("[h2, p2, ci2, st2] = vartest2(X', Y', 'Dim', 2);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(h2, 1)")), 2);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(h2, 2)")), 1);
+    EXPECT_NEAR(evalScalar("p2(1)"), evalScalar("pc1"), 1e-12);
+    EXPECT_NEAR(evalScalar("p2(2)"), evalScalar("pc2"), 1e-12);
+    EXPECT_NEAR(evalScalar("ci2(1, 1)"), evalScalar("cic1(1)"), 1e-12);
+    EXPECT_NEAR(evalScalar("ci2(2, 2)"), evalScalar("cic2(2)"), 1e-12);
 }
 
 TEST_F(VartestExtrasTest, BasicValuesUnchanged)

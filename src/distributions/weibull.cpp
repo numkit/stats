@@ -18,11 +18,17 @@
 
 namespace numkit::stats {
 
+namespace {
+inline bool wbl_argcheck(double a, double b) noexcept
+{
+    return a > 0.0 && b > 0.0;
+}
+} // namespace
 
 Value wblpdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
 {
     const double NaN = std::numeric_limits<double>::quiet_NaN();
-    if (!(a > 0.0) || !(b > 0.0))  // also catches NaN params
+    if (!wbl_argcheck(a, b))  // also catches NaN params
         return elementwise(x, [NaN](double){ return NaN; }, mr);
     return elementwise(x, [=](double xi) {
         if (std::isnan(xi)) return NaN;       // propagate NaN x as quiet NaN

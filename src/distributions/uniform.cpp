@@ -18,12 +18,17 @@
 
 namespace numkit::stats {
 
+namespace {
+inline bool unif_argcheck(double a, double b) noexcept
+{
+    return b > a;
+}
+} // namespace
 
 Value unifpdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
 {
     const double NaN = std::numeric_limits<double>::quiet_NaN();
-    // b <= a -> NaN (matches MATLAB; a==b is degenerate 0-width support).
-    if (b <= a)
+    if (!unif_argcheck(a, b))
         return elementwise(x, [NaN](double){ return NaN; }, mr);
     const double inv = 1.0 / (b - a);
     return elementwise(x, [=](double xi) {

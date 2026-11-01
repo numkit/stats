@@ -19,10 +19,16 @@
 
 namespace numkit::stats {
 
+namespace {
+inline bool ncx2_argcheck(double k, double lambda) noexcept
+{
+    return k > 0.0 && lambda >= 0.0;
+}
+} // namespace
 
 Value ncx2pdf(const Value &x, double k, double lambda, std::pmr::memory_resource *mr)
 {
-    if (k <= 0.0 || lambda < 0.0)
+    if (!ncx2_argcheck(k, lambda))
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     if (lambda == 0.0) {
         // Reduce to chi²(k).

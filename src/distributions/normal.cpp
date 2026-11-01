@@ -27,6 +27,12 @@
 
 namespace numkit::stats {
 
+namespace {
+inline bool norm_argcheck(double sigma) noexcept
+{
+    return sigma > 0.0;
+}
+} // namespace
 
 Value normpdf(const Value &x, double mu, double sigma, std::pmr::memory_resource *mr)
 {
@@ -40,8 +46,6 @@ Value normcdf(const Value &x, double mu, double sigma, std::pmr::memory_resource
 
 Value norminv(const Value &p, double mu, double sigma, std::pmr::memory_resource *mr)
 {
-    // Boundary p ∈ {0, 1} → ±Inf; out-of-range or NaN p → NaN; sigma<=0 → NaN
-    // (matches MATLAB R2025b — Octave too). See norminvK.
     return elementwise(p, [=](double pi) { return norminvK(pi, mu, sigma); }, mr);
 }
 
@@ -57,8 +61,7 @@ Value normrnd(::numkit::ops::RngContext &rng, double mu, double sigma, size_t ro
 
 std::tuple<double, double> normstat(double mu, double sigma)
 {
-    // MATLAB convention: sigma <= 0 ⇒ NaN/NaN (matches Octave too).
-    if (sigma <= 0.0) {
+    if (!norm_argcheck(sigma)) {
         const double NaN = std::numeric_limits<double>::quiet_NaN();
         return std::make_tuple(NaN, NaN);
     }

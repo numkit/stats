@@ -56,9 +56,39 @@ using ::numkit::builtin::varianceTwoPass;
 // and MStdNanReductions_{simd,portable}.cpp. Welford's recurrence
 // (numerically pristine but fully serial) is no longer used here.
 
-Value var(const Value &x, int normFlag, int dim, std::pmr::memory_resource *mr)
+namespace {
+
+void var_argcheck(int normFlag)
 {
     validateNormFlag(normFlag, "var");
+}
+
+void stdev_argcheck(int normFlag)
+{
+    validateNormFlag(normFlag, "std");
+}
+
+void cov_argcheck(const Value &x, int normFlag)
+{
+    validateNormFlagCov(normFlag, "cov");
+    validateCovInputs(x, "cov");
+}
+
+void corrcoef_argcheck(const Value &x)
+{
+    if (x.dims().ndim() > 2)
+        throw Error("corrcoef: input must be 1D or 2D",
+                     0, 0, "corrcoef", "", "numkit:corrcoef:ndim");
+    if (!x.isComplex() && x.type() != ValueType::DOUBLE && x.type() != ValueType::SINGLE)
+        throw Error("corrcoef: input must be floating-point (double or single)",
+                     0, 0, "corrcoef", "", "numkit:corrcoef:notFloat");
+}
+
+} // namespace
+
+Value var(const Value &x, int normFlag, int dim, std::pmr::memory_resource *mr)
+{
+    var_argcheck(normFlag);
     if (x.type() == ValueType::COMPLEX)
         return varianceComplex(x, normFlag, dim, mr, /*sqrtIt=*/false);
     if (x.isEmpty())
@@ -78,7 +108,7 @@ Value var(const Value &x, int normFlag, int dim, std::pmr::memory_resource *mr)
 
 Value stdev(const Value &x, int normFlag, int dim, std::pmr::memory_resource *mr)
 {
-    validateNormFlag(normFlag, "std");
+    stdev_argcheck(normFlag);
     if (x.type() == ValueType::COMPLEX)
         return varianceComplex(x, normFlag, dim, mr, /*sqrtIt=*/true);
     if (x.isEmpty())

@@ -22,10 +22,16 @@
 
 namespace numkit::stats {
 
+namespace {
+inline bool hyge_argcheck(double M, double K, double N) noexcept
+{
+    return params_valid(M, K, N);
+}
+} // namespace
 
 Value hygepdf(const Value &k, double M, double K, double N, std::pmr::memory_resource *mr)
 {
-    if (!params_valid(M, K, N))
+    if (!hyge_argcheck(M, K, N))
         return elementwise(k, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     return elementwise(k, [=](double ki){ return hyge_pmf(ki, M, K, N); }, mr);
 }

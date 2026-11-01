@@ -23,6 +23,18 @@
 
 namespace numkit::stats {
 
+namespace {
+void robustfit_argcheck(const Value &X, const Value &y, std::size_t n, std::size_t p)
+{
+    (void)X;
+    if (y.numel() != n)
+        throw Error("robustfit: length(y) must equal rows(X)",
+                    0, 0, "robustfit", "", "numkit:robustfit:shapeMismatch");
+    if (p == 0 || n <= p)
+        throw Error("robustfit: need rows(X) > cols(X)",
+                    0, 0, "robustfit", "", "numkit:robustfit:noDOF");
+}
+} // namespace
 
 RobustfitResult robustfit(const Value &X, const Value &y,
                            RobustWeight weight, double tune,
@@ -30,12 +42,7 @@ RobustfitResult robustfit(const Value &X, const Value &y,
 {
     const std::size_t n = X.dims().rows();
     const std::size_t p = X.dims().cols();
-    if (y.numel() != n)
-        throw Error("robustfit: length(y) must equal rows(X)",
-                    0, 0, "robustfit", "", "numkit:robustfit:shapeMismatch");
-    if (p == 0 || n <= p)
-        throw Error("robustfit: need rows(X) > cols(X)",
-                    0, 0, "robustfit", "", "numkit:robustfit:noDOF");
+    robustfit_argcheck(X, y, n, p);
 
     if (std::isnan(tune)) tune = defaultTune(weight);
 

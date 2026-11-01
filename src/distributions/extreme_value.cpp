@@ -18,10 +18,16 @@
 
 namespace numkit::stats {
 
+namespace {
+inline bool ev_argcheck(double sigma) noexcept
+{
+    return sigma > 0.0;
+}
+} // namespace
 
 Value evpdf(const Value &x, double mu, double sigma, std::pmr::memory_resource *mr)
 {
-    if (sigma <= 0.0)
+    if (!ev_argcheck(sigma))
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     const double inv_s = 1.0 / sigma;
     return elementwise(x, [=](double xi) {

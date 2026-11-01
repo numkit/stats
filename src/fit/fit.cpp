@@ -197,15 +197,22 @@ lognfit(const Value &x, double alpha, std::pmr::memory_resource *mr)
 // ── binofit ───────────────────────────────────────────────────────────
 
 
+namespace {
+void binofit_argcheck(size_t Nx, size_t Nn, bool scalarN)
+{
+    if (!scalarN && Nn != Nx)
+        throw Error("binofit: x and n must be the same length",
+                    0, 0, "binofit", "", "numkit:binofit:size");
+}
+} // namespace
+
 std::tuple<Value, Value>
 binofit(const Value &x, const Value &n, double alpha, std::pmr::memory_resource *mr)
 {
     const size_t Nx = x.numel();
     const size_t Nn = n.numel();
     const bool scalarN = (Nn == 1);
-    if (!scalarN && Nn != Nx)
-        throw Error("binofit: x and n must be the same length",
-                    0, 0, "binofit", "", "numkit:binofit:size");
+    binofit_argcheck(Nx, Nn, scalarN);
 
     Value phat = Value::matrix(Nx, 1, ValueType::DOUBLE, mr);
     Value pci  = Value::matrix(Nx, 2, ValueType::DOUBLE, mr);

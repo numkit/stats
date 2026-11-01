@@ -193,15 +193,22 @@ std::vector<double> invJtJ(const std::vector<double> &J,
 
 } // namespace
 
+namespace {
+void nlinfit_argcheck(std::size_t p)
+{
+    if (p == 0)
+        throw Error("nlinfit: beta0 cannot be empty",
+                    0, 0, "nlinfit", "", "numkit:nlinfit:emptyBeta0");
+}
+} // namespace
+
 NlinfitResult nlinfit(const Value &X, const Value &y,
                       FnHandle model, const Value &beta0,
                       std::pmr::memory_resource *mr)
 {
     const std::size_t n = y.numel();
     const std::size_t p = beta0.numel();
-    if (p == 0)
-        throw Error("nlinfit: beta0 cannot be empty",
-                    0, 0, "nlinfit", "", "numkit:nlinfit:emptyBeta0");
+    nlinfit_argcheck(p);
 
     std::vector<double> beta = toFlatDouble(beta0);
     std::vector<double> yv = toFlatDouble(y);

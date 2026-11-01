@@ -24,10 +24,16 @@
 
 namespace numkit::stats {
 
+namespace {
+inline bool fisher_f_argcheck(double v1, double v2) noexcept
+{
+    return v1 > 0.0 && v2 > 0.0;
+}
+} // namespace
 
 Value fpdf(const Value &x, double v1, double v2, std::pmr::memory_resource *mr)
 {
-    if (v1 <= 0.0 || v2 <= 0.0)
+    if (!fisher_f_argcheck(v1, v2))
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     // log f(x; v1, v2) = (v1/2) log(v1) + (v2/2) log(v2)
     //                  + (v1/2 - 1) log x

@@ -146,9 +146,8 @@ MvnrndOut mvnrnd_reinterpreted(::numkit::ops::RngContext &rng, const Value &mu,
                                const Value &Sigma, const Value &cases,
                                bool wantT, std::pmr::memory_resource *mr);
 
-MvnrndOut mvnrnd_full(::numkit::ops::RngContext &rng, const Value &mu,
-                      const Value &Sigma, const Value &cases, bool wantT,
-                      std::pmr::memory_resource *mr)
+namespace {
+void mvnrnd_full_argcheck(const Value &mu, const Value &Sigma)
 {
     if (mu.isEmpty() || Sigma.isEmpty())
         throw Error("mvnrnd: requires the input arguments MU and SIGMA.",
@@ -159,6 +158,14 @@ MvnrndOut mvnrnd_full(::numkit::ops::RngContext &rng, const Value &mu,
     if (Sigma.dims().ndim() > 3)
         throw Error("mvnrnd: SIGMA must be a matrix or a 3-D array.",
                     0, 0, "mvnrnd", "", "numkit:mvnrnd:badSigma");
+}
+} // namespace
+
+MvnrndOut mvnrnd_full(::numkit::ops::RngContext &rng, const Value &mu,
+                      const Value &Sigma, const Value &cases, bool wantT,
+                      std::pmr::memory_resource *mr)
+{
+    mvnrnd_full_argcheck(mu, Sigma);
 
     std::size_t n = static_cast<std::size_t>(mu.dims().dim(0));
     std::size_t d = static_cast<std::size_t>(mu.dims().dim(1));

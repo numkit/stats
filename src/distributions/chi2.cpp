@@ -26,15 +26,22 @@
 
 namespace numkit::stats {
 
+namespace {
+inline bool chi2_argcheck(double k) noexcept
+{
+    return k > 0.0;
+}
+} // namespace
 
 Value chi2pdf(const Value &x, double k, std::pmr::memory_resource *mr)
 {
-    // MATLAB convention: k < 0 ⇒ NaN; k == 0 ⇒ 0 (degenerate Chi²(0)
+    // Reference convention: k < 0 ⇒ NaN; k == 0 ⇒ 0 (degenerate Chi²(0)
     // has all mass at 0, so density is 0 almost everywhere).
-    if (k < 0.0)
+    if (!chi2_argcheck(k)) {
+        if (k == 0.0)
+            return elementwise(x, [](double){ return 0.0; }, mr);
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    if (k == 0.0)
-        return elementwise(x, [](double){ return 0.0; }, mr);
+    }
     // pdf(x; k) = (1/(2^(k/2) Γ(k/2))) x^(k/2-1) e^(-x/2), x ≥ 0
     // Compute log-pdf and exp to avoid overflow on small/large k.
     const double half_k = 0.5 * k;

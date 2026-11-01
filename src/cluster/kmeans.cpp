@@ -24,20 +24,29 @@
 
 namespace numkit::stats {
 
+namespace {
+
+void kmeans_argcheck(const Value &X, int K)
+{
+    const size_t N = X.dims().rows();
+    if (K < 1 || static_cast<size_t>(K) > N)
+        throw Error("kmeans: K must be in 1..N", 0, 0, "kmeans", "",
+                    "numkit:kmeans:badK");
+}
+
+} // namespace
 
 // Full kmeans with optional 4th D output (N×K squared distances).
 
 KmeansResult
 kmeans_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates, std::pmr::memory_resource *mr)
 {
+    kmeans_argcheck(X, K);
     if (max_iter <= 0)   max_iter = 100;
     if (replicates <= 0) replicates = 1;
 
     const size_t N = X.dims().rows();
     const size_t D = X.dims().cols();
-    if (K < 1 || (size_t)K > N)
-        throw Error("kmeans: K must be in 1..N", 0, 0, "kmeans", "",
-                    "numkit:kmeans:badK");
 
     ScratchArena scratch(mr);
 

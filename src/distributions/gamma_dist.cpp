@@ -53,13 +53,21 @@ double sampleGamma1(::numkit::ops::RngContext &rng, double a)
 
 } // namespace
 
+namespace {
+inline bool gam_argcheck(double a, double b) noexcept
+{
+    return a > 0.0 && b > 0.0;
+}
+} // namespace
+
 Value gampdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
 {
-    // MATLAB: a<0 or b<=0 → NaN; a==0 → 0 (degenerate, all mass at 0).
-    if (a < 0.0 || b <= 0.0)
+    // Reference convention: a<0 or b<=0 → NaN; a==0 → 0 (degenerate, all mass at 0).
+    if (!gam_argcheck(a, b)) {
+        if (a == 0.0 && b > 0.0)
+            return elementwise(x, [](double){ return 0.0; }, mr);
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    if (a == 0.0)
-        return elementwise(x, [](double){ return 0.0; }, mr);
+    }
     // log f(x) = (a-1) log x - x/b - a log b - lgamma(a)
     const double log_b = std::log(b);
     const double lga   = std::lgamma(a);

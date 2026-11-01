@@ -46,12 +46,20 @@ std::string fmtGroupNum(double v)
     return std::string(buf);
 }
 
+void grp2idx_argcheck(const Value &s)
+{
+    if (s.isStruct() || s.isComplex())
+        throw Error("grp2idx: grouping variable must be real numeric, logical, char, string, or cellstr",
+                    0, 0, "grp2idx", "", "numkit:grp2idx:badType");
+}
+
 } // namespace
 
 // ── Public C++ API (see descriptive.hpp) ──────────────────────────────
 
 Grp2idxResult grp2idx(const Value &s, std::pmr::memory_resource *mr)
 {
+    grp2idx_argcheck(s);
     const size_t n = s.numel();
 
     std::vector<double>      g;        // index per element (NaN allowed)

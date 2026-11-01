@@ -592,14 +592,25 @@ void isoutlierApplyTfDefaults(IsOutlierPlan &p, const Value &A)
     }
 }
 
+void isoutlierFull_argcheck(const Value &A)
+{
+    argcheck::requireClassSet(A, kFloatReal, "isoutlier");
+}
+
+void rmoutliersFull_argcheck(const Value &A)
+{
+    argcheck::requireClassSet(A, kFloatReal, "rmoutliers");
+    if (A.dims().ndim() > 2)
+        throw Error("rmoutliers: N-D arrays are not supported",
+                    0, 0, "rmoutliers", "", "numkit:rmoutliers:ndArrays");
+}
+
 } // anonymous namespace
 
 IsOutlierOut isoutlier_full(const Value &A, Span<const Value> in,
                             bool wantThresholds, std::pmr::memory_resource *mr)
 {
-    // isoutlierFull_argcheck: the real-float gate crossed by every call
-    // path (interpreter and direct C++).
-    argcheck::requireClassSet(A, kFloatReal, "isoutlier");
+    isoutlierFull_argcheck(A);
 
     IsOutlierPlan p;
     const Value *locs = nullptr;
@@ -704,11 +715,7 @@ IsOutlierOut isoutlier_full(const Value &A, Span<const Value> in,
 RmOutliersOut rmoutliers_full(const Value &A, Span<const Value> in,
                               std::pmr::memory_resource *mr)
 {
-    // rmoutliersFull_argcheck: the same real-float gate as isoutlier.
-    argcheck::requireClassSet(A, kFloatReal, "rmoutliers");
-    if (A.dims().ndim() > 2)
-        throw Error("rmoutliers: N-D arrays are not supported",
-                    0, 0, "rmoutliers", "", "numkit:rmoutliers:ndArrays");
+    rmoutliersFull_argcheck(A);
 
     IsOutlierPlan p;
     const Value *locs = nullptr;

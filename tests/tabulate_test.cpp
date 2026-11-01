@@ -146,3 +146,46 @@ TEST_F(TabulateTest, Grp2idxNaNAndLogical)
     EXPECT_DOUBLE_EQ(evalScalar("gl(2)"), 1.0);               // false -> group 1
     EXPECT_DOUBLE_EQ(evalScalar("strcmp(gnl{1},'0')"), 1.0);
 }
+
+TEST_F(TabulateTest, CellstrInputReturnsCellTable)
+{
+    eval("T = tabulate({'b', 'a', 'b', 'c', 'a', 'b'});");
+    EXPECT_DOUBLE_EQ(evalScalar("iscell(T)"), 1.0);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(T, 1)")), 3);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(T, 2)")), 3);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(T{1, 1}, 'b')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("T{1, 2}"), 3.0);
+    EXPECT_NEAR(evalScalar("T{1, 3}"), 50.0, 1e-12);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(T{2, 1}, 'a')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("T{2, 2}"), 2.0);
+    EXPECT_NEAR(evalScalar("T{2, 3}"), 100.0 / 3.0, 1e-12);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(T{3, 1}, 'c')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("T{3, 2}"), 1.0);
+}
+
+TEST_F(TabulateTest, StringArrayInputReturnsCellTable)
+{
+    eval("T = tabulate([\"red\", \"blue\", \"red\", \"green\"]);");
+    EXPECT_DOUBLE_EQ(evalScalar("iscell(T)"), 1.0);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(T, 1)")), 3);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(T, 2)")), 3);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(T{1, 1}, 'red')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("T{1, 2}"), 2.0);
+    EXPECT_NEAR(evalScalar("T{1, 3}"), 50.0, 1e-12);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(T{2, 1}, 'blue')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("T{2, 2}"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(T{3, 1}, 'green')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("T{3, 2}"), 1.0);
+}
+
+TEST_F(TabulateTest, CharMatrixInputReturnsCellTable)
+{
+    eval("T = tabulate(['cat '; 'dog '; 'cat ']);");
+    EXPECT_DOUBLE_EQ(evalScalar("iscell(T)"), 1.0);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(T, 1)")), 2);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(T{1, 1}, 'cat')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("T{1, 2}"), 2.0);
+    EXPECT_NEAR(evalScalar("T{1, 3}"), 200.0 / 3.0, 1e-12);
+    EXPECT_DOUBLE_EQ(evalScalar("strcmp(T{2, 1}, 'dog')"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("T{2, 2}"), 1.0);
+}

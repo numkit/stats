@@ -88,6 +88,13 @@ bool solveDense(std::vector<double> &A, std::vector<double> &b, size_t n)
     return true;
 }
 
+void crosscorr_argcheck(const Value &y1, const Value &y2)
+{
+    if (y2.numel() != y1.numel())
+        throw Error("crosscorr: y1 and y2 must have the same length",
+                    0, 0, "crosscorr", "", "numkit:crosscorr:lengthMismatch");
+}
+
 } // namespace
 
 std::tuple<Value, Value, Value>
@@ -119,10 +126,8 @@ std::tuple<Value, Value, Value>
 crosscorr(const Value &y1, const Value &y2, int numLags, double numSTD,
           std::pmr::memory_resource *mr)
 {
+    crosscorr_argcheck(y1, y2);
     const size_t N = y1.numel();
-    if (y2.numel() != N)
-        throw Error("crosscorr: y1 and y2 must have the same length",
-                    0, 0, "crosscorr", "", "numkit:crosscorr:lengthMismatch");
     const size_t K = (numLags >= 0) ? static_cast<size_t>(numLags) : defaultNumLags(N);
 
     std::vector<double> c1, c2;

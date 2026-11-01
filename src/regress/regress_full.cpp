@@ -50,12 +50,10 @@ GlmLink parseGlmLinkName(const Value &v, const char *fn)
 
 // ── ridge ─────────────────────────────────────────────────────────────
 
-Value ridge_full(const Value &y, const Value &X, const Value &kVec,
-                 const Value &flag, std::pmr::memory_resource *mr)
+namespace {
+void ridge_full_argcheck(const Value &y, const Value &X, const Value &flag, bool &scaled)
 {
-    // Scaling flag: empty or 1 → scaled; 0 → unscaled; else reject
-    // (probe76 R04/R08).
-    bool scaled = true;
+    scaled = true;
     if (!flag.isEmpty()) {
         const double f = flag.elemAsDouble(0);
         if (f == 0.0) scaled = false;
@@ -65,7 +63,6 @@ Value ridge_full(const Value &y, const Value &X, const Value &kVec,
                         0, 0, "ridge", "", "numkit:ridge:badScalingFlag");
     }
 
-    // Shape gates (probe76 R05/R06): row count then column-vector y.
     if (X.dims().ndim() != 2)
         throw Error("ridge: X must be a matrix.",
                     0, 0, "ridge", "", "numkit:ridge:invalidData");
@@ -82,6 +79,15 @@ Value ridge_full(const Value &y, const Value &X, const Value &kVec,
                     + std::to_string(y.dims().dim(0)) + "x"
                     + std::to_string(y.dims().dim(1)) + ").",
                     0, 0, "ridge", "", "numkit:ridge:invalidData");
+}
+} // namespace
+
+Value ridge_full(const Value &y, const Value &X, const Value &kVec,
+                 const Value &flag, std::pmr::memory_resource *mr)
+{
+    bool scaled = true;
+    ridge_full_argcheck(y, X, flag, scaled);
+    const std::size_t n = static_cast<std::size_t>(X.dims().dim(0));
 
     // Missing-value removal: any row with a NaN in y or X (probe76 R07).
     const std::size_t p = static_cast<std::size_t>(X.dims().dim(1));

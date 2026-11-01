@@ -18,10 +18,16 @@
 
 namespace numkit::stats {
 
+namespace {
+inline bool geo_argcheck(double p) noexcept
+{
+    return p > 0.0 && p <= 1.0;
+}
+} // namespace
 
 Value geopdf(const Value &k, double p, std::pmr::memory_resource *mr)
 {
-    if (p <= 0.0 || p > 1.0)
+    if (!geo_argcheck(p))
         return elementwise(k, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     return elementwise(k, [=](double ki) {
         if (ki < 0.0 || std::floor(ki) != ki) return 0.0;

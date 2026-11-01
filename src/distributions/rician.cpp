@@ -23,10 +23,16 @@
 
 namespace numkit::stats {
 
+namespace {
+inline bool rice_argcheck(double s, double sigma) noexcept
+{
+    return sigma > 0.0 && s >= 0.0;
+}
+} // namespace
 
 Value ricepdf(const Value &x, double s, double sigma, std::pmr::memory_resource *mr)
 {
-    if (sigma <= 0.0 || s < 0.0)
+    if (!rice_argcheck(s, sigma))
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     const double s2 = s * s;
     const double sg2 = sigma * sigma;

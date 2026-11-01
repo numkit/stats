@@ -105,9 +105,38 @@ TEST_F(MovExtrasTest, KZeroErrors)
     EXPECT_THROW(eval("movmean(A2, 0);"), numkit::Error);
 }
 
-TEST_F(MovExtrasTest, SamplePointsRejected)
+TEST_F(MovExtrasTest, SamplePointsNonUniformWindow)
 {
-    EXPECT_THROW(eval("movmean(A2, 2, 'SamplePoints', [0 1 2 3 4 5 7 8 9]');"),
+    // Sample points t = [0 1 2 5 6]': window of width 2.5 centered at t(i)
+    // spans [t(i) - 1.25, t(i) + 1.25]:
+    //   i=1 (t=0): [0, 1]   -> vals [10, 20]     -> mean 15, sum 30
+    //   i=2 (t=1): [0,1,2]  -> vals [10, 20, 30] -> mean 20, sum 60
+    //   i=3 (t=2): [1, 2]   -> vals [20, 30]     -> mean 25, sum 50
+    //   i=4 (t=5): [5, 6]   -> vals [40, 50]     -> mean 45, sum 90
+    //   i=5 (t=6): [5, 6]   -> vals [40, 50]     -> mean 45, sum 90
+    eval("x = [10 20 30 40 50]'; t = [0 1 2 5 6]';");
+    eval("ym = movmean(x, 2.5, 'SamplePoints', t);");
+    EXPECT_NEAR(evalScalar("ym(1)"), 15.0, 1e-12);
+    EXPECT_NEAR(evalScalar("ym(2)"), 20.0, 1e-12);
+    EXPECT_NEAR(evalScalar("ym(3)"), 25.0, 1e-12);
+    EXPECT_NEAR(evalScalar("ym(4)"), 45.0, 1e-12);
+    EXPECT_NEAR(evalScalar("ym(5)"), 45.0, 1e-12);
+
+    eval("ys = movsum(x, [1 0], 'SamplePoints', t);");
+    // Asymmetric window [t(i) - 1, t(i)]:
+    //   i=1 (t=0): [0]    -> 10
+    //   i=2 (t=1): [0, 1] -> 30
+    //   i=3 (t=2): [1, 2] -> 50
+    //   i=4 (t=5): [5]    -> 40
+    //   i=5 (t=6): [5, 6] -> 90
+    EXPECT_NEAR(evalScalar("ys(1)"), 10.0, 1e-12);
+    EXPECT_NEAR(evalScalar("ys(2)"), 30.0, 1e-12);
+    EXPECT_NEAR(evalScalar("ys(3)"), 50.0, 1e-12);
+    EXPECT_NEAR(evalScalar("ys(4)"), 40.0, 1e-12);
+    EXPECT_NEAR(evalScalar("ys(5)"), 90.0, 1e-12);
+
+    // Non-increasing SamplePoints must still throw.
+    EXPECT_THROW(eval("movmean(x, 2, 'SamplePoints', [0 2 1 3 4]');"),
                  numkit::Error);
 }
 

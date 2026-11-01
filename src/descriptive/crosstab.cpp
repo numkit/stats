@@ -37,15 +37,23 @@
 
 namespace numkit::stats {
 
+namespace {
+
+void crosstab_argcheck(const Value &x, const Value &y_opt)
+{
+    if (!y_opt.isEmpty() && y_opt.numel() != x.numel())
+        throw Error("crosstab: x and y must have the same length",
+                    0, 0, "crosstab", "", "numkit:crosstab:LenMismatch");
+}
+
+} // namespace
 
 std::tuple<Value, double, double>
 crosstab(const Value &x, const Value &y_opt, std::pmr::memory_resource *mr)
 {
+    crosstab_argcheck(x, y_opt);
     const size_t Nx = x.numel();
     const bool have_y = !y_opt.isEmpty();
-    if (have_y && y_opt.numel() != Nx)
-        throw Error("crosstab: x and y must have the same length",
-                    0, 0, "crosstab", "", "numkit:crosstab:LenMismatch");
 
     auto u_x = sortedUniqueNoNaN(x);
     const size_t R = u_x.size();

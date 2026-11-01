@@ -128,19 +128,27 @@ Value castDown(const Value &X, bool single, std::pmr::memory_resource *mr)
 
 } // namespace
 
-Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
-             std::pmr::memory_resource *mr)
+namespace {
+void mvnpdf_argcheck(const Value &X)
 {
-    // ── X gate ──────────────────────────────────────────────────────
     if (!isMatrixValue(X))
         throw Error("mvnpdf: X must be a non-empty matrix (got a "
                     + std::string(mtypeName(X.type())) + " array).",
                     0, 0, "mvnpdf", "", "numkit:mvnpdf:invalidData");
-    std::size_t n = static_cast<std::size_t>(X.dims().dim(0));
-    std::size_t d = static_cast<std::size_t>(X.dims().dim(1));
+    const std::size_t d = static_cast<std::size_t>(X.dims().dim(1));
     if (d < 1)
         throw Error("mvnpdf: X must have at least one column.",
                     0, 0, "mvnpdf", "", "numkit:mvnpdf:tooFewDimensions");
+}
+} // namespace
+
+Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
+             std::pmr::memory_resource *mr)
+{
+    // ── X gate ──────────────────────────────────────────────────────
+    mvnpdf_argcheck(X);
+    std::size_t n = static_cast<std::size_t>(X.dims().dim(0));
+    std::size_t d = static_cast<std::size_t>(X.dims().dim(1));
     bool single = (X.type() == ValueType::SINGLE);
 
     // ── mu: empty | scalar | matrix (row, full, or rep-when-single) ──

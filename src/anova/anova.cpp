@@ -66,19 +66,10 @@ anova1(const Value &y, const Value &group, std::pmr::memory_resource *mr)
     return std::make_tuple(p, F, dfB, dfW, ssB, ssW);
 }
 
-// ── anova2 (two-way ANOVA without replication, reps=1) ───────────────
-//
-// Y is m × n: rows = levels of factor A, columns = levels of factor B.
-// Returns (p_cols, p_rows, F_cols, F_rows, df_cols, df_rows, df_err,
-//          ss_cols, ss_rows, ss_err).
-// MATLAB convention: anova2 puts COLUMNS factor first (factor B),
-// then ROWS factor (factor A).
-std::tuple<double, double, double, double,
-           double, double, double,
-           double, double, double>
-anova2(const Value &Y, std::pmr::memory_resource *mr)
+namespace {
+
+void anova2_argcheck(const Value &Y)
 {
-    const double nan = std::numeric_limits<double>::quiet_NaN();
     if (Y.dims().ndim() != 2)
         throw Error("anova2: input must be a 2D matrix",
                     0, 0, "anova2", "", "numkit:anova2:notMatrix");
@@ -87,6 +78,33 @@ anova2(const Value &Y, std::pmr::memory_resource *mr)
     if (m < 2 || n < 2)
         throw Error("anova2: input must be at least 2x2",
                     0, 0, "anova2", "", "numkit:anova2:tooSmall");
+}
+
+void friedman_argcheck(int reps)
+{
+    if (reps < 1)
+        throw Error("friedman: reps must be a positive integer",
+                    0, 0, "friedman", "", "numkit:friedman:reps");
+}
+
+} // namespace
+
+// ── anova2 (two-way ANOVA without replication, reps=1) ───────────────
+//
+// Y is m × n: rows = levels of factor A, columns = levels of factor B.
+// Returns (p_cols, p_rows, F_cols, F_rows, df_cols, df_rows, df_err,
+//          ss_cols, ss_rows, ss_err).
+// Reference engine convention: anova2 puts COLUMNS factor first (factor B),
+// then ROWS factor (factor A).
+std::tuple<double, double, double, double,
+           double, double, double,
+           double, double, double>
+anova2(const Value &Y, std::pmr::memory_resource *mr)
+{
+    anova2_argcheck(Y);
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    const std::size_t m = static_cast<std::size_t>(Y.dims().dim(0));
+    const std::size_t n = static_cast<std::size_t>(Y.dims().dim(1));
 
     const double *yd = Y.doubleData();
     const double N = static_cast<double>(m * n);
@@ -230,48 +248,53 @@ kruskalwallis(const Value &y, const Value &group, std::pmr::memory_resource *mr)
 std::tuple<Value, Value, Value>
 friedman(const Value &x, int reps, std::pmr::memory_resource *mr)
 {
+    friedman_argcheck(reps);
     const double nan = std::numeric_limits<double>::quiet_NaN();
     const size_t nrows = x.dims().rows();
     const size_t k     = x.dims().cols();
-    const size_t R     = (reps >= 1) ? static_cast<size_t>(reps) : 1;   // replicates per cell
-    if (k < 2 || nrows < 2 || R == 0 || (nrows % R) != 0)
+    const size_t R     = static_cast<size_t>(reps);   // replicates per cell
+    if (k < 2 || nrows < 2 * R || R == 0 || (nrows % R) != 0)
         return std::make_tuple(Value::scalar(nan, mr), Value::scalar(nan, mr),
                                Value::scalar(0.0, mr));
-    const size_t n = nrows / R;   // blocks (rows of the Friedman layout)
-
-    // Cell value (block b, treatment col c): mean over the R replicate rows.
-    auto cell = [&](size_t b, size_t c) {
-        double s = 0.0;
-        for (size_t r = 0; r < R; ++r)
-            s += x.elemAsDouble(c * nrows + (b * R + r));   // column-major
-        return s / static_cast<double>(R);
-    };
+    const size_t n = nrows / R;   // blocks
+    const size_t M = R * k;       // observations per block
 
     std::vector<double> Rj(k, 0.0);      // column rank sums
     double              tieTerm = 0.0;   // Σ (t³ − t) over every tie group in every block
-    std::vector<double> row(k), rank(k);
-    std::vector<size_t> ord(k);
+    std::vector<double> blkVals(M), rank(M);
+    std::vector<size_t> blkCols(M), ord(M);
     for (size_t b = 0; b < n; ++b) {
-        for (size_t c = 0; c < k; ++c) { row[c] = cell(b, c); ord[c] = c; }
-        std::sort(ord.begin(), ord.end(), [&](size_t a, size_t bb) { return row[a] < row[bb]; });
-        size_t i = 0;                    // mid-ranks within the block
-        while (i < k) {
+        size_t idx = 0;
+        for (size_t c = 0; c < k; ++c) {
+            for (size_t r = 0; r < R; ++r) {
+                blkVals[idx] = x.elemAsDouble(c * nrows + (b * R + r));
+                blkCols[idx] = c;
+                ord[idx]     = idx;
+                ++idx;
+            }
+        }
+        std::sort(ord.begin(), ord.end(), [&](size_t a, size_t bb) { return blkVals[a] < blkVals[bb]; });
+        size_t i = 0;                    // mid-ranks within the block (1 .. R*k)
+        while (i < M) {
             size_t j = i + 1;
-            while (j < k && row[ord[j]] == row[ord[i]]) ++j;
+            while (j < M && blkVals[ord[j]] == blkVals[ord[i]]) ++j;
             const double avg = static_cast<double>(i + j + 1) / 2.0;
             for (size_t t = i; t < j; ++t) rank[ord[t]] = avg;
             const double tg = static_cast<double>(j - i);
             if (tg > 1.0) tieTerm += tg * tg * tg - tg;
             i = j;
         }
-        for (size_t c = 0; c < k; ++c) Rj[c] += rank[c];
+        for (size_t m = 0; m < M; ++m) Rj[blkCols[m]] += rank[m];
     }
 
-    const double nd = static_cast<double>(n), kd = static_cast<double>(k);
+    const double nd = static_cast<double>(n);
+    const double kd = static_cast<double>(k);
+    const double Rd = static_cast<double>(R);
+    const double Md = Rd * kd;
     double sumRj2 = 0.0;
     for (double v : Rj) sumRj2 += v * v;
-    double Q = 12.0 / (nd * kd * (kd + 1.0)) * sumRj2 - 3.0 * nd * (kd + 1.0);
-    const double C = 1.0 - tieTerm / (nd * (kd * kd * kd - kd));   // tie correction
+    double Q = 12.0 / (nd * kd * Rd * Rd * (Md + 1.0)) * sumRj2 - 3.0 * nd * (Md + 1.0);
+    const double C = 1.0 - tieTerm / (nd * Md * (Md * Md - 1.0));   // tie correction
     if (C > 0.0) Q /= C;
 
     const double df = kd - 1.0;

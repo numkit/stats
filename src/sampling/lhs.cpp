@@ -147,6 +147,15 @@ Value lhsdesign(::numkit::ops::RngContext &rng, std::size_t n, std::size_t p,
     return lhsdesign(rng, n, p, /*smooth=*/true, LhsCriterion::Maximin, 5, mr);
 }
 
+namespace {
+void lhsnorm_argcheck(const Value &Sigma, std::size_t d)
+{
+    if (Sigma.dims().rows() != d || Sigma.dims().cols() != d)
+        throw Error("lhsnorm: Sigma must be d × d where d = length(mu)",
+                    0, 0, "lhsnorm", "", "numkit:lhsnorm:shape");
+}
+} // namespace
+
 Value lhsnorm(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigma, std::size_t n,
               bool smooth, std::pmr::memory_resource *mr)
 {
@@ -154,9 +163,7 @@ Value lhsnorm(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigm
     const std::size_t d = mu.numel();
     if (d == 0)
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
-    if (Sigma.dims().rows() != d || Sigma.dims().cols() != d)
-        throw Error("lhsnorm: Sigma must be d × d where d = length(mu)",
-                    0, 0, "lhsnorm", "", "numkit:lhsnorm:shape");
+    lhsnorm_argcheck(Sigma, d);
 
     auto out = Value::matrix(n, d, ValueType::DOUBLE, mr);
     if (n == 0) return out;

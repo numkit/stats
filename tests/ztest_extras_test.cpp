@@ -32,9 +32,26 @@ TEST_F(ZtestExtrasTest, TailNVRecognised)
     EXPECT_NO_THROW(eval("ztest(x, 3, 1, 'Tail', 'left');"));
 }
 
-TEST_F(ZtestExtrasTest, DimRejected)
+TEST_F(ZtestExtrasTest, Dim1AndDim2)
 {
-    EXPECT_THROW(eval("ztest(x, 3, 1, 'Dim', 1);"), numkit::Error);
+    eval("M = [x, x + 1];");
+    eval("[h1, p1, ci1, z1] = ztest(M, 3, 1, 'Dim', 1);");
+    eval("[hc1, pc1, cic1, zc1] = ztest(M(:,1), 3, 1);");
+    eval("[hc2, pc2, cic2, zc2] = ztest(M(:,2), 3, 1);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(h1, 1)")), 1);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(h1, 2)")), 2);
+    EXPECT_NEAR(evalScalar("p1(1)"), evalScalar("pc1"), 1e-12);
+    EXPECT_NEAR(evalScalar("p1(2)"), evalScalar("pc2"), 1e-12);
+    EXPECT_NEAR(evalScalar("z1(1)"), evalScalar("zc1"), 1e-12);
+    EXPECT_NEAR(evalScalar("z1(2)"), evalScalar("zc2"), 1e-12);
+
+    eval("[h2, p2, ci2, z2] = ztest(M', 3, 1, 'Dim', 2);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(h2, 1)")), 2);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(h2, 2)")), 1);
+    EXPECT_NEAR(evalScalar("p2(1)"), evalScalar("pc1"), 1e-12);
+    EXPECT_NEAR(evalScalar("p2(2)"), evalScalar("pc2"), 1e-12);
+    EXPECT_NEAR(evalScalar("ci2(1, 1)"), evalScalar("cic1(1)"), 1e-12);
+    EXPECT_NEAR(evalScalar("ci2(2, 2)"), evalScalar("cic2(2)"), 1e-12);
 }
 
 TEST_F(ZtestExtrasTest, BasicValuesUnchanged)

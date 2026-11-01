@@ -94,14 +94,23 @@ void jacobi(std::vector<double> &A, std::vector<double> &V, size_t D) {
 
 } // anonymous
 
-std::tuple<Value, Value, Value, Value, Value, Value>
-pca(const Value &X, std::pmr::memory_resource *mr)
+namespace {
+void pca_argcheck(const Value &X)
 {
     const size_t N = X.dims().rows();
     const size_t D = X.dims().cols();
     if (N < 2 || D < 1)
         throw Error("pca: need at least 2 rows and 1 column",
                     0, 0, "pca", "", "numkit:pca:size");
+}
+} // namespace
+
+std::tuple<Value, Value, Value, Value, Value, Value>
+pca(const Value &X, std::pmr::memory_resource *mr)
+{
+    pca_argcheck(X);
+    const size_t N = X.dims().rows();
+    const size_t D = X.dims().cols();
 
     std::vector<double> Xv = read_rows(X);
 

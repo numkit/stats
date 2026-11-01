@@ -24,17 +24,25 @@
 
 namespace numkit::stats {
 
+namespace {
+
+void corrcov_argcheck(const Value &C)
+{
+    if (C.dims().rows() != C.dims().cols())
+        throw Error("corrcov: input must be a square matrix",
+                    0, 0, "corrcov", "", "numkit:corrcov:NotSquare");
+    if (C.dims().rows() == 0)
+        throw Error("corrcov: input must be non-empty",
+                    0, 0, "corrcov", "", "numkit:corrcov:Empty");
+}
+
+} // namespace
+
 std::pair<Value, Value>
 corrcov(const Value &C, std::pmr::memory_resource *mr)
 {
+    corrcov_argcheck(C);
     const size_t R = C.dims().rows();
-    const size_t Cn = C.dims().cols();
-    if (R != Cn)
-        throw Error("corrcov: input must be a square matrix",
-                    0, 0, "corrcov", "", "numkit:corrcov:NotSquare");
-    if (R == 0)
-        throw Error("corrcov: input must be non-empty",
-                    0, 0, "corrcov", "", "numkit:corrcov:Empty");
 
     // sigma(i) = sqrt(C(i, i)).
     std::vector<double> sigma(R);

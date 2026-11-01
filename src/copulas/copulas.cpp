@@ -33,7 +33,7 @@ namespace {
 // Validate U is n × d and extract (n, d). Throws on bad shape /
 // out-of-range values.
 std::pair<std::size_t, std::size_t>
-check_U(const Value &U, std::size_t d_expected, const char *fn)
+copula_U_argcheck(const Value &U, std::size_t d_expected, const char *fn)
 {
     std::size_t n, d;
     if (U.isScalar()) {
@@ -251,7 +251,7 @@ Value copulapdf_gaussian(const Value &U, const Value &R,
                          std::pmr::memory_resource *mr)
 {
     const std::size_t d = check_R_dim(R, "copulapdf");
-    auto [n, dU] = check_U(U, d, "copulapdf");
+    auto [n, dU] = copula_U_argcheck(U, d, "copulapdf");
     auto out = make_out(n, mr);
     if (n == 0) return out;
 
@@ -284,7 +284,7 @@ Value copulacdf_gaussian(const Value &U, const Value &R,
                          std::pmr::memory_resource *mr)
 {
     const std::size_t d = check_R_dim(R, "copulacdf");
-    auto [n, dU] = check_U(U, d, "copulacdf");
+    auto [n, dU] = copula_U_argcheck(U, d, "copulacdf");
     auto out = make_out(n, mr);
     if (n == 0) return out;
     double *od = out.doubleDataMut();
@@ -320,7 +320,7 @@ Value copulapdf_t(const Value &U, const Value &R, double nu,
                   std::pmr::memory_resource *mr)
 {
     const std::size_t d = check_R_dim(R, "copulapdf");
-    auto [n, dU] = check_U(U, d, "copulapdf");
+    auto [n, dU] = copula_U_argcheck(U, d, "copulapdf");
     if (!(nu > 0.0))
         throw Error("copulapdf: nu must be positive",
                     0, 0, "copulapdf", "", "numkit:copulapdf:badNu");
@@ -373,7 +373,7 @@ Value copulacdf_t(const Value &U, const Value &R, double nu,
                   std::pmr::memory_resource *mr)
 {
     const std::size_t d = check_R_dim(R, "copulacdf");
-    auto [n, dU] = check_U(U, d, "copulacdf");
+    auto [n, dU] = copula_U_argcheck(U, d, "copulacdf");
     if (!(nu > 0.0))
         throw Error("copulacdf: nu must be positive",
                     0, 0, "copulacdf", "", "numkit:copulacdf:badNu");
@@ -405,7 +405,7 @@ Value copulacdf_t(const Value &U, const Value &R, double nu,
 Value copulapdf_clayton(const Value &U, double alpha,
                         std::pmr::memory_resource *mr)
 {
-    auto [n, d] = check_U(U, 2, "copulapdf");
+    auto [n, d] = copula_U_argcheck(U, 2, "copulapdf");
     if (!(alpha > 0.0))
         throw Error("copulapdf: Clayton alpha must be > 0",
                     0, 0, "copulapdf", "", "numkit:copulapdf:badAlpha");
@@ -426,7 +426,7 @@ Value copulapdf_clayton(const Value &U, double alpha,
 Value copulacdf_clayton(const Value &U, double alpha,
                         std::pmr::memory_resource *mr)
 {
-    auto [n, d] = check_U(U, 2, "copulacdf");
+    auto [n, d] = copula_U_argcheck(U, 2, "copulacdf");
     if (!(alpha > 0.0))
         throw Error("copulacdf: Clayton alpha must be > 0",
                     0, 0, "copulacdf", "", "numkit:copulacdf:badAlpha");
@@ -447,7 +447,7 @@ Value copulacdf_clayton(const Value &U, double alpha,
 Value copulapdf_frank(const Value &U, double alpha,
                       std::pmr::memory_resource *mr)
 {
-    auto [n, d] = check_U(U, 2, "copulapdf");
+    auto [n, d] = copula_U_argcheck(U, 2, "copulapdf");
     auto out = make_out(n, mr);
     if (n == 0) return out;
     double *od = out.doubleDataMut();
@@ -470,7 +470,7 @@ Value copulapdf_frank(const Value &U, double alpha,
 Value copulacdf_frank(const Value &U, double alpha,
                       std::pmr::memory_resource *mr)
 {
-    auto [n, d] = check_U(U, 2, "copulacdf");
+    auto [n, d] = copula_U_argcheck(U, 2, "copulacdf");
     if (alpha == 0.0)
         throw Error("copulacdf: Frank alpha must be non-zero "
                     "(use independence for α = 0)",
@@ -500,7 +500,7 @@ Value copulacdf_frank(const Value &U, double alpha,
 Value copulapdf_gumbel(const Value &U, double alpha,
                        std::pmr::memory_resource *mr)
 {
-    auto [n, d] = check_U(U, 2, "copulapdf");
+    auto [n, d] = copula_U_argcheck(U, 2, "copulapdf");
     if (!(alpha >= 1.0))
         throw Error("copulapdf: Gumbel alpha must be ≥ 1",
                     0, 0, "copulapdf", "", "numkit:copulapdf:badAlpha");
@@ -532,7 +532,7 @@ Value copulapdf_gumbel(const Value &U, double alpha,
 Value copulacdf_gumbel(const Value &U, double alpha,
                        std::pmr::memory_resource *mr)
 {
-    auto [n, d] = check_U(U, 2, "copulacdf");
+    auto [n, d] = copula_U_argcheck(U, 2, "copulacdf");
     if (!(alpha >= 1.0))
         throw Error("copulacdf: Gumbel alpha must be ≥ 1",
                     0, 0, "copulacdf", "", "numkit:copulacdf:badAlpha");

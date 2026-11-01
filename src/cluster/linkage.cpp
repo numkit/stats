@@ -210,12 +210,40 @@ Value linkage(const Value &Y, const std::string &method, std::pmr::memory_resour
 // Forward decl for inconsistency cutoff.
 Value inconsistent(const Value &Z, int depth, std::pmr::memory_resource *mr);
 
-Value cluster_from_linkage(const Value &Z, int maxclust, double cutoff, const std::string &criterion, int depth, std::pmr::memory_resource *mr)
+namespace {
+
+void cluster_from_linkage_argcheck(const Value &Z)
 {
-    const size_t M = Z.dims().rows();
     if (Z.dims().cols() != 3)
         throw Error("cluster: Z must be (N-1)×3", 0, 0, "cluster", "",
                     "numkit:cluster:size");
+}
+
+void cophenet_full_argcheck(const Value &Z, const Value &Y)
+{
+    const size_t M = Z.dims().rows();
+    const size_t N = M + 1;
+    if (Z.dims().cols() != 3)
+        throw Error("cophenet: Z must be (N-1)×3", 0, 0, "cophenet", "",
+                    "numkit:cophenet:size");
+    if (N * (N - 1) / 2 != Y.numel())
+        throw Error("cophenet: Y / Z size mismatch", 0, 0, "cophenet", "",
+                    "numkit:cophenet:size");
+}
+
+void inconsistent_argcheck(const Value &Z)
+{
+    if (Z.dims().cols() != 3)
+        throw Error("inconsistent: Z must be (N-1)×3", 0, 0, "inconsistent", "",
+                    "numkit:inconsistent:size");
+}
+
+} // namespace
+
+Value cluster_from_linkage(const Value &Z, int maxclust, double cutoff, const std::string &criterion, int depth, std::pmr::memory_resource *mr)
+{
+    cluster_from_linkage_argcheck(Z);
+    const size_t M = Z.dims().rows();
     const size_t N = M + 1;
     ScratchArena scratch(mr);
     ScratchVec<int>    a(M, &scratch), b(M, &scratch);
@@ -364,15 +392,10 @@ Value clusterdata(const Value &X, int maxclust, double cutoff, const std::string
 // "Undefined function or variable 'd'". Now both outputs are produced.
 std::tuple<Value, Value> cophenet_full(const Value &Z, const Value &Y, std::pmr::memory_resource *mr)
 {
+    cophenet_full_argcheck(Z, Y);
     const size_t M = Z.dims().rows();
     const size_t N = M + 1;
-    if (Z.dims().cols() != 3)
-        throw Error("cophenet: Z must be (N-1)×3", 0, 0, "cophenet", "",
-                    "numkit:cophenet:size");
     const size_t Yn = Y.numel();
-    if (N * (N - 1) / 2 != Yn)
-        throw Error("cophenet: Y / Z size mismatch", 0, 0, "cophenet", "",
-                    "numkit:cophenet:size");
 
     ScratchArena scratch(mr);
     ScratchVec<int>    a(M, &scratch), b(M, &scratch);
@@ -442,10 +465,8 @@ Value cophenet(const Value &Z, const Value &Y, std::pmr::memory_resource *mr)
 // ════════════════════════════════════════════════════════════════════
 
 Value inconsistent(const Value &Z, int depth, std::pmr::memory_resource *mr) {
+    inconsistent_argcheck(Z);
     const size_t M = Z.dims().rows();
-    if (Z.dims().cols() != 3)
-        throw Error("inconsistent: Z must be (N-1)×3", 0, 0, "inconsistent", "",
-                    "numkit:inconsistent:size");
     if (depth <= 0) depth = 2;
     const size_t N = M + 1;
 

@@ -330,13 +330,44 @@ static Value smoothLocalRegDim(const Value &x, int F, int deg, int dim, std::pmr
     return out;
 }
 
-// ── smoothdata ────────────────────────────────────────────────────────
-Value smoothdata(const Value &x, const std::string &method, int k, int dim, std::pmr::memory_resource *mr)
+namespace {
+
+void smoothdata_argcheck(const std::string &method)
 {
     std::string m = method;
     for (auto &c : m) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    if (!m.empty() && m != "movmean" && m != "movmedian" && m != "gaussian"
+        && m != "sgolay" && m != "lowess" && m != "loess") {
+        throw Error("smoothdata: method '" + method + "' not supported "
+                     "(supported: 'movmean', 'movmedian', 'gaussian', 'sgolay', "
+                     "'lowess', 'loess')",
+                     0, 0, "smoothdata", "", "numkit:smoothdata:unsupportedMethod");
+    }
+}
 
-    // Heuristic default window — MATLAB picks ~max(min(round(0.1*n), 10), 3).
+void hampel_argcheck(const Value &x, int k, double nsigmas)
+{
+    if (k < 0)
+        throw Error("hampel: k must be >= 0",
+                     0, 0, "hampel", "", "numkit:hampel:badK");
+    if (nsigmas <= 0)
+        throw Error("hampel: nsigmas must be positive",
+                     0, 0, "hampel", "", "numkit:hampel:badSigmas");
+    if (!x.dims().isVector() && !x.isScalar())
+        throw Error("hampel: vector input only (matrix form deferred)",
+                     0, 0, "hampel", "", "numkit:hampel:notVector");
+}
+
+} // namespace
+
+// ── smoothdata ────────────────────────────────────────────────────────
+Value smoothdata(const Value &x, const std::string &method, int k, int dim, std::pmr::memory_resource *mr)
+{
+    smoothdata_argcheck(method);
+    std::string m = method;
+    for (auto &c : m) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+
+    // Heuristic default window — the reference engine picks ~max(min(round(0.1*n), 10), 3).
     if (k <= 0) {
         const size_t n = (x.dims().isVector() || x.isScalar())
                           ? x.numel()
@@ -357,26 +388,22 @@ Value smoothdata(const Value &x, const std::string &method, int k, int dim, std:
     if (m == "movmedian")
         return movmedian_impl(x, kSpan, opt, mr);
     if (m == "gaussian") {
-        // Gaussian-weighted moving average. MATLAB R2025b uses sigma =
-        // windowLength/5 and centres the kernel on the CURRENT sample, with
-        // 'shrink' endpoints. (Was sigma=(k-1)/4 + a mis-aligned kernel at
-        // truncated edges -> wrong at the boundaries and interior.)
+        // Gaussian-weighted moving average using sigma =
+        // windowLength/5 and centring the kernel on the CURRENT sample, with
+        // 'shrink' endpoints.
         const auto w = decodeWindow(kSpan, "smoothdata");
         const int d = resolveDim(x, dim, "smoothdata");
         const double sigma = (k > 0) ? static_cast<double>(k) / 5.0 : 0.2;
         return smoothGaussianDim(x, w, sigma, d, opt, mr);
     }
     if (m == "sgolay") {
-        // Savitzky-Golay (degree 2). Matches MATLAB exactly for an explicit odd
-        // window; the auto default window is approximate (MATLAB's is a
-        // data-dependent heuristic that this shared k-default doesn't replicate).
+        // Savitzky-Golay (degree 2).
         const int d = resolveDim(x, dim, "smoothdata");
         return smoothSGDim(x, k, /*deg=*/2, d, mr);
     }
     if (m == "lowess" || m == "loess") {
         // Local tricube-weighted regression — linear (lowess) / quadratic
-        // (loess). Matches MATLAB exactly for an explicit window; auto default
-        // window is approximate (same data-dependent-heuristic caveat as sgolay).
+        // (loess).
         const int d = resolveDim(x, dim, "smoothdata");
         return smoothLocalRegDim(x, k, m == "loess" ? 2 : 1, d, mr);
     }
@@ -388,10 +415,7 @@ Value smoothdata(const Value &x, const std::string &method, int k, int dim, std:
 
 // ── hampel ────────────────────────────────────────────────────────────
 
-// MATLAB-exact MAD→σ normal-consistency constant 1/norminv(0.75). MATLAB's
-// hampel reports xsigma = 1.482602218505602*MAD and uses the same factor in
-// its threshold, so we match it exactly (the looser 1.4826 misses xsigma by
-// ~1e-5 and can flip borderline detections).
+// MAD→σ normal-consistency constant 1/norminv(0.75).
 constexpr double kHampelMadToStd = 1.4826022185056018;
 
 // Core single-pass hampel filter over a length-`n` vector. Always fills
@@ -429,20 +453,12 @@ void hampelCore(const double *src, std::size_t n, int k, double nsigmas,
 
 void hampelValidate(const Value &x, int k, double nsigmas)
 {
-    if (k < 0)
-        throw Error("hampel: k must be >= 0",
-                     0, 0, "hampel", "", "numkit:hampel:badK");
-    if (nsigmas <= 0)
-        throw Error("hampel: nsigmas must be positive",
-                     0, 0, "hampel", "", "numkit:hampel:badSigmas");
-    if (!x.dims().isVector() && !x.isScalar())
-        throw Error("hampel: vector input only (matrix form deferred)",
-                     0, 0, "hampel", "", "numkit:hampel:notVector");
+    hampel_argcheck(x, k, nsigmas);
 }
 
 Value hampel(const Value &x, int k, double nsigmas, std::pmr::memory_resource *mr)
 {
-    hampelValidate(x, k, nsigmas);
+    hampel_argcheck(x, k, nsigmas);
     auto out = createLike(x, ValueType::DOUBLE, mr);
     const size_t n = x.numel();
     if (n == 0) return out;

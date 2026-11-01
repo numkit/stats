@@ -1128,6 +1128,16 @@ std::size_t centeredRank(const Value &Z, std::pmr::memory_resource *mr)
     return rnk;
 }
 
+void corr_full_argcheck(const Value &x, const Value *Y)
+{
+    const std::size_t n = corrRowsOf(x);
+    if (Y != nullptr && corrRowsOf(*Y) != n)
+        throw Error("corr: X and Y must have the same number of rows "
+                    "(X has " + std::to_string(n) + ", Y has "
+                    + std::to_string(corrRowsOf(*Y)) + ").",
+                    0, 0, "corr", "", "numkit:corr:inputSizeMismatch");
+}
+
 } // namespace
 
 // ── corr full entry ───────────────────────────────────────────────────
@@ -1135,14 +1145,10 @@ std::size_t centeredRank(const Value &Z, std::pmr::memory_resource *mr)
 CorrOut corr_full(const Value &x, const Value *Y, Span<const Value> nv,
                   bool wantP, std::pmr::memory_resource *mr)
 {
+    corr_full_argcheck(x, Y);
     const std::size_t n = corrRowsOf(x);
     const std::size_t p1 = corrColsOf(x);
     const bool corrXX = (Y == nullptr);
-    if (!corrXX && corrRowsOf(*Y) != n)
-        throw Error("corr: X and Y must have the same number of rows "
-                    "(X has " + std::to_string(n) + ", Y has "
-                    + std::to_string(corrRowsOf(*Y)) + ").",
-                    0, 0, "corr", "", "numkit:corr:inputSizeMismatch");
     const std::size_t p2 = corrXX ? p1 : corrColsOf(*Y);
     const bool anySingle = (x.type() == ValueType::SINGLE)
                            || (!corrXX && Y->type() == ValueType::SINGLE);

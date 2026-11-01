@@ -22,10 +22,16 @@
 
 namespace numkit::stats {
 
+namespace {
+inline bool beta_argcheck(double a, double b) noexcept
+{
+    return a > 0.0 && b > 0.0;
+}
+} // namespace
 
 Value betapdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
 {
-    if (a <= 0.0 || b <= 0.0)
+    if (!beta_argcheck(a, b))
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     // log f(x) = (a-1) log x + (b-1) log(1-x) - lbeta(a, b)
     const double lbeta = std::lgamma(a) + std::lgamma(b) - std::lgamma(a + b);

@@ -436,4 +436,25 @@ std::tuple<Value, Value, Value, Value>
 vartestn_full(const Value &x, const Value &group, int test,
               std::pmr::memory_resource *mr);
 
+std::tuple<Value, Value, Value, Value>
+ttest_dim(const Value &x, double m, double alpha, TestTail tail, int dim,
+          std::pmr::memory_resource *mr);
+
+std::tuple<Value, Value, Value, Value>
+ttest2_dim(const Value &x, const Value &y, double alpha, TestTail tail,
+           const std::string &vartype, int dim,
+           std::pmr::memory_resource *mr);
+
+std::tuple<Value, Value, Value, Value>
+ztest_dim(const Value &x, double m, double sigma, double alpha, TestTail tail,
+          int dim, std::pmr::memory_resource *mr);
+
+std::tuple<Value, Value, Value, Value>
+vartest_dim(const Value &x, double v, double alpha, TestTail tail, int dim,
+            std::pmr::memory_resource *mr);
+
+std::tuple<Value, Value, Value, Value>
+vartest2_dim(const Value &x, const Value &y, double alpha, TestTail tail,
+             int dim, std::pmr::memory_resource *mr);
+
 } // namespace numkit::stats

@@ -33,6 +33,12 @@ using ::numkit::ops::nanMinScan;
 using ::numkit::ops::nanVarianceTwoPass;
 using ::numkit::ops::compactNonNan;
 
+namespace {
+inline void nanvar_argcheck(int normFlag, const char *fn)
+{
+    validateNormFlag(normFlag, fn);
+}
+} // namespace
 
 Value nansum(const Value &x, int dim, std::pmr::memory_resource *mr)
 {
@@ -97,7 +103,7 @@ Value nanmin(const Value &x, int dim, std::pmr::memory_resource *mr)
 
 Value nanvar(const Value &x, int normFlag, int dim, std::pmr::memory_resource *mr)
 {
-    validateNormFlag(normFlag, "nanvar");
+    nanvar_argcheck(normFlag, "nanvar");
     if (x.isEmpty())
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     if ((x.dims().isVector() || x.isScalar()) && x.type() == ValueType::DOUBLE)

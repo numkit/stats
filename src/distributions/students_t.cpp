@@ -27,10 +27,16 @@
 
 namespace numkit::stats {
 
+namespace {
+inline bool t_argcheck(double nu) noexcept
+{
+    return nu > 0.0;
+}
+} // namespace
 
 Value tpdf(const Value &x, double nu, std::pmr::memory_resource *mr)
 {
-    if (!(nu > 0.0))  // nu <= 0 or NaN
+    if (!t_argcheck(nu))  // nu <= 0 or NaN
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     // Gaussian limit: as nu -> Inf, t-PDF -> N(0, 1) PDF.
     if (std::isinf(nu)) {

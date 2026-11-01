@@ -22,10 +22,16 @@
 
 namespace numkit::stats {
 
+namespace {
+inline bool rayl_argcheck(double b) noexcept
+{
+    return b > 0.0;
+}
+} // namespace
 
 Value raylpdf(const Value &x, double b, std::pmr::memory_resource *mr)
 {
-    if (b <= 0.0)
+    if (!rayl_argcheck(b))
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     const double inv_b2 = 1.0 / (b * b);
     return elementwise(x, [=](double xi) {

@@ -116,12 +116,8 @@ double frobNorm(const std::vector<double> &M)
     return std::sqrt(s);
 }
 
-} // namespace
-
-Value nearcorr_full(const Value &A, Span<const Value> nv,
-                    std::pmr::memory_resource *mr)
+void nearcorr_argcheck(const Value &A)
 {
-    // ── gate (one rejection class; every clause names what failed) ──────
     const auto rejectA = [&](const std::string &why) {
         throw Error("nearcorr: invalid value of 'A'. Expected A to be a "
                     "symmetric matrix with unit diagonal and entries in "
@@ -152,6 +148,15 @@ Value nearcorr_full(const Value &A, Span<const Value> nv,
         if (A.elemAsDouble(i + i * N) != 1.0)
             rejectA("diagonal entry (" + std::to_string(i + 1) + ","
                     + std::to_string(i + 1) + ") is not 1");
+}
+
+} // namespace
+
+Value nearcorr_full(const Value &A, Span<const Value> nv,
+                    std::pmr::memory_resource *mr)
+{
+    nearcorr_argcheck(A);
+    const size_t N = A.dims().rows();
     const bool wantSingle = (A.type() == ValueType::SINGLE);
 
     // ── name-value parse (probe71 N05-N07: one optional-input class) ────

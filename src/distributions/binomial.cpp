@@ -19,10 +19,16 @@
 
 namespace numkit::stats {
 
+namespace {
+inline bool bino_argcheck(double n, double p) noexcept
+{
+    return n >= 0.0 && std::floor(n) == n && p >= 0.0 && p <= 1.0;
+}
+} // namespace
 
 Value binopdf(const Value &k, double n, double p, std::pmr::memory_resource *mr)
 {
-    if (n < 0.0 || std::floor(n) != n || p < 0.0 || p > 1.0)
+    if (!bino_argcheck(n, p))
         return elementwise(k, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     return elementwise(k, [=](double ki){ return bino_pmf(ki, n, p); }, mr);
 }

@@ -17,18 +17,26 @@
 
 namespace numkit::stats {
 
+namespace {
+
+void silhouette_argcheck(const Value &X, const Value &clust)
+{
+    if (X.dims().rows() > 0 && clust.numel() != X.dims().rows())
+        throw Error("silhouette: clust length must equal size(X, 1)",
+                    0, 0, "silhouette", "", "numkit:silhouette:size");
+}
+
+} // namespace
+
 Value silhouette(const Value &X, const Value &clust, const std::string &metric, double p, std::pmr::memory_resource *mr)
 {
+    silhouette_argcheck(X, clust);
     const auto &dx = X.dims();
     const size_t N = dx.rows();
     if (N == 0)
         return Value::matrix(0, 1, ValueType::DOUBLE, mr);
 
-    if (clust.numel() != N)
-        throw Error("silhouette: clust length must equal size(X, 1)",
-                    0, 0, "silhouette", "", "numkit:silhouette:size");
-
-    // Pull labels into int vector. MATLAB allows numeric or char/string —
+    // Pull labels into int vector. The reference engine allows numeric or char/string —
     // we accept anything that elemAsDouble can read (round to int).
     std::vector<int> lbl(N);
     for (size_t i = 0; i < N; ++i)

@@ -32,6 +32,20 @@ TEST_P(StatsCoverageTailTest, Lscov)
     eval("[~, se] = lscov(A, b);");
     EXPECT_NEAR(evalScalar("se(1)"), 0.4743416490, 1e-7);
     EXPECT_NEAR(evalScalar("se(2)"), 0.1732050808, 1e-7);
+    // Full covariance matrix V: diagonal V = diag(1 ./ w) matches weight vector w,
+    // and correlated SPD V solves the GLS system (A'*V^-1*A)*x = A'*V^-1*b.
+    eval("w = [1; 2; 0.5; 4];"
+         "[xw_vec, sew_vec, mse_vec] = lscov(A, b, w);"
+         "[xw_mat, sew_mat, mse_mat] = lscov(A, b, diag(1 ./ w));");
+    EXPECT_NEAR(evalScalar("max(abs(xw_vec - xw_mat))"), 0.0, 1e-12);
+    EXPECT_NEAR(evalScalar("max(abs(sew_vec - sew_mat))"), 0.0, 1e-12);
+    EXPECT_NEAR(evalScalar("mse_vec"), evalScalar("mse_mat"), 1e-12);
+    eval("V = [2 0.5 0 0; 0.5 2 0.3 0; 0 0.3 1.5 0.2; 0 0 0.2 1];"
+         "[xv, sev, msev] = lscov(A, b, V);"
+         "x_ref = (A' * (V \\ A)) \\ (A' * (V \\ b));");
+    EXPECT_NEAR(evalScalar("max(abs(xv - x_ref))"), 0.0, 1e-12);
+    EXPECT_GT(evalScalar("sev(1)"), 0.0);
+    EXPECT_GT(evalScalar("msev"), 0.0);
 }
 
 // ── ridge: ridge regression coefficients (scaled = 0 → original scale) ──

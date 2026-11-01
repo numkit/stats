@@ -53,9 +53,16 @@ double samplePoisson1(::numkit::ops::RngContext &rng, double lam, std::pmr::memo
 
 } // namespace
 
+namespace {
+inline bool poiss_argcheck(double lambda) noexcept
+{
+    return lambda >= 0.0 && !std::isnan(lambda);
+}
+} // namespace
+
 Value poisspdf(const Value &k, double lambda, std::pmr::memory_resource *mr)
 {
-    if (lambda < 0.0)
+    if (!poiss_argcheck(lambda))
         return elementwise(k, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     return elementwise(k, [=](double ki){ return poiss_pmf(ki, lambda); }, mr);
 }

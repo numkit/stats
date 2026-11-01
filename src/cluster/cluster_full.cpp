@@ -64,8 +64,8 @@ struct ClusterOpts {
 // Positional metric tail: a string names the metric, a scalar is the
 // Minkowski exponent, a larger numeric array is the Mahalanobis
 // covariance (the same shape the reference's positional forms take).
-ClusterOpts parseClusterTail(Span<const Value> tail, const char *fn,
-                             const char *badMetricTag)
+ClusterOpts pdist_argcheck(Span<const Value> tail, const char *fn,
+                           const char *badMetricTag)
 {
     ClusterOpts o{"euclidean", 2.0, nullptr};
     for (std::size_t i = 0; i < tail.size(); ++i) {
@@ -96,8 +96,8 @@ ClusterOpts parseClusterTail(Span<const Value> tail, const char *fn,
 Value pdist_full(const Value &X, Span<const Value> tail,
                  std::pmr::memory_resource *mr)
 {
-    const ClusterOpts o = parseClusterTail(tail, "pdist",
-                                           "numkit:pdist:distanceFunctionNotFound");
+    const ClusterOpts o = pdist_argcheck(tail, "pdist",
+                                         "numkit:pdist:distanceFunctionNotFound");
     Value d = pdist(X, o.metric, o.p, o.C, mr);
     // Single inputs produce single distances (probe P07).
     if (X.type() == ValueType::SINGLE && d.type() == ValueType::DOUBLE) {
@@ -120,7 +120,7 @@ Pdist2Out pdist2_full(const Value &X, const Value &Y, Span<const Value> tail,
     // Smallest/Largest top-k selection follows the positional Distance
     // argument (tail index >= 1): pdist2(X, Y, Distance, 'Smallest', K).
     // Passing 'Smallest'/'Largest' in the Distance slot (tail[0]) falls
-    // through to parseClusterTail and raises unrecognizedDistance (probe P09).
+    // through to pdist_argcheck and raises unrecognizedDistance (probe P09).
     bool topk = false, largest = false;
     std::size_t k = 0;
     std::vector<Value> rest;
@@ -145,7 +145,7 @@ Pdist2Out pdist2_full(const Value &X, const Value &Y, Span<const Value> tail,
         }
         rest.push_back(tail[i]);
     }
-    const ClusterOpts o = parseClusterTail(
+    const ClusterOpts o = pdist_argcheck(
         Span<const Value>(rest.data(), rest.size()), "pdist2",
         "numkit:pdist2:unrecognizedDistance");
     if (topk) {

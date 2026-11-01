@@ -94,7 +94,50 @@ TEST_F(TtestExtrasTest, ParametricStatsStructs)
     EXPECT_NEAR(evalScalar("zv"), 0.7905694, 1e-6);
 }
 
-TEST_F(TtestExtrasTest, Ttest2DimRejected)
+TEST_F(TtestExtrasTest, TtestDim1AndDim2)
 {
-    EXPECT_THROW(eval("ttest2(x, y, 'Dim', 1);"), numkit::Error);
+    eval("M = [x, y];");
+    eval("[h1, p1, ci1, st1] = ttest(M, 2, 'Dim', 1);");
+    eval("[hx, px, cix, stx] = ttest(x, 2);");
+    eval("[hy, py, ciy, sty] = ttest(y, 2);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(h1, 1)")), 1);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(h1, 2)")), 2);
+    EXPECT_DOUBLE_EQ(evalScalar("h1(1)"), evalScalar("hx"));
+    EXPECT_DOUBLE_EQ(evalScalar("h1(2)"), evalScalar("hy"));
+    EXPECT_NEAR(evalScalar("p1(1)"), evalScalar("px"), 1e-12);
+    EXPECT_NEAR(evalScalar("p1(2)"), evalScalar("py"), 1e-12);
+    EXPECT_NEAR(evalScalar("ci1(1, 1)"), evalScalar("cix(1)"), 1e-12);
+    EXPECT_NEAR(evalScalar("ci1(2, 2)"), evalScalar("ciy(2)"), 1e-12);
+    EXPECT_NEAR(evalScalar("st1.tstat(1)"), evalScalar("stx.tstat"), 1e-12);
+    EXPECT_NEAR(evalScalar("st1.tstat(2)"), evalScalar("sty.tstat"), 1e-12);
+
+    eval("[h2, p2, ci2, st2] = ttest(M', 2, 'Dim', 2);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(h2, 1)")), 2);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(h2, 2)")), 1);
+    EXPECT_NEAR(evalScalar("p2(1)"), evalScalar("px"), 1e-12);
+    EXPECT_NEAR(evalScalar("p2(2)"), evalScalar("py"), 1e-12);
+    EXPECT_NEAR(evalScalar("ci2(1, 1)"), evalScalar("cix(1)"), 1e-12);
+    EXPECT_NEAR(evalScalar("ci2(2, 2)"), evalScalar("ciy(2)"), 1e-12);
+}
+
+TEST_F(TtestExtrasTest, Ttest2Dim1AndDim2)
+{
+    eval("X = [x, x + 1]; Y = [y, y + 0.5];");
+    eval("[h1, p1, ci1, st1] = ttest2(X, Y, 'Dim', 1);");
+    eval("[hc1, pc1, cic1, stc1] = ttest2(X(:,1), Y(:,1));");
+    eval("[hc2, pc2, cic2, stc2] = ttest2(X(:,2), Y(:,2));");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(h1, 1)")), 1);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(h1, 2)")), 2);
+    EXPECT_NEAR(evalScalar("p1(1)"), evalScalar("pc1"), 1e-12);
+    EXPECT_NEAR(evalScalar("p1(2)"), evalScalar("pc2"), 1e-12);
+    EXPECT_NEAR(evalScalar("st1.tstat(1)"), evalScalar("stc1.tstat"), 1e-12);
+    EXPECT_NEAR(evalScalar("st1.tstat(2)"), evalScalar("stc2.tstat"), 1e-12);
+
+    eval("[h2, p2, ci2, st2] = ttest2(X', Y', 'Dim', 2);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(h2, 1)")), 2);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(h2, 2)")), 1);
+    EXPECT_NEAR(evalScalar("p2(1)"), evalScalar("pc1"), 1e-12);
+    EXPECT_NEAR(evalScalar("p2(2)"), evalScalar("pc2"), 1e-12);
+    EXPECT_NEAR(evalScalar("ci2(1, 1)"), evalScalar("cic1(1)"), 1e-12);
+    EXPECT_NEAR(evalScalar("ci2(2, 2)"), evalScalar("cic2(2)"), 1e-12);
 }

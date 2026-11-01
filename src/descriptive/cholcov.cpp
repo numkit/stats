@@ -38,6 +38,13 @@ namespace numkit::stats {
 
 namespace {
 
+void cholcov_argcheck(const Value &SIGMA)
+{
+    if (SIGMA.dims().rows() != SIGMA.dims().cols())
+        throw Error("cholcov: SIGMA must be square",
+                    0, 0, "cholcov", "", "numkit:cholcov:NotSquare");
+}
+
 // In-place upper-tri Cholesky attempt. Returns true if SIGMA is PD;
 // fills `out` with R such that R'*R = SIGMA. On any non-positive
 // pivot, returns false.
@@ -68,11 +75,8 @@ bool tryCholesky(const Value &SIGMA, std::vector<double> &out, size_t n)
 std::pair<Value, Value>
 cholcov(const Value &SIGMA, std::pmr::memory_resource *mr)
 {
+    cholcov_argcheck(SIGMA);
     const size_t R = SIGMA.dims().rows();
-    const size_t C = SIGMA.dims().cols();
-    if (R != C)
-        throw Error("cholcov: SIGMA must be square",
-                    0, 0, "cholcov", "", "numkit:cholcov:NotSquare");
     if (R == 0) {
         Value T = Value::matrix(0, 0, ValueType::DOUBLE, mr);
         return {std::move(T), Value::scalar(0.0, mr)};

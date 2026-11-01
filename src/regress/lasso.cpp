@@ -19,23 +19,30 @@
 
 namespace numkit::stats {
 
-
-LassoResult lasso(const Value &X, const Value &y, const Value &lambdas,
-                   double alpha, std::pmr::memory_resource *mr)
+namespace {
+void lasso_argcheck(const Value &X, const Value &y, const Value &lambdas, double alpha)
 {
     if (alpha < 0.0 || alpha > 1.0)
         throw Error("lasso: alpha must be in [0, 1]",
                     0, 0, "lasso", "", "numkit:lasso:badAlpha");
-
     const std::size_t n = X.dims().rows();
-    const std::size_t p = X.dims().cols();
     if (y.numel() != n)
         throw Error("lasso: length(y) must equal rows(X)",
                     0, 0, "lasso", "", "numkit:lasso:shapeMismatch");
-    const std::size_t nL = lambdas.numel();
-    if (nL == 0)
+    if (lambdas.numel() == 0)
         throw Error("lasso: lambdas must be a non-empty vector",
                     0, 0, "lasso", "", "numkit:lasso:emptyLambda");
+}
+} // namespace
+
+LassoResult lasso(const Value &X, const Value &y, const Value &lambdas,
+                   double alpha, std::pmr::memory_resource *mr)
+{
+    lasso_argcheck(X, y, lambdas, alpha);
+
+    const std::size_t n = X.dims().rows();
+    const std::size_t p = X.dims().cols();
+    const std::size_t nL = lambdas.numel();
 
     // Copy X (n×p, col-major) and standardise in place.
     std::vector<double> Xs(n * p);

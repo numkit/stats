@@ -85,11 +85,19 @@ bool isVector(const Value &v)
     return v.dims().rows() == 1 || v.dims().cols() == 1;
 }
 
+void tiedrank_argcheck(const Value &x)
+{
+    if (x.dims().ndim() > 2)
+        throw Error("tiedrank: X must be a vector or 2D matrix",
+                    0, 0, "tiedrank", "", "numkit:tiedrank:ndim");
+}
+
 } // namespace
 
 std::pair<Value, Value>
 tiedrank(const Value &x, std::pmr::memory_resource *mr)
 {
+    tiedrank_argcheck(x);
     const size_t R = x.dims().rows();
     const size_t C = x.dims().cols();
 

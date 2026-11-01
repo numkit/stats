@@ -70,10 +70,10 @@ Value gamfit(const Value &x, std::pmr::memory_resource *mr)
     return gamfit(x, Value::Empty, Value::Empty, mr);
 }
 
-Value gamfit(const Value &x, const Value &censoring, const Value &freq,
-             std::pmr::memory_resource *mr)
+namespace {
+void gamfit_argcheck(const std::vector<double> &xv, const Value &censoring, const Value &freq,
+                     std::vector<double> &cens, std::vector<double> &wf)
 {
-    auto xv = toFlat(x);
     const std::size_t n = xv.size();
     if (n < 2)
         throw Error("gamfit: need at least 2 observations",
@@ -83,7 +83,8 @@ Value gamfit(const Value &x, const Value &censoring, const Value &freq,
             throw Error("gamfit: all observations must be positive",
                         0, 0, "gamfit", "", "numkit:gamfit:notPositive");
     }
-    std::vector<double> cens(n, 0.0), wf(n, 1.0);
+    cens.assign(n, 0.0);
+    wf.assign(n, 1.0);
     if (!censoring.isEmpty()) {
         if (censoring.numel() != n)
             throw Error("gamfit: censoring length mismatch",
@@ -102,6 +103,16 @@ Value gamfit(const Value &x, const Value &censoring, const Value &freq,
                             0, 0, "gamfit", "", "numkit:gamfit:freqNeg");
         }
     }
+}
+} // namespace
+
+Value gamfit(const Value &x, const Value &censoring, const Value &freq,
+             std::pmr::memory_resource *mr)
+{
+    auto xv = toFlat(x);
+    const std::size_t n = xv.size();
+    std::vector<double> cens, wf;
+    gamfit_argcheck(xv, censoring, freq, cens, wf);
 
     bool freq_trivial = true;
     for (std::size_t i = 0; i < n; ++i)
@@ -320,7 +331,6 @@ Value wblfit(const Value &x, const Value &censoring, const Value &freq,
     // Then 1-D Newton on b via score d(NLL)/db = 0 evaluated with a(b).
     // Initial b from naïve closed form on uncensored subset.
     double nuw_init = 0.0;
-    double sum_lx_uncens = 0.0;
     double sum_lx_uncens_w = 0.0;
     for (std::size_t i = 0; i < n; ++i) {
         const double u = 1.0 - cens[i];
@@ -414,7 +424,6 @@ Value betafit(const Value &x, std::pmr::memory_resource *mr)
         sumLog1mX += std::log(1.0 - v);
     }
     const double meanX = sumX / static_cast<double>(n);
-    const double varX  = (sum1mX * sumX) / (static_cast<double>(n) * static_cast<double>(n));
     // MoM initial guess: a = μ·(μ(1-μ)/σ² - 1), b = (1-μ)·(...)
     double v0 = 0.0;
     for (double v : xv) {

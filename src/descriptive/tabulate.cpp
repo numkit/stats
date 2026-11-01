@@ -27,12 +27,86 @@
 
 #include <algorithm>
 #include <cmath>
+#include <string>
 #include <vector>
 
 namespace numkit::stats {
 
+namespace {
+
+void tabulate_argcheck(const Value &x)
+{
+    if (x.isStruct() || x.isFuncHandle() || x.isObject() || x.isComplex())
+        throw Error("tabulate: unsupported input type",
+                    0, 0, "tabulate", "", "numkit:tabulate:InvalidInput");
+    if (x.isCell()) {
+        for (size_t i = 0; i < x.numel(); ++i) {
+            const Value &el = x.cellAt(i);
+            if (!el.isChar() && !el.isString())
+                throw Error("tabulate: cell input must be a cell array of character vectors",
+                            0, 0, "tabulate", "", "numkit:tabulate:InvalidInput");
+        }
+    }
+}
+
+} // namespace
+
 Value tabulate(const Value &x, std::pmr::memory_resource *mr)
 {
+    tabulate_argcheck(x);
+
+    if (x.isCell() || x.isString() || x.isChar()) {
+        std::vector<std::string> items;
+        if (x.isCell()) {
+            const size_t N0 = x.numel();
+            items.reserve(N0);
+            for (size_t i = 0; i < N0; ++i)
+                items.push_back(x.cellAt(i).toString());
+        } else if (x.isString()) {
+            const size_t N0 = x.numel();
+            items.reserve(N0);
+            for (size_t i = 0; i < N0; ++i)
+                items.push_back(x.stringElem(i));
+        } else {
+            const size_t R = x.dims().rows();
+            if (x.numel() > 0) {
+                items.reserve(R);
+                for (size_t r = 0; r < R; ++r) {
+                    std::string s = x.charRow(r);
+                    while (!s.empty() && s.back() == ' ')
+                        s.pop_back();
+                    items.push_back(std::move(s));
+                }
+            }
+        }
+        const size_t N = items.size();
+        if (N == 0)
+            return Value::cell(0, 3, mr);
+
+        std::vector<std::string> uniq;
+        std::vector<size_t> cnt;
+        uniq.reserve(N);
+        cnt.reserve(N);
+        for (const auto &s : items) {
+            auto it = std::find(uniq.begin(), uniq.end(), s);
+            if (it == uniq.end()) {
+                uniq.push_back(s);
+                cnt.push_back(1);
+            } else {
+                cnt[static_cast<size_t>(it - uniq.begin())]++;
+            }
+        }
+        const size_t K = uniq.size();
+        Value T = Value::cell(K, 3, mr);
+        for (size_t k = 0; k < K; ++k) {
+            T.cellAt(k)         = Value::fromString(uniq[k], mr);
+            T.cellAt(k + K)     = Value::scalar(static_cast<double>(cnt[k]), mr);
+            T.cellAt(k + 2 * K) = Value::scalar(static_cast<double>(cnt[k]) * 100.0
+                                                / static_cast<double>(N), mr);
+        }
+        return T;
+    }
+
     const size_t N0 = x.numel();
     if (N0 == 0)
         return Value::matrix(0, 1, ValueType::DOUBLE, mr);

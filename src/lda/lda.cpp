@@ -49,12 +49,12 @@ void fwd_solve(const double *L, double *z, const double *b, size_t d)
 
 } // anonymous
 
-std::tuple<Value, Value, Value, Value>
-classify(const Value &sample, const Value &training, const Value &group, const std::string &type_in, std::pmr::memory_resource *mr)
+namespace {
+void classify_argcheck(const Value &sample, const Value &training, const Value &group,
+                       const std::string &type_in, std::string &type, bool &quadratic, bool &diagonal)
 {
-    const size_t d     = training.dims().cols();
-    const size_t Ntr   = training.dims().rows();
-    const size_t Nsamp = sample.dims().rows();
+    const size_t d   = training.dims().cols();
+    const size_t Ntr = training.dims().rows();
     if (sample.dims().cols() != d)
         throw Error("classify: sample and training must have the same number of columns",
                     0, 0, "classify", "", "numkit:classify:cols");
@@ -62,15 +62,27 @@ classify(const Value &sample, const Value &training, const Value &group, const s
         throw Error("classify: group must have one entry per training row",
                     0, 0, "classify", "", "numkit:classify:group");
 
-    std::string type = type_in;
+    type = type_in;
     for (auto &c : type) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     if (type.empty()) type = "linear";
-    const bool quadratic = (type == "quadratic" || type == "diagquadratic");
-    const bool diagonal  = (type == "diaglinear" || type == "diagquadratic");
+    quadratic = (type == "quadratic" || type == "diagquadratic");
+    diagonal  = (type == "diaglinear" || type == "diagquadratic");
     if (type != "linear" && type != "diaglinear"
         && type != "quadratic" && type != "diagquadratic")
         throw Error("classify: unsupported type (linear|diaglinear|quadratic|diagquadratic)",
                     0, 0, "classify", "", "numkit:classify:type");
+}
+} // namespace
+
+std::tuple<Value, Value, Value, Value>
+classify(const Value &sample, const Value &training, const Value &group, const std::string &type_in, std::pmr::memory_resource *mr)
+{
+    const size_t d     = training.dims().cols();
+    const size_t Ntr   = training.dims().rows();
+    const size_t Nsamp = sample.dims().rows();
+    std::string type;
+    bool quadratic = false, diagonal = false;
+    classify_argcheck(sample, training, group, type_in, type, quadratic, diagonal);
 
     // Identify unique group labels (sorted ascending).
     std::vector<double> labels;

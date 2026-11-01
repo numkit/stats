@@ -55,17 +55,18 @@ void ttest_reg(Span<const Value> args, size_t nargout,
     auto *mr = ctx.engine->resource();
 
     // Detect paired form: ttest(x, y) where y is a non-scalar numeric
-    // vector matching x's length. Pre-difference x - y and run vs m=0.
+    // array matching x's length. Pre-difference x - y and run vs m=0.
     Value xData = args[0];
     bool pairedConsumed = false;
     if (args.size() >= 2 && !args[1].isChar() && !args[1].isString()
         && !args[1].isEmpty() && args[1].numel() > 1) {
-        // Build paired difference x - y in a fresh DOUBLE row.
         const Value &y = args[1];
         if (y.numel() != args[0].numel())
             throw Error("ttest: paired vectors must have equal length",
                         0, 0, "ttest", "", "numkit:ttest:pairedLen");
-        Value diff = Value::matrix(1, y.numel(), ValueType::DOUBLE, mr);
+        const size_t r = args[0].dims().rows();
+        const size_t c = args[0].dims().cols();
+        Value diff = Value::matrix(r, c, ValueType::DOUBLE, mr);
         double *dst = diff.doubleDataMut();
         for (size_t i = 0; i < y.numel(); ++i)
             dst[i] = args[0].elemAsDouble(i) - y.elemAsDouble(i);
@@ -80,6 +81,7 @@ void ttest_reg(Span<const Value> args, size_t nargout,
     }
     double alpha = 0.05;
     TestTail tail = TestTail::Both;
+    int dim = 0;
     size_t i = (args.size() >= 2 && (args[1].isChar() || args[1].isString())) ? 1 : 2;
     while (i < args.size()) {
         const Value &a = args[i];
@@ -91,8 +93,13 @@ void ttest_reg(Span<const Value> args, size_t nargout,
             } else if (sl == "tail" && i + 1 < args.size()) {
                 tail = parse_tail(args[i + 1].toString(), tail); i += 2;
             } else if (sl == "dim") {
-                throw Error("ttest: 'Dim' not yet supported (parity gap)",
-                            0, 0, "ttest", "", "numkit:ttest:dim");
+                if (i + 1 >= args.size())
+                    throw Error("ttest: missing value for 'Dim'",
+                                0, 0, "ttest", "", "numkit:ttest:dim");
+                dim = argcheck::expectedPositiveInteger(
+                    argcheck::expectedReal(args[i + 1], static_cast<int>(i + 2), "dim", "ttest"),
+                    static_cast<int>(i + 2), "dim", "ttest");
+                i += 2;
             } else {
                 tail = parse_tail(sl, tail); ++i;
             }
@@ -100,7 +107,7 @@ void ttest_reg(Span<const Value> args, size_t nargout,
             alpha = a.toScalar(); ++i;
         }
     }
-    auto [h, p, ci, t] = ttest(xData, m, alpha, tail, mr);
+    auto [h, p, ci, t] = ttest_dim(xData, m, alpha, tail, dim, mr);
     outs[0] = std::move(h);
     if (nargout > 1) outs[1] = std::move(p);
     if (nargout > 2) outs[2] = std::move(ci);
@@ -113,8 +120,9 @@ void ttest2_reg(Span<const Value> args, size_t nargout,
     argcheck::checkNargin(args.size(), 2, "ttest2");  // no max: name-value tail in the reference
     double alpha = parse_alpha(args, 2, 0.05);
     TestTail tail = TestTail::Both;
-    // MATLAB R2025b default is 'equal' (pooled variance), NOT Welch.
+    // Reference engine default is 'equal' (pooled variance), NOT Welch.
     std::string vartype = "equal";
+    int dim = 0;
     for (size_t i = 2; i + 1 < args.size(); ++i) {
         if (args[i].isChar() || args[i].isString()) {
             std::string k = args[i].toString();
@@ -122,12 +130,14 @@ void ttest2_reg(Span<const Value> args, size_t nargout,
             if      (k == "tail")    tail = parse_tail(args[i + 1].toString(), TestTail::Both);
             else if (k == "vartype") vartype = args[i + 1].toString();
             else if (k == "alpha")   alpha = args[i + 1].toScalar();
-            else if (k == "dim")
-                throw Error("ttest2: 'Dim' not yet supported (parity gap)",
-                            0, 0, "ttest2", "", "numkit:ttest2:dim");
+            else if (k == "dim") {
+                dim = argcheck::expectedPositiveInteger(
+                    argcheck::expectedReal(args[i + 1], static_cast<int>(i + 2), "dim", "ttest2"),
+                    static_cast<int>(i + 2), "dim", "ttest2");
+            }
         }
     }
-    auto [h, p, ci, t] = ttest2(args[0], args[1], alpha, tail, vartype, ctx.engine->resource());
+    auto [h, p, ci, t] = ttest2_dim(args[0], args[1], alpha, tail, vartype, dim, ctx.engine->resource());
     outs[0] = std::move(h);
     if (nargout > 1) outs[1] = std::move(p);
     if (nargout > 2) outs[2] = std::move(ci);
@@ -142,6 +152,7 @@ void ztest_reg(Span<const Value> args, size_t nargout,
     const double sigma = args[2].toScalar();
     double alpha = 0.05;
     TestTail tail = TestTail::Both;
+    int dim = 0;
     size_t i = 3;
     while (i < args.size()) {
         const Value &a = args[i];
@@ -150,13 +161,19 @@ void ztest_reg(Span<const Value> args, size_t nargout,
             for (auto &c : sl) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
             if (sl == "alpha" && i + 1 < args.size()) { alpha = args[i + 1].toScalar(); i += 2; }
             else if (sl == "tail" && i + 1 < args.size()) { tail = parse_tail(args[i + 1].toString(), tail); i += 2; }
-            else if (sl == "dim")
-                throw Error("ztest: 'Dim' not yet supported (parity gap)",
-                            0, 0, "ztest", "", "numkit:ztest:dim");
+            else if (sl == "dim") {
+                if (i + 1 >= args.size())
+                    throw Error("ztest: missing value for 'Dim'",
+                                0, 0, "ztest", "", "numkit:ztest:dim");
+                dim = argcheck::expectedPositiveInteger(
+                    argcheck::expectedReal(args[i + 1], static_cast<int>(i + 2), "dim", "ztest"),
+                    static_cast<int>(i + 2), "dim", "ztest");
+                i += 2;
+            }
             else { tail = parse_tail(sl, tail); ++i; }
         } else { alpha = a.toScalar(); ++i; }
     }
-    auto [h, p, ci, z] = ztest(args[0], m, sigma, alpha, tail, ctx.engine->resource());
+    auto [h, p, ci, z] = ztest_dim(args[0], m, sigma, alpha, tail, dim, ctx.engine->resource());
     outs[0] = std::move(h);
     if (nargout > 1) outs[1] = std::move(p);
     if (nargout > 2) outs[2] = std::move(ci);
@@ -170,6 +187,7 @@ void vartest_reg(Span<const Value> args, size_t nargout,
     const double v = args[1].toScalar();
     double alpha = 0.05;
     TestTail tail = TestTail::Both;
+    int dim = 0;
     size_t i = 2;
     while (i < args.size()) {
         const Value &a = args[i];
@@ -178,13 +196,19 @@ void vartest_reg(Span<const Value> args, size_t nargout,
             for (auto &c : sl) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
             if (sl == "alpha" && i + 1 < args.size()) { alpha = args[i + 1].toScalar(); i += 2; }
             else if (sl == "tail" && i + 1 < args.size()) { tail = parse_tail(args[i + 1].toString(), tail); i += 2; }
-            else if (sl == "dim")
-                throw Error("vartest: 'Dim' not yet supported (parity gap)",
-                            0, 0, "vartest", "", "numkit:vartest:dim");
+            else if (sl == "dim") {
+                if (i + 1 >= args.size())
+                    throw Error("vartest: missing value for 'Dim'",
+                                0, 0, "vartest", "", "numkit:vartest:dim");
+                dim = argcheck::expectedPositiveInteger(
+                    argcheck::expectedReal(args[i + 1], static_cast<int>(i + 2), "dim", "vartest"),
+                    static_cast<int>(i + 2), "dim", "vartest");
+                i += 2;
+            }
             else { tail = parse_tail(sl, tail); ++i; }
         } else { alpha = a.toScalar(); ++i; }
     }
-    auto [h, p, ci, T] = vartest(args[0], v, alpha, tail, ctx.engine->resource());
+    auto [h, p, ci, T] = vartest_dim(args[0], v, alpha, tail, dim, ctx.engine->resource());
     outs[0] = std::move(h);
     if (nargout > 1) outs[1] = std::move(p);
     if (nargout > 2) outs[2] = std::move(ci);
@@ -197,6 +221,7 @@ void vartest2_reg(Span<const Value> args, size_t nargout,
     argcheck::checkNargin(args.size(), 2, "vartest2");  // no max: name-value tail in the reference
     double alpha = 0.05;
     TestTail tail = TestTail::Both;
+    int dim = 0;
     size_t i = 2;
     while (i < args.size()) {
         const Value &a = args[i];
@@ -205,13 +230,19 @@ void vartest2_reg(Span<const Value> args, size_t nargout,
             for (auto &c : sl) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
             if (sl == "alpha" && i + 1 < args.size()) { alpha = args[i + 1].toScalar(); i += 2; }
             else if (sl == "tail" && i + 1 < args.size()) { tail = parse_tail(args[i + 1].toString(), tail); i += 2; }
-            else if (sl == "dim")
-                throw Error("vartest2: 'Dim' not yet supported (parity gap)",
-                            0, 0, "vartest2", "", "numkit:vartest2:dim");
+            else if (sl == "dim") {
+                if (i + 1 >= args.size())
+                    throw Error("vartest2: missing value for 'Dim'",
+                                0, 0, "vartest2", "", "numkit:vartest2:dim");
+                dim = argcheck::expectedPositiveInteger(
+                    argcheck::expectedReal(args[i + 1], static_cast<int>(i + 2), "dim", "vartest2"),
+                    static_cast<int>(i + 2), "dim", "vartest2");
+                i += 2;
+            }
             else { tail = parse_tail(sl, tail); ++i; }
         } else { alpha = a.toScalar(); ++i; }
     }
-    auto [h, p, ci, F] = vartest2(args[0], args[1], alpha, tail, ctx.engine->resource());
+    auto [h, p, ci, F] = vartest2_dim(args[0], args[1], alpha, tail, dim, ctx.engine->resource());
     outs[0] = std::move(h);
     if (nargout > 1) outs[1] = std::move(p);
     if (nargout > 2) outs[2] = std::move(ci);

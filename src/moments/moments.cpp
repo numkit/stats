@@ -92,7 +92,7 @@ double kurtosisFromSlice(const double *data, size_t n, int normFlag)
     return y;
 }
 
-Value dispatchMomentReduction(const Value &x, int dim, int normFlag, const char *fn, double (*fromSlice)(const double *, size_t, int), std::pmr::memory_resource *mr)
+void moments_argcheck(const Value &x, int normFlag, const char *fn)
 {
     if (normFlag != 0 && normFlag != 1)
         throw Error(std::string(fn) + ": normalization flag must be 0 or 1",
@@ -100,6 +100,11 @@ Value dispatchMomentReduction(const Value &x, int dim, int normFlag, const char 
     if (x.type() == ValueType::COMPLEX)
         throw Error(std::string(fn) + ": complex inputs are not supported",
                      0, 0, fn, "", std::string("numkit:") + fn + ":complex");
+}
+
+Value dispatchMomentReduction(const Value &x, int dim, int normFlag, const char *fn, double (*fromSlice)(const double *, size_t, int), std::pmr::memory_resource *mr)
+{
+    moments_argcheck(x, normFlag, fn);
     if (x.isEmpty())
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     const int d = resolveDim(x, dim, fn);

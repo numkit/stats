@@ -28,6 +28,20 @@ namespace numkit::stats {
 
 namespace {
 
+void ttest_argcheck(const Value &x)
+{
+    if (x.numel() < 2)
+        throw Error("ttest: need at least 2 samples", 0, 0, "ttest", "",
+                    "numkit:ttest:nsamples");
+}
+
+void ttest2_argcheck(const Value &x, const Value &y)
+{
+    if (x.numel() < 2 || y.numel() < 2)
+        throw Error("ttest2: need at least 2 samples per group",
+                    0, 0, "ttest2", "", "numkit:ttest2:nsamples");
+}
+
 void ztest_argcheck(double sigma)
 {
     if (sigma <= 0.0)
@@ -42,6 +56,13 @@ void vartest_argcheck(double v)
                     "numkit:vartest:badv");
 }
 
+void vartest2_argcheck(const Value &x, const Value &y)
+{
+    if (x.numel() < 2 || y.numel() < 2)
+        throw Error("vartest2: need >= 2 samples per group and var(y) > 0",
+                    0, 0, "vartest2", "", "numkit:vartest2:nsamples");
+}
+
 void kstest_argcheck(const Value &x)
 {
     if (x.numel() < 1)
@@ -49,15 +70,31 @@ void kstest_argcheck(const Value &x)
                     "numkit:kstest:nsamples");
 }
 
-} // namespace
+Value extractCol(const Value &x, size_t c, std::pmr::memory_resource *mr)
+{
+    const size_t R = x.dims().rows();
+    Value out = Value::matrix(R, 1, ValueType::DOUBLE, mr);
+    double *d = out.doubleDataMut();
+    for (size_t r = 0; r < R; ++r)
+        d[r] = x.elemAsDouble(r + c * R);
+    return out;
+}
 
-// ════════════════════════════════════════════════════════════════════
-// ttest — one-sample
-// ════════════════════════════════════════════════════════════════════
+Value extractRow(const Value &x, size_t r, std::pmr::memory_resource *mr)
+{
+    const size_t R = x.dims().rows();
+    const size_t C = x.dims().cols();
+    Value out = Value::matrix(1, C, ValueType::DOUBLE, mr);
+    double *d = out.doubleDataMut();
+    for (size_t c = 0; c < C; ++c)
+        d[c] = x.elemAsDouble(r + c * R);
+    return out;
+}
 
 std::tuple<Value, Value, Value, Value>
-ttest(const Value &x, double m, double alpha, TestTail tail, std::pmr::memory_resource *mr)
+ttest_1d(const Value &x, double m, double alpha, TestTail tail, std::pmr::memory_resource *mr)
 {
+    ttest_argcheck(x);
     if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
 
     double mu_hat, var_hat; size_t n;
@@ -97,7 +134,6 @@ ttest(const Value &x, double m, double alpha, TestTail tail, std::pmr::memory_re
     Value ci = Value::matrix(1, 2, ValueType::DOUBLE, mr);
     ci.doubleDataMut()[0] = clo; ci.doubleDataMut()[1] = chi;
 
-    // MATLAB returns the test statistics as a struct (tstat, df, sd).
     Value stats = Value::structure(mr);
     stats.field("tstat") = Value::scalar(t, mr);
     stats.field("df")    = Value::scalar(df, mr);
@@ -109,13 +145,10 @@ ttest(const Value &x, double m, double alpha, TestTail tail, std::pmr::memory_re
                            std::move(stats));
 }
 
-// ════════════════════════════════════════════════════════════════════
-// ttest2 — two-sample
-// ════════════════════════════════════════════════════════════════════
-
 std::tuple<Value, Value, Value, Value>
-ttest2(const Value &x, const Value &y, double alpha, TestTail tail, const std::string &vartype, std::pmr::memory_resource *mr)
+ttest2_1d(const Value &x, const Value &y, double alpha, TestTail tail, const std::string &vartype, std::pmr::memory_resource *mr)
 {
+    ttest2_argcheck(x, y);
     if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
 
     double mx, vx, my, vy; size_t nx, ny;
@@ -126,7 +159,7 @@ ttest2(const Value &x, const Value &y, double alpha, TestTail tail, const std::s
                     0, 0, "ttest2", "", "numkit:ttest2:nsamples");
 
     double t, df, se;
-    Value sdVal;   // MATLAB stats.sd: pooled sd (equal) | [sx sy] (unequal)
+    Value sdVal;
     if (vartype == "equal") {
         const double sp2 = ((nx - 1) * vx + (ny - 1) * vy) / double(nx + ny - 2);
         se = std::sqrt(sp2 * (1.0 / double(nx) + 1.0 / double(ny)));
@@ -164,12 +197,8 @@ ttest2(const Value &x, const Value &y, double alpha, TestTail tail, const std::s
                            std::move(stats));
 }
 
-// ════════════════════════════════════════════════════════════════════
-// ztest — known-σ
-// ════════════════════════════════════════════════════════════════════
-
 std::tuple<Value, Value, Value, Value>
-ztest(const Value &x, double m, double sigma, double alpha, TestTail tail, std::pmr::memory_resource *mr)
+ztest_1d(const Value &x, double m, double sigma, double alpha, TestTail tail, std::pmr::memory_resource *mr)
 {
     ztest_argcheck(sigma);
     if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
@@ -197,12 +226,8 @@ ztest(const Value &x, double m, double sigma, double alpha, TestTail tail, std::
                            Value::scalar(z, mr));
 }
 
-// ════════════════════════════════════════════════════════════════════
-// vartest — chi-squared one-sample
-// ════════════════════════════════════════════════════════════════════
-
 std::tuple<Value, Value, Value, Value>
-vartest(const Value &x, double v, double alpha, TestTail tail, std::pmr::memory_resource *mr)
+vartest_1d(const Value &x, double v, double alpha, TestTail tail, std::pmr::memory_resource *mr)
 {
     vartest_argcheck(v);
     if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
@@ -227,7 +252,6 @@ vartest(const Value &x, double v, double alpha, TestTail tail, std::pmr::memory_
     }
     const int h = (p < alpha) ? 1 : 0;
 
-    // Confidence interval for σ² (two-sided).
     Value lo_v = Value::scalar(0.5 * alpha, mr);
     Value hi_v = Value::scalar(1.0 - 0.5 * alpha, mr);
     const double chi_lo = chi2inv(lo_v, df, mr).toScalar();
@@ -247,20 +271,17 @@ vartest(const Value &x, double v, double alpha, TestTail tail, std::pmr::memory_
                            std::move(stats));
 }
 
-// ════════════════════════════════════════════════════════════════════
-// vartest2 — F-test for equal variances
-// ════════════════════════════════════════════════════════════════════
-
 std::tuple<Value, Value, Value, Value>
-vartest2(const Value &x, const Value &y, double alpha, TestTail tail, std::pmr::memory_resource *mr)
+vartest2_1d(const Value &x, const Value &y, double alpha, TestTail tail, std::pmr::memory_resource *mr)
 {
+    vartest2_argcheck(x, y);
     if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
 
     double mx, vx, my, vy; size_t nx, ny;
     mean_var(x, mx, vx, nx);
     mean_var(y, my, vy, ny);
     if (nx < 2 || ny < 2 || vy == 0.0)
-        throw Error("vartest2: need ≥ 2 samples per group and var(y) > 0",
+        throw Error("vartest2: need >= 2 samples per group and var(y) > 0",
                     0, 0, "vartest2", "", "numkit:vartest2:nsamples");
 
     const double F  = vx / vy;
@@ -278,7 +299,6 @@ vartest2(const Value &x, const Value &y, double alpha, TestTail tail, std::pmr::
     }
     const int h = (p < alpha) ? 1 : 0;
 
-    // Confidence interval for the variance ratio σ_x²/σ_y².
     Value lo_v = Value::scalar(0.5 * alpha, mr);
     Value hi_v = Value::scalar(1.0 - 0.5 * alpha, mr);
     const double f_lo = finv(lo_v, v1, v2, mr).toScalar();
@@ -297,6 +317,381 @@ vartest2(const Value &x, const Value &y, double alpha, TestTail tail, std::pmr::
                            Value::scalar(p, mr),
                            std::move(ci),
                            std::move(stats));
+}
+
+} // namespace
+
+// ════════════════════════════════════════════════════════════════════
+// ttest — one-sample
+// ════════════════════════════════════════════════════════════════════
+
+std::tuple<Value, Value, Value, Value>
+ttest_dim(const Value &x, double m, double alpha, TestTail tail, int dim, std::pmr::memory_resource *mr)
+{
+    ttest_argcheck(x);
+    const size_t R = x.dims().rows();
+    const size_t C = x.dims().cols();
+    const bool isVec = (R <= 1 || C <= 1);
+    if (isVec) {
+        const int nsDim = (R == 1 && C > 1) ? 2 : 1;
+        if (dim == 0 || dim == nsDim)
+            return ttest_1d(x, m, alpha, tail, mr);
+    }
+    const int effDim = (dim == 0) ? 1 : dim;
+    if (effDim == 1) {
+        Value hOut     = Value::matrix(1, C, ValueType::DOUBLE, mr);
+        Value pOut     = Value::matrix(1, C, ValueType::DOUBLE, mr);
+        Value ciOut    = Value::matrix(2, C, ValueType::DOUBLE, mr);
+        Value tstatOut = Value::matrix(1, C, ValueType::DOUBLE, mr);
+        Value dfOut    = Value::matrix(1, C, ValueType::DOUBLE, mr);
+        Value sdOut    = Value::matrix(1, C, ValueType::DOUBLE, mr);
+        for (size_t c = 0; c < C; ++c) {
+            auto [hc, pc, cic, stc] = ttest_1d(extractCol(x, c, mr), m, alpha, tail, mr);
+            hOut.doubleDataMut()[c]         = hc.toScalar();
+            pOut.doubleDataMut()[c]         = pc.toScalar();
+            ciOut.doubleDataMut()[0 + 2*c]  = cic.elemAsDouble(0);
+            ciOut.doubleDataMut()[1 + 2*c]  = cic.elemAsDouble(1);
+            tstatOut.doubleDataMut()[c]     = stc.field("tstat").toScalar();
+            dfOut.doubleDataMut()[c]        = stc.field("df").toScalar();
+            sdOut.doubleDataMut()[c]        = stc.field("sd").toScalar();
+        }
+        Value stats = Value::structure(mr);
+        stats.field("tstat") = std::move(tstatOut);
+        stats.field("df")    = std::move(dfOut);
+        stats.field("sd")    = std::move(sdOut);
+        return std::make_tuple(std::move(hOut), std::move(pOut), std::move(ciOut), std::move(stats));
+    }
+    if (effDim == 2) {
+        Value hOut     = Value::matrix(R, 1, ValueType::DOUBLE, mr);
+        Value pOut     = Value::matrix(R, 1, ValueType::DOUBLE, mr);
+        Value ciOut    = Value::matrix(R, 2, ValueType::DOUBLE, mr);
+        Value tstatOut = Value::matrix(R, 1, ValueType::DOUBLE, mr);
+        Value dfOut    = Value::matrix(R, 1, ValueType::DOUBLE, mr);
+        Value sdOut    = Value::matrix(R, 1, ValueType::DOUBLE, mr);
+        for (size_t r = 0; r < R; ++r) {
+            auto [hr, pr, cir, str] = ttest_1d(extractRow(x, r, mr), m, alpha, tail, mr);
+            hOut.doubleDataMut()[r]         = hr.toScalar();
+            pOut.doubleDataMut()[r]         = pr.toScalar();
+            ciOut.doubleDataMut()[r]        = cir.elemAsDouble(0);
+            ciOut.doubleDataMut()[r + R]    = cir.elemAsDouble(1);
+            tstatOut.doubleDataMut()[r]     = str.field("tstat").toScalar();
+            dfOut.doubleDataMut()[r]        = str.field("df").toScalar();
+            sdOut.doubleDataMut()[r]        = str.field("sd").toScalar();
+        }
+        Value stats = Value::structure(mr);
+        stats.field("tstat") = std::move(tstatOut);
+        stats.field("df")    = std::move(dfOut);
+        stats.field("sd")    = std::move(sdOut);
+        return std::make_tuple(std::move(hOut), std::move(pOut), std::move(ciOut), std::move(stats));
+    }
+    throw Error("ttest: need at least 2 samples along operating dimension",
+                0, 0, "ttest", "", "numkit:ttest:nsamples");
+}
+
+std::tuple<Value, Value, Value, Value>
+ttest(const Value &x, double m, double alpha, TestTail tail, std::pmr::memory_resource *mr)
+{
+    ttest_argcheck(x);
+    return ttest_dim(x, m, alpha, tail, 0, mr);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// ttest2 — two-sample
+// ════════════════════════════════════════════════════════════════════
+
+std::tuple<Value, Value, Value, Value>
+ttest2_dim(const Value &x, const Value &y, double alpha, TestTail tail, const std::string &vartype, int dim, std::pmr::memory_resource *mr)
+{
+    ttest2_argcheck(x, y);
+    const size_t Rx = x.dims().rows(), Cx = x.dims().cols();
+    const size_t Ry = y.dims().rows(), Cy = y.dims().cols();
+    const bool isVec = (Rx <= 1 || Cx <= 1) && (Ry <= 1 || Cy <= 1);
+    if (isVec) {
+        const int nsDim = (Rx == 1 && Cx > 1) ? 2 : 1;
+        if (dim == 0 || dim == nsDim)
+            return ttest2_1d(x, y, alpha, tail, vartype, mr);
+    }
+    const int effDim = (dim == 0) ? 1 : dim;
+    const bool equalVar = (vartype == "equal");
+    if (effDim == 1) {
+        if (Cx != Cy)
+            throw Error("ttest2: X and Y must have the same number of columns along Dim=1",
+                        0, 0, "ttest2", "", "numkit:ttest2:size");
+        Value hOut     = Value::matrix(1, Cx, ValueType::DOUBLE, mr);
+        Value pOut     = Value::matrix(1, Cx, ValueType::DOUBLE, mr);
+        Value ciOut    = Value::matrix(2, Cx, ValueType::DOUBLE, mr);
+        Value tstatOut = Value::matrix(1, Cx, ValueType::DOUBLE, mr);
+        Value dfOut    = Value::matrix(1, Cx, ValueType::DOUBLE, mr);
+        Value sdOut    = Value::matrix(equalVar ? 1 : 2, Cx, ValueType::DOUBLE, mr);
+        for (size_t c = 0; c < Cx; ++c) {
+            auto [hc, pc, cic, stc] = ttest2_1d(extractCol(x, c, mr), extractCol(y, c, mr), alpha, tail, vartype, mr);
+            hOut.doubleDataMut()[c]        = hc.toScalar();
+            pOut.doubleDataMut()[c]        = pc.toScalar();
+            ciOut.doubleDataMut()[0 + 2*c] = cic.elemAsDouble(0);
+            ciOut.doubleDataMut()[1 + 2*c] = cic.elemAsDouble(1);
+            tstatOut.doubleDataMut()[c]    = stc.field("tstat").toScalar();
+            dfOut.doubleDataMut()[c]       = stc.field("df").toScalar();
+            const Value &sdc = stc.field("sd");
+            if (equalVar) {
+                sdOut.doubleDataMut()[c] = sdc.toScalar();
+            } else {
+                sdOut.doubleDataMut()[0 + 2*c] = sdc.elemAsDouble(0);
+                sdOut.doubleDataMut()[1 + 2*c] = sdc.elemAsDouble(1);
+            }
+        }
+        Value stats = Value::structure(mr);
+        stats.field("tstat") = std::move(tstatOut);
+        stats.field("df")    = std::move(dfOut);
+        stats.field("sd")    = std::move(sdOut);
+        return std::make_tuple(std::move(hOut), std::move(pOut), std::move(ciOut), std::move(stats));
+    }
+    if (effDim == 2) {
+        if (Rx != Ry)
+            throw Error("ttest2: X and Y must have the same number of rows along Dim=2",
+                        0, 0, "ttest2", "", "numkit:ttest2:size");
+        Value hOut     = Value::matrix(Rx, 1, ValueType::DOUBLE, mr);
+        Value pOut     = Value::matrix(Rx, 1, ValueType::DOUBLE, mr);
+        Value ciOut    = Value::matrix(Rx, 2, ValueType::DOUBLE, mr);
+        Value tstatOut = Value::matrix(Rx, 1, ValueType::DOUBLE, mr);
+        Value dfOut    = Value::matrix(Rx, 1, ValueType::DOUBLE, mr);
+        Value sdOut    = Value::matrix(Rx, equalVar ? 1 : 2, ValueType::DOUBLE, mr);
+        for (size_t r = 0; r < Rx; ++r) {
+            auto [hr, pr, cir, str] = ttest2_1d(extractRow(x, r, mr), extractRow(y, r, mr), alpha, tail, vartype, mr);
+            hOut.doubleDataMut()[r]       = hr.toScalar();
+            pOut.doubleDataMut()[r]       = pr.toScalar();
+            ciOut.doubleDataMut()[r]      = cir.elemAsDouble(0);
+            ciOut.doubleDataMut()[r + Rx] = cir.elemAsDouble(1);
+            tstatOut.doubleDataMut()[r]   = str.field("tstat").toScalar();
+            dfOut.doubleDataMut()[r]      = str.field("df").toScalar();
+            const Value &sdr = str.field("sd");
+            if (equalVar) {
+                sdOut.doubleDataMut()[r] = sdr.toScalar();
+            } else {
+                sdOut.doubleDataMut()[r]      = sdr.elemAsDouble(0);
+                sdOut.doubleDataMut()[r + Rx] = sdr.elemAsDouble(1);
+            }
+        }
+        Value stats = Value::structure(mr);
+        stats.field("tstat") = std::move(tstatOut);
+        stats.field("df")    = std::move(dfOut);
+        stats.field("sd")    = std::move(sdOut);
+        return std::make_tuple(std::move(hOut), std::move(pOut), std::move(ciOut), std::move(stats));
+    }
+    throw Error("ttest2: need at least 2 samples per group",
+                0, 0, "ttest2", "", "numkit:ttest2:nsamples");
+}
+
+std::tuple<Value, Value, Value, Value>
+ttest2(const Value &x, const Value &y, double alpha, TestTail tail, const std::string &vartype, std::pmr::memory_resource *mr)
+{
+    ttest2_argcheck(x, y);
+    return ttest2_dim(x, y, alpha, tail, vartype, 0, mr);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// ztest — known-σ
+// ════════════════════════════════════════════════════════════════════
+
+std::tuple<Value, Value, Value, Value>
+ztest_dim(const Value &x, double m, double sigma, double alpha, TestTail tail, int dim, std::pmr::memory_resource *mr)
+{
+    ztest_argcheck(sigma);
+    const size_t R = x.dims().rows();
+    const size_t C = x.dims().cols();
+    const bool isVec = (R <= 1 || C <= 1);
+    if (isVec) {
+        const int nsDim = (R == 1 && C > 1) ? 2 : 1;
+        if (dim == 0 || dim == nsDim)
+            return ztest_1d(x, m, sigma, alpha, tail, mr);
+    }
+    const int effDim = (dim == 0) ? 1 : dim;
+    if (effDim == 1) {
+        Value hOut  = Value::matrix(1, C, ValueType::DOUBLE, mr);
+        Value pOut  = Value::matrix(1, C, ValueType::DOUBLE, mr);
+        Value ciOut = Value::matrix(2, C, ValueType::DOUBLE, mr);
+        Value zOut  = Value::matrix(1, C, ValueType::DOUBLE, mr);
+        for (size_t c = 0; c < C; ++c) {
+            auto [hc, pc, cic, zc] = ztest_1d(extractCol(x, c, mr), m, sigma, alpha, tail, mr);
+            hOut.doubleDataMut()[c]        = hc.toScalar();
+            pOut.doubleDataMut()[c]        = pc.toScalar();
+            ciOut.doubleDataMut()[0 + 2*c] = cic.elemAsDouble(0);
+            ciOut.doubleDataMut()[1 + 2*c] = cic.elemAsDouble(1);
+            zOut.doubleDataMut()[c]        = zc.toScalar();
+        }
+        return std::make_tuple(std::move(hOut), std::move(pOut), std::move(ciOut), std::move(zOut));
+    }
+    if (effDim == 2) {
+        Value hOut  = Value::matrix(R, 1, ValueType::DOUBLE, mr);
+        Value pOut  = Value::matrix(R, 1, ValueType::DOUBLE, mr);
+        Value ciOut = Value::matrix(R, 2, ValueType::DOUBLE, mr);
+        Value zOut  = Value::matrix(R, 1, ValueType::DOUBLE, mr);
+        for (size_t r = 0; r < R; ++r) {
+            auto [hr, pr, cir, zr] = ztest_1d(extractRow(x, r, mr), m, sigma, alpha, tail, mr);
+            hOut.doubleDataMut()[r]       = hr.toScalar();
+            pOut.doubleDataMut()[r]       = pr.toScalar();
+            ciOut.doubleDataMut()[r]      = cir.elemAsDouble(0);
+            ciOut.doubleDataMut()[r + R]  = cir.elemAsDouble(1);
+            zOut.doubleDataMut()[r]       = zr.toScalar();
+        }
+        return std::make_tuple(std::move(hOut), std::move(pOut), std::move(ciOut), std::move(zOut));
+    }
+    throw Error("ztest: unsupported dimension",
+                0, 0, "ztest", "", "numkit:ztest:dim");
+}
+
+std::tuple<Value, Value, Value, Value>
+ztest(const Value &x, double m, double sigma, double alpha, TestTail tail, std::pmr::memory_resource *mr)
+{
+    ztest_argcheck(sigma);
+    return ztest_dim(x, m, sigma, alpha, tail, 0, mr);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// vartest — chi-squared one-sample
+// ════════════════════════════════════════════════════════════════════
+
+std::tuple<Value, Value, Value, Value>
+vartest_dim(const Value &x, double v, double alpha, TestTail tail, int dim, std::pmr::memory_resource *mr)
+{
+    vartest_argcheck(v);
+    const size_t R = x.dims().rows();
+    const size_t C = x.dims().cols();
+    const bool isVec = (R <= 1 || C <= 1);
+    if (isVec) {
+        const int nsDim = (R == 1 && C > 1) ? 2 : 1;
+        if (dim == 0 || dim == nsDim)
+            return vartest_1d(x, v, alpha, tail, mr);
+    }
+    const int effDim = (dim == 0) ? 1 : dim;
+    if (effDim == 1) {
+        Value hOut     = Value::matrix(1, C, ValueType::DOUBLE, mr);
+        Value pOut     = Value::matrix(1, C, ValueType::DOUBLE, mr);
+        Value ciOut    = Value::matrix(2, C, ValueType::DOUBLE, mr);
+        Value chisqOut = Value::matrix(1, C, ValueType::DOUBLE, mr);
+        Value dfOut    = Value::matrix(1, C, ValueType::DOUBLE, mr);
+        for (size_t c = 0; c < C; ++c) {
+            auto [hc, pc, cic, stc] = vartest_1d(extractCol(x, c, mr), v, alpha, tail, mr);
+            hOut.doubleDataMut()[c]        = hc.toScalar();
+            pOut.doubleDataMut()[c]        = pc.toScalar();
+            ciOut.doubleDataMut()[0 + 2*c] = cic.elemAsDouble(0);
+            ciOut.doubleDataMut()[1 + 2*c] = cic.elemAsDouble(1);
+            chisqOut.doubleDataMut()[c]    = stc.field("chisqstat").toScalar();
+            dfOut.doubleDataMut()[c]       = stc.field("df").toScalar();
+        }
+        Value stats = Value::structure(mr);
+        stats.field("chisqstat") = std::move(chisqOut);
+        stats.field("df")        = std::move(dfOut);
+        return std::make_tuple(std::move(hOut), std::move(pOut), std::move(ciOut), std::move(stats));
+    }
+    if (effDim == 2) {
+        Value hOut     = Value::matrix(R, 1, ValueType::DOUBLE, mr);
+        Value pOut     = Value::matrix(R, 1, ValueType::DOUBLE, mr);
+        Value ciOut    = Value::matrix(R, 2, ValueType::DOUBLE, mr);
+        Value chisqOut = Value::matrix(R, 1, ValueType::DOUBLE, mr);
+        Value dfOut    = Value::matrix(R, 1, ValueType::DOUBLE, mr);
+        for (size_t r = 0; r < R; ++r) {
+            auto [hr, pr, cir, str] = vartest_1d(extractRow(x, r, mr), v, alpha, tail, mr);
+            hOut.doubleDataMut()[r]       = hr.toScalar();
+            pOut.doubleDataMut()[r]       = pr.toScalar();
+            ciOut.doubleDataMut()[r]      = cir.elemAsDouble(0);
+            ciOut.doubleDataMut()[r + R]  = cir.elemAsDouble(1);
+            chisqOut.doubleDataMut()[r]   = str.field("chisqstat").toScalar();
+            dfOut.doubleDataMut()[r]      = str.field("df").toScalar();
+        }
+        Value stats = Value::structure(mr);
+        stats.field("chisqstat") = std::move(chisqOut);
+        stats.field("df")        = std::move(dfOut);
+        return std::make_tuple(std::move(hOut), std::move(pOut), std::move(ciOut), std::move(stats));
+    }
+    throw Error("vartest: need at least 2 samples",
+                0, 0, "vartest", "", "numkit:vartest:nsamples");
+}
+
+std::tuple<Value, Value, Value, Value>
+vartest(const Value &x, double v, double alpha, TestTail tail, std::pmr::memory_resource *mr)
+{
+    vartest_argcheck(v);
+    return vartest_dim(x, v, alpha, tail, 0, mr);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// vartest2 — F-test for equal variances
+// ════════════════════════════════════════════════════════════════════
+
+std::tuple<Value, Value, Value, Value>
+vartest2_dim(const Value &x, const Value &y, double alpha, TestTail tail, int dim, std::pmr::memory_resource *mr)
+{
+    vartest2_argcheck(x, y);
+    const size_t Rx = x.dims().rows(), Cx = x.dims().cols();
+    const size_t Ry = y.dims().rows(), Cy = y.dims().cols();
+    const bool isVec = (Rx <= 1 || Cx <= 1) && (Ry <= 1 || Cy <= 1);
+    if (isVec) {
+        const int nsDim = (Rx == 1 && Cx > 1) ? 2 : 1;
+        if (dim == 0 || dim == nsDim)
+            return vartest2_1d(x, y, alpha, tail, mr);
+    }
+    const int effDim = (dim == 0) ? 1 : dim;
+    if (effDim == 1) {
+        if (Cx != Cy)
+            throw Error("vartest2: X and Y must have the same number of columns along Dim=1",
+                        0, 0, "vartest2", "", "numkit:vartest2:size");
+        Value hOut   = Value::matrix(1, Cx, ValueType::DOUBLE, mr);
+        Value pOut   = Value::matrix(1, Cx, ValueType::DOUBLE, mr);
+        Value ciOut  = Value::matrix(2, Cx, ValueType::DOUBLE, mr);
+        Value fOut   = Value::matrix(1, Cx, ValueType::DOUBLE, mr);
+        Value df1Out = Value::matrix(1, Cx, ValueType::DOUBLE, mr);
+        Value df2Out = Value::matrix(1, Cx, ValueType::DOUBLE, mr);
+        for (size_t c = 0; c < Cx; ++c) {
+            auto [hc, pc, cic, stc] = vartest2_1d(extractCol(x, c, mr), extractCol(y, c, mr), alpha, tail, mr);
+            hOut.doubleDataMut()[c]        = hc.toScalar();
+            pOut.doubleDataMut()[c]        = pc.toScalar();
+            ciOut.doubleDataMut()[0 + 2*c] = cic.elemAsDouble(0);
+            ciOut.doubleDataMut()[1 + 2*c] = cic.elemAsDouble(1);
+            fOut.doubleDataMut()[c]        = stc.field("fstat").toScalar();
+            df1Out.doubleDataMut()[c]      = stc.field("df1").toScalar();
+            df2Out.doubleDataMut()[c]      = stc.field("df2").toScalar();
+        }
+        Value stats = Value::structure(mr);
+        stats.field("fstat") = std::move(fOut);
+        stats.field("df1")   = std::move(df1Out);
+        stats.field("df2")   = std::move(df2Out);
+        return std::make_tuple(std::move(hOut), std::move(pOut), std::move(ciOut), std::move(stats));
+    }
+    if (effDim == 2) {
+        if (Rx != Ry)
+            throw Error("vartest2: X and Y must have the same number of rows along Dim=2",
+                        0, 0, "vartest2", "", "numkit:vartest2:size");
+        Value hOut   = Value::matrix(Rx, 1, ValueType::DOUBLE, mr);
+        Value pOut   = Value::matrix(Rx, 1, ValueType::DOUBLE, mr);
+        Value ciOut  = Value::matrix(Rx, 2, ValueType::DOUBLE, mr);
+        Value fOut   = Value::matrix(Rx, 1, ValueType::DOUBLE, mr);
+        Value df1Out = Value::matrix(Rx, 1, ValueType::DOUBLE, mr);
+        Value df2Out = Value::matrix(Rx, 1, ValueType::DOUBLE, mr);
+        for (size_t r = 0; r < Rx; ++r) {
+            auto [hr, pr, cir, str] = vartest2_1d(extractRow(x, r, mr), extractRow(y, r, mr), alpha, tail, mr);
+            hOut.doubleDataMut()[r]       = hr.toScalar();
+            pOut.doubleDataMut()[r]       = pr.toScalar();
+            ciOut.doubleDataMut()[r]      = cir.elemAsDouble(0);
+            ciOut.doubleDataMut()[r + Rx] = cir.elemAsDouble(1);
+            fOut.doubleDataMut()[r]       = str.field("fstat").toScalar();
+            df1Out.doubleDataMut()[r]     = str.field("df1").toScalar();
+            df2Out.doubleDataMut()[r]     = str.field("df2").toScalar();
+        }
+        Value stats = Value::structure(mr);
+        stats.field("fstat") = std::move(fOut);
+        stats.field("df1")   = std::move(df1Out);
+        stats.field("df2")   = std::move(df2Out);
+        return std::make_tuple(std::move(hOut), std::move(pOut), std::move(ciOut), std::move(stats));
+    }
+    throw Error("vartest2: need >= 2 samples per group and var(y) > 0",
+                0, 0, "vartest2", "", "numkit:vartest2:nsamples");
+}
+
+std::tuple<Value, Value, Value, Value>
+vartest2(const Value &x, const Value &y, double alpha, TestTail tail, std::pmr::memory_resource *mr)
+{
+    vartest2_argcheck(x, y);
+    return vartest2_dim(x, y, alpha, tail, 0, mr);
 }
 
 // ════════════════════════════════════════════════════════════════════

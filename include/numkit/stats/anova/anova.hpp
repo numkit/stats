@@ -88,7 +88,7 @@ Value dummyvar(const Value &group,
                std::pmr::memory_resource *mr = nullptr);
 
 /// @brief Multiple-comparison correction methods for `multcompare`.
-enum class McCorrection { Bonferroni, LSD };
+enum class McCorrection { Bonferroni, LSD, TukeyKramer };
 
 /// @brief Pairwise post-hoc comparisons after one-way ANOVA
 /// (`c = multcompare(stats [, alpha [, ctype]])`).

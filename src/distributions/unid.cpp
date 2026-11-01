@@ -18,10 +18,16 @@
 
 namespace numkit::stats {
 
+namespace {
+inline bool unid_argcheck(double N) noexcept
+{
+    return N >= 1.0 && std::floor(N) == N;
+}
+} // namespace
 
 Value unidpdf(const Value &k, double N, std::pmr::memory_resource *mr)
 {
-    if (N < 1.0 || std::floor(N) != N)
+    if (!unid_argcheck(N))
         return elementwise(k, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     const double inv = 1.0 / N;
     return elementwise(k, [=](double ki) {

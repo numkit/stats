@@ -93,11 +93,23 @@ TEST_F(MultcompareTest, CIContainsZeroIffNotSignificant)
     EXPECT_LT(evalScalar("c(1, 6)"), 0.05);
 }
 
-TEST_F(MultcompareTest, TukeyKramerNotSupportedThrows)
+TEST_F(MultcompareTest, TukeyKramerAndHsdSupported)
 {
-    EXPECT_THROW(eval("y = randn(20, 1); grp = ones(20, 1);"
-                      "grp(11:end) = 2;"
-                      "[~, ~, s] = anova1(y, grp);"
-                      "multcompare(s, 0.05, 'tukey-kramer');"),
-                 std::exception);
+    eval("y = [10; 11; 10.5; 10.2; 15; 16; 15.5; 15.2; 10.1; 10.8; 10.3; 10.4];"
+         "grp = [1; 1; 1; 1; 2; 2; 2; 2; 3; 3; 3; 3];"
+         "[~, ~, s] = anova1(y, grp);"
+         "c_tk = multcompare(s, 0.05, 'tukey-kramer');"
+         "c_hsd = multcompare(s, 'CType', 'hsd');"
+         "c_lsd = multcompare(s, 'CType', 'lsd');");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(c_tk, 1)")), 3);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(c_tk, 2)")), 6);
+    // 'tukey-kramer' and 'hsd' are aliases and produce identical tables.
+    EXPECT_NEAR(evalScalar("max(abs(c_tk(:) - c_hsd(:)))"), 0.0, 1e-12);
+    // Group 2 vs 1 and Group 2 vs 3 are strongly significant; Group 1 vs 3 is not.
+    EXPECT_LT(evalScalar("c_tk(1, 6)"), 0.001);
+    EXPECT_GT(evalScalar("c_tk(2, 6)"), 0.5);
+    EXPECT_LT(evalScalar("c_tk(3, 6)"), 0.001);
+    // Tukey-Kramer confidence intervals are wider than unadjusted LSD intervals.
+    EXPECT_GT(evalScalar("c_tk(1, 5) - c_tk(1, 3)"),
+              evalScalar("c_lsd(1, 5) - c_lsd(1, 3)"));
 }

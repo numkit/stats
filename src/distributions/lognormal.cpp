@@ -22,10 +22,16 @@
 
 namespace numkit::stats {
 
+namespace {
+inline bool logn_argcheck(double sigma) noexcept
+{
+    return sigma > 0.0;
+}
+} // namespace
 
 Value lognpdf(const Value &x, double mu, double sigma, std::pmr::memory_resource *mr)
 {
-    if (sigma <= 0.0)
+    if (!logn_argcheck(sigma))
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     const double inv_sig = 1.0 / sigma;
     const double inv_sqrt2pi = 1.0 / kSqrt2Pi;

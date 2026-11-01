@@ -19,10 +19,16 @@
 
 namespace numkit::stats {
 
+namespace {
+inline bool naka_argcheck(double mu, double omega) noexcept
+{
+    return mu > 0.0 && omega > 0.0;
+}
+} // namespace
 
 Value nakapdf(const Value &x, double mu, double omega, std::pmr::memory_resource *mr)
 {
-    if (mu <= 0.0 || omega <= 0.0)
+    if (!naka_argcheck(mu, omega))
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     // Pre-compute constants
     const double C = 2.0 * std::pow(mu, mu) / (std::tgamma(mu) * std::pow(omega, mu));

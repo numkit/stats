@@ -35,8 +35,8 @@ void movmean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     argcheck::checkNargin(args.size(), 2, "movmean");  // no max: name-value tail in the reference
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
-    auto kBuf = decodeWindowValueToScratch(args[1], "movmean", scratch);
     auto opt = parseMovExtras(args, 2, "movmean");
+    auto kBuf = decodeWindowWithOpts(args[1], "movmean", scratch, opt);
     outs[0] = movmean_impl(args[0], Span<const size_t>(kBuf.data(), kBuf.size()), opt, mr);
 }
 
@@ -45,8 +45,8 @@ void movsum_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     argcheck::checkNargin(args.size(), 2, "movsum");  // no max: name-value tail in the reference
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
-    auto kBuf = decodeWindowValueToScratch(args[1], "movsum", scratch);
     auto opt = parseMovExtras(args, 2, "movsum");
+    auto kBuf = decodeWindowWithOpts(args[1], "movsum", scratch, opt);
     outs[0] = movsum_impl(args[0], Span<const size_t>(kBuf.data(), kBuf.size()), opt, mr);
 }
 
@@ -55,8 +55,8 @@ void movmin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     argcheck::checkNargin(args.size(), 2, "movmin");  // no max: name-value tail in the reference
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
-    auto kBuf = decodeWindowValueToScratch(args[1], "movmin", scratch);
     auto opt = parseMovExtras(args, 2, "movmin");
+    auto kBuf = decodeWindowWithOpts(args[1], "movmin", scratch, opt);
     outs[0] = movmin_impl(args[0], Span<const size_t>(kBuf.data(), kBuf.size()), opt, mr);
 }
 
@@ -65,8 +65,8 @@ void movmax_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     argcheck::checkNargin(args.size(), 2, "movmax");  // no max: name-value tail in the reference
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
-    auto kBuf = decodeWindowValueToScratch(args[1], "movmax", scratch);
     auto opt = parseMovExtras(args, 2, "movmax");
+    auto kBuf = decodeWindowWithOpts(args[1], "movmax", scratch, opt);
     outs[0] = movmax_impl(args[0], Span<const size_t>(kBuf.data(), kBuf.size()), opt, mr);
 }
 
@@ -75,8 +75,8 @@ void movprod_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     argcheck::checkNargin(args.size(), 2, "movprod");  // no max: name-value tail in the reference
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
-    auto kBuf = decodeWindowValueToScratch(args[1], "movprod", scratch);
     auto opt = parseMovExtras(args, 2, "movprod");
+    auto kBuf = decodeWindowWithOpts(args[1], "movprod", scratch, opt);
     outs[0] = movprod_impl(args[0], Span<const size_t>(kBuf.data(), kBuf.size()), opt, mr);
 }
 
@@ -85,8 +85,8 @@ void movmedian_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     argcheck::checkNargin(args.size(), 2, "movmedian");  // no max: name-value tail in the reference
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
-    auto kBuf = decodeWindowValueToScratch(args[1], "movmedian", scratch);
     auto opt = parseMovExtras(args, 2, "movmedian");
+    auto kBuf = decodeWindowWithOpts(args[1], "movmedian", scratch, opt);
     outs[0] = movmedian_impl(args[0], Span<const size_t>(kBuf.data(), kBuf.size()), opt, mr);
 }
 
@@ -106,8 +106,8 @@ void movvar_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     }
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
-    auto kBuf = decodeWindowValueToScratch(args[1], "movvar", scratch);
     auto opt = parseMovExtras(args, extras_start, "movvar");
+    auto kBuf = decodeWindowWithOpts(args[1], "movvar", scratch, opt);
     outs[0] = movvar_impl(args[0], Span<const size_t>(kBuf.data(), kBuf.size()), normFlag, opt, mr);
 }
 
@@ -126,8 +126,8 @@ void movstd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     }
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
-    auto kBuf = decodeWindowValueToScratch(args[1], "movstd", scratch);
     auto opt = parseMovExtras(args, extras_start, "movstd");
+    auto kBuf = decodeWindowWithOpts(args[1], "movstd", scratch, opt);
     outs[0] = movstd_impl(args[0], Span<const size_t>(kBuf.data(), kBuf.size()), normFlag, opt, mr);
 }
 
@@ -136,8 +136,8 @@ void movmad_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     argcheck::checkNargin(args.size(), 2, "movmad");  // no max: name-value tail in the reference
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
-    auto kBuf = decodeWindowValueToScratch(args[1], "movmad", scratch);
     auto opt = parseMovExtras(args, 2, "movmad");
+    auto kBuf = decodeWindowWithOpts(args[1], "movmad", scratch, opt);
     outs[0] = movmad_impl(args[0], Span<const size_t>(kBuf.data(), kBuf.size()), opt, mr);
 }
 
@@ -184,7 +184,7 @@ void hampel_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 
     // [y, i, xmedian, xsigma] = hampel(...). i is a logical mask of the
     // replaced (outlier) points; xmedian/xsigma are the local median and
-    // 1.4826·MAD estimate at every sample. vs MATLAB R2025b.
+    // 1.4826·MAD estimate at every sample.
     hampelValidate(x, k, nsigmas);
     const std::size_t n = x.numel();
     auto y    = createLike(x, ValueType::DOUBLE,  mr);

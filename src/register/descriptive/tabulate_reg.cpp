@@ -30,9 +30,6 @@ void tabulate_reg(Span<const Value> args, size_t /*nargout*/,
                   Span<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 1, "tabulate");
-    if (args[0].isChar() || args[0].isString())
-        throw Error("tabulate: string/cell inputs not yet supported",
-                    0, 0, "tabulate", "", "numkit:tabulate:NotSupported");
     outs[0] = tabulate(args[0], ctx.engine->resource());
 }
 

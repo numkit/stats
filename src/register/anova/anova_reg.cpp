@@ -497,13 +497,6 @@ void friedman_reg(Span<const Value> args, size_t nargout,
         reps = argcheck::expectedPositiveInteger(
             argcheck::expectedReal(args[1], 2, "reps", "friedman"), 2, "reps", "friedman");
 
-    // reps>1 (replicates per cell) uses a two-way layout whose ranking does
-    // NOT reduce to averaging-then-rank — nk doesn't match MATLAB there
-    // yet, so reject rather than return a wrong p. bugs/stats/friedman.
-    if (reps != 1)
-        throw Error("friedman: reps > 1 is not yet supported (use reps = 1)",
-                    0, 0, "friedman", "", "numkit:friedman:reps");
-
     auto [p, Q, df] = friedman(args[0], reps, mr);
     outs[0] = std::move(p);
     if (nargout > 1) outs[1] = std::move(Q);    // chi-square statistic (not MATLAB's tbl)

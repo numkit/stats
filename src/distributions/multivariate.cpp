@@ -35,6 +35,14 @@
 
 namespace numkit::stats {
 
+namespace {
+void mvnrnd_argcheck(const Value &Sigma)
+{
+    if (Sigma.dims().rows() != Sigma.dims().cols())
+        throw Error("mvnrnd: Sigma must be square",
+                     0, 0, "mvnrnd", "", "numkit:mvnrnd:notSquare");
+}
+} // namespace
 
 // `R = mvnrnd(mu, Sigma)`           — one sample (length-d row)
 // `R = mvnrnd(mu, Sigma, n)`        — n samples (n × d)
@@ -45,9 +53,7 @@ namespace numkit::stats {
 Value mvnrnd(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigma, std::size_t n,
              std::pmr::memory_resource *mr)
 {
-    if (Sigma.dims().rows() != Sigma.dims().cols())
-        throw Error("mvnrnd: Sigma must be square",
-                     0, 0, "mvnrnd", "", "numkit:mvnrnd:notSquare");
+    mvnrnd_argcheck(Sigma);
     const std::size_t d = Sigma.dims().rows();
     if (d == 0)
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);

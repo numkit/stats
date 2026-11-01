@@ -21,10 +21,16 @@
 
 namespace numkit::stats {
 
+namespace {
+inline bool nbin_argcheck(double r, double p) noexcept
+{
+    return r > 0.0 && p > 0.0 && p <= 1.0;
+}
+} // namespace
 
 Value nbinpdf(const Value &k, double r, double p, std::pmr::memory_resource *mr)
 {
-    if (r <= 0.0 || p <= 0.0 || p > 1.0)
+    if (!nbin_argcheck(r, p))
         return elementwise(k, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     return elementwise(k, [=](double ki){ return nbin_pmf(ki, r, p); }, mr);
 }

@@ -26,20 +26,26 @@
 
 namespace numkit::stats {
 
+namespace {
+void glmfit_argcheck(const Value &X, const Value &y, std::size_t n, std::size_t p)
+{
+    if (X.dims().rows() != n)
+        throw Error("glmfit: rows(X) must equal length(y)",
+                    0, 0, "glmfit", "", "numkit:glmfit:shapeMismatch");
+    if (n <= p)
+        throw Error("glmfit: need rows(X) > cols(X) + 1",
+                    0, 0, "glmfit", "", "numkit:glmfit:noDOF");
+}
+} // namespace
 
 GlmfitResult glmfit(const Value &X, const Value &y,
                      GlmDistribution distr, GlmLink link,
                      std::pmr::memory_resource *mr)
 {
     const std::size_t n = y.numel();
-    if (X.dims().rows() != n)
-        throw Error("glmfit: rows(X) must equal length(y)",
-                    0, 0, "glmfit", "", "numkit:glmfit:shapeMismatch");
     const std::size_t p_in = X.dims().cols();
     const std::size_t p = p_in + 1;   // +1 for auto intercept
-    if (n <= p)
-        throw Error("glmfit: need rows(X) > cols(X) + 1",
-                    0, 0, "glmfit", "", "numkit:glmfit:noDOF");
+    glmfit_argcheck(X, y, n, p);
 
     // If user passed Identity AND it's not Normal, treat that as
     // "default" and switch to canonical link.

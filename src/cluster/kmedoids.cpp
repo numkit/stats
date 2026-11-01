@@ -119,23 +119,36 @@ ScratchVec<double> read_rows(const Value &X, std::pmr::memory_resource *scratch_
     return out;
 }
 
+void kmedoids_argcheck(const Value &X, int K)
+{
+    const size_t N = X.dims().rows();
+    if (K < 1 || static_cast<size_t>(K) > N)
+        throw Error("kmedoids: K must be in 1..N", 0, 0, "kmedoids", "",
+                    "numkit:kmedoids:badK");
+}
+
+void dbscan_argcheck(double eps)
+{
+    if (eps <= 0.0)
+        throw Error("dbscan: eps must be positive",
+                    0, 0, "dbscan", "", "numkit:dbscan:badeps");
+}
+
 } // anonymous
 
 // Full kmedoids result: (idx, C, sumd, D, midx).
-// `info` (the 6th MATLAB output) is built by the adapter via Value::structure.
+// `info` (the 6th output) is built by the adapter via Value::structure.
 
 KmedoidsResult
 kmedoids_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates, const std::string &metric_name, std::pmr::memory_resource *mr)
 {
+    kmedoids_argcheck(X, K);
     if (max_iter <= 0)   max_iter = 100;
     if (replicates <= 0) replicates = 1;
     const Metric m = parse_metric(metric_name);
 
     const size_t N = X.dims().rows();
     const size_t D = X.dims().cols();
-    if (K < 1 || (size_t)K > N)
-        throw Error("kmedoids: K must be in 1..N", 0, 0, "kmedoids", "",
-                    "numkit:kmedoids:badK");
 
     ScratchArena scratch(mr);
     ScratchVec<double> Xv = read_rows(X, &scratch);
@@ -286,8 +299,7 @@ kmedoids(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter, in
 std::tuple<Value, Value>
 dbscan(const Value &X, double eps, int minpts, const std::string &metric_name, double p, std::pmr::memory_resource *mr)
 {
-    if (eps <= 0.0)  throw Error("dbscan: eps must be positive",
-                                 0, 0, "dbscan", "", "numkit:dbscan:badeps");
+    dbscan_argcheck(eps);
     if (minpts <= 0) minpts = 1;
     const Metric m = parse_metric(metric_name);
 

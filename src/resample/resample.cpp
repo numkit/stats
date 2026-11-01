@@ -19,6 +19,14 @@
 
 namespace numkit::stats {
 
+namespace {
+void randsample_argcheck(const std::vector<double> &w, int N)
+{
+    if (!w.empty() && static_cast<int>(w.size()) != N)
+        throw Error("randsample: weights length must equal N",
+                    0, 0, "randsample", "", "numkit:randsample:size");
+}
+} // namespace
 
 Value randsample(::numkit::ops::RngContext &rng, int N, int K, bool with_replacement, const Value &weights, std::pmr::memory_resource *mr)
 {
@@ -27,9 +35,7 @@ Value randsample(::numkit::ops::RngContext &rng, int N, int K, bool with_replace
 
     std::vector<double> w;
     if (weights.numel() > 0) w = read_vec(weights);
-    if (!w.empty() && (int)w.size() != N)
-        throw Error("randsample: weights length must equal N",
-                    0, 0, "randsample", "", "numkit:randsample:size");
+    randsample_argcheck(w, N);
 
     std::vector<int> idx;
     {
@@ -288,7 +294,7 @@ Value datasample_full(::numkit::ops::RngContext &rng, Span<const Value> args,
     }
     const std::size_t nd = static_cast<std::size_t>(X.dims().ndim());
     const std::size_t n = dim <= nd
-        ? static_cast<std::size_t>(X.dims().dim(dim - 1)) : 1;
+        ? static_cast<std::size_t>(X.dims().dim(static_cast<int>(dim - 1))) : 1;
 
     // NV: Replace (LOGICAL scalar only — a numeric 1 rejects, probe
     // D03) / Weights.
@@ -400,21 +406,21 @@ Value datasample_full(::numkit::ops::RngContext &rng, Span<const Value> args,
     // the sampled index (reference: subs{dim} = i).
     std::vector<std::size_t> od_(nd, 1);
     for (std::size_t d = 0; d < nd; ++d)
-        od_[d] = static_cast<std::size_t>(X.dims().dim(d));
+        od_[d] = static_cast<std::size_t>(X.dims().dim(static_cast<int>(d)));
     od_[dim - 1] = idx.size();
     Value out = Value::matrixND(od_.data(), static_cast<int>(nd),
                                 ValueType::DOUBLE, mr);
     std::vector<std::size_t> sstride(nd, 1), ostride(nd, 1);
     for (std::size_t d = 1; d < nd; ++d) {
         sstride[d] = sstride[d - 1]
-            * static_cast<std::size_t>(X.dims().dim(d - 1));
+            * static_cast<std::size_t>(X.dims().dim(static_cast<int>(d - 1)));
         ostride[d] = ostride[d - 1] * od_[d - 1];
     }
     const std::size_t totalOther = [&] {
         std::size_t t = 1;
         for (std::size_t d = 0; d < nd; ++d)
             if (d + 1 != dim)
-                t *= static_cast<std::size_t>(X.dims().dim(d));
+                t *= static_cast<std::size_t>(X.dims().dim(static_cast<int>(d)));
         return t;
     }();
     std::vector<std::size_t> coord(nd, 0);
@@ -431,7 +437,7 @@ Value datasample_full(::numkit::ops::RngContext &rng, Span<const Value> args,
         }
         for (std::size_t d = nd; d-- > 0;) {
             if (d + 1 == dim) continue;
-            if (++coord[d] < static_cast<std::size_t>(X.dims().dim(d)))
+            if (++coord[d] < static_cast<std::size_t>(X.dims().dim(static_cast<int>(d))))
                 break;
             coord[d] = 0;
         }

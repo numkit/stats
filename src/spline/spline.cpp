@@ -9,12 +9,19 @@
 
 namespace numkit::stats {
 
-Value aveknt(const Value &t, int k, std::pmr::memory_resource *mr)
+namespace {
+void aveknt_argcheck(size_t N, int k)
 {
-    const size_t N = t.numel();
     if (k < 2 || static_cast<size_t>(k) > N)
         throw Error("aveknt: order k must satisfy 2 ≤ k ≤ length(t)",
                     0, 0, "aveknt", "", "numkit:aveknt:k");
+}
+} // namespace
+
+Value aveknt(const Value &t, int k, std::pmr::memory_resource *mr)
+{
+    const size_t N = t.numel();
+    aveknt_argcheck(N, k);
     const size_t M = N - static_cast<size_t>(k);
     Value out = Value::matrix(1, M, ValueType::DOUBLE, mr);
     if (M == 0) return out;

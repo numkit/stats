@@ -16,17 +16,55 @@
 
 namespace numkit::stats {
 
+namespace {
 
-// 5-output form: [b, bint, r, rint, stats]. rint = residual CI for
-// outlier detection — added 2026-05-08.
-std::tuple<Value, Value, Value, Value, Value>
-regress_full(const Value &y, const Value &X, double alpha, std::pmr::memory_resource *mr)
+void regress_full_argcheck(const Value &y, const Value &X)
 {
     const size_t N = y.numel();
     const size_t p = X.dims().cols();
     if (X.dims().rows() != N || N == 0 || p == 0)
         throw Error("regress: X must be N×p with same N as y",
                     0, 0, "regress", "", "numkit:regress:size");
+}
+
+void lscov_argcheck(const Value &A, const Value &b, const Value &w)
+{
+    const size_t N = b.numel();
+    const size_t p = A.dims().cols();
+    if (A.dims().rows() != N || N == 0 || p == 0)
+        throw Error("lscov: A must be N×p with same N as b",
+                    0, 0, "lscov", "", "numkit:lscov:size");
+    if (!w.isEmpty()) {
+        const bool isVecN = (w.numel() == N);
+        const bool isMatNN = (w.dims().rows() == N && w.dims().cols() == N);
+        if (!isVecN && !isMatNN)
+            throw Error("lscov: w must be a length-N vector or N×N covariance matrix",
+                        0, 0, "lscov", "", "numkit:lscov:w");
+    }
+}
+
+void ridge_argcheck(const Value &y, const Value &X, const Value &kVec)
+{
+    const size_t N = y.numel();
+    const size_t p = X.dims().cols();
+    if (X.dims().rows() != N || N == 0 || p == 0)
+        throw Error("ridge: X must be N×p with same N as y",
+                    0, 0, "ridge", "", "numkit:ridge:size");
+    if (kVec.numel() == 0)
+        throw Error("ridge: k must be non-empty",
+                    0, 0, "ridge", "", "numkit:ridge:k");
+}
+
+} // namespace
+
+// 5-output form: [b, bint, r, rint, stats]. rint = residual CI for
+// outlier detection — added 2026-05-08.
+std::tuple<Value, Value, Value, Value, Value>
+regress_full(const Value &y, const Value &X, double alpha, std::pmr::memory_resource *mr)
+{
+    regress_full_argcheck(y, X);
+    const size_t N = y.numel();
+    const size_t p = X.dims().cols();
 
     // Build XtX (p×p) and Xty (p×1) using column-major X.
     std::vector<double> XtX(p * p, 0.0);
@@ -137,7 +175,7 @@ regress_full(const Value &y, const Value &X, double alpha, std::pmr::memory_reso
 
     // rint: 100·(1-α)% CI for residuals, used to diagnose outliers
     // (Chatterjee & Hadi 1986 eq.14; Belsley, Kuh & Welsch 1980 eq.2.26).
-    // MATLAB uses the LEAVE-ONE-OUT variance estimate σ_i and (nu-1) dof,
+    // The reference engine uses the LEAVE-ONE-OUT variance estimate σ_i and (nu-1) dof,
     // NOT a flat σ·sqrt(1-h) with nu dof:
     //   h_ii  = X[i,:]·(XtX)^{-1}·X[i,:]'                  (leverage)
     //   σ_i   = sqrt(max(0, nu·s²/(nu-1) - r_i²/((nu-1)(1-h_ii))))
@@ -196,38 +234,73 @@ regress(const Value &y, const Value &X, double alpha, std::pmr::memory_resource 
 std::tuple<Value, Value, Value, Value>
 lscov(const Value &A, const Value &b, const Value &w, std::pmr::memory_resource *mr)
 {
+    lscov_argcheck(A, b, w);
     const size_t N = b.numel();
     const size_t p = A.dims().cols();
-    if (A.dims().rows() != N || N == 0 || p == 0)
-        throw Error("lscov: A must be N×p with same N as b",
-                    0, 0, "lscov", "", "numkit:lscov:size");
 
     const bool weighted = !w.isEmpty();
-    if (weighted) {
-        if (w.numel() == N * N)
-            throw Error("lscov: full covariance V not yet supported",
-                        0, 0, "lscov", "", "numkit:lscov:fullV");
-        if (w.numel() != N)
-            throw Error("lscov: w must be a length-N vector",
-                        0, 0, "lscov", "", "numkit:lscov:w");
-    }
+    const bool fullCov = weighted && (w.dims().rows() == N && w.dims().cols() == N && N > 1);
 
-    auto wi = [&](size_t i) {
-        return weighted ? w.elemAsDouble(i) : 1.0;
-    };
-
-    // Build XtWX and XtWy with weights baked in (W = diag(w)).
     std::vector<double> XtWX(p * p, 0.0);
     std::vector<double> XtWy(p, 0.0);
-    for (size_t i = 0; i < N; ++i) {
-        const double wii = wi(i);
-        const double bi  = b.elemAsDouble(i);
+    std::vector<double> Atilde;
+    std::vector<double> btilde;
+
+    if (fullCov) {
+        std::vector<double> V(N * N, 0.0);
+        for (size_t j = 0; j < N; ++j) {
+            for (size_t i = 0; i < N; ++i) {
+                const double vij = w.elemAsDouble(i + j * N);
+                const double vji = w.elemAsDouble(j + i * N);
+                if (!std::isfinite(vij) || std::fabs(vij - vji) > 1e-10 * (1.0 + std::fabs(vij)))
+                    throw Error("lscov: covariance matrix V must be symmetric positive definite",
+                                0, 0, "lscov", "", "numkit:lscov:covNotSPD");
+                V[i + j * N] = 0.5 * (vij + vji);
+            }
+        }
+        std::vector<double> LV(N * N, 0.0);
+        if (!cholesky(V.data(), LV.data(), N))
+            throw Error("lscov: covariance matrix V must be symmetric positive definite",
+                        0, 0, "lscov", "", "numkit:lscov:covNotSPD");
+
+        // Whiten A and b: solve LV * Atilde(:,j) = A(:,j), LV * btilde = b.
+        Atilde.resize(N * p, 0.0);
+        btilde.resize(N, 0.0);
+        std::vector<double> colIn(N);
         for (size_t j = 0; j < p; ++j) {
-            const double xij = A.elemAsDouble(i + j * N);
-            XtWy[j] += wii * xij * bi;
-            for (size_t k = j; k < p; ++k) {
-                const double xik = A.elemAsDouble(i + k * N);
-                XtWX[k + j * p] += wii * xij * xik;
+            for (size_t i = 0; i < N; ++i) colIn[i] = A.elemAsDouble(i + j * N);
+            fwd_solve(LV.data(), Atilde.data() + j * N, colIn.data(), N);
+        }
+        for (size_t i = 0; i < N; ++i) colIn[i] = b.elemAsDouble(i);
+        fwd_solve(LV.data(), btilde.data(), colIn.data(), N);
+
+        for (size_t i = 0; i < N; ++i) {
+            const double bi = btilde[i];
+            for (size_t j = 0; j < p; ++j) {
+                const double xij = Atilde[i + j * N];
+                XtWy[j] += xij * bi;
+                for (size_t k = j; k < p; ++k) {
+                    const double xik = Atilde[i + k * N];
+                    XtWX[k + j * p] += xij * xik;
+                }
+            }
+        }
+    } else {
+        auto wi = [&](size_t i) {
+            return weighted ? w.elemAsDouble(i) : 1.0;
+        };
+
+        // Build XtWX and XtWy with weights baked in (W = diag(w)).
+        for (size_t i = 0; i < N; ++i) {
+            const double wii = wi(i);
+            const double bi  = b.elemAsDouble(i);
+            for (size_t j = 0; j < p; ++j) {
+                const double xij = A.elemAsDouble(i + j * N);
+                XtWy[j] += wii * xij * bi;
+                for (size_t k = j; k < p; ++k) {
+                    const double xik = A.elemAsDouble(i + k * N);
+                    XtWX[k + j * p] += wii * xij * xik;
+                }
             }
         }
     }
@@ -246,11 +319,21 @@ lscov(const Value &A, const Value &b, const Value &w, std::pmr::memory_resource 
 
     // weighted residuals + SSR
     double SSRw = 0.0;
-    for (size_t i = 0; i < N; ++i) {
-        double pred = 0.0;
-        for (size_t j = 0; j < p; ++j) pred += A.elemAsDouble(i + j * N) * beta[j];
-        const double ri = b.elemAsDouble(i) - pred;
-        SSRw += wi(i) * ri * ri;
+    if (fullCov) {
+        for (size_t i = 0; i < N; ++i) {
+            double pred = 0.0;
+            for (size_t j = 0; j < p; ++j) pred += Atilde[i + j * N] * beta[j];
+            const double ri = btilde[i] - pred;
+            SSRw += ri * ri;
+        }
+    } else {
+        for (size_t i = 0; i < N; ++i) {
+            double pred = 0.0;
+            for (size_t j = 0; j < p; ++j) pred += A.elemAsDouble(i + j * N) * beta[j];
+            const double ri = b.elemAsDouble(i) - pred;
+            const double wii = weighted ? w.elemAsDouble(i) : 1.0;
+            SSRw += wii * ri * ri;
+        }
     }
     const double dfErr = double(N) - double(p);
     const double mse = (dfErr > 0.0) ? SSRw / dfErr
@@ -288,15 +371,10 @@ lscov(const Value &A, const Value &b, const Value &w, std::pmr::memory_resource 
 
 Value ridge(const Value &y, const Value &X, const Value &kVec, bool scaled, std::pmr::memory_resource *mr)
 {
+    ridge_argcheck(y, X, kVec);
     const size_t N = y.numel();
     const size_t p = X.dims().cols();
-    if (X.dims().rows() != N || N == 0 || p == 0)
-        throw Error("ridge: X must be N×p with same N as y",
-                    0, 0, "ridge", "", "numkit:ridge:size");
     const size_t Nk = kVec.numel();
-    if (Nk == 0)
-        throw Error("ridge: k must be non-empty",
-                    0, 0, "ridge", "", "numkit:ridge:k");
 
     // Center y, X by column mean.
     double yMean = 0.0;
@@ -318,7 +396,7 @@ Value ridge(const Value &y, const Value &X, const Value &kVec, bool scaled, std:
             Xs[i + j * N] = d;
             sq += d * d;
         }
-        // Sample std with N-1 normalisation (matches MATLAB ridge).
+        // Sample std with N-1 normalisation (matches the reference engine ridge).
         const double s = (N > 1) ? std::sqrt(sq / double(N - 1)) : 1.0;
         xStd[j] = s;
         if (s > 0.0)

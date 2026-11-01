@@ -17,6 +17,26 @@
 
 namespace numkit::stats {
 
+namespace {
+
+void pdist2_argcheck(const Value &X, const Value &Y)
+{
+    if (X.dims().cols() != Y.dims().cols())
+        throw Error("pdist2: column counts must match", 0, 0, "pdist2", "",
+                    "numkit:pdist2:size");
+}
+
+void mahal_argcheck(const Value &Y, const Value &X)
+{
+    if (Y.dims().cols() != X.dims().cols())
+        throw Error("mahal: Y and X must have same column count",
+                    0, 0, "mahal", "", "numkit:mahal:size");
+    if (X.dims().rows() < 2)
+        throw Error("mahal: X must have at least 2 rows for covariance",
+                    0, 0, "mahal", "", "numkit:mahal:size");
+}
+
+} // namespace
 
 Value pdist(const Value &X, const std::string &metric, double p, const Value *C_opt, std::pmr::memory_resource *mr)
 {
@@ -119,13 +139,11 @@ Value pdist(const Value &X, const std::string &metric, double p, std::pmr::memor
 Value pdist2(const Value &X, const Value &Y, const std::string &metric, double p, const Value *C_opt, std::pmr::memory_resource *mr)
 {
     const Metric m = parse_metric(metric);
+    pdist2_argcheck(X, Y);
     const size_t Mx = X.dims().rows();
     const size_t Dx = X.dims().cols();
     const size_t My = Y.dims().rows();
     const size_t Dy = Y.dims().cols();
-    if (Dx != Dy)
-        throw Error("pdist2: column counts must match", 0, 0, "pdist2", "",
-                    "numkit:pdist2:size");
     Value out = Value::matrix(Mx, My, ValueType::DOUBLE, mr);
     if (Mx == 0 || My == 0) return out;
     double *od = out.doubleDataMut();
