@@ -32,7 +32,7 @@ void parseCorrOpts(Span<const Value> args, size_t start, int &numLags, double &n
         if (args[i].isChar()) {
             std::string opt = args[i].toString();
             std::transform(opt.begin(), opt.end(), opt.begin(),
-                           [](unsigned char c) { return std::tolower(c); });
+                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
             if (i + 1 < args.size()) {
                 if (opt == "numlags") {
                     numLags = argcheck::expectedInteger(

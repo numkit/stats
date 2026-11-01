@@ -162,7 +162,7 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn,
         if (a.isChar() || a.isString()) {
             std::string s = a.toString();
             std::transform(s.begin(), s.end(), s.begin(),
-                           [](unsigned char c) { return std::tolower(c); });
+                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
             if (s == "all") flattenAll = true;
             else throw Error(std::string(fn) + ": unknown dim flag '" + s + "'",
                               0, 0, fn, "", std::string("numkit:") + fn + ":dim");
@@ -380,7 +380,7 @@ void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         if (a.isChar() || a.isString()) {
             std::string s = a.toString();
             std::transform(s.begin(), s.end(), s.begin(),
-                           [](unsigned char c) { return std::tolower(c); });
+                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
             if (s == "all") isAll = true;
             else throw Error("median: unknown option '" + s + "'",
                               0, 0, "median", "", "numkit:median:unknownOption");
@@ -512,7 +512,7 @@ QArgs parseQArgs(Span<const Value> args, size_t start, const Value &x,
     } else if (i < args.size() && (args[i].isChar() || args[i].isString())) {
         std::string s = args[i].toString();
         std::transform(s.begin(), s.end(), s.begin(),
-                       [](unsigned char c) { return std::tolower(c); });
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
         if (s == "all") {
             q.flatten = true;
             ++i;
@@ -526,14 +526,14 @@ QArgs parseQArgs(Span<const Value> args, size_t start, const Value &x,
                         0, 0, fn, "", std::string("numkit:") + fn + ":nv");
         std::string name = args[i].toString();
         std::transform(name.begin(), name.end(), name.begin(),
-                       [](unsigned char c) { return std::tolower(c); });
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
         if (name == "method") {
             if (!args[i + 1].isChar() && !args[i + 1].isString())
                 throw Error(std::string(fn) + ": Method must be a string",
                             0, 0, fn, "", std::string("numkit:") + fn + ":method");
             std::string m = args[i + 1].toString();
             std::transform(m.begin(), m.end(), m.begin(),
-                           [](unsigned char c) { return std::tolower(c); });
+                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
             // MATLAB's documented values are 'exact' (default) and
             // 'approximate'. 'exact' is the linear-interpolation order-
             // statistic method, which is nk's Midpoint. The
@@ -640,7 +640,7 @@ void mode_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
         if (a.isChar() || a.isString()) {
             std::string s = a.toString();
             std::transform(s.begin(), s.end(), s.begin(),
-                [](unsigned char c){ return std::tolower(c); });
+                [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
             if (s == "all") flatten = true;
             else throw Error("mode: unknown flag '" + s + "'",
                               0, 0, "mode", "", "numkit:mode:badFlag");

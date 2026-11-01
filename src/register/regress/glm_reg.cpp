@@ -87,8 +87,7 @@ void glmval_reg(Span<const Value> args, size_t nargout,
         if (!o.empty()) o[0] = std::move(r);
     };
     FnHandle customInvLink;
-    if (invHandle.isFuncHandle()
-        || (invHandle.isCell() && invHandle.numel() >= 1 && invHandle.cellAt(0).isFuncHandle()))
+    if (invHandle.isFuncHandle())
         customInvLink = customInvCb;
     auto res = glmval_full_bounds(
         args[0], args[1], args[2],

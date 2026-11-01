@@ -55,7 +55,7 @@ void lhsdesign_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                 args[k + 1], {"none", "maximin", "correlation"},
                 static_cast<int>(k) + 3, "criterion", "lhsdesign")];
         } else if (name == "iterations") {
-            iters = argcheck::roundLength(args[k + 1], k + 3, "Iterations", "lhsdesign");
+            iters = argcheck::roundLength(args[k + 1], static_cast<int>(k) + 3, "Iterations", "lhsdesign");
             if (iters < 1) iters = 1;
         } else {
             throw Error("lhsdesign: unknown option '" + name + "'",

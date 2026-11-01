@@ -243,8 +243,7 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
         else
             throw Error("glmval: custom link struct must contain an 'Inverse' field.",
                         0, 0, "glmval", "", "numkit:glmval:badLink");
-        const bool isInvFh = invField.isFuncHandle()
-                          || (invField.isCell() && invField.numel() >= 1 && invField.cellAt(0).isFuncHandle());
+        const bool isInvFh = invField.isFuncHandle();
         if (isInvFh && static_cast<bool>(customInvLink)) {
             useCustomCallback = true;
         } else if (invField.isChar() || invField.isString()) {
@@ -255,8 +254,7 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
         }
     } else if (link.isCell() && link.numel() >= 3) {
         const Value &invField = link.cellAt(2);
-        const bool isInvFh = invField.isFuncHandle()
-                          || (invField.isCell() && invField.numel() >= 1 && invField.cellAt(0).isFuncHandle());
+        const bool isInvFh = invField.isFuncHandle();
         if (isInvFh && static_cast<bool>(customInvLink)) {
             useCustomCallback = true;
         } else if (invField.isChar() || invField.isString()) {

@@ -105,7 +105,7 @@ inline double betainc_scalar(double y, double a, double b, std::pmr::memory_reso
 }
 
 double nctpdf_one(double x, double nu, double delta,
-                  std::pmr::memory_resource *mr)
+                  std::pmr::memory_resource * /*mr*/)
 {
     if (!(nu > 0.0))
         return std::numeric_limits<double>::quiet_NaN();

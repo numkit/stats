@@ -85,8 +85,7 @@ void bootstrp_reg(Span<const Value> args, size_t /*nargout*/,
                   Span<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 3, "bootstrp");  // no max: name-value tail in the reference
-    if (!args[1].isFuncHandle()
-        && !(args[1].isCell() && args[1].numel() >= 1 && args[1].cellAt(0).isFuncHandle()))
+    if (!args[1].isFuncHandle())
         throw Error("bootstrp: 2nd argument must be a function handle",
                     0, 0, "bootstrp", "", "numkit:bootstrp:notFuncHandle");
     const int nboot = (int)args[0].toScalar();
@@ -148,8 +147,7 @@ void crossval_reg(Span<const Value> args, size_t /*nargout*/,
                   Span<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 3, "crossval");  // no max: name-value tail in the reference
-    if (!args[0].isFuncHandle()
-        && !(args[0].isCell() && args[0].numel() >= 1 && args[0].cellAt(0).isFuncHandle()))
+    if (!args[0].isFuncHandle())
         throw Error("crossval: 1st argument must be a function handle "
                     "predfun(Xtrain, Ytrain, Xtest, Ytest)",
                     0, 0, "crossval", "", "numkit:crossval:notFuncHandle");
@@ -237,8 +235,7 @@ void bootci_reg(Span<const Value> args, size_t /*nargout*/,
                 Span<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 3, "bootci");  // no max: name-value tail in the reference
-    if (!args[1].isFuncHandle()
-        && !(args[1].isCell() && args[1].numel() >= 1 && args[1].cellAt(0).isFuncHandle()))
+    if (!args[1].isFuncHandle())
         throw Error("bootci: 2nd argument must be a function handle",
                     0, 0, "bootci", "", "numkit:bootci:notFuncHandle");
     const int nboot = (int)args[0].toScalar();
@@ -298,8 +295,7 @@ void jackknife_reg(Span<const Value> args, size_t /*nargout*/,
                    Span<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "jackknife");  // no max: name-value tail in the reference
-    if (!args[0].isFuncHandle()
-        && !(args[0].isCell() && args[0].numel() >= 1 && args[0].cellAt(0).isFuncHandle()))
+    if (!args[0].isFuncHandle())
         throw Error("jackknife: 1st argument must be a function handle",
                     0, 0, "jackknife", "", "numkit:jackknife:notFuncHandle");
     auto *mr = ctx.engine->resource();

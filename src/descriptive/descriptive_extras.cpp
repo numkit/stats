@@ -864,16 +864,6 @@ Value rmse(const Value &f, const Value &a, int dim, const ErrorMetricOpts &o,
     // behaviour) — the reg normalizes vecdim/'all' away.
     const bool vecInput = (f.dims().isVector() || f.isScalar()) &&
                           (a.dims().isVector() || a.isScalar());
-    Value out;
-    auto wRun = [&](std::size_t k, std::size_t len) -> const double * {
-        if (!o.weights) return nullptr;
-        if (o.weights->numel() == 1) return o.weights->doubleData();
-        if (vecInput) return o.weights->doubleData();
-        // per-run constant weight along the operating dim? the vector
-        // weight indexes along dim — read element k for the k-th run
-        // only when dim==2; dim==1 uses elementwise along the column.
-        return o.weights->doubleData() + k * 0; // elementwise path below
-    };
     // Simplify: single run over the whole flattened metric for the
     // vector/scalar shapes (the only shapes the reference documents for
     // error metrics without a dim), and per-column runs for matrices.
@@ -886,7 +876,6 @@ Value rmse(const Value &f, const Value &a, int dim, const ErrorMetricOpts &o,
     const bool along2 = (d == 2);
     const std::size_t runLen = along2 ? c : r;
     const std::size_t nRuns = along2 ? r : c;
-    const std::size_t stride = along2 ? r : 0;
     Value R = Value::matrix(along2 ? r : 1,
                             along2 ? 1 : c,
                             ValueType::DOUBLE, mr);

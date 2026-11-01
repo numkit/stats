@@ -578,7 +578,7 @@ void isoutlierApplyTfDefaults(IsOutlierPlan &p, const Value &A)
             dlen = static_cast<std::size_t>(A.dims().dim(p.dim - 1));
         } else {
             // first non-singleton dim (row vectors operate along dim 2)
-            for (std::size_t k = 0; k < A.dims().ndim(); ++k) {
+            for (int k = 0; k < A.dims().ndim(); ++k) {
                 if (A.dims().dim(k) > 1) {
                     dlen = static_cast<std::size_t>(A.dims().dim(k));
                     break;
@@ -613,8 +613,8 @@ IsOutlierOut isoutlier_full(const Value &A, Span<const Value> in,
     int dim = p.dim;
     if (dim == 0) {
         dim = 1;
-        for (std::size_t k = 0; k < A.dims().ndim(); ++k) {
-            if (A.dims().dim(k) > 1) { dim = static_cast<int>(k) + 1; break; }
+        for (int k = 0; k < A.dims().ndim(); ++k) {
+            if (A.dims().dim(k) > 1) { dim = k + 1; break; }
         }
         if (dim > 2) dim = 2;   // N-D beyond dim 2: reduce in the dim-2 view
     }
@@ -932,7 +932,7 @@ RmMissingOut rmmissing_full(const Value &A, Span<const Value> in,
                    : Value::matrix(A.numel(), 1, ValueType::LOGICAL, mr))
             : ((dim == 2) ? Value::matrix(1, c, ValueType::LOGICAL, mr)
                           : Value::matrix(r, 1, ValueType::LOGICAL, mr));
-        std::fill_n(ind.logicalDataMut(), ind.numel(), 0);
+        std::fill_n(ind.logicalDataMut(), ind.numel(), std::uint8_t{0});
         out.ind = std::move(ind);
         return out;
     }
@@ -1120,8 +1120,7 @@ FillMissingOut fillmissing_full(
     std::size_t knnK = 1;
     std::size_t i = 1;
 
-    if (in[0].isFuncHandle()
-        || (in[0].isCell() && in[0].numel() >= 1 && in[0].cellAt(0).isFuncHandle())) {
+    if (in[0].isFuncHandle()) {
         isFnHandle = true;
         fhVal = &in[0];
         if (in.size() < 2)
@@ -1318,8 +1317,7 @@ FillMissingOut fillmissing_full(
                                 std::string("numkit:") + fn + ":invalidDistance");
                 knnDist = std::string(kDist[static_cast<std::size_t>(dh)]);
                 distFnVal = nullptr;
-            } else if (v.isFuncHandle()
-                       || (v.isCell() && v.numel() >= 1 && v.cellAt(0).isFuncHandle())) {
+            } else if (v.isFuncHandle()) {
                 distFnVal = &v;
             } else {
                 throw Error(std::string(fn) + ": 'Distance' must be "
@@ -1392,7 +1390,7 @@ FillMissingOut fillmissing_full(
         out.B = A;
         if (wantFilled) {
             Value f = Value::matrix(r, c, ValueType::LOGICAL, mr);
-            std::fill_n(f.logicalDataMut(), f.numel(), 0);
+            std::fill_n(f.logicalDataMut(), f.numel(), std::uint8_t{0});
             out.filled = std::move(f);
         }
         return out;
@@ -1405,7 +1403,7 @@ FillMissingOut fillmissing_full(
     Value filledMap = wantFilled ? Value::matrix(r, c, ValueType::LOGICAL, mr)
                                  : Value();
     uint8_t *fmd = wantFilled ? filledMap.logicalDataMut() : nullptr;
-    if (fmd) std::fill_n(fmd, A.numel(), 0);
+    if (fmd) std::fill_n(fmd, A.numel(), std::uint8_t{0});
 
     // Original missing map (or the explicit override).
     std::vector<uint8_t> missMap(A.numel(), 0);
@@ -1688,10 +1686,10 @@ FillMissingOut fillmissing_full(
                         im[j] = cim;
                     }
                 } else {
-                    std::fill(ma.begin(), ma.end(), 0);
+                    std::fill(ma.begin(), ma.end(), std::uint8_t{0});
                 }
             } else {
-                std::fill(ma.begin(), ma.end(), 0);
+                std::fill(ma.begin(), ma.end(), std::uint8_t{0});
             }
             for (std::size_t j = 0; j < runLen; ++j) {
                 const std::size_t lin = along2 ? k + j * r : k * runLen + j;

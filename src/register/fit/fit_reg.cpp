@@ -223,7 +223,7 @@ static void fill_fd_avar3(double *p, double p0, double p1, double p2,
     p[6] = C02 * inv; p[7] = C12 * inv; p[8] = C22 * inv;  // col 2
 }
 
-static void like2_reg(const char *fn,
+[[maybe_unused]] static void like2_reg(const char *fn,
                       double (*impl)(double, double, const Value &, std::pmr::memory_resource *),
                       Span<const Value> args, Span<Value> outs,
                       CallContext &ctx)
@@ -569,9 +569,7 @@ void mle_reg(Span<const Value> args, size_t nargout,
         }
         else if (opt == "pdf" || opt == "logpdf" || opt == "nloglf") {
             const Value &fh = args[i + 1];
-            const bool isFh = fh.isFuncHandle()
-                           || (fh.isCell() && fh.numel() >= 1 && fh.cellAt(0).isFuncHandle());
-            if (!isFh)
+            if (!fh.isFuncHandle())
                 throw Error("mle: '" + optRaw + "' value must be a function handle",
                             0, 0, "mle", "", "numkit:mle:badFuncHandle");
             custom_kind = opt;

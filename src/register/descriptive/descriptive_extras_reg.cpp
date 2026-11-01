@@ -149,7 +149,7 @@ void bounds_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
         if (a.isChar() || a.isString()) {
             std::string s = a.toString();
             std::transform(s.begin(), s.end(), s.begin(),
-                [](unsigned char c){ return std::tolower(c); });
+                [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
             if (s == "all") flatten = true;
             else throw Error("bounds: unknown flag '" + s + "'",
                               0, 0, "bounds", "", "numkit:bounds:badFlag");
@@ -203,7 +203,7 @@ void iqr_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
         if (a.isChar() || a.isString()) {
             std::string s = a.toString();
             std::transform(s.begin(), s.end(), s.begin(),
-                [](unsigned char c){ return std::tolower(c); });
+                [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
             if (s == "all") flatten = true;
             else throw Error("iqr: unknown flag '" + s + "'",
                               0, 0, "iqr", "", "numkit:iqr:badFlag");
@@ -264,11 +264,11 @@ void maxk_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
                         0, 0, "maxk", "", "numkit:maxk:nv");
         std::string name = args[i].toString();
         std::transform(name.begin(), name.end(), name.begin(),
-                       [](unsigned char c){ return std::tolower(c); });
+                       [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
         if (name == "comparisonmethod") {
             std::string m = args[i + 1].toString();
             std::transform(m.begin(), m.end(), m.begin(),
-                           [](unsigned char c){ return std::tolower(c); });
+                           [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
             if (m != "real" && m != "abs" && m != "auto")
                 throw Error("maxk: ComparisonMethod must be 'real', 'abs' or 'auto'",
                             0, 0, "maxk", "", "numkit:maxk:cm");
@@ -305,11 +305,11 @@ void mink_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
                         0, 0, "mink", "", "numkit:mink:nv");
         std::string name = args[i].toString();
         std::transform(name.begin(), name.end(), name.begin(),
-                       [](unsigned char c){ return std::tolower(c); });
+                       [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
         if (name == "comparisonmethod") {
             std::string m = args[i + 1].toString();
             std::transform(m.begin(), m.end(), m.begin(),
-                           [](unsigned char c){ return std::tolower(c); });
+                           [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
             if (m != "real" && m != "abs" && m != "auto")
                 throw Error("mink: ComparisonMethod must be 'real', 'abs' or 'auto'",
                             0, 0, "mink", "", "numkit:mink:cm");
@@ -342,7 +342,7 @@ void parseDimOrAll(const Value &x, Span<const Value> args, size_t pos,
     if (a.isChar() || a.isString()) {
         std::string s = a.toString();
         std::transform(s.begin(), s.end(), s.begin(),
-                       [](unsigned char c){ return std::tolower(c); });
+                       [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
         if (s == "all") { flatten = true; return; }
         // Any other string belongs to the flag/Weights parser that
         // runs after this (nanflags / 'Weights'); do not consume it.

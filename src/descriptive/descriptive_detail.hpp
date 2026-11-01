@@ -1262,7 +1262,7 @@ namespace {
 // If the last positional arg is a 'omitnan'/'includenan' string,
 // strip it from the count and return the omit flag. Throws on unknown
 // trailing strings so user errors don't get silently ignored.
-size_t stripNanFlag(Span<const Value> args, bool &omitNan, const char *fn)
+size_t stripNanFlag(Span<const Value> args, bool &omitNan, const char * /*fn*/)
 {
     omitNan = false;
     if (args.empty()) return 0;
@@ -1270,7 +1270,7 @@ size_t stripNanFlag(Span<const Value> args, bool &omitNan, const char *fn)
     if (last.type() != ValueType::CHAR) return args.size();
     std::string s = last.toString();
     std::transform(s.begin(), s.end(), s.begin(),
-                   [](unsigned char c) { return std::tolower(c); });
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     if (s == "omitnan" || s == "omitmissing") { omitNan = true; return args.size() - 1; }
     if (s == "includenan" || s == "includemissing")                 return args.size() - 1;
     // Not a nan flag â€” leave it to the caller to handle (e.g. 'all').

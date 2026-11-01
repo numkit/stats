@@ -36,7 +36,7 @@ inline size_t stripUpperFlag(Span<const Value> args, bool &upper)
     if (!last.isChar() && !last.isString()) return args.size();
     std::string s = last.toString();
     std::transform(s.begin(), s.end(), s.begin(),
-                   [](unsigned char c) { return std::tolower(c); });
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     if (s == "upper") {
         upper = true;
         return args.size() - 1;
