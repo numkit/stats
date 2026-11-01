@@ -3,7 +3,7 @@
 // detrend / isoutlier / rmoutliers / fillmissing / rmmissing /
 // standardizeMissing. One TEST_F per probed contract branch.
 
-#include <numkit/bundle/standard_engine.hpp>
+#include <numkit/core/standard_engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <numkit/stats/descriptive/descriptive.hpp>
 #include <gtest/gtest.h>

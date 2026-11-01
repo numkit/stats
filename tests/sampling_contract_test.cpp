@@ -5,7 +5,7 @@
 // bugs/opened/stats/sampling-deferred-forms.md); the contracts pin
 // forms, classes, shapes and deterministic invariants.
 
-#include <numkit/bundle/standard_engine.hpp>
+#include <numkit/core/standard_engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <numkit/stats/resample/resample.hpp>
 #include <gtest/gtest.h>

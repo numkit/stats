@@ -5,7 +5,7 @@
 // max+1 call that must fail with nk:<fn>:maxnargin; checkNargin is the
 // first reg statement, so the dummy values never reach compute code.
 
-#include <numkit/bundle/standard_engine.hpp>
+#include <numkit/core/standard_engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <numkit/value/error.hpp>
 #include <gtest/gtest.h>

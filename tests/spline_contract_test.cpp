@@ -6,7 +6,7 @@
 // a DISABLED guard — these tests pin only the layout-independent
 // contract branches.
 
-#include <numkit/bundle/standard_engine.hpp>
+#include <numkit/core/standard_engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <gtest/gtest.h>
 

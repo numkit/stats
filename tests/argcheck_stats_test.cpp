@@ -17,7 +17,7 @@
 // adapters (geornd / hygernd — 9 families), plus the multivariate
 // count inputs (mvnrnd / mvtrnd / mnrnd).
 
-#include <numkit/bundle/standard_engine.hpp>
+#include <numkit/core/standard_engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <numkit/value/error.hpp>
 #include <gtest/gtest.h>

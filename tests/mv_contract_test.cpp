@@ -4,7 +4,7 @@
 // values): mvnpdf / mvnrnd / mvncdf / mvtrnd / mvtpdf / mnpdf. One
 // TEST_F per probed contract branch.
 
-#include <numkit/bundle/standard_engine.hpp>
+#include <numkit/core/standard_engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <numkit/stats/mvdist/mvdist.hpp>
 #include <gtest/gtest.h>

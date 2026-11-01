@@ -3,7 +3,7 @@
 // recheck): pdist / pdist2 / mahal / linkage / cluster /
 // inconsistent / silhouette. One TEST_F per probed contract branch.
 
-#include <numkit/bundle/standard_engine.hpp>
+#include <numkit/core/standard_engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <numkit/stats/cluster/distance.hpp>
 #include <gtest/gtest.h>

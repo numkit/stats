@@ -2,7 +2,7 @@
 // reference engine R2025b (build/probe76.m R/N/G batteries):
 // ridge / nlparci / glmval. One TEST_F per probed contract branch.
 
-#include <numkit/bundle/standard_engine.hpp>
+#include <numkit/core/standard_engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <numkit/stats/regress/regress.hpp>
 #include <gtest/gtest.h>
