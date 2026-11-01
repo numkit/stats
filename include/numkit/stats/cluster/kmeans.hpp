@@ -1,6 +1,6 @@
 /// @file kmeans.hpp
 /// @ingroup group_stats
-// toolboxes/stats/include/nk/stats/cluster/kmeans.hpp
+// toolboxes/stats/include/numkit/stats/cluster/kmeans.hpp
 
 #pragma once
 

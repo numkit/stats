@@ -1,6 +1,6 @@
 /// @file beta.hpp
 /// @ingroup group_stats
-// toolboxes/stats/include/nk/stats/distributions/beta.hpp
+// toolboxes/stats/include/numkit/stats/distributions/beta.hpp
 //
 // Beta distribution.
 

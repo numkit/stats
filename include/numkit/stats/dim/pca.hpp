@@ -1,6 +1,6 @@
 /// @file pca.hpp
 /// @ingroup group_stats
-// toolboxes/stats/include/nk/stats/dim/pca.hpp
+// toolboxes/stats/include/numkit/stats/dim/pca.hpp
 //
 // Principal Component Analysis.
 

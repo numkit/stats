@@ -1,6 +1,6 @@
 /// @file gp.hpp
 /// @ingroup group_stats
-// toolboxes/stats/include/nk/stats/distributions/gp.hpp
+// toolboxes/stats/include/numkit/stats/distributions/gp.hpp
 //
 // Generalized Pareto distribution.
 

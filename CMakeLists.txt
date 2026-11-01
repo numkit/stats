@@ -13,6 +13,54 @@ endif()
 
 include(FetchContent)
 
+# Fast-path: reuse prebuilt foundation libraries from ../numkit/build when available
+set(_numkit_prebuilt_dir "${CMAKE_CURRENT_SOURCE_DIR}/../numkit/build")
+find_library(_numkit_lib_value NAMES numkit_value PATHS "${_numkit_prebuilt_dir}/_deps/numkit_value" "${_numkit_prebuilt_dir}/_deps/numkit_value/Release" NO_DEFAULT_PATH)
+find_library(_numkit_lib_sys   NAMES numkit_sys   PATHS "${_numkit_prebuilt_dir}/_deps/numkit_sys"   "${_numkit_prebuilt_dir}/_deps/numkit_sys/Release"   NO_DEFAULT_PATH)
+find_library(_numkit_lib_ops   NAMES numkit_ops   PATHS "${_numkit_prebuilt_dir}/_deps/numkit_ops"   "${_numkit_prebuilt_dir}/_deps/numkit_ops/Release"   NO_DEFAULT_PATH)
+find_library(_numkit_lib_hwy   NAMES hwy          PATHS "${_numkit_prebuilt_dir}/_deps/highway-build" "${_numkit_prebuilt_dir}/_deps/highway-build/Release" NO_DEFAULT_PATH)
+find_library(_numkit_lib_hwy_c NAMES hwy_contrib  PATHS "${_numkit_prebuilt_dir}/_deps/highway-build" "${_numkit_prebuilt_dir}/_deps/highway-build/Release" NO_DEFAULT_PATH)
+
+if(NOT TARGET numkit_value AND _numkit_lib_value AND _numkit_lib_sys AND _numkit_lib_ops AND _numkit_lib_hwy AND _numkit_lib_hwy_c AND EXISTS "${_numkit_prebuilt_dir}/_deps/highway-src/hwy/highway.h")
+    message(STATUS "Using prebuilt foundation libraries from ${_numkit_prebuilt_dir}")
+    find_package(Threads REQUIRED)
+    add_library(numkit_value STATIC IMPORTED GLOBAL)
+    set_target_properties(numkit_value PROPERTIES
+        IMPORTED_LOCATION "${_numkit_lib_value}"
+        INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/../value/include"
+    )
+    add_library(numkit::value ALIAS numkit_value)
+
+    add_library(numkit_sys STATIC IMPORTED GLOBAL)
+    set_target_properties(numkit_sys PROPERTIES
+        IMPORTED_LOCATION "${_numkit_lib_sys}"
+        INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/../sys/include"
+        INTERFACE_LINK_LIBRARIES "numkit_value"
+    )
+    add_library(numkit::sys ALIAS numkit_sys)
+
+    add_library(hwy STATIC IMPORTED GLOBAL)
+    set_target_properties(hwy PROPERTIES
+        IMPORTED_LOCATION "${_numkit_lib_hwy}"
+        INTERFACE_INCLUDE_DIRECTORIES "${_numkit_prebuilt_dir}/_deps/highway-src"
+    )
+    add_library(hwy_contrib STATIC IMPORTED GLOBAL)
+    set_target_properties(hwy_contrib PROPERTIES
+        IMPORTED_LOCATION "${_numkit_lib_hwy_c}"
+        INTERFACE_INCLUDE_DIRECTORIES "${_numkit_prebuilt_dir}/_deps/highway-src"
+        INTERFACE_LINK_LIBRARIES "hwy"
+    )
+
+    add_library(numkit_ops STATIC IMPORTED GLOBAL)
+    set_target_properties(numkit_ops PROPERTIES
+        IMPORTED_LOCATION "${_numkit_lib_ops}"
+        INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/../ops/include"
+        INTERFACE_COMPILE_DEFINITIONS "NUMKIT_WITH_SIMD=1;NUMKIT_WITH_THREADS=1"
+        INTERFACE_LINK_LIBRARIES "numkit_value;hwy;hwy_contrib;Threads::Threads"
+    )
+    add_library(numkit::ops ALIAS numkit_ops)
+endif()
+
 # Dependency: numkit/value
 if(NOT TARGET numkit_value)
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../value/CMakeLists.txt")

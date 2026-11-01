@@ -1,6 +1,6 @@
 /// @file hypergeom.hpp
 /// @ingroup group_stats
-// toolboxes/stats/include/nk/stats/distributions/hypergeom.hpp
+// toolboxes/stats/include/numkit/stats/distributions/hypergeom.hpp
 //
 // Hypergeometric distribution.
 

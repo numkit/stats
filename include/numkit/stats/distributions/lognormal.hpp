@@ -1,6 +1,6 @@
 /// @file lognormal.hpp
 /// @ingroup group_stats
-// toolboxes/stats/include/nk/stats/distributions/lognormal.hpp
+// toolboxes/stats/include/numkit/stats/distributions/lognormal.hpp
 //
 // Lognormal distribution: log(X) ~ N(μ, σ²).
 

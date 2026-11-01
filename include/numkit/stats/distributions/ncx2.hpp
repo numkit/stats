@@ -1,6 +1,6 @@
 /// @file ncx2.hpp
 /// @ingroup group_stats
-// toolboxes/stats/include/nk/stats/distributions/ncx2.hpp
+// toolboxes/stats/include/numkit/stats/distributions/ncx2.hpp
 //
 // Noncentral chi-squared distribution.
 

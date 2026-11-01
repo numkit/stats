@@ -1,6 +1,6 @@
 /// @file exponential.hpp
 /// @ingroup group_stats
-// toolboxes/stats/include/nk/stats/distributions/exponential.hpp
+// toolboxes/stats/include/numkit/stats/distributions/exponential.hpp
 //
 // Exponential distribution. Parameterized by the MEAN μ
 // (NOT the rate λ): f(x; μ) = exp(-x/μ) / μ. Special case Gamma(1, μ).

@@ -1,6 +1,6 @@
 /// @file kmedoids.hpp
 /// @ingroup group_stats
-// toolboxes/stats/include/nk/stats/cluster/kmedoids.hpp
+// toolboxes/stats/include/numkit/stats/cluster/kmedoids.hpp
 
 #pragma once
 

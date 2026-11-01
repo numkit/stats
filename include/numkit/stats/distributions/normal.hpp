@@ -1,6 +1,6 @@
 /// @file normal.hpp
 /// @ingroup group_stats
-// toolboxes/stats/include/nk/stats/distributions/normal.hpp
+// toolboxes/stats/include/numkit/stats/distributions/normal.hpp
 //
 // Normal (Gaussian) distribution functions: pdf / cdf / icdf / rnd /
 // stat.

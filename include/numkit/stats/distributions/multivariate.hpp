@@ -1,6 +1,6 @@
 /// @file multivariate.hpp
 /// @ingroup group_stats
-// toolboxes/stats/include/nk/stats/distributions/multivariate.hpp
+// toolboxes/stats/include/numkit/stats/distributions/multivariate.hpp
 //
 // Multivariate distribution primitives.
 

@@ -1,4 +1,4 @@
-// toolboxes/stats/include/nk/stats/nan_aware/nan_aware.hpp
+// toolboxes/stats/include/numkit/stats/nan_aware/nan_aware.hpp
 //
 // NaN-aware reductions.
 

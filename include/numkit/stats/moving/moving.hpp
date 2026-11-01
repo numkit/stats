@@ -1,4 +1,4 @@
-// toolboxes/stats/include/nk/stats/moving/moving.hpp
+// toolboxes/stats/include/numkit/stats/moving/moving.hpp
 //
 // Moving / sliding-window statistics.
 

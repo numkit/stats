@@ -1,6 +1,6 @@
 /// @file linkage.hpp
 /// @ingroup group_stats
-// toolboxes/stats/include/nk/stats/cluster/linkage.hpp
+// toolboxes/stats/include/numkit/stats/cluster/linkage.hpp
 //
 // Agglomerative hierarchical clustering — linkage tree + flat-cluster
 // extraction. Function-form API only.

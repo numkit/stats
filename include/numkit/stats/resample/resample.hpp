@@ -1,6 +1,6 @@
 /// @file resample.hpp
 /// @ingroup group_stats
-// toolboxes/stats/include/nk/stats/resample/resample.hpp
+// toolboxes/stats/include/numkit/stats/resample/resample.hpp
 //
 // Random sampling and resampling utilities.
 

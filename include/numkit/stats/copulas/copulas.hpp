@@ -1,6 +1,6 @@
 /// @file copulas.hpp
 /// @ingroup group_stats
-// toolboxes/stats/include/nk/stats/copulas/copulas.hpp
+// toolboxes/stats/include/numkit/stats/copulas/copulas.hpp
 //
 // Copula density and CDF for the five MATLAB families:
 //   Gaussian, t, Clayton, Frank, Gumbel.

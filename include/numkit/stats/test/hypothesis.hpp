@@ -1,4 +1,4 @@
-// toolboxes/stats/include/nk/stats/test/hypothesis.hpp
+// toolboxes/stats/include/numkit/stats/test/hypothesis.hpp
 //
 // Parametric and non-parametric hypothesis tests.
 

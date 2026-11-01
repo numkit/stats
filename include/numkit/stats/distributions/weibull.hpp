@@ -1,6 +1,6 @@
 /// @file weibull.hpp
 /// @ingroup group_stats
-// toolboxes/stats/include/nk/stats/distributions/weibull.hpp
+// toolboxes/stats/include/numkit/stats/distributions/weibull.hpp
 //
 // Weibull distribution. Convention: a = scale, b = shape, so
 // f(x) = (b/a)·(x/a)^(b-1)·exp(-(x/a)^b). Note std::weibull_distribution

@@ -1,6 +1,6 @@
 /// @file qmc.hpp
 /// @ingroup group_stats
-// toolboxes/stats/include/nk/stats/qmc/qmc.hpp
+// toolboxes/stats/include/numkit/stats/qmc/qmc.hpp
 //
 // Quasi-random / low-discrepancy sequences.
 

@@ -1,6 +1,6 @@
 /// @file chi2.hpp
 /// @ingroup group_stats
-// toolboxes/stats/include/nk/stats/distributions/chi2.hpp
+// toolboxes/stats/include/numkit/stats/distributions/chi2.hpp
 //
 // Chi-squared distribution. χ²(k) is the sum of k independent
 // standard normals squared.

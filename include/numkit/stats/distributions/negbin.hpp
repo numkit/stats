@@ -1,6 +1,6 @@
 /// @file negbin.hpp
 /// @ingroup group_stats
-// toolboxes/stats/include/nk/stats/distributions/negbin.hpp
+// toolboxes/stats/include/numkit/stats/distributions/negbin.hpp
 //
 // Negative binomial (number of failures before the r-th success).
 

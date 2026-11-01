@@ -1,6 +1,6 @@
 /// @file uniform.hpp
 /// @ingroup group_stats
-// toolboxes/stats/include/nk/stats/distributions/uniform.hpp
+// toolboxes/stats/include/numkit/stats/distributions/uniform.hpp
 //
 // Continuous uniform distribution on [a, b]. Closed-form throughout.
 // Defaults: a = 0, b = 1.

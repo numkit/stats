@@ -1,6 +1,6 @@
 /// @file distance.hpp
 /// @ingroup group_stats
-// toolboxes/stats/include/nk/stats/cluster/distance.hpp
+// toolboxes/stats/include/numkit/stats/cluster/distance.hpp
 //
 // Pairwise distance utilities. These primitives feed every clustering
 // algorithm in the toolbox (kmeans, kmedoids, linkage, knnsearch, …).

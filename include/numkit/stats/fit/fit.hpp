@@ -1,4 +1,4 @@
-// toolboxes/stats/include/nk/stats/fit/fit.hpp
+// toolboxes/stats/include/numkit/stats/fit/fit.hpp
 //
 // Distribution fitters and likelihood scoring (function-form).
 

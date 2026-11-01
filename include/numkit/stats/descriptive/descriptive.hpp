@@ -1,4 +1,4 @@
-// toolboxes/stats/include/nk/stats/descriptive/descriptive.hpp
+// toolboxes/stats/include/numkit/stats/descriptive/descriptive.hpp
 //
 // Descriptive statistics — Phase 1 of the parity expansion plan.
 
