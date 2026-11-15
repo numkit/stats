@@ -67,7 +67,8 @@ void ksdensity_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     std::string function_mode = "pdf";
     keel::usize numpoints = 100;
     const Value *weights = nullptr;
-    auto lower = [](std::string s) {
+    auto lower = [](keel::StringRef sv) {
+        std::string s(sv.data(), sv.size());
         for (auto &c : s) c = (char)std::tolower((unsigned char)c);
         return s;
     };
@@ -147,7 +148,7 @@ void bounds_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayR
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const Value &a = args[1];
         if (a.isChar() || a.isString()) {
-            std::string s = a.toString();
+            std::string s(a.toString().as_ref());
             std::transform(s.begin(), s.end(), s.begin(),
                 [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
             if (s == "all") flatten = true;
@@ -201,7 +202,7 @@ void iqr_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArray
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const Value &a = args[1];
         if (a.isChar() || a.isString()) {
-            std::string s = a.toString();
+            std::string s(a.toString().as_ref());
             std::transform(s.begin(), s.end(), s.begin(),
                 [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
             if (s == "all") flatten = true;
@@ -262,11 +263,11 @@ void maxk_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef
         if (!args[i].isChar() && !args[i].isString())
             throw Error("maxk: expected Name-Value pair",
                         0, 0, "maxk", "", "numkit:maxk:nv");
-        std::string name = args[i].toString();
+        std::string name(args[i].toString().as_ref());
         std::transform(name.begin(), name.end(), name.begin(),
                        [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
         if (name == "comparisonmethod") {
-            std::string m = args[i + 1].toString();
+            std::string m(args[i + 1].toString().as_ref());
             std::transform(m.begin(), m.end(), m.begin(),
                            [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
             if (m != "real" && m != "abs" && m != "auto")
@@ -303,11 +304,11 @@ void mink_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef
         if (!args[i].isChar() && !args[i].isString())
             throw Error("mink: expected Name-Value pair",
                         0, 0, "mink", "", "numkit:mink:nv");
-        std::string name = args[i].toString();
+        std::string name(args[i].toString().as_ref());
         std::transform(name.begin(), name.end(), name.begin(),
                        [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
         if (name == "comparisonmethod") {
-            std::string m = args[i + 1].toString();
+            std::string m(args[i + 1].toString().as_ref());
             std::transform(m.begin(), m.end(), m.begin(),
                            [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
             if (m != "real" && m != "abs" && m != "auto")
@@ -340,7 +341,7 @@ void parseDimOrAll(const Value &x, keel::ArrayRef<Value> args, keel::usize pos,
     if (pos >= args.size() || args[pos].isEmpty()) return;
     const Value &a = args[pos];
     if (a.isChar() || a.isString()) {
-        std::string s = a.toString();
+        std::string s(a.toString().as_ref());
         std::transform(s.begin(), s.end(), s.begin(),
                        [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
         if (s == "all") { flatten = true; return; }
@@ -447,7 +448,8 @@ void ecdf_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef
     std::string function_mode = "cdf";
     double alpha = 0.05;
     const Value *freq = nullptr;
-    auto lower = [](std::string s) {
+    auto lower = [](keel::StringRef sv) {
+        std::string s(sv.data(), sv.size());
         for (auto &c : s) c = (char)std::tolower((unsigned char)c);
         return s;
     };
@@ -633,7 +635,8 @@ void filloutliers_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
                       keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "filloutliers");  // no max: name-value tail in the reference
-    auto lower = [](std::string v) {
+    auto lower = [](keel::StringRef sv) {
+        std::string v(sv.data(), sv.size());
         for (char &ch : v)
             ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
         return v;
@@ -684,7 +687,7 @@ void filloutliers_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
             tf = args[i + 1].toScalar(); tf_set = true;
         } else {
             throw Error("filloutliers: unsupported name-value parameter '"
-                        + args[i].toString() + "'",
+                        + std::string(args[i].toString().as_ref()) + "'",
                         0, 0, "filloutliers", "", "numkit:filloutliers:nv");
         }
         i += 2;
@@ -752,7 +755,7 @@ bool parseMeanNanFlag(keel::ArrayRef<Value> args, const char *fn, keel::usize &n
 {
     nargs = args.size();
     if (nargs >= 2 && (args[nargs - 1].isChar() || args[nargs - 1].isString())) {
-        std::string f = args[nargs - 1].toString();
+        std::string f(args[nargs - 1].toString().as_ref());
         for (char &c : f) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         if (f == "omitnan")     { --nargs; return true; }
         if (f == "includenan")  { --nargs; return false; }
@@ -843,7 +846,7 @@ void trimmean_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mut
     std::vector<int> vecdimSet;
     keel::usize i = 2;
     if (i < args.size() && (args[i].isChar() || args[i].isString())) {
-        std::string f = args[i].toString();
+        std::string f(args[i].toString().as_ref());
         for (char &c : f) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         if (f == "floor")      useFloor = true;
         else if (f == "round") useFloor = false;

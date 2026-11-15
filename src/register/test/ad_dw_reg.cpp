@@ -49,7 +49,8 @@ void dwtest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     argcheck::checkNargin(args.size(), 2, "dwtest");  // no max: name-value tail in the reference
     auto *mr = ctx.engine->allocator();
 
-    auto toLowerAscii = [](std::string s) {
+    auto toLowerAscii = [](keel::StringRef sv) {
+        std::string s(sv.data(), sv.size());
         for (char &c : s) if (c >= 'A' && c <= 'Z') c = static_cast<char>(c + 32);
         return s;
     };

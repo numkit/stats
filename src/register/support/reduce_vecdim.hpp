@@ -42,7 +42,7 @@ inline std::vector<int> parseDimSet(const Value &a, std::string_view fn)
     if (!a.dims().isVector())
         throw Error(std::string(fn) + ": dimension argument must be a "
                     "scalar or a vector of unique positive integers "
-                    "(argument is " + argcheck::detail::dimsStr(a) + ").",
+                    "(argument is " + argcheck::detail::dimsStr(a).c_str() + ").",
                     0, 0, std::string(fn), "",
                     "numkit:" + std::string(fn) + ":dimNotVector");
     std::vector<int> set;
@@ -154,7 +154,7 @@ inline void parseDimSlot(const Value &x, const Value &a, std::string_view fn,
     if (a.isEmpty())
         return;
     if (a.isChar() || a.isString()) {
-        std::string s = a.toString();
+        std::string s(a.toString().as_ref());
         for (char &c : s)
             if (c >= 'A' && c <= 'Z') c = static_cast<char>(c + 32);
         if (s == "all") {
@@ -164,7 +164,7 @@ inline void parseDimSlot(const Value &x, const Value &a, std::string_view fn,
                 vecdimSet.push_back(d);
             return;
         }
-        throw Error(std::string(fn) + ": unknown flag '" + a.toString() + "'",
+        throw Error(std::string(fn) + ": unknown flag '" + std::string(a.toString().as_ref()) + "'",
                     0, 0, std::string(fn), "",
                     "numkit:" + std::string(fn) + ":unknownFlag");
     }

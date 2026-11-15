@@ -123,8 +123,9 @@ struct MovOpts {
     const char *fn_name = "movmean";
 };
 
-inline std::string toLower(std::string s)
+inline std::string toLower(keel::StringRef sv)
 {
+    std::string s(sv.data(), sv.size());
     for (auto &c : s)
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     return s;

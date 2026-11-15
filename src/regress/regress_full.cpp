@@ -32,7 +32,7 @@ namespace {
 
 GlmLink parseGlmLinkName(const Value &v, const char *fn)
 {
-    std::string s = v.toString();
+    std::string s(v.toString().as_ref());
     for (char &c : s)
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     if (s.empty() || s == "canonical") return GlmLink::Identity;
@@ -42,7 +42,7 @@ GlmLink parseGlmLinkName(const Value &v, const char *fn)
     if (s == "reciprocal")  return GlmLink::Reciprocal;
     if (s == "probit")      return GlmLink::Probit;
     throw Error(std::string(fn) + ": unrecognized link function name '"
-                + v.toString() + "' (expected identity, logit, log, "
+                + std::string(v.toString().as_ref()) + "' (expected identity, logit, log, "
                 "probit, reciprocal, or canonical).",
                 0, 0, fn, "",
                 std::string("numkit:") + fn + ":unrecognizedLink");
@@ -130,7 +130,7 @@ Value nlparci_full(const Value &beta, const Value &resid,
     double alpha = 0.05;
     if (!tail.empty() && (tail[0].isChar() || tail[0].isString())) {
         for (keel::usize i = 0; i + 1 < tail.size(); i += 2) {
-            std::string name = tail[i].toString();
+            std::string name(tail[i].toString().as_ref());
             for (char &c : name)
                 c = static_cast<char>(std::tolower(
                     static_cast<unsigned char>(c)));
@@ -144,7 +144,7 @@ Value nlparci_full(const Value &beta, const Value &resid,
             else if (hit == 2) alpha = tail[i + 1].elemAsDouble(0);
             else
                 throw Error("nlparci: unrecognized parameter name '"
-                            + tail[i].toString() + "'.",
+                            + std::string(tail[i].toString().as_ref()) + "'.",
                             0, 0, "nlparci", "",
                             "numkit:nlparci:badParamName");
         }
@@ -297,7 +297,7 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
         bool haveConfidence = false, haveAlpha = false;
         bool haveSize = false, haveBinomSize = false;
         for (; i + 1 < tail.size(); i += 2) {
-            std::string name = tail[i].toString();
+            std::string name(tail[i].toString().as_ref());
             for (char &c : name)
                 c = static_cast<char>(std::tolower(
                     static_cast<unsigned char>(c)));
@@ -311,7 +311,7 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
             else if (name == "simultaneous") {
                 if (v.isLogical()) simultaneous = v.toBool();
                 else if (v.isChar() || v.isString()) {
-                    std::string sv = v.toString();
+                    std::string sv(v.toString().as_ref());
                     for (char &c : sv)
                         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
                     simultaneous = (sv == "true" || sv == "on");
@@ -320,7 +320,7 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
                 }
             } else
                 throw Error("glmval: unrecognized parameter name '"
-                            + tail[i].toString() + "'.",
+                            + std::string(tail[i].toString().as_ref()) + "'.",
                             0, 0, "glmval", "", "numkit:glmval:badParamName");
         }
         if (haveConfidence && haveAlpha)

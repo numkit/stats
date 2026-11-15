@@ -39,7 +39,8 @@ void kmedoids_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     std::string metric    = "sqeuclidean";
     std::string algorithm = "pam";
     std::string start     = "plus";
-    auto lower = [](std::string s) {
+    auto lower = [](keel::StringRef sv) {
+        std::string s(sv.data(), sv.size());
         for (auto &c : s) c = (char)std::tolower((unsigned char)c);
         return s;
     };
@@ -80,7 +81,8 @@ void dbscan_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     const int    minpts = (int)args[2].toScalar();
     std::string metric  = "euclidean";
     double p = 2.0;
-    auto lower = [](std::string s) {
+    auto lower = [](keel::StringRef sv) {
+        std::string s(sv.data(), sv.size());
         for (auto &c : s) c = (char)std::tolower((unsigned char)c);
         return s;
     };

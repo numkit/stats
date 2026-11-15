@@ -102,7 +102,7 @@ CorrTail parseTailChoice(const Value &v, std::string_view fn)
     m = argcheck::matchStringChoice(v, keel::ArrayRef<std::string_view>(kAlias));
     if (m >= 0) return static_cast<CorrTail>(m);
     throw Error(std::string(fn) + ": Tail must be 'left', 'both', or 'right' "
-                "(aliases 'lt', 'ne', 'gt'), got '" + v.toString() + "'.",
+                "(aliases 'lt', 'ne', 'gt'), got '" + std::string(v.toString().as_ref()) + "'.",
                 0, 0, std::string(fn), "", "numkit:" + std::string(fn)
                     + ":unknownTail");
 }
@@ -1219,7 +1219,7 @@ CorrOut corr_full(const Value &x, const Value *Y, keel::ArrayRef<Value> nv,
         if (m < 0)
             throw Error("corr: the Rows parameter value must be 'all', "
                         "'complete', or 'pairwise', got '"
-                        + rowsRaw.toString() + "'.",
+                        + std::string(rowsRaw.toString().as_ref()) + "'.",
                         0, 0, "corr", "", "numkit:corr:unknownRows");
         rows = static_cast<CorrRows>(m);
     }
@@ -1269,7 +1269,7 @@ CorrOut corr_full(const Value &x, const Value *Y, keel::ArrayRef<Value> nv,
             typeRaw, keel::ArrayRef<std::string_view>(kTypes));
         if (m < 0)
             throw Error("corr: the Type parameter value must be 'Pearson', "
-                        "'Kendall', or 'Spearman', got '" + typeRaw.toString()
+                        "'Kendall', or 'Spearman', got '" + std::string(typeRaw.toString().as_ref())
                         + "'.",
                         0, 0, "corr", "", "numkit:corr:unknownType");
         ct = static_cast<CorrType>(m);
@@ -1445,7 +1445,7 @@ CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
                 if (m < 0)
                     throw Error("partialcorr: the Rows parameter value must "
                                 "be 'all', 'complete', or 'pairwise', got '"
-                                + v.toString() + "'.",
+                                + std::string(v.toString().as_ref()) + "'.",
                                 0, 0, "partialcorr", "",
                                 "numkit:partialcorr:unknownRows");
                 rows = static_cast<CorrRows>(m);
@@ -1460,7 +1460,7 @@ CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
                 if (m < 0)
                     throw Error("partialcorr: the Type parameter value must "
                                 "be 'Pearson', 'Kendall', or 'Spearman', "
-                                "got '" + v.toString() + "'.",
+                                "got '" + std::string(v.toString().as_ref()) + "'.",
                                 0, 0, "partialcorr", "",
                                 "numkit:partialcorr:unknownType");
                 if (m == 1)

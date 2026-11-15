@@ -200,12 +200,12 @@ Value nearcorr_full(const Value &A, keel::ArrayRef<Value> nv,
             }
             case 2: {  // Method: EXACT 'newton' | 'projection' (the
                        // reference validates with ismember, not a prefix)
-                std::string mv = v.toString();
+                std::string mv(v.toString().as_ref());
                 for (char &c : mv)
                     c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
                 if (mv != "newton" && mv != "projection")
                     badOpt("'Method' must be 'newton' or 'projection', got '"
-                           + v.toString() + "'");
+                           + std::string(v.toString().as_ref()) + "'");
                 break;  // both accepted — see the divergence note above
             }
             case 3: {  // Weights: positive length-N vector or symmetric positive N×N matrix

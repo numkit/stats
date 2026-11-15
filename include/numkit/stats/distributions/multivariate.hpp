@@ -10,6 +10,7 @@
 #include <keel/memory.h>
 #include <keel/ref.h>
 #include <cstddef>
+#include <tuple>
 #include <numkit/value/value.hpp>
 
 namespace numkit {

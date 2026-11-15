@@ -718,7 +718,7 @@ ErrorMetricOpts parseErrorMetricOpts(keel::ArrayRef<Value> tail,
         if (total == 0) {
             if (i + 1 >= tail.size())
                 throw Error(std::string(fn) + ": unrecognized flag '" +
-                            tail[i].toString() + "' (expected omitnan, "
+                            std::string(tail[i].toString().as_ref()) + "' (expected omitnan, "
                             "includenan" +
                             std::string(forMape ? ", omitzero, includezero"
                                                 : "") +
@@ -730,7 +730,7 @@ ErrorMetricOpts parseErrorMetricOpts(keel::ArrayRef<Value> tail,
         }
         if (false)
             throw Error(std::string(fn) + ": unrecognized flag '" +
-                        tail[i].toString() + "' (expected omitnan, "
+                        std::string(tail[i].toString().as_ref()) + "' (expected omitnan, "
                         "includenan" +
                         std::string(forMape ? ", omitzero, includezero" : "") +
                         "; prefixes allowed)",
@@ -739,7 +739,7 @@ ErrorMetricOpts parseErrorMetricOpts(keel::ArrayRef<Value> tail,
                         (forMape ? ":unknownFlagMape" : ":unknownFlag"));
         if (forMape && total > 1)
             throw Error(std::string(fn) + ": ambiguous flag '" +
-                        tail[i].toString() + "' (matches several of "
+                        std::string(tail[i].toString().as_ref()) + "' (matches several of "
                         "omitnan, includenan, omitmissing, includemissing, "
                         "omitzero, includezero)",
                         0, 0, fn, "",

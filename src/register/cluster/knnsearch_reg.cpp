@@ -51,7 +51,7 @@ void rangesearch_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutA
             if (!args[i].isChar() && !args[i].isString())
                 throw Error("rangesearch: expected name-value pair",
                             0, 0, "rangesearch", "", "numkit:rangesearch:nvpair");
-            std::string name = args[i].toString();
+            std::string name(args[i].toString().as_ref());
             for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
             if (i + 1 >= args.size())
                 throw Error("rangesearch: '" + name + "' missing value",

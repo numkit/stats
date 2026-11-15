@@ -49,7 +49,7 @@ KnnOpts parse_knn_args(keel::ArrayRef<Value> args, const char *fn)
         if (!args[i].isChar() && !args[i].isString())
             throw Error(std::string(fn) + ": expected name-value pair",
                         0, 0, fn, "", "numkit:knn:nvpair");
-        std::string name = args[i].toString();
+        std::string name(args[i].toString().as_ref());
         for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         if (i + 1 >= args.size())
             throw Error(std::string(fn) + ": '" + name + "' missing value",

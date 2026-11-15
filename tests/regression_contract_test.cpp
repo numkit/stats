@@ -30,7 +30,7 @@ public:
         try {
             engine.eval(c);
         } catch (const numkit::Error &e) {
-            return e.identifier();
+            return std::string(e.identifier().as_ref());
         }
         return "<no-error>";
     }

@@ -76,7 +76,7 @@ void rescale_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
         if (!args[i].isChar() && !args[i].isString())
             throw Error("rescale: expected 'InputMin'/'InputMax'",
                         0, 0, "rescale", "", "numkit:rescale:badOpt");
-        std::string nm = args[i].toString();
+        std::string nm(args[i].toString().as_ref());
         for (char &c : nm) if (c >= 'A' && c <= 'Z') c = char(c + 32);
         if      (nm == "inputmin") inputMin = args[i + 1].toScalar();
         else if (nm == "inputmax") inputMax = args[i + 1].toScalar();

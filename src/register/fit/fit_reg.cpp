@@ -557,7 +557,7 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         if (!args[i].isChar() && !args[i].isString())
             throw Error("mle: option name must be a string",
                         0, 0, "mle", "", "numkit:mle:badOption");
-        const std::string optRaw = args[i].toString();
+        const std::string optRaw(args[i].toString().as_ref());
         const std::string opt = toLower(optRaw);
         if (opt == "distribution")
             dist = args[i + 1].toString();
@@ -951,7 +951,7 @@ void fitdist_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
         throw Error("fitdist: need at least 2 observations",
                     0, 0, "fitdist", "", "numkit:fitdist:tooSmall");
 
-    const std::string raw = (args.size() >= 2) ? args[1].toString() : std::string("Normal");
+    const std::string raw = (args.size() >= 2) ? std::string(args[1].toString().as_ref()) : std::string("Normal");
     // Canonicalise.
     std::string name;
     name.reserve(raw.size());

@@ -28,7 +28,7 @@ namespace numkit::stats {
 
 namespace detail {
 
-static GlmDistribution parseDistr(const std::string &s, const char *fn)
+static GlmDistribution parseDistr(keel::StringRef s, const char *fn)
 {
     if (s == "normal")             return GlmDistribution::Normal;
     if (s == "binomial")           return GlmDistribution::Binomial;
@@ -36,11 +36,11 @@ static GlmDistribution parseDistr(const std::string &s, const char *fn)
     if (s == "gamma")              return GlmDistribution::Gamma;
     if (s == "inverse gaussian"
         || s == "inversegaussian") return GlmDistribution::InverseGaussian;
-    throw Error(std::string(fn) + ": unknown distribution '" + s + "'",
+    throw Error(std::string(fn) + ": unknown distribution '" + std::string(s.data(), s.size()) + "'",
                 0, 0, fn, "", std::string("numkit:") + fn + ":badDistr");
 }
 
-static GlmLink parseLink(const std::string &s, const char *fn)
+static GlmLink parseLink(keel::StringRef s, const char *fn)
 {
     if (s.empty() || s == "canonical") return GlmLink::Identity;
     if (s == "identity")    return GlmLink::Identity;
@@ -48,7 +48,7 @@ static GlmLink parseLink(const std::string &s, const char *fn)
     if (s == "log")         return GlmLink::Log;
     if (s == "reciprocal")  return GlmLink::Reciprocal;
     if (s == "probit")      return GlmLink::Probit;
-    throw Error(std::string(fn) + ": unknown link '" + s + "'",
+    throw Error(std::string(fn) + ": unknown link '" + std::string(s.data(), s.size()) + "'",
                 0, 0, fn, "", std::string("numkit:") + fn + ":badLink");
 }
 

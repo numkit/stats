@@ -9,6 +9,8 @@
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
+#include <string>
+
 namespace numkit::stats {
 
 /// @addtogroup group_stats

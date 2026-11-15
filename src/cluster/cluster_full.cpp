@@ -35,8 +35,9 @@ namespace numkit::stats {
 
 namespace {
 
-std::string lowerCopy(std::string s)
+std::string lowerCopy(keel::StringRef sv)
 {
+    std::string s(sv.data(), sv.size());
     for (char &c : s)
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     return s;
@@ -78,7 +79,7 @@ ClusterOpts pdist_argcheck(keel::ArrayRef<Value> tail, const char *fn,
                 v, keel::ArrayRef<std::string_view>(kMetrics));
             if (hit < 0)
                 throw Error(std::string(fn) + ": the distance function '"
-                            + v.toString() + "' was not found.",
+                            + std::string(v.toString().as_ref()) + "' was not found.",
                             0, 0, fn, "", badMetricTag);
             o.metric = std::string(
                 kMetrics[static_cast<keel::usize>(hit)]);
@@ -174,7 +175,7 @@ Value linkage_full(const Value &Y, keel::ArrayRef<Value> tail,
         const int hit = argcheck::matchStringChoice(
             tail[0], keel::ArrayRef<std::string_view>(kLinkMethods));
         if (hit < 0)
-            throw Error("linkage: '" + tail[0].toString()
+            throw Error("linkage: '" + std::string(tail[0].toString().as_ref())
                         + "' is not a valid value for the METHOD argument.",
                         0, 0, "linkage", "", "numkit:linkage:badMethod");
         method = std::string(
@@ -197,7 +198,7 @@ Value linkage_full(const Value &Y, keel::ArrayRef<Value> tail,
                 v, keel::ArrayRef<std::string_view>(kMetrics));
             if (hit < 0)
                 throw Error("linkage: the distance function '"
-                            + v.toString() + "' was not found.",
+                            + std::string(v.toString().as_ref()) + "' was not found.",
                             0, 0, "linkage", "",
                             "numkit:linkage:distanceFunctionNotFound");
             metric = std::string(
@@ -246,7 +247,7 @@ Value cluster_full(const Value &Z, keel::ArrayRef<Value> tail,
             const int hit = argcheck::matchStringChoice(
                 v, keel::ArrayRef<std::string_view>(kCriteria));
             if (hit < 0)
-                throw Error("cluster: '" + v.toString() + "' is not a "
+                throw Error("cluster: '" + std::string(v.toString().as_ref()) + "' is not a "
                             "valid value for the Criterion argument. "
                             "Valid values are 'inconsistent', 'distance', "
                             "and 'threshold'.",
@@ -256,7 +257,7 @@ Value cluster_full(const Value &Z, keel::ArrayRef<Value> tail,
                 kCriteria[static_cast<keel::usize>(hit)]);
         } else {
             throw Error("cluster: unrecognized parameter name '"
-                        + tail[i].toString() + "'.",
+                        + std::string(tail[i].toString().as_ref()) + "'.",
                         0, 0, "cluster", "", "numkit:cluster:badParamName");
         }
         ++i;   // consume the value
@@ -297,7 +298,7 @@ Value silhouette_full(const Value &X, const Value &clust,
                 v, keel::ArrayRef<std::string_view>(kMetrics));
             if (hit < 0)
                 throw Error("silhouette: the distance function '"
-                            + v.toString() + "' was not found.",
+                            + std::string(v.toString().as_ref()) + "' was not found.",
                             0, 0, "silhouette", "",
                             "numkit:silhouette:distanceFunctionNotFound");
             o.metric = lowerCopy(v.toString());

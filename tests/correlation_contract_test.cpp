@@ -29,14 +29,14 @@ public:
     }
     std::string cls(const std::string &c)
     {
-        return eval("class(" + c + ")").toString();
+        return std::string(eval("class(" + c + ")").toString().as_ref());
     }
     std::string idOf(const std::string &c)
     {
         try {
             engine.eval(c);
         } catch (const numkit::Error &e) {
-            return e.identifier();
+            return std::string(e.identifier().as_ref());
         }
         return "<no-error>";
     }

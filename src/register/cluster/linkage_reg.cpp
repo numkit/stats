@@ -70,7 +70,8 @@ void clusterdata_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     std::string method     = "single";
     std::string criterion  = "inconsistent";
     std::string distance_metric = "euclidean";
-    auto lower = [](std::string s) {
+    auto lower = [](keel::StringRef sv) {
+        std::string s(sv.data(), sv.size());
         for (auto &c : s) c = (char)std::tolower((unsigned char)c);
         return s;
     };

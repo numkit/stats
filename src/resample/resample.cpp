@@ -125,7 +125,7 @@ bool parseReplaceFlag(const Value &v, const char *fn, const char *tag)
         const double b = v.elemAsDouble(0);
         if (b == 0.0 || b == 1.0) return b != 0.0;
     } else if (v.isChar() || v.isString()) {
-        std::string t = v.toString();
+        std::string t(v.toString().as_ref());
         for (char &c : t) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         if (t == "true") return true;
         if (t == "false") return false;
@@ -304,7 +304,7 @@ Value datasample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
     Value wRaw;
     for (keel::usize i = nvStart; i + 1 < args.size(); i += 2) {
         if (!(args[i].isChar() || args[i].isString())) continue;
-        std::string name = args[i].toString();
+        std::string name(args[i].toString().as_ref());
         for (char &c : name)
             c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         if (name == "replace") {

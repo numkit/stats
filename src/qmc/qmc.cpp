@@ -103,7 +103,7 @@ Value net(const Value &stream, long long n, keel::Allocator *mr)
     if (!stream.isStruct() || !stream.hasField("kind"))
         throw Error("net: input must be a quasi-random stream struct",
                     0, 0, "net", "", "numkit:net:struct");
-    const std::string kind = stream.field("kind").toString();
+    const keel::String kind = stream.field("kind").toString();
     if (kind != "halton")
         throw Error("net: only halton streams supported in this release",
                     0, 0, "net", "", "numkit:net:kind");

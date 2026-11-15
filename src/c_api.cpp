@@ -200,7 +200,7 @@ keel::usize numkit_stats_format(const numkit_stats_ctx *ctx,
         return 0;
     }
     try {
-        std::string s = ctx->ctx.formatValue(numkit::c_abi::unboxValue(v));
+        keel::String s = ctx->ctx.formatValue(numkit::c_abi::unboxValue(v));
         if (!buf || buf_cap == 0) return s.size();
         keel::usize n = std::min(s.size(), buf_cap - 1);
         if (n > 0) std::memcpy(buf, s.data(), n);

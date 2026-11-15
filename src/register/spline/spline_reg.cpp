@@ -125,7 +125,7 @@ void fnbrk_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     if (!args[1].isChar() && !args[1].isString())
         throw Error("fnbrk: numkit only supports the named-part form",
                     0, 0, "fnbrk", "", "numkit:fnbrk:type");
-    outs[0] = fnbrk(args[0], args[1].toString(), ctx.engine->allocator());
+    outs[0] = fnbrk(args[0], std::string(args[1].toString().as_ref()), ctx.engine->allocator());
 }
 
 void knt2brk_reg(keel::ArrayRef<Value> args, keel::usize nargout,

@@ -776,7 +776,7 @@ enum class CovNan { Include, Omitrows, Partialrows };
 bool parseCovNanFlag(const Value &v, CovNan &mode)
 {
     if (!v.isChar() && !v.isString()) return false;
-    std::string s = v.toString();
+    std::string s(v.toString().as_ref());
     for (auto &c : s)
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     if (s == "includenan")  { mode = CovNan::Include;     return true; }
@@ -908,7 +908,7 @@ CorrcoefRows parseCorrcoefRows(keel::ArrayRef<Value> args, keel::usize start)
     // lone unmatched value string is unmatchedPVPair.
     for (keel::usize i = start; i < args.size(); ++i) {
         if (!(args[i].isChar() || args[i].isString())) continue;
-        std::string probe = args[i].toString();
+        std::string probe(args[i].toString().as_ref());
         for (char &c : probe) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         const bool isName = probe == "rows" || probe == "alpha"
             || std::string("rows").rfind(probe, 0) == 0
@@ -924,10 +924,10 @@ CorrcoefRows parseCorrcoefRows(keel::ArrayRef<Value> args, keel::usize start)
     }
     for (keel::usize i = start; i + 1 < args.size(); i += 2) {
         if (!(args[i].isChar() || args[i].isString())) continue;
-        std::string name = args[i].toString();
+        std::string name(args[i].toString().as_ref());
         for (char &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         if (name == "rows") {
-            std::string v = args[i + 1].toString();
+            std::string v(args[i + 1].toString().as_ref());
             for (char &c : v) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
             if (v == "all")      return CorrcoefRows::All;
             if (v == "complete") return CorrcoefRows::Complete;
@@ -946,7 +946,7 @@ double parseCorrcoefAlpha(keel::ArrayRef<Value> args, keel::usize start)
 {
     for (keel::usize i = start; i + 1 < args.size(); i += 2) {
         if (!(args[i].isChar() || args[i].isString())) continue;
-        std::string name = args[i].toString();
+        std::string name(args[i].toString().as_ref());
         for (char &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         if (name == "alpha") {
             const double a = args[i + 1].toScalar();
@@ -1272,7 +1272,7 @@ keel::usize stripNanFlag(keel::ArrayRef<Value> args, bool &omitNan, const char *
     if (args.empty()) return 0;
     const Value &last = args[args.size() - 1];
     if (last.type() != ValueType::CHAR) return args.size();
-    std::string s = last.toString();
+    std::string s(last.toString().as_ref());
     std::transform(s.begin(), s.end(), s.begin(),
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     if (s == "omitnan" || s == "omitmissing") { omitNan = true; return args.size() - 1; }

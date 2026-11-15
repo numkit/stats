@@ -47,7 +47,7 @@ void mean_var(const Value &x, double &mean_out, double &var_out, keel::usize &n_
     var_out = sq / double(N - 1);
 }
 
-inline TestTail parse_tail(const std::string &s, TestTail def) {
+inline TestTail parse_tail(keel::StringRef s, TestTail def) {
     if (s == "both")     return TestTail::Both;
     if (s == "right")    return TestTail::Right;
     if (s == "left")     return TestTail::Left;

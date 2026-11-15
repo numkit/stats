@@ -447,7 +447,7 @@ void StatsLibrary::install(PluginContext &engine)
     // Local helper: stats is a MATLAB-mirror library, every function
     // gets registered under stats.<sub>.<name> AND aliased into compat.<name>.
     auto reg = [&](const char *sub, const char *name, ExternalFunc fn) {
-        engine.registerFunction(std::string("stats.") + sub, name, fn);
+        engine.registerFunction(std::string("stats.") + sub, name, std::move(fn));
         // compat.* registration removed — bare-name resolver replaces it
     };
 

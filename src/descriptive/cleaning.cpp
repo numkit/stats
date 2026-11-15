@@ -70,8 +70,9 @@
 namespace numkit::stats {
 namespace {
 
-std::string lowerCopy(std::string s)
+std::string lowerCopy(keel::StringRef sv)
 {
+    std::string s(sv.data(), sv.size());
     for (char &c : s)
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     return s;
@@ -430,7 +431,7 @@ void isoutlierParse(const Value &A, keel::ArrayRef<Value> in, bool forRmoutliers
             in[0], keel::ArrayRef<std::string_view>(all));
         if (hit < 0)
             throw Error("isoutlier: unrecognized method or parameter name '" +
-                        in[0].toString() + "' (expected median, mean, "
+                        std::string(in[0].toString().as_ref()) + "' (expected median, mean, "
                         "quartiles, grubbs, gesd, movmedian, movmean, or "
                         "percentiles)",
                         0, 0, "isoutlier", "", "numkit:isoutlier:badMethod");
@@ -500,7 +501,7 @@ void isoutlierParse(const Value &A, keel::ArrayRef<Value> in, bool forRmoutliers
             in[i], keel::ArrayRef<std::string_view>(nvNames));
         if (hit < 0)
             throw Error("isoutlier: unrecognized parameter name '" +
-                        in[i].toString() + "'",
+                        std::string(in[i].toString().as_ref()) + "'",
                         0, 0, "isoutlier", "", "numkit:isoutlier:badParam");
         const std::string_view name = nvNames[static_cast<keel::usize>(hit)];
         const Value &v = in[i + 1];
@@ -919,7 +920,7 @@ RmMissingOut rmmissing_full(const Value &A, keel::ArrayRef<Value> in,
                         0, 0, "rmmissing", "", "numkit:rmmissing:dataVariables");
         } else {
             throw Error("rmmissing: unrecognized parameter name '" +
-                        in[i].toString() + "'",
+                        std::string(in[i].toString().as_ref()) + "'",
                         0, 0, "rmmissing", "", "numkit:rmmissing:badParam");
         }
     }
@@ -1173,7 +1174,7 @@ FillMissingOut fillmissing_full(
                         "'constant', 'previous', 'next', 'nearest', 'linear', "
                         "'spline', 'pchip', 'makima', 'movmean', 'movmedian', "
                         "'knn', or a function handle (got '" +
-                        in[0].toString() + "'; ambiguous or unrecognized)",
+                        std::string(in[0].toString().as_ref()) + "'; ambiguous or unrecognized)",
                         0, 0, fn, "", std::string("numkit:") + fn + ":methodInvalid");
         m = std::string(methods[static_cast<keel::usize>(mhit)]);
         if (m == "constant") {
@@ -1253,7 +1254,7 @@ FillMissingOut fillmissing_full(
             in[i], keel::ArrayRef<std::string_view>(nvNames));
         if (hit < 0)
             throw Error(std::string(fn) + ": unrecognized parameter name '" +
-                        in[i].toString() + "'",
+                        std::string(in[i].toString().as_ref()) + "'",
                         0, 0, fn, "", std::string("numkit:") + fn + ":nameValueNames");
         const std::string_view name = nvNames[static_cast<keel::usize>(hit)];
         const Value &v = in[i + 1];
@@ -2103,12 +2104,12 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
             samplePointsRaw = &v;
         } else if ((!nm.empty() && std::string("datavariables").rfind(nm, 0) == 0) ||
                    (!nm.empty() && std::string("replacevalues").rfind(nm, 0) == 0)) {
-            throw Error("detrend: '" + in[i].toString() + "' is supported "
+            throw Error("detrend: '" + std::string(in[i].toString().as_ref()) + "' is supported "
                         "only for table inputs",
                         0, 0, "detrend", "", "numkit:detrend:tableOnly");
         } else {
             throw Error("detrend: unrecognized parameter name '" +
-                        in[i].toString() + "'",
+                        std::string(in[i].toString().as_ref()) + "'",
                         0, 0, "detrend", "", "numkit:detrend:parseFlags");
         }
     }

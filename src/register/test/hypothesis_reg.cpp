@@ -86,7 +86,7 @@ void ttest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     while (i < args.size()) {
         const Value &a = args[i];
         if (a.isChar() || a.isString()) {
-            std::string sl = a.toString();
+            std::string sl(a.toString().as_ref());
             for (auto &c : sl) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
             if (sl == "alpha" && i + 1 < args.size()) {
                 alpha = args[i + 1].toScalar(); i += 2;
@@ -125,7 +125,7 @@ void ttest2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     int dim = 0;
     for (keel::usize i = 2; i + 1 < args.size(); ++i) {
         if (args[i].isChar() || args[i].isString()) {
-            std::string k = args[i].toString();
+            std::string k(args[i].toString().as_ref());
             for (auto &c : k) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
             if      (k == "tail")    tail = parse_tail(args[i + 1].toString(), TestTail::Both);
             else if (k == "vartype") vartype = args[i + 1].toString();
@@ -157,7 +157,7 @@ void ztest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     while (i < args.size()) {
         const Value &a = args[i];
         if (a.isChar() || a.isString()) {
-            std::string sl = a.toString();
+            std::string sl(a.toString().as_ref());
             for (auto &c : sl) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
             if (sl == "alpha" && i + 1 < args.size()) { alpha = args[i + 1].toScalar(); i += 2; }
             else if (sl == "tail" && i + 1 < args.size()) { tail = parse_tail(args[i + 1].toString(), tail); i += 2; }
@@ -192,7 +192,7 @@ void vartest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     while (i < args.size()) {
         const Value &a = args[i];
         if (a.isChar() || a.isString()) {
-            std::string sl = a.toString();
+            std::string sl(a.toString().as_ref());
             for (auto &c : sl) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
             if (sl == "alpha" && i + 1 < args.size()) { alpha = args[i + 1].toScalar(); i += 2; }
             else if (sl == "tail" && i + 1 < args.size()) { tail = parse_tail(args[i + 1].toString(), tail); i += 2; }
@@ -226,7 +226,7 @@ void vartest2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     while (i < args.size()) {
         const Value &a = args[i];
         if (a.isChar() || a.isString()) {
-            std::string sl = a.toString();
+            std::string sl(a.toString().as_ref());
             for (auto &c : sl) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
             if (sl == "alpha" && i + 1 < args.size()) { alpha = args[i + 1].toScalar(); i += 2; }
             else if (sl == "tail" && i + 1 < args.size()) { tail = parse_tail(args[i + 1].toString(), tail); i += 2; }
@@ -263,8 +263,7 @@ void kstest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     while (i < args.size()) {
         const Value &a = args[i];
         if (a.isChar() || a.isString()) {
-            std::string s = a.toString();
-            std::string sl = s;
+            std::string sl(a.toString().as_ref());
             for (auto &c : sl) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
             if (sl == "alpha" && i + 1 < args.size()) {
                 alpha = args[i + 1].toScalar();
@@ -300,7 +299,7 @@ void kstest2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     while (i < args.size()) {
         const Value &a = args[i];
         if (a.isChar() || a.isString()) {
-            std::string sl = a.toString();
+            std::string sl(a.toString().as_ref());
             for (auto &c : sl) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
             if (sl == "alpha" && i + 1 < args.size()) {
                 alpha = args[i + 1].toScalar(); i += 2;
@@ -345,7 +344,7 @@ void fishertest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     TestTail tail = TestTail::Both;
     for (keel::usize i = 1; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar() && !args[i].isString()) break;
-        std::string name = args[i].toString();
+        std::string name(args[i].toString().as_ref());
         for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         const Value &v = args[i + 1];
         if      (name == "alpha") alpha = v.toScalar();
@@ -371,7 +370,8 @@ void chi2gof_reg(keel::ArrayRef<Value> args, keel::usize nargout,
 {
     argcheck::checkNargin(args.size(), 1, "chi2gof");  // no max: name-value tail in the reference
     auto *mr = ctx.engine->allocator();
-    auto lower = [](std::string s) {
+    auto lower = [](keel::StringRef sv) {
+        std::string s(sv.data(), sv.size());
         for (auto &c : s) c = (char)std::tolower((unsigned char)c);
         return s;
     };
@@ -600,7 +600,8 @@ void vartestn_reg(keel::ArrayRef<Value> args, keel::usize nargout,
 {
     argcheck::checkNargin(args.size(), 1, "vartestn");  // no max: name-value tail in the reference
     auto *mr = ctx.engine->allocator();
-    auto lower = [](std::string s) {
+    auto lower = [](keel::StringRef sv) {
+        std::string s(sv.data(), sv.size());
         for (auto &c : s) c = (char)std::tolower((unsigned char)c);
         return s;
     };
@@ -690,8 +691,7 @@ void runstest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     bool up_down = false;
     keel::usize i = 1;
     if (i < args.size() && (args[i].isChar() || args[i].isString())) {
-        std::string s = args[i].toString();
-        std::string sl = s;
+        std::string sl(args[i].toString().as_ref());
         for (auto &c : sl) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         if (sl == "ud") { up_down = true; ++i; }
         // otherwise leave for the Name-Value loop below.
@@ -706,7 +706,7 @@ void runstest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
 
     while (i + 1 < args.size()) {
         if (!args[i].isChar() && !args[i].isString()) break;
-        std::string name = args[i].toString();
+        std::string name(args[i].toString().as_ref());
         for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         const Value &val = args[i + 1];
         if      (name == "alpha")  alpha = val.toScalar();
@@ -772,7 +772,7 @@ void ranksum_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     }
     while (i + 1 < args.size()) {
         if (!args[i].isChar() && !args[i].isString()) break;
-        std::string name = args[i].toString();
+        std::string name(args[i].toString().as_ref());
         for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         const Value &v = args[i + 1];
         if      (name == "alpha")  alpha = v.toScalar();
@@ -815,7 +815,7 @@ void signrank_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     }
     while (i + 1 < args.size()) {
         if (!args[i].isChar() && !args[i].isString()) break;
-        std::string name = args[i].toString();
+        std::string name(args[i].toString().as_ref());
         for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         const Value &v = args[i + 1];
         if      (name == "alpha")  alpha = v.toScalar();
@@ -861,7 +861,7 @@ void signtest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     }
     while (i + 1 < args.size()) {
         if (!args[i].isChar() && !args[i].isString()) break;
-        std::string name = args[i].toString();
+        std::string name(args[i].toString().as_ref());
         for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         const Value &v = args[i + 1];
         if      (name == "alpha")  alpha = v.toScalar();
@@ -919,7 +919,7 @@ void ansaribradley_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     }
     while (i + 1 < args.size()) {
         if (!args[i].isChar() && !args[i].isString()) break;
-        std::string name = args[i].toString();
+        std::string name(args[i].toString().as_ref());
         for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         const Value &v = args[i + 1];
         if      (name == "alpha") alpha = v.toScalar();

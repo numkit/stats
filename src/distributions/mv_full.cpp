@@ -524,11 +524,11 @@ Value mvncdf_full(keel::ArrayRef<Value> args, keel::Allocator *mr)
         if (opts.isStruct()) {
             const auto &fields = opts.structFields();
             auto getFieldCI = [&](const char *key) -> const Value * {
-                for (const auto &kv : fields) {
-                    std::string k = kv.first;
+                for (auto entry : fields) {
+                    std::string k(entry.key.as_ref());
                     for (char &ch : k) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
-                    if (k == key && !kv.second.isEmpty() && kv.second.isNumeric())
-                        return &kv.second;
+                    if (k == key && !entry.value.isEmpty() && entry.value.isNumeric())
+                        return fields.get(entry.key);
                 }
                 return nullptr;
             };

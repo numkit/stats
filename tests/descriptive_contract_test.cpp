@@ -16,7 +16,7 @@ public:
     StandardEngine engine;
     Value eval(const std::string &c) { return engine.eval(c); }
     double evalScalar(const std::string &c) { return eval(c).toScalar(); }
-    std::string evalClass(const std::string &c) { return eval(c).toString(); }
+    std::string evalClass(const std::string &c) { return std::string(eval(c).toString().as_ref()); }
     bool throwsWith(const std::string &c, const std::string &id)
     {
         try {

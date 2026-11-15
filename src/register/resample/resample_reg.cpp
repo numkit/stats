@@ -177,7 +177,7 @@ void crossval_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
                 argcheck::expectedReal(args[i + 1], int(i) + 2, "KFold", "crossval"),
                 int(i) + 2, "KFold", "crossval");
         else
-            throw Error("crossval: unknown option '" + opt + "' (only "
+            throw Error("crossval: unknown option '" + std::string(opt.as_ref()) + "' (only "
                         "'kfold' supported in this revision)",
                         0, 0, "crossval", "", "numkit:crossval:badOption");
     }

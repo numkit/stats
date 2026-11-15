@@ -31,7 +31,7 @@ namespace detail {
 namespace {
 std::string family_lower(const Value &v)
 {
-    std::string s = v.toString();
+    std::string s(v.toString().as_ref());
     for (auto &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     return s;
 }

@@ -28,14 +28,14 @@ namespace detail {
 
 namespace {
 
-McCorrection parse_ctype(const std::string &raw)
+McCorrection parse_ctype(keel::StringRef raw)
 {
-    std::string s = raw;
+    std::string s(raw.data(), raw.size());
     for (auto &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     if (s == "bonferroni")                 return McCorrection::Bonferroni;
     if (s == "lsd")                        return McCorrection::LSD;
     if (s == "tukey-kramer" || s == "hsd") return McCorrection::TukeyKramer;
-    throw Error("multcompare: unknown ctype '" + raw + "'",
+    throw Error("multcompare: unknown ctype '" + std::string(raw.data(), raw.size()) + "'",
                 0, 0, "multcompare", "", "numkit:multcompare:badCtype");
 }
 
@@ -66,7 +66,7 @@ void multcompare_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
         if (!args[i].isChar() && !args[i].isString())
             throw Error("multcompare: expected parameter name",
                         0, 0, "multcompare", "", "numkit:multcompare:badParam");
-        std::string key = args[i].toString();
+        std::string key(args[i].toString().as_ref());
         for (auto &c : key) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         const Value &val = args[i + 1];
         if (key == "alpha") {
@@ -76,7 +76,7 @@ void multcompare_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
         } else if (key == "display" || key == "dimension" || key == "estimate") {
             // Optional display/dimension flags accepted for compatibility.
         } else {
-            throw Error("multcompare: unknown parameter '" + args[i].toString() + "'",
+            throw Error("multcompare: unknown parameter '" + std::string(args[i].toString().as_ref()) + "'",
                         0, 0, "multcompare", "", "numkit:multcompare:badParam");
         }
         i += 2;

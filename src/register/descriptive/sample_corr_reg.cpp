@@ -31,7 +31,7 @@ void parseCorrOpts(keel::ArrayRef<Value> args, keel::usize start, int &numLags, 
 {
     for (keel::usize i = start; i < args.size(); ++i) {
         if (args[i].isChar()) {
-            std::string opt = args[i].toString();
+            std::string opt(args[i].toString().as_ref());
             std::transform(opt.begin(), opt.end(), opt.begin(),
                            [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
             if (i + 1 < args.size()) {

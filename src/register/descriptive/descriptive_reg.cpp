@@ -162,7 +162,7 @@ Value varStdDispatch(keel::ArrayRef<Value> args, bool sqrtIt, const char *fn,
     if (n >= 3 && !args[2].isEmpty()) {
         const Value &a = args[2];
         if (a.isChar() || a.isString()) {
-            std::string s = a.toString();
+            std::string s(a.toString().as_ref());
             std::transform(s.begin(), s.end(), s.begin(),
                            [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
             if (s == "all") flattenAll = true;
@@ -380,7 +380,7 @@ void median_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
     if (n >= 2 && !args[1].isEmpty()) {
         const Value &a = args[1];
         if (a.isChar() || a.isString()) {
-            std::string s = a.toString();
+            std::string s(a.toString().as_ref());
             std::transform(s.begin(), s.end(), s.begin(),
                            [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
             if (s == "all") isAll = true;
@@ -512,7 +512,7 @@ QArgs parseQArgs(keel::ArrayRef<Value> args, keel::usize start, const Value &x,
         }
         ++i;
     } else if (i < args.size() && (args[i].isChar() || args[i].isString())) {
-        std::string s = args[i].toString();
+        std::string s(args[i].toString().as_ref());
         std::transform(s.begin(), s.end(), s.begin(),
                        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
         if (s == "all") {
@@ -526,14 +526,14 @@ QArgs parseQArgs(keel::ArrayRef<Value> args, keel::usize start, const Value &x,
         if (!args[i].isChar() && !args[i].isString())
             throw Error(std::string(fn) + ": expected Name-Value pair",
                         0, 0, fn, "", std::string("numkit:") + fn + ":nv");
-        std::string name = args[i].toString();
+        std::string name(args[i].toString().as_ref());
         std::transform(name.begin(), name.end(), name.begin(),
                        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
         if (name == "method") {
             if (!args[i + 1].isChar() && !args[i + 1].isString())
                 throw Error(std::string(fn) + ": Method must be a string",
                             0, 0, fn, "", std::string("numkit:") + fn + ":method");
-            std::string m = args[i + 1].toString();
+            std::string m(args[i + 1].toString().as_ref());
             std::transform(m.begin(), m.end(), m.begin(),
                            [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
             // MATLAB's documented values are 'exact' (default) and
@@ -640,7 +640,7 @@ void mode_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const Value &a = args[1];
         if (a.isChar() || a.isString()) {
-            std::string s = a.toString();
+            std::string s(a.toString().as_ref());
             std::transform(s.begin(), s.end(), s.begin(),
                 [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
             if (s == "all") flatten = true;

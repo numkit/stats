@@ -36,7 +36,7 @@ void haltonset_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     long long skip = 0, leap = 0;
     for (keel::usize i = 1; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar() && !args[i].isString()) break;
-        std::string name = args[i].toString();
+        std::string name(args[i].toString().as_ref());
         for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         const Value &v = args[i + 1];
         if      (name == "skip") skip = static_cast<long long>(v.toScalar());
@@ -58,7 +58,7 @@ void scramble_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
 {
     argcheck::checkNargin(args.size(), 1, "scramble");
     std::string type = (args.size() >= 2 && (args[1].isChar() || args[1].isString()))
-                     ? args[1].toString() : "RR2";
+                     ? std::string(args[1].toString().as_ref()) : std::string("RR2");
     outs[0] = scramble(args[0], type, ctx.engine->allocator());
 }
 

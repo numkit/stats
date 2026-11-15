@@ -63,18 +63,18 @@ Value tabulate(const Value &x, keel::Allocator *mr)
             const keel::usize N0 = x.numel();
             items.reserve(N0);
             for (keel::usize i = 0; i < N0; ++i)
-                items.push_back(x.cellAt(i).toString());
+                items.emplace_back(x.cellAt(i).toString().as_ref());
         } else if (x.isString()) {
             const keel::usize N0 = x.numel();
             items.reserve(N0);
             for (keel::usize i = 0; i < N0; ++i)
-                items.push_back(x.stringElem(i));
+                items.emplace_back(x.stringElem(i).as_ref());
         } else {
             const keel::usize R = x.dims().rows();
             if (x.numel() > 0) {
                 items.reserve(R);
                 for (keel::usize r = 0; r < R; ++r) {
-                    std::string s = x.charRow(r);
+                    std::string s(x.charRow(r).as_ref());
                     while (!s.empty() && s.back() == ' ')
                         s.pop_back();
                     items.push_back(std::move(s));

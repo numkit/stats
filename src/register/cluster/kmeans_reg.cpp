@@ -34,7 +34,8 @@ void kmeans_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     const int K = (int)args[1].toScalar();
     int max_iter  = 100;
     int replicates = 1;
-    auto lower = [](std::string s) {
+    auto lower = [](keel::StringRef sv) {
+        std::string s(sv.data(), sv.size());
         for (auto &c : s) c = (char)std::tolower((unsigned char)c);
         return s;
     };

@@ -370,7 +370,7 @@ TEST_F(StatsKnownBug, DetrendCharRejected)
         stats::detrend_of(*engine.getVariable("s"), 1, engine.allocator());
         FAIL() << "C++ path should reject a char input";
     } catch (const numkit::Error &e) {
-        EXPECT_EQ(e.identifier().rfind("numkit:detrend:", 0), 0u) << e.identifier() << ": " << e.what();
+        EXPECT_EQ(std::string_view(e.identifier()).rfind("numkit:detrend:", 0), 0u) << e.identifier().c_str() << ": " << e.what();
     }
 }
 

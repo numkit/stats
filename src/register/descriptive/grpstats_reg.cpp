@@ -35,7 +35,7 @@ void grpstats_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     if (args.size() >= 3) {
         const Value &fn_arg = args[2];
         if (fn_arg.isChar() || fn_arg.isString()) {
-            fn_names.push_back(fn_arg.toString());
+            fn_names.emplace_back(fn_arg.toString().as_ref());
         } else if (fn_arg.isCell()) {
             for (keel::usize i = 0; i < fn_arg.numel(); ++i) {
                 const Value &el = fn_arg.cellAt(i);
@@ -43,7 +43,7 @@ void grpstats_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                     throw Error("grpstats: cell fn names must be strings",
                                 0, 0, "grpstats", "",
                                 "numkit:grpstats:BadCell");
-                fn_names.push_back(el.toString());
+                fn_names.emplace_back(el.toString().as_ref());
             }
         } else {
             throw Error("grpstats: fn arg must be a string or cell of strings",

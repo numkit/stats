@@ -46,7 +46,7 @@ void lassoglm_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     if (!args[2].isChar())
         throw Error("lassoglm: distr must be a string",
                     0, 0, "lassoglm", "", "numkit:lassoglm:badDistr");
-    const std::string s = args[2].toString();
+    const std::string s(args[2].toString().as_ref());
     GlmDistribution d;
     if (s == "normal")        d = GlmDistribution::Normal;
     else if (s == "binomial") d = GlmDistribution::Binomial;

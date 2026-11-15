@@ -63,8 +63,9 @@ const std::unordered_map<std::string, std::string> &distPrefixMap()
     return m;
 }
 
-std::string toLowerStr(std::string s)
+std::string toLowerStr(keel::StringRef sv)
 {
+    std::string s(sv.data(), sv.size());
     std::transform(s.begin(), s.end(), s.begin(),
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     return s;
@@ -288,7 +289,7 @@ void dispatchDist(const char *fnName, const char *suffix,
     const auto &m = distPrefixMap();
     auto it = m.find(name);
     if (it == m.end())
-        throw Error(fn + ": unsupported distribution '" + args[0].toString() + "'",
+        throw Error(fn + ": unsupported distribution '" + std::string(args[0].toString().as_ref()) + "'",
                     0, 0, fnName, "", "numkit:" + fn + ":dist");
 
     // The bare-name resolver finds the function (e.g. "normcdf" →
@@ -319,7 +320,7 @@ void makedist_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mut
         throw Error("makedist: first argument must be a distribution name",
                     0, 0, "makedist", "", "numkit:makedist:name");
 
-    const std::string rawName = args[0].toString();
+    const std::string rawName(args[0].toString().as_ref());
     const std::string dist = toLowerStr(rawName);
 
     int nparams = 2;

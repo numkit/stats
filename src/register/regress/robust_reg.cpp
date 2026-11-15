@@ -33,7 +33,7 @@ void robustfit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     argcheck::checkNargin(args.size(), 2, 7, "robustfit");
     RobustWeight w = RobustWeight::Bisquare;
     if (args.size() >= 3 && args[2].isChar()) {
-        std::string s = args[2].toString();
+        std::string s(args[2].toString().as_ref());
         for (char &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         if      (s == "andrews")  w = RobustWeight::Andrews;
         else if (s == "bisquare") w = RobustWeight::Bisquare;
@@ -60,7 +60,7 @@ void robustfit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     // raw X with no intercept, returning the wrong number of coefficients.
     bool addConst = true;
     if (args.size() >= 5 && args[4].isChar()) {
-        const std::string c = args[4].toString();
+        const keel::String c = args[4].toString();
         if (c == "off" || c == "Off" || c == "OFF")       addConst = false;
         else if (c == "on" || c == "On" || c == "ON")     addConst = true;
         else

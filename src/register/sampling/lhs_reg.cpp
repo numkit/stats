@@ -40,10 +40,10 @@ void lhsdesign_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mu
         if (!args[k].isChar() && !args[k].isString())
             throw Error("lhsdesign: name-value arguments expected",
                         0, 0, "lhsdesign", "", "numkit:lhsdesign:badNameValue");
-        std::string name = args[k].toString();
+        std::string name(args[k].toString().as_ref());
         for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         if (name == "smooth") {
-            std::string v = args[k + 1].toString();
+            std::string v(args[k + 1].toString().as_ref());
             for (auto &c : v) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
             smooth = (v != "off");
         } else if (name == "criterion") {

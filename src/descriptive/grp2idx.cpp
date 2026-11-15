@@ -72,7 +72,7 @@ Grp2idxResult grp2idx(const Value &s, keel::Allocator *mr)
         const auto &vec = s.cellDataVec();
         g.reserve(vec.size());
         for (const auto &e : vec) {
-            const std::string str = e.toString();
+            const std::string str(e.toString().as_ref());
             int idx = -1;
             for (keel::usize k = 0; k < names.size(); ++k)
                 if (names[k] == str) { idx = static_cast<int>(k); break; }
@@ -81,7 +81,7 @@ Grp2idxResult grp2idx(const Value &s, keel::Allocator *mr)
         }
     } else if (s.isChar() || s.isString()) {
         // A single char row / string scalar is one group label.
-        names.push_back(s.toString());
+        names.emplace_back(s.toString().as_ref());
         g.push_back(1.0);
     } else {
         // Numeric / logical: sorted-ascending unique values; NaN -> NaN index.
