@@ -3,22 +3,20 @@
 // CallContext register half of cluster/kmeans.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
+#include <keel/core.h>
+#include <keel/ref.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/builtin/datafun.hpp>
 #include <numkit/stats/cluster/kmeans.hpp>
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
 #include <numkit/value/value.hpp>
 #include "cluster/kmeans_detail.hpp"
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <complex>
 #include <cstddef>
 #include <string>
 #include <tuple>
@@ -29,8 +27,8 @@ namespace numkit::stats {
 
 namespace detail {
 
-void kmeans_reg(Span<const Value> args, size_t nargout,
-                Span<Value> outs, CallContext &ctx)
+void kmeans_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "kmeans");  // no max: name-value tail in the reference
     const int K = (int)args[1].toScalar();
@@ -40,7 +38,7 @@ void kmeans_reg(Span<const Value> args, size_t nargout,
         for (auto &c : s) c = (char)std::tolower((unsigned char)c);
         return s;
     };
-    for (size_t i = 2; i + 1 < args.size(); i += 2) {
+    for (keel::usize i = 2; i + 1 < args.size(); i += 2) {
         if (!(args[i].isChar() || args[i].isString())) continue;
         const std::string key = lower(args[i].toString());
         const Value &v = args[i + 1];
@@ -63,7 +61,7 @@ void kmeans_reg(Span<const Value> args, size_t nargout,
         // 'Display' / 'EmptyAction' / 'OnlinePhase' / 'Options' silently
         // accepted (no-op).
     }
-    auto R = kmeans_full(ctx.engine->rng(), args[0], K, max_iter, replicates, ctx.engine->resource());
+    auto R = kmeans_full(ctx.engine->rng(), args[0], K, max_iter, replicates, ctx.engine->allocator());
     outs[0] = std::move(R.idx);
     if (nargout > 1) outs[1] = std::move(R.C);
     if (nargout > 2) outs[2] = std::move(R.sumd);

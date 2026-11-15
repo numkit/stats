@@ -4,12 +4,13 @@
 //   robustfit — IRLS regression with bisquare/Huber weighting
 //   robustcov — concentration-step (FAST-MCD-lite) robust covariance
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/regress/regress.hpp>
 
 #include <numkit/stats/distributions/chi2.hpp>      // chi2inv
 
 #include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
@@ -24,7 +25,7 @@
 namespace numkit::stats {
 
 namespace {
-void robustfit_argcheck(const Value &X, const Value &y, std::size_t n, std::size_t p)
+void robustfit_argcheck(const Value &X, const Value &y, keel::usize n, keel::usize p)
 {
     (void)X;
     if (y.numel() != n)
@@ -38,24 +39,24 @@ void robustfit_argcheck(const Value &X, const Value &y, std::size_t n, std::size
 
 RobustfitResult robustfit(const Value &X, const Value &y,
                            RobustWeight weight, double tune,
-                           std::pmr::memory_resource *mr)
+                           keel::Allocator *mr)
 {
-    const std::size_t n = X.dims().rows();
-    const std::size_t p = X.dims().cols();
+    const keel::usize n = X.dims().rows();
+    const keel::usize p = X.dims().cols();
     robustfit_argcheck(X, y, n, p);
 
     if (std::isnan(tune)) tune = defaultTune(weight);
 
     std::vector<double> Xv(n * p);
-    for (std::size_t i = 0; i < n * p; ++i) Xv[i] = X.elemAsDouble(i);
+    for (keel::usize i = 0; i < n * p; ++i) Xv[i] = X.elemAsDouble(i);
     std::vector<double> yv(n);
-    for (std::size_t i = 0; i < n; ++i) yv[i] = y.elemAsDouble(i);
+    for (keel::usize i = 0; i < n; ++i) yv[i] = y.elemAsDouble(i);
 
     // Leverage adjustment (DuMouchel & O'Brien): radj = r / sqrt(1 - h),
     // h = hat-matrix diagonal. MATLAB statrobustfit.m.
     const std::vector<double> h = leverage(Xv.data(), n, p);
     std::vector<double> adj(n);
-    for (std::size_t i = 0; i < n; ++i)
+    for (keel::usize i = 0; i < n; ++i)
         adj[i] = 1.0 / std::sqrt(1.0 - h[i]);
 
     // Floor on the scale estimate so a (near-)perfect fit can't drive s to 0.
@@ -72,9 +73,9 @@ RobustfitResult robustfit(const Value &X, const Value &y,
     double s = 1.0;
     for (int it = 0; it < maxIter; ++it) {
         // Residuals from the current fit, then the leverage-adjusted scale.
-        for (std::size_t i = 0; i < n; ++i) {
+        for (keel::usize i = 0; i < n; ++i) {
             double pred = 0.0;
-            for (std::size_t j = 0; j < p; ++j)
+            for (keel::usize j = 0; j < p; ++j)
                 pred += Xv[j * n + i] * beta[j];
             r[i] = yv[i] - pred;
             radj[i] = r[i] * adj[i];
@@ -83,7 +84,7 @@ RobustfitResult robustfit(const Value &X, const Value &y,
         const double denom = std::max(s, tiny_s) * tune;
 
         // New weights from the standardised, leverage-adjusted residuals.
-        for (std::size_t i = 0; i < n; ++i)
+        for (keel::usize i = 0; i < n; ++i)
             w[i] = robustWeight(weight, radj[i] / denom);
 
         beta_prev = beta;
@@ -91,7 +92,7 @@ RobustfitResult robustfit(const Value &X, const Value &y,
 
         // MATLAB: stop when no |b-b0| exceeds D*max(|b|,|b0|).
         bool changed = false;
-        for (std::size_t j = 0; j < p; ++j)
+        for (keel::usize j = 0; j < p; ++j)
             if (std::fabs(beta[j] - beta_prev[j])
                 > D * std::max(std::fabs(beta[j]), std::fabs(beta_prev[j])))
                 changed = true;
@@ -105,36 +106,36 @@ RobustfitResult robustfit(const Value &X, const Value &y,
 }
 
 
-RobustcovResult robustcov(const Value &X, std::pmr::memory_resource *mr)
+RobustcovResult robustcov(const Value &X, keel::Allocator *mr)
 {
-    const std::size_t n = X.dims().rows();
-    const std::size_t d = X.dims().cols();
+    const keel::usize n = X.dims().rows();
+    const keel::usize d = X.dims().cols();
     if (n <= d + 1)
         throw Error("robustcov: need n > d + 1 observations",
                     0, 0, "robustcov", "", "numkit:robustcov:noDOF");
 
     std::vector<double> Xv(n * d);
-    for (std::size_t i = 0; i < n * d; ++i) Xv[i] = X.elemAsDouble(i);
+    for (keel::usize i = 0; i < n * d; ++i) Xv[i] = X.elemAsDouble(i);
 
     // Start from classical mean / cov of all rows.
-    std::vector<std::size_t> keep(n);
-    for (std::size_t i = 0; i < n; ++i) keep[i] = i;
+    std::vector<keel::usize> keep(n);
+    for (keel::usize i = 0; i < n; ++i) keep[i] = i;
     std::vector<double> mu, C, invC;
     meanCovSubset(Xv.data(), n, d, keep, mu, C);
 
-    const std::size_t h = static_cast<std::size_t>(
+    const keel::usize h = static_cast<keel::usize>(
         std::ceil(0.75 * static_cast<double>(n)));
 
-    std::vector<std::size_t> prevKeep;
+    std::vector<keel::usize> prevKeep;
     for (int it = 0; it < 30; ++it) {
         if (!invertSPD(C, d, invC)) break;
         auto dist = mahalanobisDist(Xv.data(), n, d, mu.data(), invC.data());
         // Pick h rows with smallest distance.
-        std::vector<std::pair<double, std::size_t>> pairs(n);
-        for (std::size_t i = 0; i < n; ++i) pairs[i] = { dist[i], i };
+        std::vector<std::pair<double, keel::usize>> pairs(n);
+        for (keel::usize i = 0; i < n; ++i) pairs[i] = { dist[i], i };
         std::nth_element(pairs.begin(), pairs.begin() + h, pairs.end());
-        std::vector<std::size_t> newKeep(h);
-        for (std::size_t i = 0; i < h; ++i) newKeep[i] = pairs[i].second;
+        std::vector<keel::usize> newKeep(h);
+        for (keel::usize i = 0; i < h; ++i) newKeep[i] = pairs[i].second;
         std::sort(newKeep.begin(), newKeep.end());
         if (newKeep == prevKeep) break;
         prevKeep = std::move(newKeep);
@@ -159,8 +160,8 @@ RobustcovResult robustcov(const Value &X, std::pmr::memory_resource *mr)
     auto sigma = Value::matrix(d, d, ValueType::DOUBLE, mr);
     // C is row-major; transpose to col-major for Value layout.
     double *sd = sigma.doubleDataMut();
-    for (std::size_t i = 0; i < d; ++i)
-        for (std::size_t j = 0; j < d; ++j)
+    for (keel::usize i = 0; i < d; ++i)
+        for (keel::usize j = 0; j < d; ++j)
             sd[j * d + i] = C[i * d + j];
     auto muV = Value::matrix(1, d, ValueType::DOUBLE, mr);
     std::memcpy(muV.doubleDataMut(), mu.data(), d * sizeof(double));

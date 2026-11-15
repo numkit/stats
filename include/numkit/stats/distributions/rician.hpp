@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <memory_resource>
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
 #include <tuple>
@@ -31,8 +32,8 @@ namespace numkit::stats {
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Array of pdf values, same shape as `x`.
 /// @see ricecdf, riceinv, ricernd, ricestat, raylpdf
-Value ricepdf(const Value &x, double s, double sigma,
-              std::pmr::memory_resource *mr = nullptr);
+Value ricepdf(const Value &x, keel::f64 s, keel::f64 sigma,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Rician cdf (`p = ricecdf(x, s, sigma)`).
 ///
@@ -45,8 +46,8 @@ Value ricepdf(const Value &x, double s, double sigma,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Array of cdf values in `[0, 1]`.
 /// @see ricepdf, riceinv
-Value ricecdf(const Value &x, double s, double sigma,
-              std::pmr::memory_resource *mr = nullptr);
+Value ricecdf(const Value &x, keel::f64 s, keel::f64 sigma,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Rician inverse cdf (`x = riceinv(p, s, sigma)`).
 ///
@@ -56,8 +57,8 @@ Value ricecdf(const Value &x, double s, double sigma,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Quantile array, same shape as `p`.
 /// @see ricecdf
-Value riceinv(const Value &p, double s, double sigma,
-              std::pmr::memory_resource *mr = nullptr);
+Value riceinv(const Value &p, keel::f64 s, keel::f64 sigma,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Rician random samples (`r = ricernd(s, sigma, rows, cols)`).
 ///
@@ -70,8 +71,8 @@ Value riceinv(const Value &p, double s, double sigma,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `rows × cols` matrix of Rician samples.
 /// @see ricepdf
-Value ricernd(::numkit::ops::RngContext &rng, double s, double sigma, size_t rows = 1, size_t cols = 1,
-              std::pmr::memory_resource *mr = nullptr);
+Value ricernd(::numkit::ops::RngContext &rng, keel::f64 s, keel::f64 sigma, keel::usize rows = 1, keel::usize cols = 1,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Rician mean and variance (`[m, v] = ricestat(s, sigma)`).
 ///
@@ -84,9 +85,9 @@ Value ricernd(::numkit::ops::RngContext &rng, double s, double sigma, size_t row
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `{mean, variance}` pair.
 /// @see ricepdf
-std::tuple<double, double>
-ricestat(double s, double sigma,
-         std::pmr::memory_resource *mr = nullptr);
+std::tuple<keel::f64, keel::f64>
+ricestat(keel::f64 s, keel::f64 sigma,
+         keel::Allocator *mr = nullptr);
 
 
 /// @}

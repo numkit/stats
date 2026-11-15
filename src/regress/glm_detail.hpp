@@ -3,10 +3,9 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
+#include <keel/core.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
 #include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
 
 #include <algorithm>
@@ -15,7 +14,6 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
-#include <memory_resource>
 #include <numeric>
 #include <string>
 #include <tuple>
@@ -31,32 +29,32 @@ namespace numkit::stats {
 namespace {
 
 // In-place Gauss elimination on row-major p×p `M`, p-length `b`.
-bool gaussSolve(double *M, double *b, std::size_t p)
+bool gaussSolve(double *M, double *b, keel::usize p)
 {
-    for (std::size_t k = 0; k < p; ++k) {
-        std::size_t piv = k;
+    for (keel::usize k = 0; k < p; ++k) {
+        keel::usize piv = k;
         double pmax = std::fabs(M[k * p + k]);
-        for (std::size_t rr = k + 1; rr < p; ++rr) {
+        for (keel::usize rr = k + 1; rr < p; ++rr) {
             const double v = std::fabs(M[rr * p + k]);
             if (v > pmax) { pmax = v; piv = rr; }
         }
         if (pmax == 0.0) return false;
         if (piv != k) {
-            for (std::size_t j = 0; j < p; ++j)
+            for (keel::usize j = 0; j < p; ++j)
                 std::swap(M[k * p + j], M[piv * p + j]);
             std::swap(b[k], b[piv]);
         }
         const double pv = M[k * p + k];
-        for (std::size_t rr = k + 1; rr < p; ++rr) {
+        for (keel::usize rr = k + 1; rr < p; ++rr) {
             const double f = M[rr * p + k] / pv;
-            for (std::size_t j = k; j < p; ++j)
+            for (keel::usize j = k; j < p; ++j)
                 M[rr * p + j] -= f * M[k * p + j];
             b[rr] -= f * b[k];
         }
     }
-    for (std::size_t k = p; k-- > 0;) {
+    for (keel::usize k = p; k-- > 0;) {
         double s = b[k];
-        for (std::size_t j = k + 1; j < p; ++j)
+        for (keel::usize j = k + 1; j < p; ++j)
             s -= M[k * p + j] * b[j];
         b[k] = s / M[k * p + k];
     }

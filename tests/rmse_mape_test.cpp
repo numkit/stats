@@ -1,6 +1,7 @@
 // toolboxes/stats/tests/rmse_mape_test.cpp
 // (partial — 'all'/vecdim).
 
+#include <keel/core.h>
 #include <numkit/core/standard_engine.hpp>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
@@ -22,7 +23,7 @@ public:
 TEST_F(RmseMapeTest, RmseDefault)
 {
     eval("y = rmse(F, A);");
-    EXPECT_EQ(static_cast<size_t>(evalScalar("numel(y)")), 2u);
+    EXPECT_EQ(static_cast<keel::usize>(evalScalar("numel(y)")), 2u);
 }
 
 TEST_F(RmseMapeTest, RmseAll)

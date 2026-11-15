@@ -3,21 +3,19 @@
 // CallContext register half of anova/multcompare.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
+#include <keel/core.h>
+#include <keel/ref.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/anova/anova.hpp>
 #include <numkit/stats/distributions/students_t.hpp>   // tinv, tcdf
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <complex>
 #include <cstddef>
 #include <string>
 #include <tuple>
@@ -43,14 +41,14 @@ McCorrection parse_ctype(const std::string &raw)
 
 } // namespace
 
-void multcompare_reg(Span<const Value> args, size_t /*nargout*/,
-                     Span<Value> outs, CallContext &ctx)
+void multcompare_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
+                     keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "multcompare");  // no max: name-value tail in the reference
     double alpha = 0.05;
     McCorrection ctype = McCorrection::Bonferroni;
 
-    size_t i = 1;
+    keel::usize i = 1;
     if (i < args.size() && !args[i].isChar() && !args[i].isString()) {
         if (!args[i].isEmpty())
             alpha = args[i].toScalar();
@@ -83,7 +81,7 @@ void multcompare_reg(Span<const Value> args, size_t /*nargout*/,
         }
         i += 2;
     }
-    outs[0] = multcompare(args[0], alpha, ctype, ctx.engine->resource());
+    outs[0] = multcompare(args[0], alpha, ctype, ctx.engine->allocator());
 }
 
 } // namespace detail

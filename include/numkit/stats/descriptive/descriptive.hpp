@@ -4,7 +4,8 @@
 
 #pragma once
 
-#include <memory_resource>
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
 #include <limits>
@@ -41,7 +42,7 @@ namespace numkit::stats {
 /// @return          Variance reduced along `dim`.
 /// @throws Error    `normFlag` not in `{0, 1}` (`m:var:badNormFlag`).
 /// @see stdev
-Value var(const Value &x, int normFlag = 0, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value var(const Value &x, int normFlag = 0, int dim = 0, keel::Allocator *mr = nullptr);
 
 /// @brief Sample / population standard deviation (`y = std(X, normFlag, dim)`).
 ///
@@ -53,7 +54,7 @@ Value var(const Value &x, int normFlag = 0, int dim = 0, std::pmr::memory_resour
 /// @param mr        Memory resource (nullptr → process default).
 /// @return          Standard deviation reduced along `dim`.
 /// @see var
-Value stdev(const Value &x, int normFlag = 0, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value stdev(const Value &x, int normFlag = 0, int dim = 0, keel::Allocator *mr = nullptr);
 
 /// @brief Median along `dim` (`y = median(X, dim)`).
 ///
@@ -65,7 +66,7 @@ Value stdev(const Value &x, int normFlag = 0, int dim = 0, std::pmr::memory_reso
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     Median reduced along `dim`.
 /// @see quantile, prctile
-Value median(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value median(const Value &x, int dim = 0, keel::Allocator *mr = nullptr);
 
 /// @brief Empirical quantile (`q = quantile(X, p, dim)`).
 ///
@@ -79,7 +80,7 @@ Value median(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullpt
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     Quantile(s) along `dim`.
 /// @see prctile, median
-Value quantile(const Value &x, const Value &p, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value quantile(const Value &x, const Value &p, int dim = 0, keel::Allocator *mr = nullptr);
 
 /// @brief Empirical percentile (`q = prctile(X, p, dim)`).
 ///
@@ -91,7 +92,7 @@ Value quantile(const Value &x, const Value &p, int dim = 0, std::pmr::memory_res
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     Percentile(s) along `dim`.
 /// @see quantile
-Value prctile(const Value &x, const Value &p, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value prctile(const Value &x, const Value &p, int dim = 0, keel::Allocator *mr = nullptr);
 
 /// @brief Mode and frequency (`[m, f] = mode(X, dim)`).
 ///
@@ -103,7 +104,7 @@ Value prctile(const Value &x, const Value &p, int dim = 0, std::pmr::memory_reso
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     `(mode_value, frequency)` along `dim`.
 std::tuple<Value, Value>
-mode(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+mode(const Value &x, int dim = 0, keel::Allocator *mr = nullptr);
 
 // nan-aware reductions and higher moments moved to companion headers:
 //   <nk/stats/nan_aware/nan_aware.hpp>
@@ -120,7 +121,7 @@ mode(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 /// @param mr        Memory resource (nullptr → process default).
 /// @return          Covariance matrix.
 /// @see corrcoef
-Value cov(const Value &x, int normFlag = 0, std::pmr::memory_resource *mr = nullptr);
+Value cov(const Value &x, int normFlag = 0, keel::Allocator *mr = nullptr);
 
 /// @brief Joint covariance of two vectors (`C = cov(X, Y, normFlag)`).
 ///
@@ -132,7 +133,7 @@ Value cov(const Value &x, int normFlag = 0, std::pmr::memory_resource *mr = null
 /// @param mr        Memory resource (nullptr → process default).
 /// @return          `2 × 2` joint covariance matrix.
 /// @see corrcoef
-Value cov(const Value &x, const Value &y, int normFlag = 0, std::pmr::memory_resource *mr = nullptr);
+Value cov(const Value &x, const Value &y, int normFlag = 0, keel::Allocator *mr = nullptr);
 
 /// @brief Pearson correlation matrix (`R = corrcoef(X)`).
 ///
@@ -142,7 +143,7 @@ Value cov(const Value &x, const Value &y, int normFlag = 0, std::pmr::memory_res
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Correlation matrix.
 /// @see cov, corr_xx
-Value corrcoef(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value corrcoef(const Value &x, keel::Allocator *mr = nullptr);
 
 /// @brief Joint correlation matrix (`R = corrcoef(X, Y)`).
 ///
@@ -151,7 +152,7 @@ Value corrcoef(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Joint correlation matrix.
 /// @see corrcoef
-Value corrcoef(const Value &x, const Value &y, std::pmr::memory_resource *mr = nullptr);
+Value corrcoef(const Value &x, const Value &y, keel::Allocator *mr = nullptr);
 
 /// @brief Min and max along `dim` (`[lo, hi] = bounds(X, dim)`).
 ///
@@ -160,7 +161,7 @@ Value corrcoef(const Value &x, const Value &y, std::pmr::memory_resource *mr = n
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     `(min, max)` reduced along `dim`.
 std::tuple<Value, Value>
-bounds(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+bounds(const Value &x, int dim = 0, keel::Allocator *mr = nullptr);
 
 /// @brief Interquartile range (`r = iqr(X, dim)`).
 ///
@@ -171,7 +172,7 @@ bounds(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     IQR reduced along `dim`.
 /// @see quantile
-Value iqr(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value iqr(const Value &x, int dim = 0, keel::Allocator *mr = nullptr);
 
 /// @brief `k` largest values along `dim` (`y = maxk(X, k, dim)`).
 ///
@@ -183,7 +184,7 @@ Value iqr(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     `k` largest values along `dim`.
 /// @see mink
-Value maxk(const Value &x, int k, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value maxk(const Value &x, int k, int dim = 0, keel::Allocator *mr = nullptr);
 
 /// @brief `k` smallest values along `dim` (`y = mink(X, k, dim)`).
 ///
@@ -195,7 +196,7 @@ Value maxk(const Value &x, int k, int dim = 0, std::pmr::memory_resource *mr = n
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     `k` smallest values along `dim`.
 /// @see maxk
-Value mink(const Value &x, int k, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value mink(const Value &x, int k, int dim = 0, keel::Allocator *mr = nullptr);
 
 /// @brief Root-mean-square error (`e = rmse(F, A, dim)`).
 ///
@@ -207,12 +208,12 @@ Value mink(const Value &x, int k, int dim = 0, std::pmr::memory_resource *mr = n
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     RMSE reduced along `dim`.
 /// @see mape
-Value rmse(const Value &f, const Value &a, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value rmse(const Value &f, const Value &a, int dim = 0, keel::Allocator *mr = nullptr);
 struct ErrorMetricOpts;
 /// @brief RMSE with the full flag/Weights contract (omitnan + weights).
 /// @see parseErrorMetricOpts in descriptive_extras_detail.hpp
 Value rmse(const Value &f, const Value &a, int dim, const ErrorMetricOpts &o,
-           std::pmr::memory_resource *mr = nullptr);
+           keel::Allocator *mr = nullptr);
 
 /// @brief Mean absolute percentage error (`e = mape(F, A, dim)`).
 ///
@@ -225,11 +226,11 @@ Value rmse(const Value &f, const Value &a, int dim, const ErrorMetricOpts &o,
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     MAPE reduced along `dim`.
 /// @see rmse
-Value mape(const Value &f, const Value &a, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value mape(const Value &f, const Value &a, int dim = 0, keel::Allocator *mr = nullptr);
 /// @brief MAPE with the full flag/Weights contract (omitnan/omitzero +
 /// weights).
 Value mape(const Value &f, const Value &a, int dim, const ErrorMetricOpts &o,
-           std::pmr::memory_resource *mr = nullptr);
+           keel::Allocator *mr = nullptr);
 
 /// @brief Partial correlation controlling for Z
 /// (`R = partialcorr(X, Y, Z)`).
@@ -243,7 +244,7 @@ Value mape(const Value &f, const Value &a, int dim, const ErrorMetricOpts &o,
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    `p × q` partial-correlation matrix.
 /// @see corrcoef
-Value partialcorr_of(const Value &X, const Value &Y, const Value &Z, std::pmr::memory_resource *mr = nullptr);
+Value partialcorr_of(const Value &X, const Value &Y, const Value &Z, keel::Allocator *mr = nullptr);
 
 /// @brief One-argument partial correlation: pairwise partial correlation
 /// between columns of `X`, controlling for the remaining columns of `X`
@@ -257,7 +258,7 @@ Value partialcorr_of(const Value &X, const Value &Y, const Value &Z, std::pmr::m
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    `p × p` symmetric partial-correlation matrix.
 /// @see partialcorr_xz, partialcorr_of
-Value partialcorr_xx(const Value &X, std::pmr::memory_resource *mr = nullptr);
+Value partialcorr_xx(const Value &X, keel::Allocator *mr = nullptr);
 
 /// @brief Two-argument partial correlation
 /// (`R = partialcorr(X, Z)`).
@@ -270,7 +271,7 @@ Value partialcorr_xx(const Value &X, std::pmr::memory_resource *mr = nullptr);
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    `p × p` symmetric partial-correlation matrix.
 /// @see partialcorr_xx, partialcorr_of
-Value partialcorr_xz(const Value &X, const Value &Z, std::pmr::memory_resource *mr = nullptr);
+Value partialcorr_xz(const Value &X, const Value &Z, keel::Allocator *mr = nullptr);
 
 /// @brief Partial correlation between each column of `Y` and each
 /// column of `X`, controlling for the remaining columns of `X` (and
@@ -292,7 +293,7 @@ Value partialcorr_xz(const Value &X, const Value &Z, std::pmr::memory_resource *
 /// @return    `p_Y × p_X` matrix of partial correlations.
 /// @see partialcorr_of, corrcoef
 Value partialcorri(const Value &Y, const Value &X, const Value &Z = {},
-                   std::pmr::memory_resource *mr = nullptr);
+                   keel::Allocator *mr = nullptr);
 
 /// @brief Canonical correlation analysis
 /// (`[A, B, r] = canoncorr(X, Y)`).
@@ -320,7 +321,7 @@ struct CanoncorrResult {
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    `{A, B, r}` struct.
 CanoncorrResult canoncorr(const Value &X, const Value &Y,
-                           std::pmr::memory_resource *mr = nullptr);
+                           keel::Allocator *mr = nullptr);
 
 /// @brief Auto-correlation across columns of X (`R = corr(X)`).
 ///
@@ -331,7 +332,7 @@ CanoncorrResult canoncorr(const Value &X, const Value &Y,
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Correlation matrix across columns.
 /// @see corrcoef
-Value corr_xx(const Value &X, std::pmr::memory_resource *mr = nullptr);
+Value corr_xx(const Value &X, keel::Allocator *mr = nullptr);
 
 /// @brief Cross-correlation between columns of X and Y (`R = corr(X, Y)`).
 ///
@@ -340,7 +341,7 @@ Value corr_xx(const Value &X, std::pmr::memory_resource *mr = nullptr);
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Correlation matrix between columns of `X` and `Y`.
 /// @see corrcoef
-Value corr_xy(const Value &X, const Value &Y, std::pmr::memory_resource *mr = nullptr);
+Value corr_xy(const Value &X, const Value &Y, keel::Allocator *mr = nullptr);
 
 /// @brief Remove polynomial trend (`y = detrend(x, order)`).
 ///
@@ -351,7 +352,7 @@ Value corr_xy(const Value &X, const Value &Y, std::pmr::memory_resource *mr = nu
 /// @param order  Polynomial order (default 1 = linear).
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Detrended array, same shape as `x`.
-Value detrend_of(const Value &x, int order = 1, std::pmr::memory_resource *mr = nullptr);
+Value detrend_of(const Value &x, int order = 1, keel::Allocator *mr = nullptr);
 
 /// @brief Outlier mask (`tf = isoutlier(x)`).
 ///
@@ -361,7 +362,7 @@ Value detrend_of(const Value &x, int order = 1, std::pmr::memory_resource *mr = 
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    LOGICAL mask, same shape as `x`.
 /// @see rmoutliers
-Value isoutlier_of(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value isoutlier_of(const Value &x, keel::Allocator *mr = nullptr);
 
 /// @brief Remove outliers (`y = rmoutliers(x)`).
 ///
@@ -372,7 +373,7 @@ Value isoutlier_of(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    `x` with outlier entries dropped.
 /// @see isoutlier_of
-Value rmoutliers_of(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value rmoutliers_of(const Value &x, keel::Allocator *mr = nullptr);
 
 /// @brief Fill missing values (`y = fillmissing(x, method, constVal)`).
 ///
@@ -387,7 +388,7 @@ Value rmoutliers_of(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// @param mr        Memory resource (nullptr → process default).
 /// @return          Array with missing values filled.
 /// @see rmmissing_of, standardizeMissing_of
-Value fillmissing_of(const Value &x, const std::string &method, double constVal = 0.0, std::pmr::memory_resource *mr = nullptr);
+Value fillmissing_of(const Value &x, const std::string &method, keel::f64 constVal = 0.0, keel::Allocator *mr = nullptr);
 
 /// @brief Remove rows / cols containing missing values
 /// (`y = rmmissing(x)`).
@@ -396,7 +397,7 @@ Value fillmissing_of(const Value &x, const std::string &method, double constVal 
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Compact array with missing entries dropped.
 /// @see fillmissing_of
-Value rmmissing_of(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value rmmissing_of(const Value &x, keel::Allocator *mr = nullptr);
 
 /// @brief Convert sentinel values to missing
 /// (`y = standardizeMissing(x, indicators)`).
@@ -412,7 +413,7 @@ Value rmmissing_of(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// @param mr          Memory resource (nullptr → process default).
 /// @return            Array with matched entries → NaN.
 Value standardizeMissing_of(const Value &x, const Value &indicators,
-                            std::pmr::memory_resource *mr = nullptr);
+                            keel::Allocator *mr = nullptr);
 
 /// @brief Range = `max - min` along `dim` (`r = range(x, dim)`).
 ///
@@ -420,7 +421,7 @@ Value standardizeMissing_of(const Value &x, const Value &indicators,
 /// @param dim  1-based dimension; 0 → first non-singleton dim.
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     Range reduced along `dim`.
-Value range_of(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value range_of(const Value &x, int dim = 0, keel::Allocator *mr = nullptr);
 
 /// @brief Mean absolute deviation (`y = mad(x, flag, dim)`).
 ///
@@ -433,7 +434,7 @@ Value range_of(const Value &x, int dim = 0, std::pmr::memory_resource *mr = null
 /// @param dim   1-based dimension; 0 → first non-singleton dim.
 /// @param mr    Memory resource (nullptr → process default).
 /// @return      MAD reduced along `dim`.
-Value mad_of(const Value &x, int flag = 0, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value mad_of(const Value &x, int flag = 0, int dim = 0, keel::Allocator *mr = nullptr);
 
 /// @brief Geometric mean (`g = geomean(x, dim)`).
 ///
@@ -444,7 +445,7 @@ Value mad_of(const Value &x, int flag = 0, int dim = 0, std::pmr::memory_resourc
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     Geometric mean reduced along `dim`.
 /// @see harmmean_of
-Value geomean_of(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value geomean_of(const Value &x, int dim = 0, keel::Allocator *mr = nullptr);
 
 /// @brief Harmonic mean (`h = harmmean(x, dim)`).
 ///
@@ -455,7 +456,7 @@ Value geomean_of(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nu
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     Harmonic mean reduced along `dim`.
 /// @see geomean_of
-Value harmmean_of(const Value &x, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value harmmean_of(const Value &x, int dim = 0, keel::Allocator *mr = nullptr);
 
 /// @brief k-th central moment (`m = moment(x, k, dim)`).
 ///
@@ -467,7 +468,7 @@ Value harmmean_of(const Value &x, int dim = 0, std::pmr::memory_resource *mr = n
 /// @param dim    1-based dimension; 0 → first non-singleton dim.
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `order`-th central moment reduced along `dim`.
-Value moment_of(const Value &x, int order, int dim = 0, std::pmr::memory_resource *mr = nullptr);
+Value moment_of(const Value &x, int order, int dim = 0, keel::Allocator *mr = nullptr);
 
 /// @brief Trimmed mean (`m = trimmean(x, pct, dim)`).
 ///
@@ -481,8 +482,8 @@ Value moment_of(const Value &x, int order, int dim = 0, std::pmr::memory_resourc
 ///                  (MATLAB `'floor'`) takes the floor.
 /// @param mr        Memory resource (nullptr → process default).
 /// @return          Trimmed mean reduced along `dim`.
-Value trimmean_of(const Value &x, double pct, int dim = 0, bool useFloor = false,
-                  std::pmr::memory_resource *mr = nullptr);
+Value trimmean_of(const Value &x, keel::f64 pct, int dim = 0, bool useFloor = false,
+                  keel::Allocator *mr = nullptr);
 
 /// @brief Curve-data cleanup (`[xo, yo, wo] = prepareCurveData(x, y, w)`).
 ///
@@ -496,7 +497,7 @@ Value trimmean_of(const Value &x, double pct, int dim = 0, bool useFloor = false
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Cleaned `(x, y, w)` columns.
 std::tuple<Value, Value, Value>
-prepareCurveData(const Value &x, const Value &y, const Value &w, std::pmr::memory_resource *mr = nullptr);
+prepareCurveData(const Value &x, const Value &y, const Value &w, keel::Allocator *mr = nullptr);
 
 /// @brief Surface-data cleanup (`[xo, yo, zo] = prepareSurfaceData(x, y, z)`).
 ///
@@ -509,7 +510,7 @@ prepareCurveData(const Value &x, const Value &y, const Value &w, std::pmr::memor
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Cleaned `(x, y, z)` columns.
 std::tuple<Value, Value, Value>
-prepareSurfaceData(const Value &x, const Value &y, const Value &z, std::pmr::memory_resource *mr = nullptr);
+prepareSurfaceData(const Value &x, const Value &y, const Value &z, keel::Allocator *mr = nullptr);
 
 /// @brief Dataset descriptive summary (`datastats(x)`).
 ///
@@ -520,7 +521,7 @@ prepareSurfaceData(const Value &x, const Value &y, const Value &z, std::pmr::mem
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    `(num, max, min, mean, median, range, std)` tuple of scalars.
 std::tuple<Value, Value, Value, Value, Value, Value, Value>
-datastats(const Value &x, std::pmr::memory_resource *mr = nullptr);
+datastats(const Value &x, keel::Allocator *mr = nullptr);
 
 /// @brief Empirical cumulative distribution function (`[f, x] = ecdf(y)`).
 ///
@@ -533,7 +534,7 @@ datastats(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// @return    `(f, x)` columns describing the step function.
 /// @see ecdfhist, ksdensity
 std::tuple<Value, Value>
-ecdf(const Value &y, std::pmr::memory_resource *mr = nullptr);
+ecdf(const Value &y, keel::Allocator *mr = nullptr);
 
 /// @brief Kernel density estimate (`[f, xi, bw] = ksdensity(x, pts, bw_user)`).
 ///
@@ -548,7 +549,7 @@ ecdf(const Value &y, std::pmr::memory_resource *mr = nullptr);
 /// @return         `(f, xi, bw)` — densities, grid, chosen bandwidth.
 /// @see ecdf
 std::tuple<Value, Value, Value>
-ksdensity(const Value &x, const Value &pts, double bw_user, std::pmr::memory_resource *mr = nullptr);
+ksdensity(const Value &x, const Value &pts, keel::f64 bw_user, keel::Allocator *mr = nullptr);
 
 /// @brief Histogram from empirical CDF (`[n, c] = ecdfhist(f, x, m)`).
 ///
@@ -563,7 +564,7 @@ ksdensity(const Value &x, const Value &pts, double bw_user, std::pmr::memory_res
 /// @return    `(n, c)` — bin heights, bin centres.
 /// @see ecdf
 std::tuple<Value, Value>
-ecdfhist(const Value &f, const Value &x, int m = 10, std::pmr::memory_resource *mr = nullptr);
+ecdfhist(const Value &f, const Value &x, int m = 10, keel::Allocator *mr = nullptr);
 
 /// @brief Column-wise normalisation (`Y = normalize(A, method)`).
 ///
@@ -604,7 +605,7 @@ struct NormalizeResult {
 /// @see rescale, zscore
 NormalizeResult normalize(const Value &A, const std::string &method,
                           const Value &param = Value::Empty,
-                          std::pmr::memory_resource *mr = nullptr);
+                          keel::Allocator *mr = nullptr);
 
 /// @brief Linear range remap (`Y = rescale(A, lo, hi)`).
 ///
@@ -620,10 +621,10 @@ NormalizeResult normalize(const Value &A, const std::string &method,
 /// @param mr        Memory resource (nullptr → process default).
 /// @return          Rescaled array, same shape as `A`.
 /// @see normalize
-Value rescale(const Value &A, double lo, double hi,
-              double inputMin = std::numeric_limits<double>::quiet_NaN(),
-              double inputMax = std::numeric_limits<double>::quiet_NaN(),
-              std::pmr::memory_resource *mr = nullptr);
+Value rescale(const Value &A, keel::f64 lo, keel::f64 hi,
+              keel::f64 inputMin = std::numeric_limits<keel::f64>::quiet_NaN(),
+              keel::f64 inputMax = std::numeric_limits<keel::f64>::quiet_NaN(),
+              keel::Allocator *mr = nullptr);
 
 /// @brief Z-score normalisation (`Y = zscore(A)`).
 ///
@@ -633,7 +634,7 @@ Value rescale(const Value &A, double lo, double hi,
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Z-score-normalised matrix.
 /// @see normalize
-Value zscore(const Value &A, std::pmr::memory_resource *mr = nullptr);
+Value zscore(const Value &A, keel::Allocator *mr = nullptr);
 
 /// @brief Tie-corrected ranks (`[r, tieadj] = tiedrank(x)`).
 ///
@@ -645,7 +646,7 @@ Value zscore(const Value &A, std::pmr::memory_resource *mr = nullptr);
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    `(ranks, tie_adjustment)` pair.
 std::pair<Value, Value>
-tiedrank(const Value &x, std::pmr::memory_resource *mr = nullptr);
+tiedrank(const Value &x, keel::Allocator *mr = nullptr);
 
 /// @brief Sample autocorrelation function (`[acf, lags, bounds] = autocorr(y)`).
 ///
@@ -661,8 +662,8 @@ tiedrank(const Value &x, std::pmr::memory_resource *mr = nullptr);
 ///                 `numLags+1` entries (lags `0..numLags`), `bounds` is `[+b; -b]`.
 /// @see crosscorr, xcorr
 std::tuple<Value, Value, Value>
-autocorr(const Value &y, int numLags = -1, double numSTD = 2.0,
-         std::pmr::memory_resource *mr = nullptr);
+autocorr(const Value &y, int numLags = -1, keel::f64 numSTD = 2.0,
+         keel::Allocator *mr = nullptr);
 
 /// @brief Sample cross-correlation function (`[xcf, lags, bounds] = crosscorr(y1, y2)`).
 ///
@@ -679,8 +680,8 @@ autocorr(const Value &y, int numLags = -1, double numSTD = 2.0,
 ///                 `2·numLags+1` entries (lags `-numLags..numLags`).
 /// @see autocorr, xcorr
 std::tuple<Value, Value, Value>
-crosscorr(const Value &y1, const Value &y2, int numLags = -1, double numSTD = 2.0,
-          std::pmr::memory_resource *mr = nullptr);
+crosscorr(const Value &y1, const Value &y2, int numLags = -1, keel::f64 numSTD = 2.0,
+          keel::Allocator *mr = nullptr);
 
 /// @brief Sample partial autocorrelation function (`[pacf, lags, bounds] = parcorr(y)`).
 ///
@@ -698,8 +699,8 @@ crosscorr(const Value &y1, const Value &y2, int numLags = -1, double numSTD = 2.
 /// @return         `(pacf, lags, bounds)` column vectors (`numLags+1` entries).
 /// @see autocorr, crosscorr
 std::tuple<Value, Value, Value>
-parcorr(const Value &y, int numLags = -1, double numSTD = 2.0,
-        std::pmr::memory_resource *mr = nullptr);
+parcorr(const Value &y, int numLags = -1, keel::f64 numSTD = 2.0,
+        keel::Allocator *mr = nullptr);
 
 /// @brief Correlation matrix from covariance (`[R, sigma] = corrcov(C)`).
 ///
@@ -712,7 +713,7 @@ parcorr(const Value &y, int numLags = -1, double numSTD = 2.0,
 /// @return    `(R, sigma)` pair.
 /// @throws Error  Negative diagonal entry (`m:corrcov:negDiag`).
 std::pair<Value, Value>
-corrcov(const Value &C, std::pmr::memory_resource *mr = nullptr);
+corrcov(const Value &C, keel::Allocator *mr = nullptr);
 
 /// @brief Frequency table (`T = tabulate(x)`).
 ///
@@ -724,7 +725,7 @@ corrcov(const Value &C, std::pmr::memory_resource *mr = nullptr);
 /// @param x   Input array.
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    `[value, count, percent]` matrix.
-Value tabulate(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value tabulate(const Value &x, keel::Allocator *mr = nullptr);
 
 /// @brief Cholesky-like factor of a covariance matrix
 /// (`[T, p] = cholcov(SIGMA)`).
@@ -738,7 +739,7 @@ Value tabulate(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(T, p)` pair.
 std::pair<Value, Value>
-cholcov(const Value &SIGMA, std::pmr::memory_resource *mr = nullptr);
+cholcov(const Value &SIGMA, keel::Allocator *mr = nullptr);
 
 /// @brief Contingency table (`[T, chi2, p] = crosstab(x, y_opt)`).
 ///
@@ -752,9 +753,9 @@ cholcov(const Value &SIGMA, std::pmr::memory_resource *mr = nullptr);
 /// @param y_opt  Second column (`Value::Empty` for single-arg form).
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(T, chi2, p)` — table, χ² statistic, p-value.
-std::tuple<Value, double, double>
+std::tuple<Value, keel::f64, keel::f64>
 crosstab(const Value &x, const Value &y_opt = Value::Empty,
-         std::pmr::memory_resource *mr = nullptr);
+         keel::Allocator *mr = nullptr);
 
 /// @brief Per-group statistics (`grpstats(X, group, fn_names)`).
 ///
@@ -769,7 +770,7 @@ crosstab(const Value &x, const Value &y_opt = Value::Empty,
 /// @param mr        Memory resource (nullptr → process default).
 /// @return          Vector of result Values, one per aggregator.
 std::vector<Value>
-grpstats(const Value &X, const Value &group, const std::vector<std::string> &fn_names, std::pmr::memory_resource *mr = nullptr);
+grpstats(const Value &X, const Value &group, const std::vector<std::string> &fn_names, keel::Allocator *mr = nullptr);
 
 /// @brief Nearest correlation matrix (`Y = nearcorr(A)`).
 ///
@@ -783,7 +784,7 @@ grpstats(const Value &X, const Value &group, const std::vector<std::string> &fn_
 /// @param A   Input symmetric matrix (double or single).
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Nearest valid correlation matrix.
-Value nearcorr(const Value &A, std::pmr::memory_resource *mr = nullptr);
+Value nearcorr(const Value &A, keel::Allocator *mr = nullptr);
 
 /// @brief Result of `grp2idx` — `[G, GN, GL]`.
 struct Grp2idxResult {
@@ -808,7 +809,7 @@ struct Grp2idxResult {
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    @ref Grp2idxResult `{ G, GN, GL }` (GL == GN here).
 /// @throws Error if `s` is empty (no argument).
-Grp2idxResult grp2idx(const Value &s, std::pmr::memory_resource *mr = nullptr);
+Grp2idxResult grp2idx(const Value &s, keel::Allocator *mr = nullptr);
 
 /// @brief Replace outliers (`B = filloutliers(A, fillMethod, findMethod, tf)`).
 ///
@@ -833,8 +834,8 @@ Grp2idxResult grp2idx(const Value &s, std::pmr::memory_resource *mr = nullptr);
 /// @see isoutlier
 Value filloutliers(const Value &A, const Value &fillMethod,
                    const std::string &findMethod = "median",
-                   double thresholdFactor = std::numeric_limits<double>::quiet_NaN(),
-                   std::pmr::memory_resource *mr = nullptr);
+                   keel::f64 thresholdFactor = std::numeric_limits<keel::f64>::quiet_NaN(),
+                   keel::Allocator *mr = nullptr);
 
 
 /// @}

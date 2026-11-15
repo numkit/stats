@@ -3,6 +3,8 @@
 // CallContext register half of descriptive/crosstab.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
+#include <keel/core.h>
+#include <keel/ref.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/descriptive/descriptive.hpp>
 #include <numkit/stats/distributions/chi2.hpp>
@@ -10,14 +12,11 @@
 #include <numkit/value/value.hpp>
 #include "descriptive/crosstab_detail.hpp"
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <complex>
 #include <cstddef>
 #include <string>
 #include <tuple>
@@ -28,11 +27,11 @@ namespace numkit::stats {
 
 namespace detail {
 
-void crosstab_reg(Span<const Value> args, size_t nargout,
-                  Span<Value> outs, CallContext &ctx)
+void crosstab_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                  keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "crosstab");  // no max: name-value tail in the reference
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     const Value &y_opt = (args.size() >= 2) ? args[1] : Value::Empty;
     auto [T, chi2, p] = crosstab(args[0], y_opt, mr);
     outs[0] = std::move(T);
@@ -47,13 +46,13 @@ void crosstab_reg(Span<const Value> args, size_t nargout,
         uniques.push_back(sortedUniqueNoNaN(args[0]));
         if (!y_opt.isEmpty())
             uniques.push_back(sortedUniqueNoNaN(y_opt));
-        size_t maxR = 0;
+        keel::usize maxR = 0;
         for (const auto &u : uniques) maxR = std::max(maxR, u.size());
-        const size_t numVars = uniques.size();
+        const keel::usize numVars = uniques.size();
         Value labels = Value::cell(maxR, numVars, mr);
-        for (size_t j = 0; j < numVars; ++j) {
+        for (keel::usize j = 0; j < numVars; ++j) {
             const auto &u = uniques[j];
-            for (size_t i = 0; i < maxR; ++i) {
+            for (keel::usize i = 0; i < maxR; ++i) {
                 Value &cell = labels.cellAt(i + j * maxR);
                 cell = (i < u.size())
                            ? Value::fromString(labelString(u[i]), mr)

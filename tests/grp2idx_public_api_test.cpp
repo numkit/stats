@@ -33,7 +33,7 @@ TEST(Grp2idxPublicApi, Numeric)
     EXPECT_EQ(r.GN.numel(), 3u);
     EXPECT_EQ(r.GL.numel(), 3u); // GL == GN here
     // NaN -> NaN index, excluded from the group set
-    stats::Grp2idxResult rn = stats::grp2idx(gv(e, "[1 NaN 2]", "sn"), e.resource());
+    stats::Grp2idxResult rn = stats::grp2idx(gv(e, "[1 NaN 2]", "sn"), e.allocator());
     EXPECT_DOUBLE_EQ(rn.G.doubleData()[0], 1.0);
     EXPECT_TRUE(std::isnan(rn.G.doubleData()[1]));
     EXPECT_EQ(rn.GN.numel(), 2u);
@@ -43,7 +43,7 @@ TEST(Grp2idxPublicApi, Cellstr)
 {
     StandardEngine e;
     // cellstr: groups in first-appearance order {'b','a'}
-    stats::Grp2idxResult r = stats::grp2idx(gv(e, "{'b','a','b'}", "c"), e.resource());
+    stats::Grp2idxResult r = stats::grp2idx(gv(e, "{'b','a','b'}", "c"), e.allocator());
     ASSERT_EQ(r.G.numel(), 3u);
     EXPECT_DOUBLE_EQ(r.G.doubleData()[0], 1.0); // 'b' first
     EXPECT_DOUBLE_EQ(r.G.doubleData()[1], 2.0); // 'a' second

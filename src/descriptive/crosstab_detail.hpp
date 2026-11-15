@@ -3,9 +3,9 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
+#include <keel/core.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -13,7 +13,6 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
-#include <memory_resource>
 #include <numeric>
 #include <string>
 #include <tuple>
@@ -31,10 +30,10 @@ namespace {
 // Sorted-unique values from x (NaN excluded).
 std::vector<double> sortedUniqueNoNaN(const Value &x)
 {
-    const size_t N = x.numel();
+    const keel::usize N = x.numel();
     std::vector<double> v;
     v.reserve(N);
-    for (size_t i = 0; i < N; ++i) {
+    for (keel::usize i = 0; i < N; ++i) {
         const double xi = x.elemAsDouble(i);
         if (std::isnan(xi)) continue;
         v.push_back(xi);
@@ -45,10 +44,10 @@ std::vector<double> sortedUniqueNoNaN(const Value &x)
 }
 
 // Find index of value in sorted unique list (binary search).
-size_t indexOf(const std::vector<double> &u, double val)
+keel::usize indexOf(const std::vector<double> &u, double val)
 {
     auto it = std::lower_bound(u.begin(), u.end(), val);
-    return static_cast<size_t>(it - u.begin());
+    return static_cast<keel::usize>(it - u.begin());
 }
 
 // num2str-style label for a (typically integer) group value, matching

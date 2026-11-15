@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <memory_resource>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
 namespace numkit::stats {
@@ -27,7 +27,7 @@ namespace numkit::stats {
 /// @return       `N × 1` column of densities.
 /// @see mvtpdf, mnpdf
 Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
-             std::pmr::memory_resource *mr = nullptr);
+             keel::Allocator *mr = nullptr);
 
 /// @brief Multivariate Student-t pdf (`y = mvtpdf(X, C, df)`).
 ///
@@ -41,7 +41,7 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
 /// @return    `N × 1` column of densities.
 /// @see mvnpdf
 Value mvtpdf(const Value &X, const Value &C, const Value &df,
-             std::pmr::memory_resource *mr = nullptr);
+             keel::Allocator *mr = nullptr);
 
 /// @brief Multinomial pmf (`y = mnpdf(X, P)`).
 ///
@@ -52,7 +52,7 @@ Value mvtpdf(const Value &X, const Value &C, const Value &df,
 /// @return    `N × 1` column of probabilities.
 /// @see mvnpdf
 Value mnpdf(const Value &X, const Value &P,
-            std::pmr::memory_resource *mr = nullptr);
+            keel::Allocator *mr = nullptr);
 
 
 /// @}

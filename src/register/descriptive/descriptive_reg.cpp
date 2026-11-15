@@ -3,13 +3,18 @@
 // CallContext register half of descriptive/descriptive.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
+#include <keel/core.h>
+#include <keel/memory.h>
+#include <keel/ref.h>
+#include <keel/arena.h>
+#include <keel/array.h>
+#include <keel/complex.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/descriptive/descriptive.hpp>
 #include <numkit/stats/distributions/normal.hpp>     // norminv for corrcoef conf bounds
 #include <numkit/stats/distributions/students_t.hpp> // tcdf for corrcoef p-values
 #include <numkit/stats/nan_aware/nan_aware.hpp>  // var_reg / std_reg / median_reg dispatch into stats:: when 'omitnan' is given
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
 #include <numkit/value/value.hpp>
 #include <numkit/value/argcheck.hpp>
 #include "descriptive/descriptive_detail.hpp"
@@ -18,14 +23,11 @@
 #include <numkit/builtin/detail/datafun/var_reduction.hpp>
 #include <numkit/ops/reductions.hpp>
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
 
 #include <algorithm>
 #include <memory>
 #include <cctype>
 #include <cmath>
-#include <complex>
 #include <cstddef>
 #include <string>
 #include <tuple>
@@ -43,12 +45,12 @@ namespace detail {
 // MATLAB's documented denominator for weighted variance is Î£w (the
 // "default" for vector weights â€” equivalent to normFlag=1 semantics).
 // var(A, W, ...) with vector W therefore implies normFlag=1.
-double weightedVarFlat(const double *x, const double *w, size_t n,
+double weightedVarFlat(const double *x, const double *w, keel::usize n,
                        bool sqrtIt, bool omitNan)
 {
     if (n == 0) return std::numeric_limits<double>::quiet_NaN();
     double sw = 0.0, sxw = 0.0;
-    for (size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const double xi = x[i], wi = w[i];
         if (omitNan && std::isnan(xi)) continue;
         if (wi < 0.0)
@@ -60,7 +62,7 @@ double weightedVarFlat(const double *x, const double *w, size_t n,
     if (sw == 0.0) return std::numeric_limits<double>::quiet_NaN();
     const double mean = sxw / sw;
     double ss = 0.0;
-    for (size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const double xi = x[i], wi = w[i];
         if (omitNan && std::isnan(xi)) continue;
         const double d = xi - mean;
@@ -71,13 +73,13 @@ double weightedVarFlat(const double *x, const double *w, size_t n,
 }
 
 // Helper: scalar-normFlag variance/std on a flat 1-D array.
-double scalarVarFlat(const double *x, size_t n, int normFlag,
+double scalarVarFlat(const double *x, keel::usize n, int normFlag,
                      bool sqrtIt, bool omitNan)
 {
     if (n == 0) return std::numeric_limits<double>::quiet_NaN();
     double s = 0.0;
-    size_t cnt = 0;
-    for (size_t i = 0; i < n; ++i) {
+    keel::usize cnt = 0;
+    for (keel::usize i = 0; i < n; ++i) {
         if (omitNan && std::isnan(x[i])) continue;
         s += x[i]; ++cnt;
     }
@@ -86,7 +88,7 @@ double scalarVarFlat(const double *x, size_t n, int normFlag,
                                          : std::numeric_limits<double>::quiet_NaN();
     const double mean = s / static_cast<double>(cnt);
     double ss = 0.0;
-    for (size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         if (omitNan && std::isnan(x[i])) continue;
         const double d = x[i] - mean;
         ss += d * d;
@@ -102,7 +104,7 @@ double scalarVarFlat(const double *x, size_t n, int normFlag,
 std::vector<double> flatten(const Value &x)
 {
     std::vector<double> out(x.numel());
-    for (size_t i = 0; i < x.numel(); ++i) out[i] = x.elemAsDouble(i);
+    for (keel::usize i = 0; i < x.numel(); ++i) out[i] = x.elemAsDouble(i);
     return out;
 }
 
@@ -110,11 +112,11 @@ std::vector<double> flatten(const Value &x)
 // 'all', vecdim full-flatten, weight vector).
 //
 // `sqrtIt = true` makes this `std`.
-Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn,
-                     std::pmr::memory_resource *mr, Value *wOut = nullptr)
+Value varStdDispatch(keel::ArrayRef<Value> args, bool sqrtIt, const char *fn,
+                     keel::Allocator *mr, Value *wOut = nullptr)
 {
     bool omitNan = false;
-    size_t n = stripNanFlag(args, omitNan, fn);
+    keel::usize n = stripNanFlag(args, omitNan, fn);
 
     const Value &x = args[0];
     // Probed R2025b: the first input must be single or double
@@ -189,22 +191,22 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn,
         if (isWeightVec) {
             *wOut = *wVec;
         } else {
-            size_t wLen = 1;
+            keel::usize wLen = 1;
             if (flattenAll) {
                 wLen = x.numel();
             } else if (!vecdimSet.empty()) {
                 for (int d : vecdimSet) {
-                    if (d >= 1 && static_cast<size_t>(d) <= x.dims().ndim())
-                        wLen *= x.dims().dim(static_cast<size_t>(d - 1));
+                    if (d >= 1 && static_cast<keel::usize>(d) <= x.dims().ndim())
+                        wLen *= x.dims().dim(static_cast<keel::usize>(d - 1));
                 }
             } else {
                 const int effDim = (dim == 0) ? firstNonSingletonDim(x) : dim;
-                if (effDim >= 1 && static_cast<size_t>(effDim) <= x.dims().ndim())
-                    wLen = x.dims().dim(static_cast<size_t>(effDim - 1));
+                if (effDim >= 1 && static_cast<keel::usize>(effDim) <= x.dims().ndim())
+                    wLen = x.dims().dim(static_cast<keel::usize>(effDim - 1));
             }
             Value wv = Value::matrix(1, wLen, ValueType::DOUBLE, mr);
             double *wd = wv.doubleDataMut();
-            for (size_t i = 0; i < wLen; ++i) wd[i] = 1.0;
+            for (keel::usize i = 0; i < wLen; ++i) wd[i] = 1.0;
             *wOut = std::move(wv);
         }
     }
@@ -237,10 +239,10 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn,
         if (d != 1 && d != 2)
             throw Error(std::string(fn) + ": dim out of range",
                         0, 0, fn, "", std::string("numkit:") + fn + ":dim");
-        const size_t r = static_cast<size_t>(x.dims().dim(0));
-        const size_t c = static_cast<size_t>(x.dims().dim(1));
+        const keel::usize r = static_cast<keel::usize>(x.dims().dim(0));
+        const keel::usize c = static_cast<keel::usize>(x.dims().dim(1));
         auto wv = flatten(*wVec);
-        const size_t need = (d == 1) ? r : c;
+        const keel::usize need = (d == 1) ? r : c;
         if (wv.size() != need)
             throw Error(std::string(fn) + ": weight vector length must match "
                         "the length of the operating dimension",
@@ -249,8 +251,8 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn,
             auto out = Value::matrix(1, c, ValueType::DOUBLE, mr);
             double *od = out.doubleDataMut();
             std::vector<double> col(r);
-            for (size_t j = 0; j < c; ++j) {
-                for (size_t i = 0; i < r; ++i) col[i] = x.elemAsDouble(j * r + i);
+            for (keel::usize j = 0; j < c; ++j) {
+                for (keel::usize i = 0; i < r; ++i) col[i] = x.elemAsDouble(j * r + i);
                 od[j] = weightedVarFlat(col.data(), wv.data(), r, sqrtIt, omitNan);
             }
             return out;
@@ -258,8 +260,8 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn,
         auto out = Value::matrix(r, 1, ValueType::DOUBLE, mr);
         double *od = out.doubleDataMut();
         std::vector<double> row(c);
-        for (size_t i = 0; i < r; ++i) {
-            for (size_t j = 0; j < c; ++j) row[j] = x.elemAsDouble(j * r + i);
+        for (keel::usize i = 0; i < r; ++i) {
+            for (keel::usize j = 0; j < c; ++j) row[j] = x.elemAsDouble(j * r + i);
             od[i] = weightedVarFlat(row.data(), wv.data(), c, sqrtIt, omitNan);
         }
         return out;
@@ -311,27 +313,27 @@ Value varStdDispatch(Span<const Value> args, bool sqrtIt, const char *fn,
     return sqrtIt ? stdev(x, normFlag, dim, mr) : var(x, normFlag, dim, mr);
 }
 
-void var_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
+void var_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs,
              CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 4, "var");
     Value wOut;
-    outs[0] = varStdDispatch(args, /*sqrtIt=*/false, "var", ctx.engine->resource(),
+    outs[0] = varStdDispatch(args, /*sqrtIt=*/false, "var", ctx.engine->allocator(),
                              (nargout >= 2) ? &wOut : nullptr);
     if (nargout >= 2) outs[1] = std::move(wOut);
 }
 
-void std_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
+void std_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs,
              CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 4, "std");
     Value wOut;
-    outs[0] = varStdDispatch(args, /*sqrtIt=*/true, "std", ctx.engine->resource(),
+    outs[0] = varStdDispatch(args, /*sqrtIt=*/true, "std", ctx.engine->allocator(),
                              (nargout >= 2) ? &wOut : nullptr);
     if (nargout >= 2) outs[1] = std::move(wOut);
 }
 
-void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+void median_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs,
                 CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "median");  // no max: flag/option tail in the reference
@@ -341,13 +343,13 @@ void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     // result is left complex with all-zero imag).
     struct NarrowGuard {
         Value *v;
-        std::pmr::memory_resource *mr;
+        keel::Allocator *mr;
         ~NarrowGuard()
         {
             if (v->isComplex())
                 *v = numkit::narrowComplex(std::move(*v), mr);
         }
-    } narrowGuard{&outs[0], ctx.engine->resource()};
+    } narrowGuard{&outs[0], ctx.engine->allocator()};
     // Probed R2025b: median preserves the LOGICAL class (result is the
     // majority/rounded median re-narrowed to logical); integers already
     // round-and-saturate in the kernel. Runs on every exit path like
@@ -359,7 +361,7 @@ void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
             if (v->type() == ValueType::DOUBLE) {
                 Value lg = Value::matrix(v->dims().rows(), v->dims().cols(),
                                          ValueType::LOGICAL);
-                for (std::size_t i = 0; i < v->numel(); ++i)
+                for (keel::usize i = 0; i < v->numel(); ++i)
                     lg.logicalDataMut()[i] =
                         v->doubleData()[i] != 0.0 ? 1 : 0;
                 *v = std::move(lg);
@@ -371,7 +373,7 @@ void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         logicalGuard = std::make_unique<LogicalGuard>(
             LogicalGuard{&outs[0]});
     bool omitNan = false;
-    size_t n = stripNanFlag(args, omitNan, "median");
+    keel::usize n = stripNanFlag(args, omitNan, "median");
     int dim = 0;
     bool isAll = false;
     std::vector<int> vecdimSet;
@@ -400,64 +402,64 @@ void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         // Partial vecdim â€” same kernels as the scalar-dim path (the
         // NarrowGuard above still narrows an all-zero-imaginary result).
         Value c = vecdim::collapseDims(args[0], vecdimSet,
-                                       ctx.engine->resource());
+                                       ctx.engine->allocator());
         const int lastd = static_cast<int>(c.dims().ndim());
         if (omitNan) {
             rejectComplexOmitNan(args[0], "median");
-            Value r = ::numkit::stats::nanmedian(c, lastd, ctx.engine->resource());
+            Value r = ::numkit::stats::nanmedian(c, lastd, ctx.engine->allocator());
             if (args[0].type() == ValueType::SINGLE)
-                r = narrowToSingle(std::move(r), ctx.engine->resource());
+                r = narrowToSingle(std::move(r), ctx.engine->allocator());
             outs[0] = vecdim::expandReduced(std::move(r), args[0], vecdimSet,
-                                            ctx.engine->resource());
+                                            ctx.engine->allocator());
             return;
         }
-        outs[0] = vecdim::expandReduced(median(c, lastd, ctx.engine->resource()),
+        outs[0] = vecdim::expandReduced(median(c, lastd, ctx.engine->allocator()),
                                         args[0], vecdimSet,
-                                        ctx.engine->resource());
+                                        ctx.engine->allocator());
         return;
     }
     if (isAll) {
         // 'all' â†’ flatten + median over all elements (skipping NaN if omitnan).
         if (args[0].type() == ValueType::COMPLEX) {
-            const size_t total = args[0].numel();
-            ScratchArena scratch(ctx.engine->resource());
-            auto buf = ScratchVec<Complex>(total, &scratch);
-            const Complex *src = args[0].complexData();
-            size_t k = 0;
-            for (size_t i = 0; i < total; ++i) {
+            const keel::usize total = args[0].numel();
+            keel::ArenaTemp scratch = keel::get_scratch(ctx.engine->allocator());
+            auto buf = keel::Array<keel::c64>(total, scratch.allocator());
+            const keel::c64 *src = args[0].complexData();
+            keel::usize k = 0;
+            for (keel::usize i = 0; i < total; ++i) {
                 if (omitNan && isComplexNaNStats(src[i])) continue;
                 buf[k++] = src[i];
             }
             outs[0] = Value::complexScalar(complexMedianFromSlice(buf.data(), k),
-                                           ctx.engine->resource());
+                                           ctx.engine->allocator());
             return;
         }
-        const size_t total = args[0].numel();
-        ScratchArena scratch(ctx.engine->resource());
-        auto buf = ScratchVec<double>(total, &scratch);
+        const keel::usize total = args[0].numel();
+        keel::ArenaTemp scratch = keel::get_scratch(ctx.engine->allocator());
+        auto buf = keel::Array<double>(total, scratch.allocator());
         const bool fastDouble = (args[0].type() == ValueType::DOUBLE);
         if (fastDouble)
             std::copy(args[0].doubleData(), args[0].doubleData() + total, buf.data());
         else
-            for (size_t i = 0; i < total; ++i) buf[i] = args[0].elemAsDouble(i);
-        size_t k = total;
+            for (keel::usize i = 0; i < total; ++i) buf[i] = args[0].elemAsDouble(i);
+        keel::usize k = total;
         if (omitNan) k = compactNonNan(buf.data(), total);
         double v = medianFromSlice(buf.data(), k);
-        Value r = Value::scalar(v, ctx.engine->resource());
+        Value r = Value::scalar(v, ctx.engine->allocator());
         if (args[0].type() == ValueType::SINGLE)
-            r = narrowToSingle(std::move(r), ctx.engine->resource());
+            r = narrowToSingle(std::move(r), ctx.engine->allocator());
         outs[0] = std::move(r);
         return;
     }
     if (omitNan) {
         rejectComplexOmitNan(args[0], "median");
-        Value r = ::numkit::stats::nanmedian(args[0], dim, ctx.engine->resource());
+        Value r = ::numkit::stats::nanmedian(args[0], dim, ctx.engine->allocator());
         if (args[0].type() == ValueType::SINGLE)
-            r = narrowToSingle(std::move(r), ctx.engine->resource());
+            r = narrowToSingle(std::move(r), ctx.engine->allocator());
         outs[0] = std::move(r);
         return;
     }
-    outs[0] = median(args[0], dim, ctx.engine->resource());
+    outs[0] = median(args[0], dim, ctx.engine->allocator());
 }
 
 // Common parser for the trailing args of quantile/prctile:
@@ -476,11 +478,11 @@ struct QArgs {
     QMethod method = QMethod::Midpoint;
 };
 
-QArgs parseQArgs(Span<const Value> args, size_t start, const Value &x,
+QArgs parseQArgs(keel::ArrayRef<Value> args, keel::usize start, const Value &x,
                  const char *fn)
 {
     QArgs q;
-    size_t i = start;
+    keel::usize i = start;
     if (i < args.size() && !args[i].isChar() && !args[i].isString()
         && !args[i].isEmpty()) {
         if (args[i].numel() == 1) {
@@ -488,7 +490,7 @@ QArgs parseQArgs(Span<const Value> args, size_t start, const Value &x,
         } else {
             // Vecdim: covers-all-dims â†’ flatten; otherwise error.
             std::vector<int> dims;
-            for (size_t j = 0; j < args[i].numel(); ++j)
+            for (keel::usize j = 0; j < args[i].numel(); ++j)
                 dims.push_back(argcheck::dimArg(args[i].elemAsDouble(j), "median"));
             const int rank = x.dims().is3D() ? 3
                               : (x.dims().isVector() || x.isScalar() ? 1 : 2);
@@ -556,20 +558,20 @@ QArgs parseQArgs(Span<const Value> args, size_t start, const Value &x,
     return q;
 }
 
-void quantile_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+void quantile_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs,
                   CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "quantile");  // no max: name-value tail in the reference
     auto q = parseQArgs(args, 2, args[0], "quantile");
-    outs[0] = quantileWithOpts(args[0], args[1], q.dim, q.flatten, q.method, 1.0, "quantile", ctx.engine->resource());
+    outs[0] = quantileWithOpts(args[0], args[1], q.dim, q.flatten, q.method, 1.0, "quantile", ctx.engine->allocator());
 }
 
-void prctile_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+void prctile_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs,
                  CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "prctile");  // no max: name-value tail in the reference
     auto q = parseQArgs(args, 2, args[0], "prctile");
-    outs[0] = quantileWithOpts(args[0], args[1], q.dim, q.flatten, q.method, 0.01, "prctile", ctx.engine->resource());
+    outs[0] = quantileWithOpts(args[0], args[1], q.dim, q.flatten, q.method, 0.01, "prctile", ctx.engine->allocator());
 }
 
 // 3rd mode output C: a cell array of the modal values. Each cell holds a
@@ -577,37 +579,37 @@ void prctile_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 // slice, sorted ascending; MATLAB ignores NaN. Supported for a real DOUBLE
 // vector, 2-D matrix, or 'all'-flattened input.
 Value computeModeCell(const Value &x, int dim, bool flatten,
-                      std::pmr::memory_resource *mr)
+                      keel::Allocator *mr)
 {
     if (x.type() != ValueType::DOUBLE || x.dims().is3D() || x.dims().ndim() > 2)
         throw Error("mode: the 3rd output C is currently supported only for a "
                     "real double vector or 2-D matrix input",
                     0, 0, "mode", "", "numkit:mode:cellNd");
-    auto tiedCol = [&](const double *s, size_t stride, size_t n) -> Value {
+    auto tiedCol = [&](const double *s, keel::usize stride, keel::usize n) -> Value {
         std::vector<double> v;
         v.reserve(n);
-        for (size_t k = 0; k < n; ++k) {
+        for (keel::usize k = 0; k < n; ++k) {
             const double d = s[k * stride];
             if (!std::isnan(d)) v.push_back(d);
         }
         std::sort(v.begin(), v.end());
-        const size_t N = v.size();
-        size_t maxc = 0;
-        for (size_t i = 0; i < N;) {
-            size_t j = i;
+        const keel::usize N = v.size();
+        keel::usize maxc = 0;
+        for (keel::usize i = 0; i < N;) {
+            keel::usize j = i;
             while (j < N && v[j] == v[i]) ++j;
             if (j - i > maxc) maxc = j - i;
             i = j;
         }
         std::vector<double> tied;
-        for (size_t i = 0; i < N;) {
-            size_t j = i;
+        for (keel::usize i = 0; i < N;) {
+            keel::usize j = i;
             while (j < N && v[j] == v[i]) ++j;
             if (j - i == maxc) tied.push_back(v[i]);
             i = j;
         }
         Value col = Value::matrix(tied.size(), 1, ValueType::DOUBLE, mr);
-        for (size_t k = 0; k < tied.size(); ++k) col.doubleDataMut()[k] = tied[k];
+        for (keel::usize k = 0; k < tied.size(); ++k) col.doubleDataMut()[k] = tied[k];
         return col;
     };
     const double *data = x.numel() ? x.doubleData() : nullptr;
@@ -616,19 +618,19 @@ Value computeModeCell(const Value &x, int dim, bool flatten,
         cell.cellAt(0) = tiedCol(data, 1, x.numel());
         return cell;
     }
-    const size_t R = x.dims().rows(), Cn = x.dims().cols();
+    const keel::usize R = x.dims().rows(), Cn = x.dims().cols();
     const int rdim = (dim == 0) ? 1 : dim;
     if (rdim == 1) {
         Value cell = Value::cell(1, Cn, mr);
-        for (size_t c = 0; c < Cn; ++c) cell.cellAt(c) = tiedCol(data + c * R, 1, R);
+        for (keel::usize c = 0; c < Cn; ++c) cell.cellAt(c) = tiedCol(data + c * R, 1, R);
         return cell;
     }
     Value cell = Value::cell(R, 1, mr);
-    for (size_t r = 0; r < R; ++r) cell.cellAt(r) = tiedCol(data + r, R, Cn);
+    for (keel::usize r = 0; r < R; ++r) cell.cellAt(r) = tiedCol(data + r, R, Cn);
     return cell;
 }
 
-void mode_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
+void mode_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs,
               CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 2, "mode");
@@ -656,7 +658,7 @@ void mode_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
                 vecdimSet = std::move(set);
         }
     }
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     if (!vecdimSet.empty()) {
         // Partial vecdim â€” same kernels as the scalar-dim path; the
         // 3rd output's cell array reshapes through the same mechanism
@@ -694,16 +696,16 @@ void mode_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 
 // skewness_reg / kurtosis_reg moved to toolboxes/stats/src/moments/moments.cpp
 
-void cov_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+void cov_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs,
              CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 4, "cov");
-    std::pmr::memory_resource *mr = ctx.engine->resource();
+    keel::Allocator *mr = ctx.engine->allocator();
 
     // A trailing NaN-policy string ('includenan'|'omitrows'|'partialrows')
     // may follow any signature. Strip it; the remaining args are numeric.
     CovNan nanMode = CovNan::Include;
-    std::size_t nargs = args.size();
+    keel::usize nargs = args.size();
     if (nargs >= 2 && parseCovNanFlag(args[nargs - 1], nanMode))
         --nargs;
 
@@ -763,24 +765,24 @@ void cov_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 
 // Widen a single matrix to double (stats kernels are double-based; the
 // result narrows back â€” parity predicates cover the fp difference).
-static Value widenSingleToDouble(const Value &v, std::pmr::memory_resource *mr)
+static Value widenSingleToDouble(const Value &v, keel::Allocator *mr)
 {
     Value d = Value::matrix(v.dims().rows(), v.dims().cols(), ValueType::DOUBLE, mr);
     const float *sv = v.singleData();
     double *dv = d.doubleDataMut();
-    for (std::size_t i = 0; i < v.numel(); ++i)
+    for (keel::usize i = 0; i < v.numel(); ++i)
         dv[i] = static_cast<double>(sv[i]);
     return d;
 }
-void corrcoef_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
+void corrcoef_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs,
                   CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "corrcoef");  // no max: name-value tail in the reference
-    std::pmr::memory_resource *mr = ctx.engine->resource();
+    keel::Allocator *mr = ctx.engine->allocator();
     // Probed R2025b: integer inputs reject (mixedClasses); single
     // contagion; complex input is fine for R alone but rejects with a
     // ComplexInputs-class error once p-values are requested.
-    for (std::size_t i = 0; i < args.size(); ++i) {
+    for (keel::usize i = 0; i < args.size(); ++i) {
         const Value &a = args[i];
         if (a.isChar() || a.isString()) break;  // NV tail begins
         if (isIntegerType(a.type()))
@@ -791,7 +793,7 @@ void corrcoef_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 
     const bool twoArg =
         (args.size() >= 2 && !args[1].isChar() && !args[1].isString());
-    const std::size_t nvStart = twoArg ? 2 : 1;
+    const keel::usize nvStart = twoArg ? 2 : 1;
     // Single inputs widen to double for the kernels; the result narrows
     // back to single (the reference computes single end-to-end â€” parity
     // uses closeness predicates).
@@ -850,7 +852,7 @@ void corrcoef_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 
     if (rows == CorrcoefRows::Pairwise) {
         if (isVec) {
-            const std::size_t nValid = countCompleteRows(M);
+            const keel::usize nValid = countCompleteRows(M);
             Value rMat = Value::matrix(1, 1, ValueType::DOUBLE, mr);
             rMat.doubleDataMut()[0] = (nValid <= 1) ? std::nan("") : 1.0;
             outs[0] = rMat;
@@ -879,7 +881,7 @@ void corrcoef_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
 
     // Complete (listwise deletion).
     if (isVec) {
-        const std::size_t nValid = countCompleteRows(M);
+        const keel::usize nValid = countCompleteRows(M);
         Value rMat = Value::matrix(1, 1, ValueType::DOUBLE, mr);
         rMat.doubleDataMut()[0] = (nValid <= 1) ? std::nan("") : 1.0;
         outs[0] = rMat;

@@ -1,5 +1,7 @@
 // toolboxes/stats/src/distributions/ncx2.cpp
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/distributions/ncx2.hpp>
 
 #include <numkit/builtin/specfun.hpp>   // besseli, gammainc
@@ -26,7 +28,7 @@ inline bool ncx2_argcheck(double k, double lambda) noexcept
 }
 } // namespace
 
-Value ncx2pdf(const Value &x, double k, double lambda, std::pmr::memory_resource *mr)
+Value ncx2pdf(const Value &x, double k, double lambda, keel::Allocator *mr)
 {
     if (!ncx2_argcheck(k, lambda))
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -50,7 +52,7 @@ Value ncx2pdf(const Value &x, double k, double lambda, std::pmr::memory_resource
     }, mr);
 }
 
-Value ncx2cdf(const Value &x, double k, double lambda, std::pmr::memory_resource *mr)
+Value ncx2cdf(const Value &x, double k, double lambda, keel::Allocator *mr)
 {
     if (k <= 0.0 || lambda < 0.0)
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -59,7 +61,7 @@ Value ncx2cdf(const Value &x, double k, double lambda, std::pmr::memory_resource
     }, mr);
 }
 
-Value ncx2inv(const Value &p, double k, double lambda, std::pmr::memory_resource *mr)
+Value ncx2inv(const Value &p, double k, double lambda, keel::Allocator *mr)
 {
     if (k <= 0.0 || lambda < 0.0)
         return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -86,19 +88,19 @@ Value ncx2inv(const Value &p, double k, double lambda, std::pmr::memory_resource
     }, mr);
 }
 
-Value ncx2rnd(::numkit::ops::RngContext &rng, double k, double lambda, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value ncx2rnd(::numkit::ops::RngContext &rng, double k, double lambda, keel::usize rows, keel::usize cols, keel::Allocator *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (k <= 0.0 || lambda < 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
-    const size_t n = rows * cols;
+    const keel::usize n = rows * cols;
     // Draw J ~ Poisson(λ/2), then X ~ chi²(k + 2J) = Gamma(shape=k/2+J, scale=2).
     // λ == 0 is the CENTRAL χ²: the Poisson mean is 0, which
     // std::poisson_distribution rejects (MSVC Debug asserts) — J = 0.
     const bool central = (lambda == 0.0);
     std::poisson_distribution<int> pd(central ? 1.0 : lambda / 2.0);
-    for (size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const int J = central ? 0 : pd(gen);
         std::gamma_distribution<double> gd(k / 2.0 + double(J), 2.0);
         od[i] = gd(gen);

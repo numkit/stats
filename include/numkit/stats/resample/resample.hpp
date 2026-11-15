@@ -6,8 +6,9 @@
 
 #pragma once
 
-#include <memory_resource>
-#include <numkit/value/span.hpp>
+#include <keel/core.h>
+#include <keel/memory.h>
+#include <keel/ref.h>
 #include <numkit/value/value.hpp>
 
 namespace numkit {
@@ -34,7 +35,7 @@ namespace numkit::stats {
 /// @return                  `K × 1` column of 1-based indices.
 /// @see datasample
 Value randsample(::numkit::ops::RngContext &rng, int N, int K, bool with_replacement, const Value &weights,
-                 std::pmr::memory_resource *mr = nullptr);
+                 keel::Allocator *mr = nullptr);
 
 /// @brief Sample rows / columns of an array
 /// (`Y = datasample(X, K, dim, replacement, weights)`).
@@ -50,7 +51,7 @@ Value randsample(::numkit::ops::RngContext &rng, int N, int K, bool with_replace
 /// @return                  Subsample of `X`.
 /// @see randsample
 Value datasample(::numkit::ops::RngContext &rng, const Value &X, int K, int dim, bool with_replacement,
-                 const Value &weights, std::pmr::memory_resource *mr = nullptr);
+                 const Value &weights, keel::Allocator *mr = nullptr);
 
 /// @brief Full `randsample` entry — the complete parse+validate+compute
 /// contract (probed R2025b, build/probe75.m S-series): count vs
@@ -58,8 +59,8 @@ Value datasample(::numkit::ops::RngContext &rng, const Value &X, int K, int dim,
 /// REPLACE as true/false/1/0/'true'/'false', the positional weight
 /// vector (length-N non-negative with positive sum), SampleTooLarge /
 /// EmptyPopulation / NoWeighting / BadPopulation classes.
-Value randsample_full(::numkit::ops::RngContext &rng, Span<const Value> args,
-                      std::pmr::memory_resource *mr = nullptr);
+Value randsample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args,
+                      keel::Allocator *mr = nullptr);
 
 /// @brief Full `datasample` entry (probed R2025b, probe75.m D-series):
 /// K must be a non-negative integer, dim is the positional non-string
@@ -67,8 +68,8 @@ Value randsample_full(::numkit::ops::RngContext &rng, Span<const Value> args,
 /// a LOGICAL scalar only, Weights match the sampled dimension, plus
 /// EmptyData / SampleTooLarge / TooFewPosWeights classes; gathers
 /// along any dim (N-D included).
-Value datasample_full(::numkit::ops::RngContext &rng, Span<const Value> args,
-                      std::pmr::memory_resource *mr = nullptr);
+Value datasample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args,
+                      keel::Allocator *mr = nullptr);
 
 // NOTE: bootstrp / jackknife are not exposed as Engine-free C++ cores — they
 // must invoke a user statistic via the engine, so the logic lives inline in
@@ -83,7 +84,7 @@ Value datasample_full(::numkit::ops::RngContext &rng, Span<const Value> args,
 /// @return    `C(N, K) × K` DOUBLE matrix of combinations.
 /// @throws Error  `K` out of `[0, N]`.
 Value combnk(int N, int K,
-             std::pmr::memory_resource *mr = nullptr);
+             keel::Allocator *mr = nullptr);
 
 /// @brief Enumerate `K`-combinations of an arbitrary vector
 /// (`C = combnk(v, K)`).
@@ -94,8 +95,8 @@ Value combnk(int N, int K,
 /// @return    `C(n, K) × K` DOUBLE matrix of combinations of `v`'s
 ///            elements.
 /// @throws Error  `K` out of `[0, v.size()]`.
-Value combnk(Span<const double> v, int K,
-             std::pmr::memory_resource *mr = nullptr);
+Value combnk(keel::ArrayRef<keel::f64> v, int K,
+             keel::Allocator *mr = nullptr);
 
 
 /// @}

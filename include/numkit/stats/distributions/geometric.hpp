@@ -7,7 +7,8 @@
 
 #pragma once
 
-#include <memory_resource>
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
 #include <tuple>
@@ -31,8 +32,8 @@ namespace numkit::stats {
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Array of pmf values, same shape as `k`.
 /// @see geocdf, geoinv, geornd, geostat
-Value geopdf(const Value &k, double p,
-             std::pmr::memory_resource *mr = nullptr);
+Value geopdf(const Value &k, keel::f64 p,
+             keel::Allocator *mr = nullptr);
 
 /// @brief Geometric cdf (`F = geocdf(k, p)`).
 ///
@@ -43,8 +44,8 @@ Value geopdf(const Value &k, double p,
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Array of cdf values in `[0, 1]`.
 /// @see geopdf, geoinv
-Value geocdf(const Value &k, double p,
-             std::pmr::memory_resource *mr = nullptr);
+Value geocdf(const Value &k, keel::f64 p,
+             keel::Allocator *mr = nullptr);
 
 /// @brief Geometric inverse cdf (`k = geoinv(q, p)`).
 ///
@@ -55,8 +56,8 @@ Value geocdf(const Value &k, double p,
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Quantile array, same shape as `q`.
 /// @see geocdf
-Value geoinv(const Value &q, double p,
-             std::pmr::memory_resource *mr = nullptr);
+Value geoinv(const Value &q, keel::f64 p,
+             keel::Allocator *mr = nullptr);
 
 /// @brief Geometric random samples (`r = geornd(p, rows, cols)`).
 ///
@@ -66,8 +67,8 @@ Value geoinv(const Value &q, double p,
 /// @param mr    Memory resource (nullptr → process default).
 /// @return      `rows × cols` matrix of geometric samples (failure counts).
 /// @see geopdf
-Value geornd(::numkit::ops::RngContext &rng, double p, size_t rows = 1, size_t cols = 1,
-             std::pmr::memory_resource *mr = nullptr);
+Value geornd(::numkit::ops::RngContext &rng, keel::f64 p, keel::usize rows = 1, keel::usize cols = 1,
+             keel::Allocator *mr = nullptr);
 
 /// @brief Geometric mean and variance (`[m, v] = geostat(p)`).
 ///
@@ -76,7 +77,7 @@ Value geornd(::numkit::ops::RngContext &rng, double p, size_t rows = 1, size_t c
 /// @param p  Success probability per trial.
 /// @return   `{mean, variance}` pair.
 /// @see geopdf
-std::tuple<double, double> geostat(double p);
+std::tuple<keel::f64, keel::f64> geostat(keel::f64 p);
 
 
 /// @}

@@ -3,24 +3,24 @@
 // CallContext register half of fit/fit.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
+#include <keel/core.h>
+#include <keel/memory.h>
+#include <keel/ref.h>
+#include <keel/math.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/distributions/beta.hpp>
 #include <numkit/stats/distributions/chi2.hpp>
 #include <numkit/stats/distributions/students_t.hpp>
 #include <numkit/stats/fit/fit.hpp>
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
 #include <numkit/value/value.hpp>
 #include "fit/fit_detail.hpp"
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <complex>
 #include <cstddef>
 #include <string>
 #include <tuple>
@@ -31,61 +31,61 @@ namespace numkit::stats {
 
 namespace detail {
 
-static double parse_alpha_arg(Span<const Value> args, size_t pos, double def) {
+static double parse_alpha_arg(keel::ArrayRef<Value> args, keel::usize pos, double def) {
     if (pos >= args.size() || args[pos].isEmpty()) return def;
     return args[pos].toScalar();
 }
 
-void normfit_reg(Span<const Value> args, size_t nargout,
-                 Span<Value> outs, CallContext &ctx)
+void normfit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                 keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 5, "normfit");
     const double alpha = parse_alpha_arg(args, 1, 0.05);
     const Value &cens = (args.size() > 2) ? args[2] : Value::Empty;
     const Value &freq = (args.size() > 3) ? args[3] : Value::Empty;
-    auto [mu, sd, muci, sdci] = normfit(args[0], alpha, cens, freq, ctx.engine->resource());
+    auto [mu, sd, muci, sdci] = normfit(args[0], alpha, cens, freq, ctx.engine->allocator());
     outs[0] = std::move(mu);
     if (nargout > 1) outs[1] = std::move(sd);
     if (nargout > 2) outs[2] = std::move(muci);
     if (nargout > 3) outs[3] = std::move(sdci);
 }
 
-void poissfit_reg(Span<const Value> args, size_t nargout,
-                  Span<Value> outs, CallContext &ctx)
+void poissfit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                  keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 2, "poissfit");
     const double alpha = parse_alpha_arg(args, 1, 0.05);
-    auto [lam, ci] = poissfit(args[0], alpha, ctx.engine->resource());
+    auto [lam, ci] = poissfit(args[0], alpha, ctx.engine->allocator());
     outs[0] = std::move(lam);
     if (nargout > 1) outs[1] = std::move(ci);
 }
 
-void expfit_reg(Span<const Value> args, size_t nargout,
-                Span<Value> outs, CallContext &ctx)
+void expfit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 4, "expfit");
     const double alpha = parse_alpha_arg(args, 1, 0.05);
     const Value &cens = (args.size() > 2) ? args[2] : Value::Empty;
     const Value &freq = (args.size() > 3) ? args[3] : Value::Empty;
-    auto [mu, ci] = expfit(args[0], alpha, cens, freq, ctx.engine->resource());
+    auto [mu, ci] = expfit(args[0], alpha, cens, freq, ctx.engine->allocator());
     outs[0] = std::move(mu);
     if (nargout > 1) outs[1] = std::move(ci);
 }
 
-void unifit_reg(Span<const Value> args, size_t nargout,
-                Span<Value> outs, CallContext &ctx)
+void unifit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 2, "unifit");
     const double alpha = parse_alpha_arg(args, 1, 0.05);
-    auto [a, b, aci, bci] = unifit(args[0], alpha, ctx.engine->resource());
+    auto [a, b, aci, bci] = unifit(args[0], alpha, ctx.engine->allocator());
     outs[0] = std::move(a);
     if (nargout > 1) outs[1] = std::move(b);
     if (nargout > 2) outs[2] = std::move(aci);
     if (nargout > 3) outs[3] = std::move(bci);
 }
 
-void lognfit_reg(Span<const Value> args, size_t nargout,
-                 Span<Value> outs, CallContext &ctx)
+void lognfit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                 keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 5, "lognfit");
     const double alpha = parse_alpha_arg(args, 1, 0.05);
@@ -93,27 +93,27 @@ void lognfit_reg(Span<const Value> args, size_t nargout,
     // 5th = options struct (silently ignored — we use fixed 200 / 1e-10).
     const Value &cens = (args.size() > 2) ? args[2] : Value::Empty;
     const Value &freq = (args.size() > 3) ? args[3] : Value::Empty;
-    auto [parm, pci] = lognfit(args[0], alpha, cens, freq, ctx.engine->resource());
+    auto [parm, pci] = lognfit(args[0], alpha, cens, freq, ctx.engine->allocator());
     outs[0] = std::move(parm);
     if (nargout > 1) outs[1] = std::move(pci);
 }
 
-void binofit_reg(Span<const Value> args, size_t nargout,
-                 Span<Value> outs, CallContext &ctx)
+void binofit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                 keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 3, "binofit");
     const double alpha = parse_alpha_arg(args, 2, 0.05);
-    auto [phat, pci] = binofit(args[0], args[1], alpha, ctx.engine->resource());
+    auto [phat, pci] = binofit(args[0], args[1], alpha, ctx.engine->allocator());
     outs[0] = std::move(phat);
     if (nargout > 1) outs[1] = std::move(pci);
 }
 
-void raylfit_reg(Span<const Value> args, size_t nargout,
-                 Span<Value> outs, CallContext &ctx)
+void raylfit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                 keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 2, "raylfit");
     const double alpha = parse_alpha_arg(args, 1, 0.05);
-    auto [shat, sci] = raylfit(args[0], alpha, ctx.engine->resource());
+    auto [shat, sci] = raylfit(args[0], alpha, ctx.engine->allocator());
     outs[0] = std::move(shat);
     if (nargout > 1) outs[1] = std::move(sci);
 }
@@ -147,8 +147,8 @@ static void fill_fd_avar2(double *p, double p0, double p1,
         p[0] = NaNd; p[1] = NaNd; p[2] = NaNd; p[3] = NaNd;
         return;
     }
-    const double h0 = std::max(1e-4, 1e-4 * std::abs(p0));
-    const double h1 = std::max(1e-4, 1e-4 * std::abs(p1));
+    const double h0 = std::max(1e-4, 1e-4 * keel::abs(p0));
+    const double h1 = std::max(1e-4, 1e-4 * keel::abs(p1));
     const double f_p0 = eval_nL(p0 + h0, p1);
     const double f_m0 = eval_nL(p0 - h0, p1);
     const double f_p1 = eval_nL(p0, p1 + h1);
@@ -184,9 +184,9 @@ static void fill_fd_avar3(double *p, double p0, double p1, double p2,
     };
     if (!std::isfinite(nL)) { setNaN(); return; }
 
-    const double h0 = std::max(1e-4, 1e-4 * std::abs(p0));
-    const double h1 = std::max(1e-4, 1e-4 * std::abs(p1));
-    const double h2 = std::max(1e-4, 1e-4 * std::abs(p2));
+    const double h0 = std::max(1e-4, 1e-4 * keel::abs(p0));
+    const double h1 = std::max(1e-4, 1e-4 * keel::abs(p1));
+    const double h2 = std::max(1e-4, 1e-4 * keel::abs(p2));
     auto e = [&](double q0, double q1, double q2) { return eval_nL(q0, q1, q2); };
     // Diagonal entries.
     const double H00 = (e(p0+h0,p1,p2) - 2.0*nL + e(p0-h0,p1,p2)) / (h0*h0);
@@ -224,8 +224,8 @@ static void fill_fd_avar3(double *p, double p0, double p1, double p2,
 }
 
 [[maybe_unused]] static void like2_reg(const char *fn,
-                      double (*impl)(double, double, const Value &, std::pmr::memory_resource *),
-                      Span<const Value> args, Span<Value> outs,
+                      double (*impl)(double, double, const Value &, keel::Allocator *),
+                      keel::ArrayRef<Value> args, keel::MutArrayRef<Value> outs,
                       CallContext &ctx)
 {
     if (args.size() < 2 || args[0].numel() < 2)
@@ -233,12 +233,12 @@ static void fill_fd_avar3(double *p, double p0, double p1, double p2,
                     0, 0, fn, "", "numkit:like:nargin");
     const double p0 = args[0].elemAsDouble(0);
     const double p1 = args[0].elemAsDouble(1);
-    const double nL = impl(p0, p1, args[1], ctx.engine->resource());
-    outs[0] = Value::scalar(nL, ctx.engine->resource());
+    const double nL = impl(p0, p1, args[1], ctx.engine->allocator());
+    outs[0] = Value::scalar(nL, ctx.engine->allocator());
 }
 
-void normlike_reg(Span<const Value> args, size_t nargout,
-                  Span<Value> outs, CallContext &ctx)
+void normlike_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                  keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 4, "normlike");
     if (args[0].numel() < 2)
@@ -246,17 +246,17 @@ void normlike_reg(Span<const Value> args, size_t nargout,
                     0, 0, "normlike", "", "numkit:normlike:nargin");
     const double mu    = args[0].elemAsDouble(0);
     const double sigma = args[0].elemAsDouble(1);
-    Value emptyVal = Value::matrix(0, 0, ValueType::DOUBLE, ctx.engine->resource());
+    Value emptyVal = Value::matrix(0, 0, ValueType::DOUBLE, ctx.engine->allocator());
     const Value &cens = (args.size() >= 3) ? args[2] : emptyVal;
     const Value &freq = (args.size() >= 4) ? args[3] : emptyVal;
-    const double nL = normlike(mu, sigma, args[1], cens, freq, ctx.engine->resource());
-    outs[0] = Value::scalar(nL, ctx.engine->resource());
+    const double nL = normlike(mu, sigma, args[1], cens, freq, ctx.engine->allocator());
+    outs[0] = Value::scalar(nL, ctx.engine->allocator());
 
     // Second output: aVar = inv(observed Fisher information).
     // Order [mu, sigma]; symmetric 2×2.
     if (nargout >= 2) {
         const Value &x = args[1];
-        const size_t N = x.numel();
+        const keel::usize N = x.numel();
         const bool useC = cens.numel() > 0;
         const bool useF = freq.numel() > 0;
         // Observed information I (= positive Hessian of nL):
@@ -276,7 +276,7 @@ void normlike_reg(Span<const Value> args, size_t nargout,
         const double sqrt2_inv   = 1.0 / std::sqrt(2.0);
         double I00 = 0.0, I01 = 0.0, I11 = 0.0;
         bool nanSeen = false;
-        for (size_t i = 0; i < N; ++i) {
+        for (keel::usize i = 0; i < N; ++i) {
             const double w = useF ? freq.elemAsDouble(i) : 1.0;
             if (w == 0.0) continue;
             const double xi = x.elemAsDouble(i);
@@ -299,7 +299,7 @@ void normlike_reg(Span<const Value> args, size_t nargout,
             }
         }
         const double NaNd = std::numeric_limits<double>::quiet_NaN();
-        Value av = Value::matrix(2, 2, ValueType::DOUBLE, ctx.engine->resource());
+        Value av = Value::matrix(2, 2, ValueType::DOUBLE, ctx.engine->allocator());
         double *p = av.doubleDataMut();
         if (nanSeen || N == 0 || !(sigma > 0.0)) {
             p[0] = NaNd; p[1] = NaNd; p[2] = NaNd; p[3] = NaNd;
@@ -320,14 +320,14 @@ void normlike_reg(Span<const Value> args, size_t nargout,
     }
 }
 
-void lognlike_reg(Span<const Value> args, size_t nargout,
-                  Span<Value> outs, CallContext &ctx)
+void lognlike_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                  keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 4, "lognlike");
     if (args[0].numel() < 2)
         throw Error("lognlike: requires (params=[mu sigma], data[, cens, freq])",
                     0, 0, "lognlike", "", "numkit:lognlike:nargin");
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     const double mu    = args[0].elemAsDouble(0);
     const double sigma = args[0].elemAsDouble(1);
     Value emptyVal = Value::matrix(0, 0, ValueType::DOUBLE, mr);
@@ -340,14 +340,14 @@ void lognlike_reg(Span<const Value> args, size_t nargout,
     if (nargout >= 2) outs[1] = std::move(av);
 }
 
-void gamlike_reg(Span<const Value> args, size_t nargout,
-                 Span<Value> outs, CallContext &ctx)
+void gamlike_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                 keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 4, "gamlike");
     if (args[0].numel() < 2)
         throw Error("gamlike: requires (params=[a b], data)",
                     0, 0, "gamlike", "", "numkit:gamlike:nargin");
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     const double a  = args[0].elemAsDouble(0);
     const double b  = args[0].elemAsDouble(1);
     const Value &x  = args[1];
@@ -364,14 +364,14 @@ void gamlike_reg(Span<const Value> args, size_t nargout,
     }
 }
 
-void betalike_reg(Span<const Value> args, size_t nargout,
-                  Span<Value> outs, CallContext &ctx)
+void betalike_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                  keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 2, "betalike");
     if (args[0].numel() < 2)
         throw Error("betalike: requires (params=[a b], data)",
                     0, 0, "betalike", "", "numkit:betalike:nargin");
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     const double a  = args[0].elemAsDouble(0);
     const double b  = args[0].elemAsDouble(1);
     const Value &x  = args[1];
@@ -390,7 +390,7 @@ void betalike_reg(Span<const Value> args, size_t nargout,
         Value av = Value::matrix(2, 2, ValueType::DOUBLE, mr);
         double *p = av.doubleDataMut();
         const double NaNd = std::numeric_limits<double>::quiet_NaN();
-        const size_t N = x.numel();
+        const keel::usize N = x.numel();
         if (!std::isfinite(nL) || !(a > 0.0) || !(b > 0.0) || N == 0) {
             p[0] = NaNd; p[1] = NaNd; p[2] = NaNd; p[3] = NaNd;
         } else {
@@ -398,7 +398,7 @@ void betalike_reg(Span<const Value> args, size_t nargout,
             const double Cb = -digamma(b) + digamma(a + b);
             double Iaa = 0.0, Ibb = 0.0, Iab = 0.0;
             bool bad = false;
-            for (size_t i = 0; i < N; ++i) {
+            for (keel::usize i = 0; i < N; ++i) {
                 const double xi = x.elemAsDouble(i);
                 if (xi <= 0.0 || xi >= 1.0) { bad = true; break; }
                 const double sa = std::log(xi)    + Ca;
@@ -422,8 +422,8 @@ void betalike_reg(Span<const Value> args, size_t nargout,
     }
 }
 
-void wbllike_reg(Span<const Value> args, size_t /*nargout*/,
-                 Span<Value> outs, CallContext &ctx)
+void wbllike_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
+                 keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 4, "wbllike");
     if (args[0].numel() < 2)
@@ -431,17 +431,17 @@ void wbllike_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "wbllike", "", "numkit:wbllike:nargin");
     const double scale = args[0].elemAsDouble(0);
     const double shape = args[0].elemAsDouble(1);
-    Value emptyVal = Value::matrix(0, 0, ValueType::DOUBLE, ctx.engine->resource());
+    Value emptyVal = Value::matrix(0, 0, ValueType::DOUBLE, ctx.engine->allocator());
     const Value &cens = (args.size() >= 3) ? args[2] : emptyVal;
     const Value &freq = (args.size() >= 4) ? args[3] : emptyVal;
-    const double nL = wbllike_full(scale, shape, args[1], cens, freq, ctx.engine->resource());
-    outs[0] = Value::scalar(nL, ctx.engine->resource());
+    const double nL = wbllike_full(scale, shape, args[1], cens, freq, ctx.engine->allocator());
+    outs[0] = Value::scalar(nL, ctx.engine->allocator());
     // AVAR (2-output form): not yet implemented; observed Fisher info
     // for Weibull has nontrivial mixed partials. Deferred.
 }
 
-void evlike_reg(Span<const Value> args, size_t /*nargout*/,
-                Span<Value> outs, CallContext &ctx)
+void evlike_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
+                keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 4, "evlike");
     if (args[0].numel() < 2)
@@ -449,21 +449,21 @@ void evlike_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "evlike", "", "numkit:evlike:nargin");
     const double mu    = args[0].elemAsDouble(0);
     const double sigma = args[0].elemAsDouble(1);
-    Value emptyVal = Value::matrix(0, 0, ValueType::DOUBLE, ctx.engine->resource());
+    Value emptyVal = Value::matrix(0, 0, ValueType::DOUBLE, ctx.engine->allocator());
     const Value &cens = (args.size() >= 3) ? args[2] : emptyVal;
     const Value &freq = (args.size() >= 4) ? args[3] : emptyVal;
-    const double nL = evlike_full(mu, sigma, args[1], cens, freq, ctx.engine->resource());
-    outs[0] = Value::scalar(nL, ctx.engine->resource());
+    const double nL = evlike_full(mu, sigma, args[1], cens, freq, ctx.engine->allocator());
+    outs[0] = Value::scalar(nL, ctx.engine->allocator());
     // AVAR (2-output form): not yet implemented — observed Fisher info
     // for Gumbel-min has nontrivial cross-terms; deferred. See
     // for the partial-closure note.
 }
 
-void explike_reg(Span<const Value> args, size_t nargout,
-                 Span<Value> outs, CallContext &ctx)
+void explike_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                 keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 4, "explike");
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     const double mu = args[0].toScalar();
     Value emptyVal = Value::matrix(0, 0, ValueType::DOUBLE, mr);
     const Value &cens = (args.size() >= 3) ? args[2] : emptyVal;
@@ -475,14 +475,14 @@ void explike_reg(Span<const Value> args, size_t nargout,
     if (nargout >= 2) outs[1] = Value::scalar(avar, mr);
 }
 
-void gevlike_reg(Span<const Value> args, size_t nargout,
-                 Span<Value> outs, CallContext &ctx)
+void gevlike_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                 keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 2, "gevlike");
     if (args[0].numel() < 3)
         throw Error("gevlike: requires (params=[k sigma mu], data)",
                     0, 0, "gevlike", "", "numkit:gevlike:nargin");
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     const double k     = args[0].elemAsDouble(0);
     const double sigma = args[0].elemAsDouble(1);
     const double mu    = args[0].elemAsDouble(2);
@@ -499,14 +499,14 @@ void gevlike_reg(Span<const Value> args, size_t nargout,
     }
 }
 
-void gplike_reg(Span<const Value> args, size_t nargout,
-                Span<Value> outs, CallContext &ctx)
+void gplike_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 2, "gplike");
     if (args[0].numel() < 2)
         throw Error("gplike: requires (params=[k sigma], data)",
                     0, 0, "gplike", "", "numkit:gplike:nargin");
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     const double k     = args[0].elemAsDouble(0);
     const double sigma = args[0].elemAsDouble(1);
     const Value &x     = args[1];
@@ -528,13 +528,13 @@ void gplike_reg(Span<const Value> args, size_t nargout,
 //   'lognormal':   [muhat, sigmahat] of log(x)
 // Custom 'pdf'/'logpdf'/'nloglf' with 'start' x0 deferred -- needs
 // Nelder-Mead simplex over a function-handle nLL.
-void mle_reg(Span<const Value> args, size_t nargout,
-             Span<Value> outs, CallContext &ctx)
+void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+             keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "mle");  // no max: name-value tail in the reference
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     const Value &x = args[0];
-    const std::size_t N = x.numel();
+    const keel::usize N = x.numel();
     if (N < 2)
         throw Error("mle: need at least 2 observations",
                     0, 0, "mle", "", "numkit:mle:tooSmall");
@@ -553,7 +553,7 @@ void mle_reg(Span<const Value> args, size_t nargout,
             ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
         return s;
     };
-    for (std::size_t i = 1; i + 1 < args.size(); i += 2) {
+    for (keel::usize i = 1; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error("mle: option name must be a string",
                         0, 0, "mle", "", "numkit:mle:badOption");
@@ -604,16 +604,16 @@ void mle_reg(Span<const Value> args, size_t nargout,
         if (start_val.isEmpty() || start_val.numel() == 0)
             throw Error("mle: custom '" + custom_kind + "' requires a non-empty 'start' parameter vector",
                         0, 0, "mle", "", "numkit:mle:missingStart");
-        const std::size_t K = start_val.numel();
+        const keel::usize K = start_val.numel();
         std::vector<double> p0(K), lb(K, -std::numeric_limits<double>::infinity()),
                             ub(K,  std::numeric_limits<double>::infinity());
-        for (std::size_t k = 0; k < K; ++k) p0[k] = start_val.elemAsDouble(k);
+        for (keel::usize k = 0; k < K; ++k) p0[k] = start_val.elemAsDouble(k);
         if (!lower_val.isEmpty()) {
-            for (std::size_t k = 0; k < K && k < lower_val.numel(); ++k)
+            for (keel::usize k = 0; k < K && k < lower_val.numel(); ++k)
                 lb[k] = lower_val.elemAsDouble(k);
         }
         if (!upper_val.isEmpty()) {
-            for (std::size_t k = 0; k < K && k < upper_val.numel(); ++k)
+            for (keel::usize k = 0; k < K && k < upper_val.numel(); ++k)
                 ub[k] = upper_val.elemAsDouble(k);
         }
         Value censV = cens_val.isEmpty() ? Value::matrix(x.dims().rows(), x.dims().cols(), ValueType::DOUBLE, mr) : cens_val;
@@ -621,26 +621,26 @@ void mle_reg(Span<const Value> args, size_t nargout,
         if (freqV.isEmpty()) {
             freqV = Value::matrix(x.dims().rows(), x.dims().cols(), ValueType::DOUBLE, mr);
             double *fd = freqV.doubleDataMut();
-            for (std::size_t i = 0; i < N; ++i) fd[i] = 1.0;
+            for (keel::usize i = 0; i < N; ++i) fd[i] = 1.0;
         }
 
         const double bigPen = 1e100;
         auto evalNLL = [&](const std::vector<double> &theta) -> double {
-            for (std::size_t k = 0; k < K; ++k) {
+            for (keel::usize k = 0; k < K; ++k) {
                 if (!std::isfinite(theta[k]) || theta[k] < lb[k] || theta[k] > ub[k])
                     return bigPen;
             }
             try {
                 if (custom_kind == "nloglf") {
                     Value pVec = Value::matrix(1, K, ValueType::DOUBLE, mr);
-                    for (std::size_t k = 0; k < K; ++k) pVec.doubleDataMut()[k] = theta[k];
+                    for (keel::usize k = 0; k < K; ++k) pVec.doubleDataMut()[k] = theta[k];
                     Value res;
                     try {
                         Value cargs4[4] = { pVec, x, censV, freqV };
-                        res = ctx.engine->callFunctionHandle(custom_fh, Span<const Value>(cargs4, 4), ctx.env);
+                        res = ctx.engine->callFunctionHandle(custom_fh, keel::ArrayRef<Value>(cargs4, 4), ctx.env);
                     } catch (...) {
                         Value cargs2[2] = { pVec, x };
-                        res = ctx.engine->callFunctionHandle(custom_fh, Span<const Value>(cargs2, 2), ctx.env);
+                        res = ctx.engine->callFunctionHandle(custom_fh, keel::ArrayRef<Value>(cargs2, 2), ctx.env);
                     }
                     const double v = res.toScalar();
                     return std::isfinite(v) ? v : bigPen;
@@ -651,19 +651,19 @@ void mle_reg(Span<const Value> args, size_t nargout,
                     std::vector<Value> cargs;
                     cargs.reserve(1 + K);
                     cargs.push_back(x);
-                    for (std::size_t k = 0; k < K; ++k)
+                    for (keel::usize k = 0; k < K; ++k)
                         cargs.push_back(Value::scalar(theta[k], mr));
                     vals = ctx.engine->callFunctionHandle(
-                        custom_fh, Span<const Value>(cargs.data(), cargs.size()), ctx.env);
+                        custom_fh, keel::ArrayRef<Value>(cargs.data(), cargs.size()), ctx.env);
                 } catch (...) {
                     Value pVec = Value::matrix(1, K, ValueType::DOUBLE, mr);
-                    for (std::size_t k = 0; k < K; ++k) pVec.doubleDataMut()[k] = theta[k];
+                    for (keel::usize k = 0; k < K; ++k) pVec.doubleDataMut()[k] = theta[k];
                     Value cargs2[2] = { x, pVec };
-                    vals = ctx.engine->callFunctionHandle(custom_fh, Span<const Value>(cargs2, 2), ctx.env);
+                    vals = ctx.engine->callFunctionHandle(custom_fh, keel::ArrayRef<Value>(cargs2, 2), ctx.env);
                 }
                 double nll = 0.0;
                 const bool isLog = (custom_kind == "logpdf");
-                for (std::size_t i = 0; i < N; ++i) {
+                for (keel::usize i = 0; i < N; ++i) {
                     const double fi = freqV.elemAsDouble(i);
                     if (fi == 0.0) continue;
                     const double v = vals.elemAsDouble(vals.numel() == 1 ? 0 : i);
@@ -682,44 +682,44 @@ void mle_reg(Span<const Value> args, size_t nargout,
         };
 
         // Nelder-Mead simplex optimization over K parameters.
-        const std::size_t nVerts = K + 1;
+        const keel::usize nVerts = K + 1;
         std::vector<std::vector<double>> simplex(nVerts, p0);
         std::vector<double> fvals(nVerts);
         fvals[0] = evalNLL(simplex[0]);
-        for (std::size_t k = 0; k < K; ++k) {
-            double step = (std::abs(p0[k]) > 1e-4) ? 0.05 * std::abs(p0[k]) : 0.00025;
+        for (keel::usize k = 0; k < K; ++k) {
+            double step = (keel::abs(p0[k]) > 1e-4) ? 0.05 * keel::abs(p0[k]) : 0.00025;
             if (p0[k] + step > ub[k]) step = -step;
             simplex[k + 1][k] += step;
             fvals[k + 1] = evalNLL(simplex[k + 1]);
         }
 
-        const std::size_t maxIter = 1000 * K;
-        std::vector<std::size_t> ord(nVerts);
+        const keel::usize maxIter = 1000 * K;
+        std::vector<keel::usize> ord(nVerts);
         std::vector<double> centroid(K), xr(K), xe(K), xc(K);
-        for (std::size_t iter = 0; iter < maxIter; ++iter) {
-            for (std::size_t i = 0; i < nVerts; ++i) ord[i] = i;
-            std::sort(ord.begin(), ord.end(), [&](std::size_t a, std::size_t b) {
+        for (keel::usize iter = 0; iter < maxIter; ++iter) {
+            for (keel::usize i = 0; i < nVerts; ++i) ord[i] = i;
+            std::sort(ord.begin(), ord.end(), [&](keel::usize a, keel::usize b) {
                 return fvals[a] < fvals[b];
             });
-            double fspan = std::abs(fvals[ord[K]] - fvals[ord[0]]);
+            double fspan = keel::abs(fvals[ord[K]] - fvals[ord[0]]);
             double xspan = 0.0;
-            for (std::size_t i = 1; i <= K; ++i)
-                for (std::size_t k = 0; k < K; ++k)
-                    xspan = std::max(xspan, std::abs(simplex[ord[i]][k] - simplex[ord[0]][k]));
+            for (keel::usize i = 1; i <= K; ++i)
+                for (keel::usize k = 0; k < K; ++k)
+                    xspan = std::max(xspan, keel::abs(simplex[ord[i]][k] - simplex[ord[0]][k]));
             if (fspan < 1e-11 && xspan < 1e-9) break;
 
             std::fill(centroid.begin(), centroid.end(), 0.0);
-            for (std::size_t i = 0; i < K; ++i)
-                for (std::size_t k = 0; k < K; ++k)
+            for (keel::usize i = 0; i < K; ++i)
+                for (keel::usize k = 0; k < K; ++k)
                     centroid[k] += simplex[ord[i]][k] / static_cast<double>(K);
 
             const auto &worst = simplex[ord[K]];
-            for (std::size_t k = 0; k < K; ++k)
+            for (keel::usize k = 0; k < K; ++k)
                 xr[k] = centroid[k] + 1.0 * (centroid[k] - worst[k]);
             const double fr = evalNLL(xr);
 
             if (fr < fvals[ord[0]]) {
-                for (std::size_t k = 0; k < K; ++k)
+                for (keel::usize k = 0; k < K; ++k)
                     xe[k] = centroid[k] + 2.0 * (xr[k] - centroid[k]);
                 const double fe = evalNLL(xe);
                 if (fe < fr) { simplex[ord[K]] = xe; fvals[ord[K]] = fe; }
@@ -729,43 +729,43 @@ void mle_reg(Span<const Value> args, size_t nargout,
                 fvals[ord[K]] = fr;
             } else {
                 const bool outside = (fr < fvals[ord[K]]);
-                for (std::size_t k = 0; k < K; ++k)
+                for (keel::usize k = 0; k < K; ++k)
                     xc[k] = centroid[k] + 0.5 * ((outside ? xr[k] : worst[k]) - centroid[k]);
                 const double fc = evalNLL(xc);
                 if (fc <= (outside ? fr : fvals[ord[K]])) {
                     simplex[ord[K]] = xc;
                     fvals[ord[K]] = fc;
                 } else {
-                    for (std::size_t i = 1; i <= K; ++i) {
-                        for (std::size_t k = 0; k < K; ++k)
+                    for (keel::usize i = 1; i <= K; ++i) {
+                        for (keel::usize k = 0; k < K; ++k)
                             simplex[ord[i]][k] = simplex[ord[0]][k] + 0.5 * (simplex[ord[i]][k] - simplex[ord[0]][k]);
                         fvals[ord[i]] = evalNLL(simplex[ord[i]]);
                     }
                 }
             }
         }
-        std::size_t bestIdx = 0;
-        for (std::size_t i = 1; i < nVerts; ++i)
+        keel::usize bestIdx = 0;
+        for (keel::usize i = 1; i < nVerts; ++i)
             if (fvals[i] < fvals[bestIdx]) bestIdx = i;
         const auto &phat = simplex[bestIdx];
 
         Value out = Value::matrix(1, K, ValueType::DOUBLE, mr);
-        for (std::size_t k = 0; k < K; ++k) out.doubleDataMut()[k] = phat[k];
+        for (keel::usize k = 0; k < K; ++k) out.doubleDataMut()[k] = phat[k];
         outs[0] = std::move(out);
 
         if (nargout >= 2) {
             // Finite-difference Hessian of NLL at phat for Wald CIs.
             const double f0 = fvals[bestIdx];
             std::vector<double> hStep(K);
-            for (std::size_t k = 0; k < K; ++k)
-                hStep[k] = std::max(1e-5, 1e-4 * std::abs(phat[k]));
+            for (keel::usize k = 0; k < K; ++k)
+                hStep[k] = std::max(1e-5, 1e-4 * keel::abs(phat[k]));
             std::vector<double> H(K * K, 0.0);
-            for (std::size_t i = 0; i < K; ++i) {
+            for (keel::usize i = 0; i < K; ++i) {
                 auto tp = phat, tm = phat;
                 tp[i] += hStep[i]; tm[i] -= hStep[i];
                 const double fp = evalNLL(tp), fm = evalNLL(tm);
                 H[i + i * K] = (fp - 2.0 * f0 + fm) / (hStep[i] * hStep[i]);
-                for (std::size_t j = i + 1; j < K; ++j) {
+                for (keel::usize j = i + 1; j < K; ++j) {
                     auto tpp = phat, tpm = phat, tmp = phat, tmm = phat;
                     tpp[i] += hStep[i]; tpp[j] += hStep[j];
                     tpm[i] += hStep[i]; tpm[j] -= hStep[j];
@@ -778,33 +778,33 @@ void mle_reg(Span<const Value> args, size_t nargout,
             }
             // Invert KxK Hessian via Gauss-Jordan with fallback to 1/H_kk.
             std::vector<double> aug(K * 2 * K, 0.0);
-            for (std::size_t r = 0; r < K; ++r) {
-                for (std::size_t c = 0; c < K; ++c) aug[r * (2 * K) + c] = H[r + c * K];
+            for (keel::usize r = 0; r < K; ++r) {
+                for (keel::usize c = 0; c < K; ++c) aug[r * (2 * K) + c] = H[r + c * K];
                 aug[r * (2 * K) + (K + r)] = 1.0;
             }
             bool invOk = true;
-            for (std::size_t col = 0; col < K; ++col) {
-                std::size_t piv = col;
-                for (std::size_t r = col + 1; r < K; ++r)
-                    if (std::abs(aug[r * (2 * K) + col]) > std::abs(aug[piv * (2 * K) + col]))
+            for (keel::usize col = 0; col < K; ++col) {
+                keel::usize piv = col;
+                for (keel::usize r = col + 1; r < K; ++r)
+                    if (keel::abs(aug[r * (2 * K) + col]) > keel::abs(aug[piv * (2 * K) + col]))
                         piv = r;
-                if (std::abs(aug[piv * (2 * K) + col]) < 1e-14) { invOk = false; break; }
+                if (keel::abs(aug[piv * (2 * K) + col]) < 1e-14) { invOk = false; break; }
                 if (piv != col)
-                    for (std::size_t c = 0; c < 2 * K; ++c)
+                    for (keel::usize c = 0; c < 2 * K; ++c)
                         std::swap(aug[col * (2 * K) + c], aug[piv * (2 * K) + c]);
                 const double d = aug[col * (2 * K) + col];
-                for (std::size_t c = 0; c < 2 * K; ++c) aug[col * (2 * K) + c] /= d;
-                for (std::size_t r = 0; r < K; ++r) {
+                for (keel::usize c = 0; c < 2 * K; ++c) aug[col * (2 * K) + c] /= d;
+                for (keel::usize r = 0; r < K; ++r) {
                     if (r == col) continue;
                     const double f = aug[r * (2 * K) + col];
-                    for (std::size_t c = 0; c < 2 * K; ++c)
+                    for (keel::usize c = 0; c < 2 * K; ++c)
                         aug[r * (2 * K) + c] -= f * aug[col * (2 * K) + c];
                 }
             }
             const double zCrit = std::sqrt(chi2inv(Value::scalar(1.0 - alpha, mr), 1.0, mr).toScalar());
             Value pci = Value::matrix(2, K, ValueType::DOUBLE, mr);
             double *pd = pci.doubleDataMut();
-            for (std::size_t k = 0; k < K; ++k) {
+            for (keel::usize k = 0; k < K; ++k) {
                 double varK = invOk ? aug[k * (2 * K) + (K + k)]
                                     : (H[k + k * K] > 0.0 ? 1.0 / H[k + k * K] : std::numeric_limits<double>::quiet_NaN());
                 double se = (varK > 0.0) ? std::sqrt(varK) : std::numeric_limits<double>::quiet_NaN();
@@ -820,10 +820,10 @@ void mle_reg(Span<const Value> args, size_t nargout,
 
     if (dist == "normal" || dist == "Normal" || dist == "norm") {
         double sum = 0.0;
-        for (std::size_t i = 0; i < N; ++i) sum += xd[i];
+        for (keel::usize i = 0; i < N; ++i) sum += xd[i];
         const double mean = sum / static_cast<double>(N);
         double ss = 0.0;
-        for (std::size_t i = 0; i < N; ++i) {
+        for (keel::usize i = 0; i < N; ++i) {
             const double d = xd[i] - mean;
             ss += d * d;
         }
@@ -841,7 +841,7 @@ void mle_reg(Span<const Value> args, size_t nargout,
     }
     if (dist == "exponential" || dist == "Exponential" || dist == "exp") {
         double sum = 0.0;
-        for (std::size_t i = 0; i < N; ++i) {
+        for (keel::usize i = 0; i < N; ++i) {
             if (xd[i] < 0.0)
                 throw Error("mle: exponential requires non-negative data",
                     0, 0, "mle", "", "numkit:mle:badData");
@@ -859,7 +859,7 @@ void mle_reg(Span<const Value> args, size_t nargout,
     }
     if (dist == "poisson" || dist == "Poisson" || dist == "poiss") {
         double sum = 0.0;
-        for (std::size_t i = 0; i < N; ++i) {
+        for (keel::usize i = 0; i < N; ++i) {
             if (xd[i] < 0.0 || xd[i] != std::floor(xd[i]))
                 throw Error("mle: poisson requires non-negative integer data",
                     0, 0, "mle", "", "numkit:mle:badData");
@@ -877,7 +877,7 @@ void mle_reg(Span<const Value> args, size_t nargout,
     }
     if (dist == "lognormal" || dist == "Lognormal" || dist == "logn") {
         double sum_log = 0.0;
-        for (std::size_t i = 0; i < N; ++i) {
+        for (keel::usize i = 0; i < N; ++i) {
             if (xd[i] <= 0.0)
                 throw Error("mle: lognormal requires strictly positive data",
                     0, 0, "mle", "", "numkit:mle:badData");
@@ -885,7 +885,7 @@ void mle_reg(Span<const Value> args, size_t nargout,
         }
         const double mu = sum_log / static_cast<double>(N);
         double ss = 0.0;
-        for (std::size_t i = 0; i < N; ++i) {
+        for (keel::usize i = 0; i < N; ++i) {
             const double d = std::log(xd[i]) - mu;
             ss += d * d;
         }
@@ -898,7 +898,7 @@ void mle_reg(Span<const Value> args, size_t nargout,
             // CI on (mu, sigma) of log(x) — matches MATLAB's lognormal pci.
             Value logx = Value::matrix(1, N, ValueType::DOUBLE, mr);
             double *lx = logx.doubleDataMut();
-            for (std::size_t i = 0; i < N; ++i) lx[i] = std::log(xd[i]);
+            for (keel::usize i = 0; i < N; ++i) lx[i] = std::log(xd[i]);
             auto [m, s, muci, sdci] = normfit(logx, alpha, Value::Empty, Value::Empty, mr);
             (void)m; (void)s;
             emitPci2(muci, sdci);
@@ -921,10 +921,10 @@ void mle_reg(Span<const Value> args, size_t nargout,
 //   .NumObservations   — sample size
 // Wraps mle for the closed-form distributions; same set: normal,
 // exponential, poisson, lognormal.
-void fitdist_reg(Span<const Value> args, size_t /*nargout*/,
-                 Span<Value> outs, CallContext &ctx)
+void fitdist_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
+                 keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     if (args.empty()) {
         static const char *const kDistNames[] = {
             "Beta", "Binomial", "BirnbaumSaunders", "Burr", "Exponential",
@@ -934,9 +934,9 @@ void fitdist_reg(Span<const Value> args, size_t /*nargout*/,
             "Normal", "Poisson", "Rayleigh", "Rician", "Stable",
             "tLocationScale", "Weibull"
         };
-        constexpr std::size_t nDists = sizeof(kDistNames) / sizeof(kDistNames[0]);
+        constexpr keel::usize nDists = sizeof(kDistNames) / sizeof(kDistNames[0]);
         Value cell = Value::cell(nDists, 1, mr);
-        for (std::size_t i = 0; i < nDists; ++i)
+        for (keel::usize i = 0; i < nDists; ++i)
             cell.cellAt(i) = Value::fromString(kDistNames[i], mr);
         outs[0] = std::move(cell);
         return;
@@ -946,7 +946,7 @@ void fitdist_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("fitdist: 2nd argument must be a distribution-name string",
                     0, 0, "fitdist", "", "numkit:fitdist:badName");
     const Value &x = args[0];
-    const std::size_t N = x.numel();
+    const keel::usize N = x.numel();
     if (N < 2)
         throw Error("fitdist: need at least 2 observations",
                     0, 0, "fitdist", "", "numkit:fitdist:tooSmall");
@@ -985,10 +985,10 @@ void fitdist_reg(Span<const Value> args, size_t /*nargout*/,
     Value params;
     if (canonical == "Normal") {
         double sum = 0.0;
-        for (std::size_t i = 0; i < N; ++i) sum += xd[i];
+        for (keel::usize i = 0; i < N; ++i) sum += xd[i];
         const double mean = sum / static_cast<double>(N);
         double ss = 0.0;
-        for (std::size_t i = 0; i < N; ++i) {
+        for (keel::usize i = 0; i < N; ++i) {
             const double d = xd[i] - mean;
             ss += d * d;
         }
@@ -998,10 +998,10 @@ void fitdist_reg(Span<const Value> args, size_t /*nargout*/,
         params.doubleDataMut()[1] = sigma;
     } else if (canonical == "Lognormal") {
         double sum_log = 0.0;
-        for (std::size_t i = 0; i < N; ++i) sum_log += std::log(xd[i]);
+        for (keel::usize i = 0; i < N; ++i) sum_log += std::log(xd[i]);
         const double mu = sum_log / static_cast<double>(N);
         double ss = 0.0;
-        for (std::size_t i = 0; i < N; ++i) {
+        for (keel::usize i = 0; i < N; ++i) {
             const double d = std::log(xd[i]) - mu;
             ss += d * d;
         }
@@ -1014,8 +1014,8 @@ void fitdist_reg(Span<const Value> args, size_t /*nargout*/,
         Value mle_args[3] = { x, Value::fromString("distribution", mr),
                               Value::fromString(canonical, mr) };
         Value mle_out[1];
-        mle_reg(Span<const Value>(mle_args, 3), 1,
-                Span<Value>(mle_out, 1), ctx);
+        mle_reg(keel::ArrayRef<Value>(mle_args, 3), 1,
+                keel::MutArrayRef<Value>(mle_out, 1), ctx);
         params = std::move(mle_out[0]);
     }
 
@@ -1024,7 +1024,7 @@ void fitdist_reg(Span<const Value> args, size_t /*nargout*/,
     pd.field("DistributionName")  = Value::fromString(canonical, mr);
     pd.field("ParameterValues")   = std::move(params);
     Value names_cell = Value::cell(1, param_names.size(), mr);
-    for (std::size_t i = 0; i < param_names.size(); ++i)
+    for (keel::usize i = 0; i < param_names.size(); ++i)
         names_cell.cellAt(i) = Value::fromString(param_names[i], mr);
     pd.field("ParameterNames")    = std::move(names_cell);
     pd.field("NumObservations")   = Value::scalar(static_cast<double>(N), mr);

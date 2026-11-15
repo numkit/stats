@@ -33,7 +33,7 @@ TEST(FilloutliersPublicApi, Basic)
     // quartiles find-method (k = 1.5 default); 100 still flagged
     Value Bq = stats::filloutliers(A, fv(e, "0", "f0b"), "quartiles",
                                    std::numeric_limits<double>::quiet_NaN(),
-                                   e.resource());
+                                   e.allocator());
     EXPECT_DOUBLE_EQ(Bq.doubleData()[4], 0.0);
     EXPECT_DOUBLE_EQ(Bq.doubleData()[0], 1.0);
     // unsupported find-method rejected by the C++ entry

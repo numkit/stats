@@ -3,6 +3,8 @@
 // CallContext register half of distributions/poisson.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
+#include <keel/core.h>
+#include <keel/ref.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/builtin/datafun.hpp>
 #include <numkit/builtin/specfun.hpp>
@@ -12,14 +14,11 @@
 #include "distributions/dist_helpers.hpp"
 #include "distributions/poisson_detail.hpp"
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <complex>
 #include <cstddef>
 #include <string>
 #include <tuple>
@@ -30,10 +29,10 @@ namespace numkit::stats {
 
 namespace detail {
 
-void poisspdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void poisspdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 2, "poisspdf");
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     const Value &lam = args[1];
     if (lam.isScalar())
         outs[0] = poisspdf(args[0], lam.toScalar(), mr);
@@ -41,14 +40,14 @@ void poisspdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
         outs[0] = broadcast_dist2(args[0], lam, mr, "poisspdf", poisspdfK);
 }
 
-void poisscdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void poisscdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 3, "poisscdf");
     bool upper = false;
-    const Span<const Value> a = args.subspan(0, stripUpperFlag(args, upper));
+    const keel::ArrayRef<Value> a = args.slice(0, stripUpperFlag(args, upper));
     if (a.size() < 2)
         throw Error("poisscdf: requires (k, lambda[, 'upper'])", 0, 0, "poisscdf", "", "numkit:poisscdf:nargin");
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     const Value &lam = a[1];
     Value v;
     if (lam.isScalar()) {
@@ -57,19 +56,19 @@ void poisscdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
         // F(k; λ) = Q(⌊k⌋+1, λ) = 1 - gammainc(λ, ⌊k⌋+1). gammainc broadcasts
         // (λ, ⌊k⌋+1); per-element fixup for k<0 / λ<=0.
         const Value &k = a[0];
-        const size_t nk = k.numel(), nl = lam.numel();
+        const keel::usize nk = k.numel(), nl = lam.numel();
         if (nk == 0 || nl == 0) {
             v = dist_empty_like(nk == 0 ? k : lam, mr);
         } else {
-            const size_t N = dist_match_numel({nk, nl}, "poisscdf");
+            const keel::usize N = dist_match_numel({nk, nl}, "poisscdf");
             Value xs = elementwise(k, [](double ki) { return ki < 0.0 ? 1.0 : std::floor(ki) + 1.0; }, mr);
             Value lower = ::numkit::builtin::gammainc(lam, xs, mr);   // P(⌊k⌋+1, λ)
             const Value &ref = (nl == N) ? lam : k;
             v = dist_empty_like(ref, mr);
             double *od = v.doubleDataMut();
-            const size_t nlo = lower.numel();
+            const keel::usize nlo = lower.numel();
             const double NaN = std::numeric_limits<double>::quiet_NaN();
-            for (size_t i = 0; i < N; ++i) {
+            for (keel::usize i = 0; i < N; ++i) {
                 const double li = lam.elemAsDouble(nl == 1 ? 0 : i);
                 const double ki = k.elemAsDouble(nk == 1 ? 0 : i);
                 if (li < 0.0) { od[i] = NaN; continue; }
@@ -83,27 +82,27 @@ void poisscdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     outs[0] = std::move(v);
 }
 
-void poissinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void poissinv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 2, "poissinv");
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     const Value &lam = args[1];
     if (lam.isScalar()) {
         outs[0] = poissinv(args[0], lam.toScalar(), mr);
         return;
     }
     const Value &p = args[0];
-    const size_t np = p.numel(), nl = lam.numel();
+    const keel::usize np = p.numel(), nl = lam.numel();
     if (np == 0 || nl == 0) {
         outs[0] = dist_empty_like(np == 0 ? p : lam, mr);
         return;
     }
-    const size_t N = dist_match_numel({np, nl}, "poissinv");
+    const keel::usize N = dist_match_numel({np, nl}, "poissinv");
     const Value &ref = (nl == N) ? lam : p;
     Value out = dist_empty_like(ref, mr);
     double *od = out.doubleDataMut();
     const double NaN = std::numeric_limits<double>::quiet_NaN();
-    for (size_t i = 0; i < N; ++i) {
+    for (keel::usize i = 0; i < N; ++i) {
         const double li = lam.elemAsDouble(nl == 1 ? 0 : i);
         const double pi = p.elemAsDouble(np == 1 ? 0 : i);
         od[i] = (li < 0.0) ? NaN : poiss_inv_scalar(pi, li);
@@ -111,19 +110,19 @@ void poissinv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     outs[0] = std::move(out);
 }
 
-void poissrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void poissrnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "poissrnd");  // no max: trailing size args (N-D tail; nk caps at two — bugs/opened/stats/rnd-nd-size-tails.md)
     const double lambda = args[0].toScalar();
-    size_t rows, cols;
+    keel::usize rows, cols;
     parse_rng_size(args, 1, rows, cols, "poissrnd");
-    outs[0] = reshape_rng_nd(poissrnd(ctx.engine->rng(), lambda, rows, cols, ctx.engine->resource()), args, 1, ctx.engine->resource(), "poissrnd");
+    outs[0] = reshape_rng_nd(poissrnd(ctx.engine->rng(), lambda, rows, cols, ctx.engine->allocator()), args, 1, ctx.engine->allocator(), "poissrnd");
 }
 
-void poisstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+void poisstat_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 1, "poisstat");
-    emit_vec_stat_1arg(args, nargout, outs, ctx.engine->resource(), "poisstat",
+    emit_vec_stat_1arg(args, nargout, outs, ctx.engine->allocator(), "poisstat",
                        [](double lambda) { return poisstat(lambda); });
 }
 

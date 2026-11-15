@@ -4,6 +4,9 @@
 // Operate column-wise on matrices, whole-vector on 1-D inputs (MATLAB
 // convention). Output is always DOUBLE regardless of input class.
 
+#include <keel/core.h>
+#include <keel/memory.h>
+#include <keel/ref.h>
 #include <numkit/stats/descriptive/descriptive.hpp>
 
 #include <numkit/value/value.hpp>
@@ -24,13 +27,13 @@ namespace {
 // for each. Vectors are treated as a single "column" of length numel.
 template <typename Op>
 void forEachColumn(const Value &A, Op op) {
-    const size_t H = A.dims().rows();
-    const size_t W = A.dims().cols();
-    const size_t N = A.numel();
+    const keel::usize H = A.dims().rows();
+    const keel::usize W = A.dims().cols();
+    const keel::usize N = A.numel();
     if (N == H * W && (H == 1 || W == 1)) {
         // 1-D: pull whole vector as a single column.
         std::vector<double> buf(N);
-        for (size_t i = 0; i < N; ++i) buf[i] = A.elemAsDouble(i);
+        for (keel::usize i = 0; i < N; ++i) buf[i] = A.elemAsDouble(i);
         op(0, buf.data(), N);
         return;
     }
@@ -42,34 +45,34 @@ void forEachColumn(const Value &A, Op op) {
         throw Error("normalize/rescale/zscore: only 1-D or 2-D inputs supported",
                     0, 0, "normalize", "", "numkit:normalize:nd");
     std::vector<double> buf(H);
-    for (size_t j = 0; j < W; ++j) {
-        for (size_t i = 0; i < H; ++i) buf[i] = A.elemAsDouble(j * H + i);
+    for (keel::usize j = 0; j < W; ++j) {
+        for (keel::usize i = 0; i < H; ++i) buf[i] = A.elemAsDouble(j * H + i);
         op(j, buf.data(), H);
     }
 }
 
-void writeColumn(Value &out, size_t colIdx, const double *src, size_t len,
-                 size_t H, size_t W)
+void writeColumn(Value &out, keel::usize colIdx, const double *src, keel::usize len,
+                 keel::usize H, keel::usize W)
 {
     double *od = out.doubleDataMut();
     if (W == 1 || H == 1) {
-        for (size_t i = 0; i < len; ++i) od[i] = src[i];
+        for (keel::usize i = 0; i < len; ++i) od[i] = src[i];
     } else {
-        for (size_t i = 0; i < len; ++i) od[colIdx * H + i] = src[i];
+        for (keel::usize i = 0; i < len; ++i) od[colIdx * H + i] = src[i];
     }
 }
 
-double colMean(const double *x, size_t n) {
+double colMean(const double *x, keel::usize n) {
     double s = 0.0;
-    for (size_t i = 0; i < n; ++i) s += x[i];
+    for (keel::usize i = 0; i < n; ++i) s += x[i];
     return (n > 0) ? s / static_cast<double>(n) : 0.0;
 }
 
-double colStdPop(const double *x, size_t n) {
+double colStdPop(const double *x, keel::usize n) {
     if (n == 0) return 0.0;
     const double m = colMean(x, n);
     double s = 0.0;
-    for (size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const double d = x[i] - m;
         s += d * d;
     }
@@ -77,11 +80,11 @@ double colStdPop(const double *x, size_t n) {
 }
 
 // Sample (N-1) standard deviation — MATLAB's default for std/zscore/normalize.
-double colStdSample(const double *x, size_t n) {
+double colStdSample(const double *x, keel::usize n) {
     if (n < 2) return 0.0;
     const double m = colMean(x, n);
     double s = 0.0;
-    for (size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const double d = x[i] - m;
         s += d * d;
     }
@@ -90,7 +93,7 @@ double colStdSample(const double *x, size_t n) {
 
 double colMedian(std::vector<double> v) {
     std::sort(v.begin(), v.end());
-    const size_t n = v.size();
+    const keel::usize n = v.size();
     if (n == 0) return 0.0;
     return (n & 1) ? v[n / 2]
                    : 0.5 * (v[n / 2 - 1] + v[n / 2]);
@@ -98,7 +101,7 @@ double colMedian(std::vector<double> v) {
 
 double colIQR(std::vector<double> v) {
     std::sort(v.begin(), v.end());
-    const size_t n = v.size();
+    const keel::usize n = v.size();
     if (n < 2) return 0.0;
     // MATLAB's iqr/normalize use the prctile convention: the i-th sorted
     // value (0-based) sits at cumulative fraction (i+0.5)/n; linear-interp
@@ -109,7 +112,7 @@ double colIQR(std::vector<double> v) {
         const double pos = pfrac * double(n) - 0.5;   // index in [-0.5, n-0.5]
         if (pos <= 0.0)               return v[0];
         if (pos >= double(n - 1))     return v[n - 1];
-        const size_t lo   = static_cast<size_t>(std::floor(pos));
+        const keel::usize lo   = static_cast<keel::usize>(std::floor(pos));
         const double frac = pos - double(lo);
         return v[lo] * (1.0 - frac) + v[lo + 1] * frac;
     };
@@ -117,8 +120,8 @@ double colIQR(std::vector<double> v) {
 }
 
 bool methodMatches(const std::string &m, const char *want) {
-    if (m.size() != std::strlen(want)) return false;
-    for (size_t i = 0; i < m.size(); ++i) {
+    if (m.size() != keel::StringRef(want).size()) return false;
+    for (keel::usize i = 0; i < m.size(); ++i) {
         char a = m[i], b = want[i];
         if (a >= 'A' && a <= 'Z') a = char(a + 32);
         if (b >= 'A' && b <= 'Z') b = char(b + 32);
@@ -130,10 +133,10 @@ bool methodMatches(const std::string &m, const char *want) {
 } // anonymous
 
 NormalizeResult normalize(const Value &A, const std::string &method,
-                          const Value &param, std::pmr::memory_resource *mr)
+                          const Value &param, keel::Allocator *mr)
 {
-    const size_t H = A.dims().rows();
-    const size_t W = A.dims().cols();
+    const keel::usize H = A.dims().rows();
+    const keel::usize W = A.dims().cols();
     NormalizeResult R;
     R.n = Value::matrix(H, W, ValueType::DOUBLE, mr);
     Value &out = R.n;
@@ -146,7 +149,7 @@ NormalizeResult normalize(const Value &A, const std::string &method,
     // one value per operating slice — 1×1 for a vector, 1×W for a matrix
     // (column-wise) — such that N == (A - C) ./ S. The reg adapter discards
     // c/s when nargout < 2/3.
-    const size_t csW = (H == 1 || W == 1) ? 1 : W;
+    const keel::usize csW = (H == 1 || W == 1) ? 1 : W;
     R.c = Value::matrix(1, csW, ValueType::DOUBLE, mr);
     R.s = Value::matrix(1, csW, ValueType::DOUBLE, mr);
     double *cOutD = R.c.doubleDataMut();
@@ -165,7 +168,7 @@ NormalizeResult normalize(const Value &A, const std::string &method,
     }
     const double paramNum = (hasParam && !paramIsStr) ? param.elemAsDouble(0) : 0.0;
 
-    forEachColumn(A, [&](size_t j, double *col, size_t n) {
+    forEachColumn(A, [&](keel::usize j, double *col, keel::usize n) {
         std::vector<double> y(n);
         double cVal = 0.0, sVal = 1.0;  // centering / scaling -> [N,C,S]
         if (methodMatches(m, "zscore")) {
@@ -179,13 +182,13 @@ NormalizeResult normalize(const Value &A, const std::string &method,
                 const double mad = colMedian(std::move(tmp));
                 const double inv = (mad != 0.0) ? 1.0 / mad : 0.0;
                 cVal = med; sVal = mad;
-                for (size_t i = 0; i < n; ++i) y[i] = (col[i] - med) * inv;
+                for (keel::usize i = 0; i < n; ++i) y[i] = (col[i] - med) * inv;
             } else {
                 const double mu = colMean(col, n);
                 const double sd = colStdSample(col, n);  // MATLAB default: N-1
                 const double inv = (sd != 0.0) ? 1.0 / sd : 0.0;
                 cVal = mu; sVal = sd;
-                for (size_t i = 0; i < n; ++i) y[i] = (col[i] - mu) * inv;
+                for (keel::usize i = 0; i < n; ++i) y[i] = (col[i] - mu) * inv;
             }
         } else if (methodMatches(m, "center")) {
             // default 'mean'; 'median' or a numeric centre also accepted.
@@ -195,7 +198,7 @@ NormalizeResult normalize(const Value &A, const std::string &method,
                 std::vector<double> tmp(col, col + n); c = colMedian(tmp);
             } else                                     c = colMean(col, n);
             cVal = c; sVal = 1.0;
-            for (size_t i = 0; i < n; ++i) y[i] = col[i] - c;
+            for (keel::usize i = 0; i < n; ++i) y[i] = col[i] - c;
         } else if (methodMatches(m, "scale")) {
             // default 'std'; 'first'/'iqr'/'mad' or a numeric divisor.
             double sc;
@@ -211,7 +214,7 @@ NormalizeResult normalize(const Value &A, const std::string &method,
             } else                                      sc = colStdSample(col, n);
             const double inv = (sc != 0.0) ? 1.0 / sc : 0.0;
             cVal = 0.0; sVal = sc;
-            for (size_t i = 0; i < n; ++i) y[i] = col[i] * inv;
+            for (keel::usize i = 0; i < n; ++i) y[i] = col[i] * inv;
         } else if (methodMatches(m, "range")) {
             // default [0 1]; custom [lo hi] supported.
             double rlo = 0.0, rhi = 1.0;
@@ -220,7 +223,7 @@ NormalizeResult normalize(const Value &A, const std::string &method,
                 rhi = param.elemAsDouble(1);
             }
             double lo = col[0], hi = col[0];
-            for (size_t i = 1; i < n; ++i) {
+            for (keel::usize i = 1; i < n; ++i) {
                 if (col[i] < lo) lo = col[i];
                 if (col[i] > hi) hi = col[i];
             }
@@ -228,9 +231,9 @@ NormalizeResult normalize(const Value &A, const std::string &method,
             cVal = lo; sVal = r;  // default [0 1]: C=min, S=max-min
             if (r != 0.0) {
                 const double scl = (rhi - rlo) / r;
-                for (size_t i = 0; i < n; ++i) y[i] = rlo + (col[i] - lo) * scl;
+                for (keel::usize i = 0; i < n; ++i) y[i] = rlo + (col[i] - lo) * scl;
             } else {
-                for (size_t i = 0; i < n; ++i) y[i] = rlo;
+                for (keel::usize i = 0; i < n; ++i) y[i] = rlo;
             }
         } else if (methodMatches(m, "norm")) {
             // default p=2; p=1 / p=Inf / general p supported.
@@ -238,29 +241,29 @@ NormalizeResult normalize(const Value &A, const std::string &method,
             double L;
             if (std::isinf(p)) {
                 L = 0.0;
-                for (size_t i = 0; i < n; ++i) L = std::max(L, std::fabs(col[i]));
+                for (keel::usize i = 0; i < n; ++i) L = std::max(L, std::fabs(col[i]));
             } else if (p == 1.0) {
                 L = 0.0;
-                for (size_t i = 0; i < n; ++i) L += std::fabs(col[i]);
+                for (keel::usize i = 0; i < n; ++i) L += std::fabs(col[i]);
             } else if (p == 2.0) {
                 double s = 0.0;
-                for (size_t i = 0; i < n; ++i) s += col[i] * col[i];
+                for (keel::usize i = 0; i < n; ++i) s += col[i] * col[i];
                 L = std::sqrt(s);
             } else {
                 double s = 0.0;
-                for (size_t i = 0; i < n; ++i) s += std::pow(std::fabs(col[i]), p);
+                for (keel::usize i = 0; i < n; ++i) s += std::pow(std::fabs(col[i]), p);
                 L = std::pow(s, 1.0 / p);
             }
             const double inv = (L != 0.0) ? 1.0 / L : 0.0;
             cVal = 0.0; sVal = L;
-            for (size_t i = 0; i < n; ++i) y[i] = col[i] * inv;
+            for (keel::usize i = 0; i < n; ++i) y[i] = col[i] * inv;
         } else if (methodMatches(m, "medianiqr")) {
             std::vector<double> tmp(col, col + n);
             const double med = colMedian(tmp);
             const double iqr = colIQR(std::move(tmp));
             const double inv = (iqr != 0.0) ? 1.0 / iqr : 0.0;
             cVal = med; sVal = iqr;
-            for (size_t i = 0; i < n; ++i) y[i] = (col[i] - med) * inv;
+            for (keel::usize i = 0; i < n; ++i) y[i] = (col[i] - med) * inv;
         } else {
             throw Error("normalize: unknown method '" + m + "'",
                         0, 0, "normalize", "", "numkit:normalize:method");
@@ -289,20 +292,20 @@ void rescale_argcheck(const Value &A)
 } // namespace
 
 Value rescale(const Value &A, double lo, double hi,
-              double inputMin, double inputMax, std::pmr::memory_resource *mr)
+              double inputMin, double inputMax, keel::Allocator *mr)
 {
     rescale_argcheck(A);
-    const size_t H = A.dims().rows();
-    const size_t W = A.dims().cols();
+    const keel::usize H = A.dims().rows();
+    const keel::usize W = A.dims().cols();
     Value out = Value::matrix(H, W, ValueType::DOUBLE, mr);
     if (H == 0 || W == 0) return out;
     const bool haveImn = !std::isnan(inputMin);
     const bool haveImx = !std::isnan(inputMax);
-    forEachColumn(A, [&](size_t j, double *col, size_t n) {
+    forEachColumn(A, [&](keel::usize j, double *col, keel::usize n) {
         // Input range: explicit 'InputMin'/'InputMax' override the data
         // min/max. When given, values are clamped to [mn, mx] (MATLAB).
         double mn = col[0], mx = col[0];
-        for (size_t i = 1; i < n; ++i) {
+        for (keel::usize i = 1; i < n; ++i) {
             if (col[i] < mn) mn = col[i];
             if (col[i] > mx) mx = col[i];
         }
@@ -314,7 +317,7 @@ Value rescale(const Value &A, double lo, double hi,
             std::fill(y.begin(), y.end(), lo);
         } else {
             const double scl = (hi - lo) / r;
-            for (size_t i = 0; i < n; ++i) {
+            for (keel::usize i = 0; i < n; ++i) {
                 double v = col[i];
                 if (v < mn) v = mn;     // clamp to input range
                 if (v > mx) v = mx;
@@ -334,10 +337,10 @@ Value rescale(const Value &A, double lo, double hi,
 // the operating dimension collapsed to length 1 (row vector for dim 1,
 // column vector for dim 2).
 Value zscoreCore(const Value &A, int flag, int dim,
-                 Value *muOut, Value *sigmaOut, std::pmr::memory_resource *mr)
+                 Value *muOut, Value *sigmaOut, keel::Allocator *mr)
 {
-    const size_t H = A.dims().rows();
-    const size_t W = A.dims().cols();
+    const keel::usize H = A.dims().rows();
+    const keel::usize W = A.dims().cols();
     Value out = Value::matrix(H, W, ValueType::DOUBLE, mr);
     if (H == 0 || W == 0) {
         if (muOut)    *muOut    = Value::matrix(H, W, ValueType::DOUBLE, mr);
@@ -345,7 +348,7 @@ Value zscoreCore(const Value &A, int flag, int dim,
         return out;
     }
     double *od = out.doubleDataMut();
-    auto sdf = [&](const double *x, size_t n) {
+    auto sdf = [&](const double *x, keel::usize n) {
         return (flag == 1) ? colStdPop(x, n) : colStdSample(x, n);
     };
     int opDim = dim;
@@ -356,12 +359,12 @@ Value zscoreCore(const Value &A, int flag, int dim,
         double *mud = muOut ? muOut->doubleDataMut() : nullptr;
         double *sgd = sigmaOut ? sigmaOut->doubleDataMut() : nullptr;
         std::vector<double> col(H);
-        for (size_t j = 0; j < W; ++j) {
-            for (size_t i = 0; i < H; ++i) col[i] = A.elemAsDouble(j * H + i);
+        for (keel::usize j = 0; j < W; ++j) {
+            for (keel::usize i = 0; i < H; ++i) col[i] = A.elemAsDouble(j * H + i);
             const double mu = colMean(col.data(), H);
             const double sd = sdf(col.data(), H);
             const double inv = (sd != 0.0) ? 1.0 / sd : 0.0;
-            for (size_t i = 0; i < H; ++i) od[j * H + i] = (col[i] - mu) * inv;
+            for (keel::usize i = 0; i < H; ++i) od[j * H + i] = (col[i] - mu) * inv;
             if (mud) mud[j] = mu;
             if (sgd) sgd[j] = sd;
         }
@@ -371,12 +374,12 @@ Value zscoreCore(const Value &A, int flag, int dim,
         double *mud = muOut ? muOut->doubleDataMut() : nullptr;
         double *sgd = sigmaOut ? sigmaOut->doubleDataMut() : nullptr;
         std::vector<double> row(W);
-        for (size_t i = 0; i < H; ++i) {
-            for (size_t j = 0; j < W; ++j) row[j] = A.elemAsDouble(j * H + i);
+        for (keel::usize i = 0; i < H; ++i) {
+            for (keel::usize j = 0; j < W; ++j) row[j] = A.elemAsDouble(j * H + i);
             const double mu = colMean(row.data(), W);
             const double sd = sdf(row.data(), W);
             const double inv = (sd != 0.0) ? 1.0 / sd : 0.0;
-            for (size_t j = 0; j < W; ++j) od[j * H + i] = (row[j] - mu) * inv;
+            for (keel::usize j = 0; j < W; ++j) od[j * H + i] = (row[j] - mu) * inv;
             if (mud) mud[i] = mu;
             if (sgd) sgd[i] = sd;
         }
@@ -384,7 +387,7 @@ Value zscoreCore(const Value &A, int flag, int dim,
     return out;
 }
 
-Value zscore(const Value &A, std::pmr::memory_resource *mr)
+Value zscore(const Value &A, keel::Allocator *mr)
 {
     return zscoreCore(A, /*flag=*/0, /*dim=*/0, /*muOut=*/nullptr,
                       /*sigmaOut=*/nullptr, mr);

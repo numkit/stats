@@ -10,6 +10,10 @@
 // taxonomy, not core MATLAB. Registration as stats.descriptive.* +
 // compat.* lives in toolboxes/stats/src/library.cpp.
 
+#include <keel/core.h>
+#include <keel/memory.h>
+#include <keel/arena.h>
+#include <keel/array.h>
 #include <numkit/stats/descriptive/descriptive.hpp>
 
 #include <numkit/stats/distributions/students_t.hpp> // tcdf for corrcoef p-values
@@ -17,7 +21,6 @@
 #include <numkit/stats/nan_aware/nan_aware.hpp>  // var_reg / std_reg / median_reg dispatch into stats:: when 'omitnan' is given
 
 #include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
 #include <numkit/value/error.hpp>
 
 #include <numkit/ops/helpers.hpp>
@@ -30,7 +33,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
-#include <memory_resource>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -86,7 +88,7 @@ void corrcoef_argcheck(const Value &x)
 
 } // namespace
 
-Value var(const Value &x, int normFlag, int dim, std::pmr::memory_resource *mr)
+Value var(const Value &x, int normFlag, int dim, keel::Allocator *mr)
 {
     var_argcheck(normFlag);
     if (x.type() == ValueType::COMPLEX)
@@ -98,7 +100,7 @@ Value var(const Value &x, int normFlag, int dim, std::pmr::memory_resource *mr)
 
     const int d = resolveDim(x, dim, "var");
     Value r = applyAlongDim(x, d,
-        [normFlag](size_t, double *slice, size_t n) {
+        [normFlag](keel::usize, double *slice, keel::usize n) {
             return varianceTwoPass(slice, n, normFlag);
         }, mr);
     if (x.type() == ValueType::SINGLE)
@@ -106,7 +108,7 @@ Value var(const Value &x, int normFlag, int dim, std::pmr::memory_resource *mr)
     return r;
 }
 
-Value stdev(const Value &x, int normFlag, int dim, std::pmr::memory_resource *mr)
+Value stdev(const Value &x, int normFlag, int dim, keel::Allocator *mr)
 {
     stdev_argcheck(normFlag);
     if (x.type() == ValueType::COMPLEX)
@@ -118,7 +120,7 @@ Value stdev(const Value &x, int normFlag, int dim, std::pmr::memory_resource *mr
 
     const int d = resolveDim(x, dim, "std");
     Value r = applyAlongDim(x, d,
-        [normFlag](size_t, double *slice, size_t n) {
+        [normFlag](keel::usize, double *slice, keel::usize n) {
             return std::sqrt(varianceTwoPass(slice, n, normFlag));
         }, mr);
     if (x.type() == ValueType::SINGLE)
@@ -135,7 +137,7 @@ Value stdev(const Value &x, int normFlag, int dim, std::pmr::memory_resource *mr
 // buffer is owned by forEachSlice and reused per output index.
 
 
-Value median(const Value &x, int dim, std::pmr::memory_resource *mr)
+Value median(const Value &x, int dim, keel::Allocator *mr)
 {
     if (x.type() == ValueType::COMPLEX)
         return medianComplex(x, dim, mr);   // sort by abs, ties by angle (MATLAB)
@@ -143,7 +145,7 @@ Value median(const Value &x, int dim, std::pmr::memory_resource *mr)
         return emptyStatReductionNaN(x, dim, mr);
     const int d = resolveDim(x, dim, "median");
     Value r = applyAlongDim(x, d,
-        [](size_t, double *slice, size_t n) {
+        [](keel::usize, double *slice, keel::usize n) {
             return medianFromSlice(slice, n);
         }, mr);
     if (x.type() == ValueType::SINGLE)
@@ -177,12 +179,12 @@ Value median(const Value &x, int dim, std::pmr::memory_resource *mr)
 //   * Approximate â€” t-digest, currently falls back to Midpoint
 //     (no functional gap, just signature compatibility).
 
-Value quantile(const Value &x, const Value &p, int dim, std::pmr::memory_resource *mr)
+Value quantile(const Value &x, const Value &p, int dim, keel::Allocator *mr)
 {
     return quantileImpl(x, p, dim, 1.0, QMethod::Midpoint, "quantile", mr);
 }
 
-Value prctile(const Value &x, const Value &p, int dim, std::pmr::memory_resource *mr)
+Value prctile(const Value &x, const Value &p, int dim, keel::Allocator *mr)
 {
     return quantileImpl(x, p, dim, 0.01, QMethod::Midpoint, "prctile", mr);
 }
@@ -190,7 +192,7 @@ Value prctile(const Value &x, const Value &p, int dim, std::pmr::memory_resource
 // Internal entry point used by registration adapters which parsed
 // 'all' / vecdim / Method themselves. `flatten = true` collapses x to
 // a flat row vector before reduction; `method` selects the algorithm.
-Value quantileWithOpts(const Value &x, const Value &p, int dim, bool flatten, QMethod method, double pScale, const char *fn, std::pmr::memory_resource *mr)
+Value quantileWithOpts(const Value &x, const Value &p, int dim, bool flatten, QMethod method, double pScale, const char *fn, keel::Allocator *mr)
 {
     if (flatten) {
         // Reshape into a 1Ã—N row, then reduce along dim 2 (the only
@@ -218,7 +220,7 @@ Value quantileWithOpts(const Value &x, const Value &p, int dim, bool flatten, QM
 
 
 std::tuple<Value, Value>
-mode(const Value &x, int dim, std::pmr::memory_resource *mr)
+mode(const Value &x, int dim, keel::Allocator *mr)
 {
     // MATLAB: mode of an empty array -> NaN-shaped value, 0-shaped count.
     // [M,F]=mode([]) gives M=NaN, F=0; mode(zeros(0,3))=[NaN NaN NaN] with
@@ -236,14 +238,14 @@ mode(const Value &x, int dim, std::pmr::memory_resource *mr)
 // cov / corrcoef
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-Value cov(const Value &x, int normFlag, std::pmr::memory_resource *mr)
+Value cov(const Value &x, int normFlag, keel::Allocator *mr)
 {
     validateNormFlagCov(normFlag, "cov");
     validateCovInputs(x, "cov");
 
-    ScratchArena scratch(mr);
-    ScratchVec<double> data(&scratch);
-    std::size_t n, p;
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    keel::Array<double> data(scratch.allocator());
+    keel::usize n, p;
     readMatrix(x, data, n, p);
     if (n == 0) {
         // MATLAB: cov of empty â†’ NaN (or empty pÃ—p depending on shape).
@@ -259,13 +261,13 @@ Value cov(const Value &x, int normFlag, std::pmr::memory_resource *mr)
     if (p == 1) {
         // Vector input â†’ return scalar variance.
         double s = 0.0;
-        for (std::size_t i = 0; i < n; ++i) s += data[i] * data[i];
+        for (keel::usize i = 0; i < n; ++i) s += data[i] * data[i];
         return Value::scalar(s / divisor, mr);
     }
     return covMatrixFromCentered(data.data(), n, p, divisor, mr);
 }
 
-Value cov(const Value &x, const Value &y, int normFlag, std::pmr::memory_resource *mr)
+Value cov(const Value &x, const Value &y, int normFlag, keel::Allocator *mr)
 {
     validateNormFlagCov(normFlag, "cov");
     validateCovInputs(x, "cov");
@@ -276,12 +278,12 @@ Value cov(const Value &x, const Value &y, int normFlag, std::pmr::memory_resourc
     if (x.numel() != y.numel())
         throw Error("cov: x and y must have the same length",
                      0, 0, "cov", "", "numkit:cov:lengthMismatch");
-    const std::size_t n = x.numel();
+    const keel::usize n = x.numel();
     if (n == 0)
         return Value::matrix(2, 2, ValueType::DOUBLE, mr);
-    ScratchArena scratch(mr);
-    auto data = ScratchVec<double>(n * 2, &scratch);
-    for (std::size_t i = 0; i < n; ++i) {
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    auto data = keel::Array<double>(n * 2, scratch.allocator());
+    for (keel::usize i = 0; i < n; ++i) {
         data[i] = x.elemAsDouble(i);          // column 0 (= x)
         data[n + i] = y.elemAsDouble(i);      // column 1 (= y)
     }
@@ -293,7 +295,7 @@ Value cov(const Value &x, const Value &y, int normFlag, std::pmr::memory_resourc
 }
 
 
-Value corrcoef(const Value &x, std::pmr::memory_resource *mr)
+Value corrcoef(const Value &x, keel::Allocator *mr)
 {
     // Special case: vector input â†’ 1Ã—1 matrix [1] (variable correlated
     // with itself). Matches MATLAB's `corrcoef(rand(5,1))` behaviour.
@@ -309,9 +311,9 @@ Value corrcoef(const Value &x, std::pmr::memory_resource *mr)
 
     if (x.dims().isVector() || x.isScalar()) {
         auto R = Value::matrix(1, 1, ValueType::DOUBLE, mr);
-        const std::size_t n = x.numel();
+        const keel::usize n = x.numel();
         bool hasNan = false;
-        for (std::size_t i = 0; i < n; ++i) {
+        for (keel::usize i = 0; i < n; ++i) {
             if (std::isnan(x.elemAsDouble(i))) {
                 hasNan = true;
                 break;
@@ -324,7 +326,7 @@ Value corrcoef(const Value &x, std::pmr::memory_resource *mr)
     return corrcoefFromCov(C, mr);
 }
 
-Value corrcoef(const Value &x, const Value &y, std::pmr::memory_resource *mr)
+Value corrcoef(const Value &x, const Value &y, keel::Allocator *mr)
 {
     if (x.isComplex() || y.isComplex())
         return corrcoefComplexXY(x, y, mr);

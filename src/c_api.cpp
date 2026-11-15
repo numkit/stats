@@ -1,6 +1,8 @@
 // src/c_api.cpp
 //
 // Self-contained C-ABI implementation for `numkit/stats`.
+#include <keel/core.h>
+#include <keel/ref.h>
 #include <numkit/stats/c_api.h>
 #include <numkit/stats/library.hpp>
 #include <numkit/ops/rng_context.hpp>
@@ -29,14 +31,13 @@ constexpr const char *kToolboxNs = "stats";
 
 template <typename InvokeFn>
 int runDispatch(const numkit_val *const *args,
-                size_t nargs,
-                size_t nargout,
+                keel::usize nargs,
+                keel::usize nargout,
                 numkit_val **outs,
                 numkit_error *err,
                 InvokeFn &&doInvoke) noexcept
 {
-    using numkit::Span;
-    using numkit::Value;
+using numkit::Value;
     using numkit::c_abi::boxValue;
     using numkit::c_abi::clearError;
     using numkit::c_abi::setError;
@@ -56,11 +57,11 @@ int runDispatch(const numkit_val *const *args,
             inHeap.resize(nargs);
             inPtr = inHeap.data();
         }
-        for (size_t i = 0; i < nargs; ++i) {
+        for (keel::usize i = 0; i < nargs; ++i) {
             inPtr[i] = args && args[i] ? unboxValue(args[i]) : Value::Empty;
         }
 
-        size_t outSlots = nargout == 0 ? 1 : nargout;
+        keel::usize outSlots = nargout == 0 ? 1 : nargout;
         Value outStack[4];
         std::vector<Value> outHeap;
         Value *outPtr = outStack;
@@ -69,9 +70,9 @@ int runDispatch(const numkit_val *const *args,
             outPtr = outHeap.data();
         }
 
-        doInvoke(Span<const Value>(inPtr, nargs), nargout, Span<Value>(outPtr, outSlots));
+        doInvoke(keel::ArrayRef<Value>(inPtr, nargs), nargout, keel::MutArrayRef<Value>(outPtr, outSlots));
 
-        for (size_t i = 0; i < nargout; ++i) {
+        for (keel::usize i = 0; i < nargout; ++i) {
             outs[i] = boxValue(std::move(outPtr[i]));
         }
         return 0;
@@ -104,7 +105,7 @@ void numkit_stats_ctx_destroy(numkit_stats_ctx *ctx)
     delete ctx;
 }
 
-void numkit_stats_seed_rng(numkit_stats_ctx *ctx, uint64_t seed)
+void numkit_stats_seed_rng(numkit_stats_ctx *ctx, keel::u64 seed)
 {
     if (ctx) ctx->rng.seed(seed);
 }
@@ -127,9 +128,9 @@ int numkit_stats_register_fn(numkit_stats_ctx *ctx,
         return 1;
     }
     try {
-        auto cb = [fn, user_data](numkit::Span<const numkit::Value> args,
-                                  size_t nargout,
-                                  numkit::Span<numkit::Value> outs,
+        auto cb = [fn, user_data](keel::ArrayRef<numkit::Value> args,
+                                  keel::usize nargout,
+                                  keel::MutArrayRef<numkit::Value> outs,
                                   numkit::CallContext & /*c*/) {
             numkit::c_abi::invokeHostCallback(fn, user_data, args, nargout, outs);
         };
@@ -151,8 +152,8 @@ const numkit_fn *numkit_stats_resolve(const numkit_stats_ctx *ctx, const char *n
 int numkit_stats_invoke(numkit_stats_ctx *ctx,
                        const numkit_fn *fn,
                        const numkit_val *const *args,
-                       size_t nargs,
-                       size_t nargout,
+                       keel::usize nargs,
+                       keel::usize nargout,
                        numkit_val **outs,
                        numkit_error *err)
 {
@@ -162,9 +163,9 @@ int numkit_stats_invoke(numkit_stats_ctx *ctx,
     }
     const auto *extFn = reinterpret_cast<const numkit::ExternalFunc *>(fn);
     return runDispatch(args, nargs, nargout, outs, err,
-                       [&](numkit::Span<const numkit::Value> inSpan,
-                           size_t nOut,
-                           numkit::Span<numkit::Value> outSpan) {
+                       [&](keel::ArrayRef<numkit::Value> inSpan,
+                           keel::usize nOut,
+                           keel::MutArrayRef<numkit::Value> outSpan) {
                            ctx->ctx.invokeResolved(extFn, inSpan, nOut, outSpan);
                        });
 }
@@ -172,8 +173,8 @@ int numkit_stats_invoke(numkit_stats_ctx *ctx,
 int numkit_stats_call(numkit_stats_ctx *ctx,
                      const char *name,
                      const numkit_val *const *args,
-                     size_t nargs,
-                     size_t nargout,
+                     keel::usize nargs,
+                     keel::usize nargout,
                      numkit_val **outs,
                      numkit_error *err)
 {
@@ -182,17 +183,17 @@ int numkit_stats_call(numkit_stats_ctx *ctx,
         return 1;
     }
     return runDispatch(args, nargs, nargout, outs, err,
-                       [&](numkit::Span<const numkit::Value> inSpan,
-                           size_t nOut,
-                           numkit::Span<numkit::Value> outSpan) {
+                       [&](keel::ArrayRef<numkit::Value> inSpan,
+                           keel::usize nOut,
+                           keel::MutArrayRef<numkit::Value> outSpan) {
                            ctx->ctx.invoke(kToolboxNs, name, inSpan, nOut, outSpan);
                        });
 }
 
-size_t numkit_stats_format(const numkit_stats_ctx *ctx,
+keel::usize numkit_stats_format(const numkit_stats_ctx *ctx,
                           const numkit_val *v,
                           char *buf,
-                          size_t buf_cap)
+                          keel::usize buf_cap)
 {
     if (!ctx || !v) {
         if (buf && buf_cap > 0) buf[0] = '\0';
@@ -201,7 +202,7 @@ size_t numkit_stats_format(const numkit_stats_ctx *ctx,
     try {
         std::string s = ctx->ctx.formatValue(numkit::c_abi::unboxValue(v));
         if (!buf || buf_cap == 0) return s.size();
-        size_t n = std::min(s.size(), buf_cap - 1);
+        keel::usize n = std::min(s.size(), buf_cap - 1);
         if (n > 0) std::memcpy(buf, s.data(), n);
         buf[n] = '\0';
         return s.size();

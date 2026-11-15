@@ -4,6 +4,7 @@
 //   partialcorri — semi-partial correlation, control varies per X col
 //   canoncorr    — canonical correlation analysis
 
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -39,9 +40,9 @@ TEST_F(PCCTest, PartialcorriRecoverDiagonalDependence)
          "R = partialcorri(Y, X);");
     EXPECT_GT(evalScalar("R(1, 1)"), 0.9);
     EXPECT_GT(evalScalar("R(2, 2)"), 0.9);
-    EXPECT_LT(std::abs(evalScalar("R(1, 2)")), 0.2);
-    EXPECT_LT(std::abs(evalScalar("R(2, 1)")), 0.2);
-    EXPECT_LT(std::abs(evalScalar("R(1, 3)")), 0.2);
+    EXPECT_LT(keel::abs(evalScalar("R(1, 2)")), 0.2);
+    EXPECT_LT(keel::abs(evalScalar("R(2, 1)")), 0.2);
+    EXPECT_LT(keel::abs(evalScalar("R(1, 3)")), 0.2);
 }
 
 // With explicit Z controls (already-independent) the result is the same

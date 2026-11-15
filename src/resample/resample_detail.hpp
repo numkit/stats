@@ -3,12 +3,12 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 #include <numkit/builtin/datafun.hpp>
 #include <numkit/ops/matlab_mt19937.hpp>
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
 #include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
 
 #include <algorithm>
@@ -17,7 +17,6 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
-#include <memory_resource>
 #include <numeric>
 #include <string>
 #include <tuple>
@@ -38,7 +37,7 @@ std::vector<int> sample_indices(int N, int K, bool with_replacement,
                                 numkit::ops::RngContext &rng)
 {
     std::vector<int> out;
-    out.reserve((size_t)K);
+    out.reserve((keel::usize)K);
 
     if (weights.empty()) {
         if (with_replacement) {
@@ -50,8 +49,8 @@ std::vector<int> sample_indices(int N, int K, bool with_replacement,
             }
         } else {
             const int take = std::min(K, N);
-            Value rp = numkit::ops::randperm(rng, static_cast<size_t>(N),
-                                             static_cast<size_t>(take), nullptr);
+            Value rp = numkit::ops::randperm(rng, static_cast<keel::usize>(N),
+                                             static_cast<keel::usize>(take), nullptr);
             const double *rpd = rp.doubleData();
             for (int i = 0; i < take; ++i)
                 out.push_back(static_cast<int>(rpd[i]) - 1);
@@ -69,18 +68,18 @@ std::vector<int> sample_indices(int N, int K, bool with_replacement,
             // in descending key order. Exact O(N log N) with zero rejection risk.
             std::exponential_distribution<double> expDist(1.0);
             std::vector<std::pair<double, int>> keyed;
-            keyed.reserve(static_cast<std::size_t>(N));
+            keyed.reserve(static_cast<keel::usize>(N));
             for (int i = 0; i < N; ++i) {
-                const double w = weights[static_cast<std::size_t>(i)];
+                const double w = weights[static_cast<keel::usize>(i)];
                 if (w > 0.0) {
                     const double e = std::max(expDist(gen), 1e-300);
                     keyed.emplace_back(-e / w, i);
                 }
             }
-            const std::size_t take = std::min(static_cast<std::size_t>(K), keyed.size());
+            const keel::usize take = std::min(static_cast<keel::usize>(K), keyed.size());
             std::partial_sort(keyed.begin(), keyed.begin() + take, keyed.end(),
                               [](const auto &a, const auto &b) { return a.first > b.first; });
-            for (std::size_t k = 0; k < take; ++k)
+            for (keel::usize k = 0; k < take; ++k)
                 out.push_back(keyed[k].second);
         }
     }
@@ -88,9 +87,9 @@ std::vector<int> sample_indices(int N, int K, bool with_replacement,
 }
 
 std::vector<double> read_vec(const Value &v) {
-    const size_t n = v.numel();
+    const keel::usize n = v.numel();
     std::vector<double> out(n);
-    for (size_t i = 0; i < n; ++i) out[i] = v.elemAsDouble(i);
+    for (keel::usize i = 0; i < n; ++i) out[i] = v.elemAsDouble(i);
     return out;
 }
 
@@ -98,7 +97,7 @@ std::vector<double> read_vec(const Value &v) {
 namespace {
 // Shared enumeration: combinations of `items` taken `K` at a time.
 Value combnkImpl(const std::vector<double> &items, int K,
-                 std::pmr::memory_resource *mr)
+                 keel::Allocator *mr)
 {
     const int N = static_cast<int>(items.size());
     if (K < 0)
@@ -108,31 +107,31 @@ Value combnkImpl(const std::vector<double> &items, int K,
     // error). E.g. combnk(1:4, 5) -> 0x5, combnk(5, 2) -> 0x2 (scalar 5 is
     // the 1-element set {5}, so K=2 > N=1).
     if (K > N)
-        return Value::matrix(0, static_cast<size_t>(K), ValueType::DOUBLE, mr);
+        return Value::matrix(0, static_cast<keel::usize>(K), ValueType::DOUBLE, mr);
 
     // Number of combinations.
     long long C = 1;
     for (int i = 0; i < K; ++i) C = C * (N - i) / (i + 1);
 
-    Value out = Value::matrix((size_t)C, (size_t)K, ValueType::DOUBLE, mr);
+    Value out = Value::matrix((keel::usize)C, (keel::usize)K, ValueType::DOUBLE, mr);
     if (C == 0) return out;
     double *od = out.doubleDataMut();
     if (K == 0) return out;
 
     // Enumerate combinations in lex order by index recursion.
-    std::vector<int> idx((size_t)K);
-    for (int i = 0; i < K; ++i) idx[(size_t)i] = i;
+    std::vector<int> idx((keel::usize)K);
+    for (int i = 0; i < K; ++i) idx[(keel::usize)i] = i;
     long long row = 0;
     while (true) {
         for (int j = 0; j < K; ++j)
-            od[(size_t)j * (size_t)C + (size_t)row] =
-                items[(size_t)idx[(size_t)j]];
+            od[(keel::usize)j * (keel::usize)C + (keel::usize)row] =
+                items[(keel::usize)idx[(keel::usize)j]];
         ++row;
         int j = K - 1;
-        while (j >= 0 && idx[(size_t)j] == N - K + j) --j;
+        while (j >= 0 && idx[(keel::usize)j] == N - K + j) --j;
         if (j < 0) break;
-        ++idx[(size_t)j];
-        for (int k = j + 1; k < K; ++k) idx[(size_t)k] = idx[(size_t)k - 1] + 1;
+        ++idx[(keel::usize)j];
+        for (int k = j + 1; k < K; ++k) idx[(keel::usize)k] = idx[(keel::usize)k - 1] + 1;
     }
     return out;
 }

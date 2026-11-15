@@ -4,6 +4,8 @@
 // Built on top of stats::pdist2 for the distance matrix; the rest
 // is a per-point average + per-cluster aggregation.
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/cluster/silhouette.hpp>
 #include <numkit/stats/cluster/distance.hpp>
 
@@ -28,24 +30,24 @@ void silhouette_argcheck(const Value &X, const Value &clust)
 
 } // namespace
 
-Value silhouette(const Value &X, const Value &clust, const std::string &metric, double p, std::pmr::memory_resource *mr)
+Value silhouette(const Value &X, const Value &clust, const std::string &metric, double p, keel::Allocator *mr)
 {
     silhouette_argcheck(X, clust);
     const auto &dx = X.dims();
-    const size_t N = dx.rows();
+    const keel::usize N = dx.rows();
     if (N == 0)
         return Value::matrix(0, 1, ValueType::DOUBLE, mr);
 
     // Pull labels into int vector. The reference engine allows numeric or char/string —
     // we accept anything that elemAsDouble can read (round to int).
     std::vector<int> lbl(N);
-    for (size_t i = 0; i < N; ++i)
+    for (keel::usize i = 0; i < N; ++i)
         lbl[i] = static_cast<int>(std::lround(clust.elemAsDouble(i)));
 
     // Catalogue labels and their member indices.
-    std::unordered_map<int, std::vector<size_t>> groups;
+    std::unordered_map<int, std::vector<keel::usize>> groups;
     groups.reserve(N);
-    for (size_t i = 0; i < N; ++i) groups[lbl[i]].push_back(i);
+    for (keel::usize i = 0; i < N; ++i) groups[lbl[i]].push_back(i);
 
     // N×N distance matrix from pdist2.
     Value D = pdist2(X, X, metric, p, mr);
@@ -57,7 +59,7 @@ Value silhouette(const Value &X, const Value &clust, const std::string &metric, 
     Value out = Value::matrix(N, 1, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
 
-    for (size_t i = 0; i < N; ++i) {
+    for (keel::usize i = 0; i < N; ++i) {
         const int k = lbl[i];
         const auto &mine = groups[k];
 
@@ -68,7 +70,7 @@ Value silhouette(const Value &X, const Value &clust, const std::string &metric, 
             od[i] = 0.0;
             continue;
         }
-        for (size_t j : mine) if (j != i)
+        for (keel::usize j : mine) if (j != i)
             a += dd[i + j * N];   // column-major: D(i, j) = dd[i + j*N]
         a /= static_cast<double>(mine.size() - 1);
 
@@ -77,7 +79,7 @@ Value silhouette(const Value &X, const Value &clust, const std::string &metric, 
         for (const auto &kv : groups) {
             if (kv.first == k) continue;
             double m = 0.0;
-            for (size_t j : kv.second) m += dd[i + j * N];
+            for (keel::usize j : kv.second) m += dd[i + j * N];
             m /= static_cast<double>(kv.second.size());
             if (m < b) b = m;
         }

@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <memory_resource>
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
 #include <tuple>
@@ -30,8 +31,8 @@ namespace numkit::stats {
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Array of pdf values, same shape as `x`.
 /// @see betacdf, betainv, betarnd, betastat
-Value betapdf(const Value &x, double a, double b,
-              std::pmr::memory_resource *mr = nullptr);
+Value betapdf(const Value &x, keel::f64 a, keel::f64 b,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Beta cdf (`p = betacdf(x, a, b)`).
 ///
@@ -44,8 +45,8 @@ Value betapdf(const Value &x, double a, double b,
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Array of cdf values in `[0, 1]`.
 /// @see betapdf, betainv
-Value betacdf(const Value &x, double a, double b,
-              std::pmr::memory_resource *mr = nullptr);
+Value betacdf(const Value &x, keel::f64 a, keel::f64 b,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Beta inverse cdf (`x = betainv(p, a, b)`).
 ///
@@ -57,8 +58,8 @@ Value betacdf(const Value &x, double a, double b,
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Quantile array, same shape as `p`.
 /// @see betacdf
-Value betainv(const Value &p, double a, double b,
-              std::pmr::memory_resource *mr = nullptr);
+Value betainv(const Value &p, keel::f64 a, keel::f64 b,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Beta random samples (`r = betarnd(a, b, rows, cols)`).
 ///
@@ -71,8 +72,8 @@ Value betainv(const Value &p, double a, double b,
 /// @param mr    Memory resource (nullptr → process default).
 /// @return      `rows × cols` matrix of Beta samples.
 /// @see betapdf
-Value betarnd(::numkit::ops::RngContext &rng, double a, double b, size_t rows = 1, size_t cols = 1,
-              std::pmr::memory_resource *mr = nullptr);
+Value betarnd(::numkit::ops::RngContext &rng, keel::f64 a, keel::f64 b, keel::usize rows = 1, keel::usize cols = 1,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Beta mean and variance (`[m, v] = betastat(a, b)`).
 ///
@@ -84,7 +85,7 @@ Value betarnd(::numkit::ops::RngContext &rng, double a, double b, size_t rows = 
 /// @param b  Second shape parameter.
 /// @return   `{mean, variance}` pair.
 /// @see betapdf
-std::tuple<double, double> betastat(double a, double b);
+std::tuple<keel::f64, keel::f64> betastat(keel::f64 a, keel::f64 b);
 
 /// @brief Beta(a, b) MLE fit (`[ahat, bhat] = betafit(x)`).
 ///
@@ -96,15 +97,15 @@ std::tuple<double, double> betastat(double a, double b);
 /// @param x   Samples in [0, 1].
 /// @param mr  Memory resource.
 /// @return    `[ahat, bhat]` as a `1 × 2` row.
-Value betafit(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value betafit(const Value &x, keel::Allocator *mr = nullptr);
 
 /// @brief 95% Wald CI for betafit (`pci = betafit_ci(x, alpha)`).
 ///
 /// Returns the 2 × 2 confidence matrix `[lo; hi]` for `[a, b]` from
 /// the observed Fisher information (central-FD Hessian of NLL).
 /// Both parameters use a log-scale Wald CI (MATLAB convention).
-Value betafit_ci(const Value &x, double alpha = 0.05,
-                 std::pmr::memory_resource *mr = nullptr);
+Value betafit_ci(const Value &x, keel::f64 alpha = 0.05,
+                 keel::Allocator *mr = nullptr);
 
 
 /// @}

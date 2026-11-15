@@ -3,6 +3,8 @@
 // Chi-squared distribution. Composes the existing gammainc /
 // gammaincinv on (k/2, x/2) for cdf / icdf.
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/distributions/chi2.hpp>
 
 #include <numkit/builtin/datafun.hpp>  // RngContext + rand/randn/randi/randperm (session-scoped, no global/mutex)
@@ -33,7 +35,7 @@ inline bool chi2_argcheck(double k) noexcept
 }
 } // namespace
 
-Value chi2pdf(const Value &x, double k, std::pmr::memory_resource *mr)
+Value chi2pdf(const Value &x, double k, keel::Allocator *mr)
 {
     // Reference convention: k < 0 ⇒ NaN; k == 0 ⇒ 0 (degenerate Chi²(0)
     // has all mass at 0, so density is 0 almost everywhere).
@@ -54,7 +56,7 @@ Value chi2pdf(const Value &x, double k, std::pmr::memory_resource *mr)
     }, mr);
 }
 
-Value chi2cdf(const Value &x, double k, std::pmr::memory_resource *mr)
+Value chi2cdf(const Value &x, double k, keel::Allocator *mr)
 {
     if (k <= 0.0)
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -65,7 +67,7 @@ Value chi2cdf(const Value &x, double k, std::pmr::memory_resource *mr)
     return ::numkit::builtin::gammainc(out, ar, mr);
 }
 
-Value chi2inv(const Value &p, double k, std::pmr::memory_resource *mr)
+Value chi2inv(const Value &p, double k, keel::Allocator *mr)
 {
     // MATLAB convention: k < 0 ⇒ NaN; k == 0 ⇒ degenerate, quantile is 0
     // for any p in [0, 1] (out-of-range p still NaN).
@@ -82,16 +84,16 @@ Value chi2inv(const Value &p, double k, std::pmr::memory_resource *mr)
     return elementwise(q, [](double v){ return 2.0 * v; }, mr);
 }
 
-Value chi2rnd(::numkit::ops::RngContext &rng, double k, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value chi2rnd(::numkit::ops::RngContext &rng, double k, keel::usize rows, keel::usize cols, keel::Allocator *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (k <= 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
-    const size_t n = rows * cols;
+    const keel::usize n = rows * cols;
     // Sample from Gamma(k/2, 2) — std::gamma_distribution(shape, scale).
     std::gamma_distribution<double> gd(0.5 * k, 2.0);
-    for (size_t i = 0; i < n; ++i) od[i] = gd(gen);
+    for (keel::usize i = 0; i < n; ++i) od[i] = gd(gen);
     return out;
 }
 

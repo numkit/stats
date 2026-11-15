@@ -7,7 +7,8 @@
 
 #pragma once
 
-#include <memory_resource>
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
 #include <tuple>
@@ -31,7 +32,7 @@ namespace numkit::stats {
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Array of pdf values, same shape as `x`.
 /// @see chi2cdf, chi2inv, chi2rnd, chi2stat
-Value chi2pdf(const Value &x, double k, std::pmr::memory_resource *mr = nullptr);
+Value chi2pdf(const Value &x, keel::f64 k, keel::Allocator *mr = nullptr);
 
 /// @brief Chi-squared cdf (`F = chi2cdf(x, k)`).
 ///
@@ -43,7 +44,7 @@ Value chi2pdf(const Value &x, double k, std::pmr::memory_resource *mr = nullptr)
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Array of cdf values in `[0, 1]`.
 /// @see chi2pdf, chi2inv
-Value chi2cdf(const Value &x, double k, std::pmr::memory_resource *mr = nullptr);
+Value chi2cdf(const Value &x, keel::f64 k, keel::Allocator *mr = nullptr);
 
 /// @brief Chi-squared inverse cdf (`x = chi2inv(p, k)`).
 ///
@@ -54,7 +55,7 @@ Value chi2cdf(const Value &x, double k, std::pmr::memory_resource *mr = nullptr)
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Quantile array, same shape as `p`.
 /// @see chi2cdf
-Value chi2inv(const Value &p, double k, std::pmr::memory_resource *mr = nullptr);
+Value chi2inv(const Value &p, keel::f64 k, keel::Allocator *mr = nullptr);
 
 /// @brief Chi-squared random samples (`r = chi2rnd(k, rows, cols)`).
 ///
@@ -66,7 +67,7 @@ Value chi2inv(const Value &p, double k, std::pmr::memory_resource *mr = nullptr)
 /// @param mr    Memory resource (nullptr → process default).
 /// @return      `rows × cols` matrix of χ² samples.
 /// @see chi2pdf
-Value chi2rnd(::numkit::ops::RngContext &rng, double k, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
+Value chi2rnd(::numkit::ops::RngContext &rng, keel::f64 k, keel::usize rows = 1, keel::usize cols = 1, keel::Allocator *mr = nullptr);
 
 /// @brief Chi-squared mean and variance (`[m, v] = chi2stat(k)`).
 ///
@@ -75,7 +76,7 @@ Value chi2rnd(::numkit::ops::RngContext &rng, double k, size_t rows = 1, size_t 
 /// @param k  Degrees of freedom.
 /// @return   `{mean, variance}` pair.
 /// @see chi2pdf
-std::tuple<double, double> chi2stat(double k);
+std::tuple<keel::f64, keel::f64> chi2stat(keel::f64 k);
 
 
 /// @}

@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <memory_resource>
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
 #include <tuple>
@@ -28,8 +29,8 @@ namespace numkit::stats {
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Array of pmf values, same shape as `k`.
 /// @see unidcdf, unidinv, unidrnd, unidstat
-Value unidpdf(const Value &k, double N,
-              std::pmr::memory_resource *mr = nullptr);
+Value unidpdf(const Value &k, keel::f64 N,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Discrete-uniform cdf (`F = unidcdf(k, N)`).
 ///
@@ -40,8 +41,8 @@ Value unidpdf(const Value &k, double N,
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Array of cdf values in `[0, 1]`.
 /// @see unidpdf, unidinv
-Value unidcdf(const Value &k, double N,
-              std::pmr::memory_resource *mr = nullptr);
+Value unidcdf(const Value &k, keel::f64 N,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Discrete-uniform inverse cdf (`k = unidinv(p, N)`).
 ///
@@ -52,8 +53,8 @@ Value unidcdf(const Value &k, double N,
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Quantile array, same shape as `p`.
 /// @see unidcdf
-Value unidinv(const Value &p, double N,
-              std::pmr::memory_resource *mr = nullptr);
+Value unidinv(const Value &p, keel::f64 N,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Discrete-uniform random samples (`r = unidrnd(N, rows, cols)`).
 ///
@@ -63,8 +64,8 @@ Value unidinv(const Value &p, double N,
 /// @param mr    Memory resource (nullptr → process default).
 /// @return      `rows × cols` matrix of discrete-uniform samples.
 /// @see unidpdf
-Value unidrnd(::numkit::ops::RngContext &rng, double N, size_t rows = 1, size_t cols = 1,
-              std::pmr::memory_resource *mr = nullptr);
+Value unidrnd(::numkit::ops::RngContext &rng, keel::f64 N, keel::usize rows = 1, keel::usize cols = 1,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Discrete-uniform mean and variance (`[m, v] = unidstat(N)`).
 ///
@@ -73,7 +74,7 @@ Value unidrnd(::numkit::ops::RngContext &rng, double N, size_t rows = 1, size_t 
 /// @param N  Upper bound of support.
 /// @return   `{mean, variance}` pair.
 /// @see unidpdf
-std::tuple<double, double> unidstat(double N);
+std::tuple<keel::f64, keel::f64> unidstat(keel::f64 N);
 
 
 /// @}

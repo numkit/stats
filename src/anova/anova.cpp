@@ -1,5 +1,7 @@
 // toolboxes/stats/src/anova/anova.cpp
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/anova/anova.hpp>
 
 #include <numkit/stats/distributions/fisher_f.hpp>
@@ -19,17 +21,17 @@ namespace numkit::stats {
 
 
 std::tuple<double, double, double, double, double, double>
-anova1(const Value &y, const Value &group, std::pmr::memory_resource *mr)
+anova1(const Value &y, const Value &group, keel::Allocator *mr)
 {
     auto buckets = bucket(y, group);
     const double nan = std::numeric_limits<double>::quiet_NaN();
     if (buckets.size() < 2)
         return std::make_tuple(nan, nan, 0.0, 0.0, nan, nan);
 
-    size_t N = 0;
+    keel::usize N = 0;
     double grandSum = 0.0;
     std::vector<double> means(buckets.size());
-    for (size_t k = 0; k < buckets.size(); ++k) {
+    for (keel::usize k = 0; k < buckets.size(); ++k) {
         const auto &v = buckets[k].values;
         double s = 0.0;
         for (double x : v) s += x;
@@ -40,7 +42,7 @@ anova1(const Value &y, const Value &group, std::pmr::memory_resource *mr)
     const double grandMean = grandSum / double(N);
 
     double ssB = 0.0, ssW = 0.0;
-    for (size_t k = 0; k < buckets.size(); ++k) {
+    for (keel::usize k = 0; k < buckets.size(); ++k) {
         const auto &v = buckets[k].values;
         ssB += double(v.size()) * (means[k] - grandMean) * (means[k] - grandMean);
         for (double x : v) {
@@ -73,8 +75,8 @@ void anova2_argcheck(const Value &Y)
     if (Y.dims().ndim() != 2)
         throw Error("anova2: input must be a 2D matrix",
                     0, 0, "anova2", "", "numkit:anova2:notMatrix");
-    const std::size_t m = static_cast<std::size_t>(Y.dims().dim(0));
-    const std::size_t n = static_cast<std::size_t>(Y.dims().dim(1));
+    const keel::usize m = static_cast<keel::usize>(Y.dims().dim(0));
+    const keel::usize n = static_cast<keel::usize>(Y.dims().dim(1));
     if (m < 2 || n < 2)
         throw Error("anova2: input must be at least 2x2",
                     0, 0, "anova2", "", "numkit:anova2:tooSmall");
@@ -99,12 +101,12 @@ void friedman_argcheck(int reps)
 std::tuple<double, double, double, double,
            double, double, double,
            double, double, double>
-anova2(const Value &Y, std::pmr::memory_resource *mr)
+anova2(const Value &Y, keel::Allocator *mr)
 {
     anova2_argcheck(Y);
     const double nan = std::numeric_limits<double>::quiet_NaN();
-    const std::size_t m = static_cast<std::size_t>(Y.dims().dim(0));
-    const std::size_t n = static_cast<std::size_t>(Y.dims().dim(1));
+    const keel::usize m = static_cast<keel::usize>(Y.dims().dim(0));
+    const keel::usize n = static_cast<keel::usize>(Y.dims().dim(1));
 
     const double *yd = Y.doubleData();
     const double N = static_cast<double>(m * n);
@@ -113,8 +115,8 @@ anova2(const Value &Y, std::pmr::memory_resource *mr)
     std::vector<double> rowSum(m, 0.0);
     std::vector<double> colSum(n, 0.0);
     double grandSum = 0.0;
-    for (std::size_t j = 0; j < n; ++j)
-        for (std::size_t i = 0; i < m; ++i) {
+    for (keel::usize j = 0; j < n; ++j)
+        for (keel::usize i = 0; i < m; ++i) {
             const double v = yd[i + j * m];
             rowSum[i] += v;
             colSum[j] += v;
@@ -122,21 +124,21 @@ anova2(const Value &Y, std::pmr::memory_resource *mr)
         }
     const double grandMean = grandSum / N;
     std::vector<double> rowMean(m), colMean(n);
-    for (std::size_t i = 0; i < m; ++i) rowMean[i] = rowSum[i] / static_cast<double>(n);
-    for (std::size_t j = 0; j < n; ++j) colMean[j] = colSum[j] / static_cast<double>(m);
+    for (keel::usize i = 0; i < m; ++i) rowMean[i] = rowSum[i] / static_cast<double>(n);
+    for (keel::usize j = 0; j < n; ++j) colMean[j] = colSum[j] / static_cast<double>(m);
 
     // Sum of squares.
     double ssRows = 0.0, ssCols = 0.0, ssTotal = 0.0;
-    for (std::size_t i = 0; i < m; ++i) {
+    for (keel::usize i = 0; i < m; ++i) {
         const double d = rowMean[i] - grandMean;
         ssRows += static_cast<double>(n) * d * d;
     }
-    for (std::size_t j = 0; j < n; ++j) {
+    for (keel::usize j = 0; j < n; ++j) {
         const double d = colMean[j] - grandMean;
         ssCols += static_cast<double>(m) * d * d;
     }
-    for (std::size_t j = 0; j < n; ++j)
-        for (std::size_t i = 0; i < m; ++i) {
+    for (keel::usize j = 0; j < n; ++j)
+        for (keel::usize i = 0; i < m; ++i) {
             const double d = yd[i + j * m] - grandMean;
             ssTotal += d * d;
         }
@@ -169,7 +171,7 @@ anova2(const Value &Y, std::pmr::memory_resource *mr)
 }
 
 std::tuple<Value, Value, Value, Value>
-kruskalwallis(const Value &y, const Value &group, std::pmr::memory_resource *mr)
+kruskalwallis(const Value &y, const Value &group, keel::Allocator *mr)
 {
     auto buckets = bucket(y, group);
     const double nan = std::numeric_limits<double>::quiet_NaN();
@@ -180,10 +182,10 @@ kruskalwallis(const Value &y, const Value &group, std::pmr::memory_resource *mr)
                                Value::scalar(0.0, mr));
 
     // Flatten to single (value, group_idx) array for ranking.
-    struct V { double val; size_t g; };
+    struct V { double val; keel::usize g; };
     std::vector<V> all;
-    size_t N = 0;
-    for (size_t k = 0; k < buckets.size(); ++k) {
+    keel::usize N = 0;
+    for (keel::usize k = 0; k < buckets.size(); ++k) {
         for (double v : buckets[k].values) all.push_back({v, k});
         N += buckets[k].values.size();
     }
@@ -192,34 +194,34 @@ kruskalwallis(const Value &y, const Value &group, std::pmr::memory_resource *mr)
                                        Value::scalar(0.0, mr),
                                        Value::scalar(0.0, mr));
 
-    std::vector<size_t> ord(N);
-    for (size_t i = 0; i < N; ++i) ord[i] = i;
+    std::vector<keel::usize> ord(N);
+    for (keel::usize i = 0; i < N; ++i) ord[i] = i;
     std::sort(ord.begin(), ord.end(),
-              [&](size_t a, size_t b) { return all[a].val < all[b].val; });
+              [&](keel::usize a, keel::usize b) { return all[a].val < all[b].val; });
 
     // Assign mid-ranks for ties.
     std::vector<double> ranks(N);
-    std::vector<size_t> tieGroupSizes;
-    size_t i = 0;
+    std::vector<keel::usize> tieGroupSizes;
+    keel::usize i = 0;
     while (i < N) {
-        size_t j = i + 1;
+        keel::usize j = i + 1;
         while (j < N && all[ord[j]].val == all[ord[i]].val) ++j;
         const double avg = static_cast<double>(i + j + 1) / 2.0;
-        for (size_t k = i; k < j; ++k) ranks[ord[k]] = avg;
+        for (keel::usize k = i; k < j; ++k) ranks[ord[k]] = avg;
         if (j - i > 1) tieGroupSizes.push_back(j - i);
         i = j;
     }
 
     // Sum ranks by group.
     std::vector<double> R(buckets.size(), 0.0);
-    std::vector<size_t> ng(buckets.size(), 0);
-    for (size_t k = 0; k < N; ++k) {
+    std::vector<keel::usize> ng(buckets.size(), 0);
+    for (keel::usize k = 0; k < N; ++k) {
         R[all[k].g] += ranks[k];
         ng[all[k].g]++;
     }
 
     double sumR2_n = 0.0;
-    for (size_t g = 0; g < buckets.size(); ++g)
+    for (keel::usize g = 0; g < buckets.size(); ++g)
         if (ng[g] > 0) sumR2_n += R[g] * R[g] / double(ng[g]);
 
     const double Nd = double(N);
@@ -227,7 +229,7 @@ kruskalwallis(const Value &y, const Value &group, std::pmr::memory_resource *mr)
 
     // Tie correction.
     double tieSum = 0.0;
-    for (size_t t : tieGroupSizes) {
+    for (keel::usize t : tieGroupSizes) {
         const double td = double(t);
         tieSum += td * td * td - td;
     }
@@ -246,45 +248,45 @@ kruskalwallis(const Value &y, const Value &group, std::pmr::memory_resource *mr)
 }
 
 std::tuple<Value, Value, Value>
-friedman(const Value &x, int reps, std::pmr::memory_resource *mr)
+friedman(const Value &x, int reps, keel::Allocator *mr)
 {
     friedman_argcheck(reps);
     const double nan = std::numeric_limits<double>::quiet_NaN();
-    const size_t nrows = x.dims().rows();
-    const size_t k     = x.dims().cols();
-    const size_t R     = static_cast<size_t>(reps);   // replicates per cell
+    const keel::usize nrows = x.dims().rows();
+    const keel::usize k     = x.dims().cols();
+    const keel::usize R     = static_cast<keel::usize>(reps);   // replicates per cell
     if (k < 2 || nrows < 2 * R || R == 0 || (nrows % R) != 0)
         return std::make_tuple(Value::scalar(nan, mr), Value::scalar(nan, mr),
                                Value::scalar(0.0, mr));
-    const size_t n = nrows / R;   // blocks
-    const size_t M = R * k;       // observations per block
+    const keel::usize n = nrows / R;   // blocks
+    const keel::usize M = R * k;       // observations per block
 
     std::vector<double> Rj(k, 0.0);      // column rank sums
     double              tieTerm = 0.0;   // Σ (t³ − t) over every tie group in every block
     std::vector<double> blkVals(M), rank(M);
-    std::vector<size_t> blkCols(M), ord(M);
-    for (size_t b = 0; b < n; ++b) {
-        size_t idx = 0;
-        for (size_t c = 0; c < k; ++c) {
-            for (size_t r = 0; r < R; ++r) {
+    std::vector<keel::usize> blkCols(M), ord(M);
+    for (keel::usize b = 0; b < n; ++b) {
+        keel::usize idx = 0;
+        for (keel::usize c = 0; c < k; ++c) {
+            for (keel::usize r = 0; r < R; ++r) {
                 blkVals[idx] = x.elemAsDouble(c * nrows + (b * R + r));
                 blkCols[idx] = c;
                 ord[idx]     = idx;
                 ++idx;
             }
         }
-        std::sort(ord.begin(), ord.end(), [&](size_t a, size_t bb) { return blkVals[a] < blkVals[bb]; });
-        size_t i = 0;                    // mid-ranks within the block (1 .. R*k)
+        std::sort(ord.begin(), ord.end(), [&](keel::usize a, keel::usize bb) { return blkVals[a] < blkVals[bb]; });
+        keel::usize i = 0;                    // mid-ranks within the block (1 .. R*k)
         while (i < M) {
-            size_t j = i + 1;
+            keel::usize j = i + 1;
             while (j < M && blkVals[ord[j]] == blkVals[ord[i]]) ++j;
             const double avg = static_cast<double>(i + j + 1) / 2.0;
-            for (size_t t = i; t < j; ++t) rank[ord[t]] = avg;
+            for (keel::usize t = i; t < j; ++t) rank[ord[t]] = avg;
             const double tg = static_cast<double>(j - i);
             if (tg > 1.0) tieTerm += tg * tg * tg - tg;
             i = j;
         }
-        for (size_t m = 0; m < M; ++m) Rj[blkCols[m]] += rank[m];
+        for (keel::usize m = 0; m < M; ++m) Rj[blkCols[m]] += rank[m];
     }
 
     const double nd = static_cast<double>(n);
@@ -303,27 +305,27 @@ friedman(const Value &x, int reps, std::pmr::memory_resource *mr)
     return std::make_tuple(Value::scalar(p, mr), Value::scalar(Q, mr), Value::scalar(df, mr));
 }
 
-Value dummyvar(const Value &group, std::pmr::memory_resource *mr)
+Value dummyvar(const Value &group, keel::Allocator *mr)
 {
-    const size_t N = group.numel();
+    const keel::usize N = group.numel();
     if (N == 0)
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
 
     // Find unique labels, sorted ascending (matches MATLAB).
     std::vector<double> uniq;
     uniq.reserve(N);
-    for (size_t i = 0; i < N; ++i) uniq.push_back(group.elemAsDouble(i));
+    for (keel::usize i = 0; i < N; ++i) uniq.push_back(group.elemAsDouble(i));
     std::sort(uniq.begin(), uniq.end());
     uniq.erase(std::unique(uniq.begin(), uniq.end()), uniq.end());
-    const size_t K = uniq.size();
+    const keel::usize K = uniq.size();
 
     Value out = Value::matrix(N, K, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
-    for (size_t i = 0; i < N * K; ++i) od[i] = 0.0;
-    for (size_t i = 0; i < N; ++i) {
+    for (keel::usize i = 0; i < N * K; ++i) od[i] = 0.0;
+    for (keel::usize i = 0; i < N; ++i) {
         const double li = group.elemAsDouble(i);
         // Linear search across at most K labels.
-        for (size_t k = 0; k < K; ++k) {
+        for (keel::usize k = 0; k < K; ++k) {
             if (uniq[k] == li) { od[i + k * N] = 1.0; break; }
         }
     }

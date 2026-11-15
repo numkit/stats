@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <memory_resource>
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
 #include <tuple>
@@ -32,7 +33,7 @@ namespace numkit::stats {
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Array of pdf values, same shape as `x`.
 /// @see fcdf, finv, frnd, fstat
-Value fpdf(const Value &x, double v1, double v2, std::pmr::memory_resource *mr = nullptr);
+Value fpdf(const Value &x, keel::f64 v1, keel::f64 v2, keel::Allocator *mr = nullptr);
 
 /// @brief F cdf (`F = fcdf(x, v1, v2)`).
 ///
@@ -45,7 +46,7 @@ Value fpdf(const Value &x, double v1, double v2, std::pmr::memory_resource *mr =
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Array of cdf values in `[0, 1]`.
 /// @see fpdf, finv
-Value fcdf(const Value &x, double v1, double v2, std::pmr::memory_resource *mr = nullptr);
+Value fcdf(const Value &x, keel::f64 v1, keel::f64 v2, keel::Allocator *mr = nullptr);
 
 /// @brief F inverse cdf (`x = finv(p, v1, v2)`).
 ///
@@ -57,7 +58,7 @@ Value fcdf(const Value &x, double v1, double v2, std::pmr::memory_resource *mr =
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Quantile array, same shape as `p`.
 /// @see fcdf
-Value finv(const Value &p, double v1, double v2, std::pmr::memory_resource *mr = nullptr);
+Value finv(const Value &p, keel::f64 v1, keel::f64 v2, keel::Allocator *mr = nullptr);
 
 /// @brief F random samples (`r = frnd(v1, v2, rows, cols)`).
 ///
@@ -70,7 +71,7 @@ Value finv(const Value &p, double v1, double v2, std::pmr::memory_resource *mr =
 /// @param mr    Memory resource (nullptr → process default).
 /// @return      `rows × cols` matrix of F-samples.
 /// @see fpdf
-Value frnd(::numkit::ops::RngContext &rng, double v1, double v2, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
+Value frnd(::numkit::ops::RngContext &rng, keel::f64 v1, keel::f64 v2, keel::usize rows = 1, keel::usize cols = 1, keel::Allocator *mr = nullptr);
 
 /// @brief F mean and variance (`[m, v] = fstat(v1, v2)`).
 ///
@@ -81,7 +82,7 @@ Value frnd(::numkit::ops::RngContext &rng, double v1, double v2, size_t rows = 1
 /// @param v2  Denominator degrees of freedom.
 /// @return    `{mean, variance}` pair.
 /// @see fpdf
-std::tuple<double, double> fstat(double v1, double v2);
+std::tuple<keel::f64, keel::f64> fstat(keel::f64 v1, keel::f64 v2);
 
 /// @brief Noncentral F pdf (`y = ncfpdf(x, nu1, nu2, delta)`).
 ///
@@ -100,8 +101,8 @@ std::tuple<double, double> fstat(double v1, double v2);
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Array of pdf values, same shape as `x`.
 /// @see ncfcdf, ncfinv, ncfrnd, ncfstat
-Value ncfpdf(const Value &x, double nu1, double nu2, double delta,
-             std::pmr::memory_resource *mr = nullptr);
+Value ncfpdf(const Value &x, keel::f64 nu1, keel::f64 nu2, keel::f64 delta,
+             keel::Allocator *mr = nullptr);
 
 /// @brief Noncentral F cdf (`p = ncfcdf(x, nu1, nu2, delta)`).
 ///
@@ -119,8 +120,8 @@ Value ncfpdf(const Value &x, double nu1, double nu2, double delta,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Array of cdf values in `[0, 1]`.
 /// @see ncfpdf, ncfinv
-Value ncfcdf(const Value &x, double nu1, double nu2, double delta,
-             bool upper = false, std::pmr::memory_resource *mr = nullptr);
+Value ncfcdf(const Value &x, keel::f64 nu1, keel::f64 nu2, keel::f64 delta,
+             bool upper = false, keel::Allocator *mr = nullptr);
 
 /// @brief Noncentral F inverse cdf (`x = ncfinv(p, nu1, nu2, delta)`).
 ///
@@ -135,8 +136,8 @@ Value ncfcdf(const Value &x, double nu1, double nu2, double delta,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Quantile array, same shape as `p`.
 /// @see ncfcdf
-Value ncfinv(const Value &p, double nu1, double nu2, double delta,
-             std::pmr::memory_resource *mr = nullptr);
+Value ncfinv(const Value &p, keel::f64 nu1, keel::f64 nu2, keel::f64 delta,
+             keel::Allocator *mr = nullptr);
 
 /// @brief Noncentral F mean and variance
 /// (`[m, v] = ncfstat(nu1, nu2, delta)`).
@@ -151,7 +152,7 @@ Value ncfinv(const Value &p, double nu1, double nu2, double delta,
 /// @param delta  Noncentrality parameter.
 /// @return       `{mean, variance}` (NaN where undefined).
 /// @see ncfpdf
-std::tuple<double, double> ncfstat(double nu1, double nu2, double delta);
+std::tuple<keel::f64, keel::f64> ncfstat(keel::f64 nu1, keel::f64 nu2, keel::f64 delta);
 
 /// @brief Noncentral F random samples
 /// (`R = ncfrnd(nu1, nu2, delta, rows, cols)`).
@@ -169,9 +170,9 @@ std::tuple<double, double> ncfstat(double nu1, double nu2, double delta);
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `rows × cols` matrix of noncentral F samples.
 /// @see ncfpdf
-Value ncfrnd(::numkit::ops::RngContext &rng, double nu1, double nu2, double delta,
-             std::size_t rows = 1, std::size_t cols = 1,
-             std::pmr::memory_resource *mr = nullptr);
+Value ncfrnd(::numkit::ops::RngContext &rng, keel::f64 nu1, keel::f64 nu2, keel::f64 delta,
+             keel::usize rows = 1, keel::usize cols = 1,
+             keel::Allocator *mr = nullptr);
 
 
 /// @}

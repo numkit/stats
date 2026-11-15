@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <memory_resource>
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
 #include <tuple>
@@ -31,8 +32,8 @@ namespace numkit::stats {
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Array of pdf values, same shape as `x`.
 /// @see evcdf, evinv, evrnd, evstat
-Value evpdf(const Value &x, double mu, double sigma,
-            std::pmr::memory_resource *mr = nullptr);
+Value evpdf(const Value &x, keel::f64 mu, keel::f64 sigma,
+            keel::Allocator *mr = nullptr);
 
 /// @brief Type-I EV cdf (`p = evcdf(x, mu, sigma)`).
 ///
@@ -44,8 +45,8 @@ Value evpdf(const Value &x, double mu, double sigma,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Array of cdf values in `[0, 1]`.
 /// @see evpdf, evinv
-Value evcdf(const Value &x, double mu, double sigma,
-            std::pmr::memory_resource *mr = nullptr);
+Value evcdf(const Value &x, keel::f64 mu, keel::f64 sigma,
+            keel::Allocator *mr = nullptr);
 
 /// @brief Type-I EV inverse cdf (`x = evinv(p, mu, sigma)`).
 ///
@@ -57,8 +58,8 @@ Value evcdf(const Value &x, double mu, double sigma,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Quantile array, same shape as `p`.
 /// @see evcdf
-Value evinv(const Value &p, double mu, double sigma,
-            std::pmr::memory_resource *mr = nullptr);
+Value evinv(const Value &p, keel::f64 mu, keel::f64 sigma,
+            keel::Allocator *mr = nullptr);
 
 /// @brief Type-I EV random samples (`r = evrnd(mu, sigma, rows, cols)`).
 ///
@@ -71,8 +72,8 @@ Value evinv(const Value &p, double mu, double sigma,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `rows × cols` matrix of EV samples.
 /// @see evpdf
-Value evrnd(::numkit::ops::RngContext &rng, double mu, double sigma, size_t rows = 1, size_t cols = 1,
-            std::pmr::memory_resource *mr = nullptr);
+Value evrnd(::numkit::ops::RngContext &rng, keel::f64 mu, keel::f64 sigma, keel::usize rows = 1, keel::usize cols = 1,
+            keel::Allocator *mr = nullptr);
 
 /// @brief Type-I EV mean and variance (`[m, v] = evstat(mu, sigma)`).
 ///
@@ -83,7 +84,7 @@ Value evrnd(::numkit::ops::RngContext &rng, double mu, double sigma, size_t rows
 /// @param sigma  Scale parameter.
 /// @return       `{mean, variance}` pair.
 /// @see evpdf
-std::tuple<double, double> evstat(double mu, double sigma);
+std::tuple<keel::f64, keel::f64> evstat(keel::f64 mu, keel::f64 sigma);
 
 /// @brief Type-I EV (Gumbel-min) MLE fit (`[muhat, sigmahat] = evfit(x)`).
 ///
@@ -99,7 +100,7 @@ std::tuple<double, double> evstat(double mu, double sigma);
 /// @param mr  Memory resource.
 /// @return    `[muhat, sigmahat]` as a `1 × 2` row.
 /// @see evpdf, evcdf
-Value evfit(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value evfit(const Value &x, keel::Allocator *mr = nullptr);
 
 /// @brief Type-I EV (Gumbel-min) MLE fit with right-censoring and
 /// frequency weights (`[parmhat, parmci] = evfit(x, alpha, cens, freq)`).
@@ -119,7 +120,7 @@ Value evfit(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// @param mr         Memory resource.
 /// @return           `[muhat, sigmahat]` as a `1 × 2` row.
 Value evfit(const Value &x, const Value &censoring, const Value &freq,
-            std::pmr::memory_resource *mr = nullptr);
+            keel::Allocator *mr = nullptr);
 
 /// @brief Wald CI for evfit (`pci = evfit_ci(x, alpha)`).
 ///
@@ -127,14 +128,14 @@ Value evfit(const Value &x, const Value &censoring, const Value &freq,
 /// from the observed Fisher information (central-FD Hessian of NLL).
 /// `mu` uses a linear Wald CI; `sigma` uses a log-scale CI (MATLAB
 /// convention).
-Value evfit_ci(const Value &x, double alpha = 0.05,
-               std::pmr::memory_resource *mr = nullptr);
+Value evfit_ci(const Value &x, keel::f64 alpha = 0.05,
+               keel::Allocator *mr = nullptr);
 
 /// @brief Wald CI for censored/weighted evfit
 /// (`pci = evfit_ci(x, alpha, cens, freq)`).
-Value evfit_ci(const Value &x, double alpha,
+Value evfit_ci(const Value &x, keel::f64 alpha,
                const Value &censoring, const Value &freq,
-               std::pmr::memory_resource *mr = nullptr);
+               keel::Allocator *mr = nullptr);
 
 
 /// @}

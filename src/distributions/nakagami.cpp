@@ -1,5 +1,7 @@
 // toolboxes/stats/src/distributions/nakagami.cpp
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/distributions/nakagami.hpp>
 
 #include <numkit/builtin/specfun.hpp>   // gammainc, gammaincinv
@@ -26,7 +28,7 @@ inline bool naka_argcheck(double mu, double omega) noexcept
 }
 } // namespace
 
-Value nakapdf(const Value &x, double mu, double omega, std::pmr::memory_resource *mr)
+Value nakapdf(const Value &x, double mu, double omega, keel::Allocator *mr)
 {
     if (!naka_argcheck(mu, omega))
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -41,7 +43,7 @@ Value nakapdf(const Value &x, double mu, double omega, std::pmr::memory_resource
     }, mr);
 }
 
-Value nakacdf(const Value &x, double mu, double omega, std::pmr::memory_resource *mr)
+Value nakacdf(const Value &x, double mu, double omega, keel::Allocator *mr)
 {
     if (mu <= 0.0 || omega <= 0.0)
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -52,7 +54,7 @@ Value nakacdf(const Value &x, double mu, double omega, std::pmr::memory_resource
     }, mr);
 }
 
-Value nakainv(const Value &p, double mu, double omega, std::pmr::memory_resource *mr)
+Value nakainv(const Value &p, double mu, double omega, keel::Allocator *mr)
 {
     if (mu <= 0.0 || omega <= 0.0)
         return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -66,16 +68,16 @@ Value nakainv(const Value &p, double mu, double omega, std::pmr::memory_resource
     }, mr);
 }
 
-Value nakarnd(::numkit::ops::RngContext &rng, double mu, double omega, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value nakarnd(::numkit::ops::RngContext &rng, double mu, double omega, keel::usize rows, keel::usize cols, keel::Allocator *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (mu <= 0.0 || omega <= 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
-    const size_t n = rows * cols;
+    const keel::usize n = rows * cols;
     // X² ~ Gamma(shape=mu, scale=omega/mu) ⇒ X = √Gamma.
     std::gamma_distribution<double> gd(mu, omega / mu);
-    for (size_t i = 0; i < n; ++i) od[i] = std::sqrt(gd(gen));
+    for (keel::usize i = 0; i < n; ++i) od[i] = std::sqrt(gd(gen));
     return out;
 }
 

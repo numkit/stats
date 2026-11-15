@@ -1,5 +1,7 @@
 // toolboxes/stats/src/distributions/rayleigh.cpp
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/distributions/rayleigh.hpp>
 
 #include <numkit/builtin/datafun.hpp>
@@ -29,7 +31,7 @@ inline bool rayl_argcheck(double b) noexcept
 }
 } // namespace
 
-Value raylpdf(const Value &x, double b, std::pmr::memory_resource *mr)
+Value raylpdf(const Value &x, double b, keel::Allocator *mr)
 {
     if (!rayl_argcheck(b))
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -40,7 +42,7 @@ Value raylpdf(const Value &x, double b, std::pmr::memory_resource *mr)
     }, mr);
 }
 
-Value raylcdf(const Value &x, double b, std::pmr::memory_resource *mr)
+Value raylcdf(const Value &x, double b, keel::Allocator *mr)
 {
     if (b <= 0.0)
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -51,7 +53,7 @@ Value raylcdf(const Value &x, double b, std::pmr::memory_resource *mr)
     }, mr);
 }
 
-Value raylinv(const Value &p, double b, std::pmr::memory_resource *mr)
+Value raylinv(const Value &p, double b, keel::Allocator *mr)
 {
     if (b <= 0.0)
         return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -63,23 +65,23 @@ Value raylinv(const Value &p, double b, std::pmr::memory_resource *mr)
     }, mr);
 }
 
-Value raylrnd(::numkit::ops::RngContext &rng, double b, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value raylrnd(::numkit::ops::RngContext &rng, double b, keel::usize rows, keel::usize cols, keel::Allocator *mr)
 {
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
-    const size_t n = rows * cols;
+    const keel::usize n = rows * cols;
     if (n == 0) return out;
     double *od = out.doubleDataMut();
     if (!(b > 0.0)) {
         const double fillVal = (b == 0.0) ? 0.0 : std::numeric_limits<double>::quiet_NaN();
-        for (size_t i = 0; i < n; ++i) od[i] = fillVal;
+        for (keel::usize i = 0; i < n; ++i) od[i] = fillVal;
         return out;
     }
     // Reference engine formula: r = sqrt(randn(sizeOut).^2 + randn(sizeOut).^2) .* b
-    for (size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const double z1 = rng.nextNormal();
         od[i] = z1 * z1;
     }
-    for (size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const double z2 = rng.nextNormal();
         od[i] = std::sqrt(od[i] + z2 * z2) * b;
     }

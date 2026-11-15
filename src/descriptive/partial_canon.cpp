@@ -5,12 +5,15 @@
 //   partialcorri — partial correlation with X-column-specific controls
 //   canoncorr    — canonical correlation analysis (QR + SVD)
 
+#include <keel/core.h>
+#include <keel/memory.h>
+#include <keel/arena.h>
+#include <keel/array.h>
 #include <numkit/stats/descriptive/descriptive.hpp>
 
 #include <numkit/linalg/decompositions.hpp>     // qr_decompose, svd_decompose
 
 #include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
@@ -25,33 +28,33 @@ namespace {
 
 // In-place Gaussian elimination + back-sub of (M · x = b), where M is
 // p×p row-major. Returns false if singular (caller sets coef to 0).
-bool solveGauss(double *M, double *b, std::size_t p)
+bool solveGauss(double *M, double *b, keel::usize p)
 {
-    for (std::size_t k = 0; k < p; ++k) {
-        std::size_t piv = k;
+    for (keel::usize k = 0; k < p; ++k) {
+        keel::usize piv = k;
         double pmax = std::fabs(M[k * p + k]);
-        for (std::size_t r = k + 1; r < p; ++r) {
+        for (keel::usize r = k + 1; r < p; ++r) {
             const double v = std::fabs(M[r * p + k]);
             if (v > pmax) { pmax = v; piv = r; }
         }
         if (pmax == 0.0) return false;
         if (piv != k) {
-            for (std::size_t j = 0; j < p; ++j)
+            for (keel::usize j = 0; j < p; ++j)
                 std::swap(M[k * p + j], M[piv * p + j]);
             std::swap(b[k], b[piv]);
         }
         const double pivVal = M[k * p + k];
-        for (std::size_t r = k + 1; r < p; ++r) {
+        for (keel::usize r = k + 1; r < p; ++r) {
             const double f = M[r * p + k] / pivVal;
-            for (std::size_t j = k; j < p; ++j)
+            for (keel::usize j = k; j < p; ++j)
                 M[r * p + j] -= f * M[k * p + j];
             b[r] -= f * b[k];
         }
     }
     // Back-substitute.
-    for (std::size_t k = p; k-- > 0;) {
+    for (keel::usize k = p; k-- > 0;) {
         double s = b[k];
-        for (std::size_t j = k + 1; j < p; ++j)
+        for (keel::usize j = k + 1; j < p; ++j)
             s -= M[k * p + j] * b[j];
         b[k] = s / M[k * p + k];
     }
@@ -63,38 +66,38 @@ bool solveGauss(double *M, double *b, std::size_t p)
 // (n elements) into `out`. Uses normal equations + Gauss elim.
 //
 // `MM` is `C' · C` (p × p) — caller computes once and reuses.
-void residualiseColumn(const double *C, std::size_t n, std::size_t p,
+void residualiseColumn(const double *C, keel::usize n, keel::usize p,
                        const double *MM,
                        const double *Wcol,
                        double *out,
-                       std::pmr::memory_resource *mr)
+                       keel::Allocator *mr)
 {
-    ScratchArena scratch(mr);
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
     // RHS b = C' · Wcol  (length p).
-    ScratchVec<double> b(p, 0.0, &scratch);
-    for (std::size_t i = 0; i < p; ++i)
-        for (std::size_t k = 0; k < n; ++k)
+    keel::Array<double> b(p, 0.0, scratch.allocator());
+    for (keel::usize i = 0; i < p; ++i)
+        for (keel::usize k = 0; k < n; ++k)
             b[i] += C[i * n + k] * Wcol[k];
     // Solve (M · coef = b).
-    ScratchVec<double> Mcopy(MM, MM + p * p, &scratch);
+    keel::Array<double> Mcopy(keel::ArrayRef<double>(MM, p * p), scratch.allocator());
     if (!solveGauss(Mcopy.data(), b.data(), p)) {
         std::fill(b.begin(), b.end(), 0.0);
     }
     // Residual = Wcol - C · coef.
-    for (std::size_t k = 0; k < n; ++k) {
+    for (keel::usize k = 0; k < n; ++k) {
         double pred = 0.0;
-        for (std::size_t i = 0; i < p; ++i)
+        for (keel::usize i = 0; i < p; ++i)
             pred += C[i * n + k] * b[i];
         out[k] = Wcol[k] - pred;
     }
 }
 
-double pearsonOfCentered(const double *a, const double *b, std::size_t n)
+double pearsonOfCentered(const double *a, const double *b, keel::usize n)
 {
     // Both inputs are already residuals (mean ≈ 0). Compute
     // sum(a·b) / sqrt(sum(a²) · sum(b²)).
     double sab = 0.0, saa = 0.0, sbb = 0.0;
-    for (std::size_t k = 0; k < n; ++k) {
+    for (keel::usize k = 0; k < n; ++k) {
         sab += a[k] * b[k];
         saa += a[k] * a[k];
         sbb += b[k] * b[k];
@@ -108,7 +111,7 @@ void partialcorri_argcheck(const Value &Y, const Value &X, const Value &Z)
     if (X.dims().ndim() > 2 || Y.dims().ndim() > 2)
         throw Error("partialcorri: X, Y must be 2D matrices",
                     0, 0, "partialcorri", "", "numkit:partialcorri:notMatrix");
-    const std::size_t n = static_cast<std::size_t>(Y.dims().dim(0));
+    const keel::usize n = static_cast<keel::usize>(Y.dims().dim(0));
     if (X.dims().dim(0) != static_cast<long long>(n))
         throw Error("partialcorri: rows(X) must equal rows(Y)",
                     0, 0, "partialcorri", "", "numkit:partialcorri:dimMismatch");
@@ -127,9 +130,9 @@ void canoncorr_argcheck(const Value &X, const Value &Y)
     if (X.dims().ndim() > 2 || Y.dims().ndim() > 2)
         throw Error("canoncorr: X, Y must be 2D matrices",
                     0, 0, "canoncorr", "", "numkit:canoncorr:notMatrix");
-    const std::size_t n = static_cast<std::size_t>(X.dims().dim(0));
-    const std::size_t p = static_cast<std::size_t>(X.dims().dim(1));
-    const std::size_t q = static_cast<std::size_t>(Y.dims().dim(1));
+    const keel::usize n = static_cast<keel::usize>(X.dims().dim(0));
+    const keel::usize p = static_cast<keel::usize>(X.dims().dim(1));
+    const keel::usize q = static_cast<keel::usize>(Y.dims().dim(1));
     if (Y.dims().dim(0) != static_cast<long long>(n))
         throw Error("canoncorr: rows(Y) must equal rows(X)",
                     0, 0, "canoncorr", "", "numkit:canoncorr:dimMismatch");
@@ -141,14 +144,14 @@ void canoncorr_argcheck(const Value &X, const Value &Y)
 } // namespace
 
 Value partialcorri(const Value &Y, const Value &X, const Value &Z,
-                   std::pmr::memory_resource *mr)
+                   keel::Allocator *mr)
 {
     partialcorri_argcheck(Y, X, Z);
-    const std::size_t n  = static_cast<std::size_t>(Y.dims().dim(0));
-    const std::size_t pY = static_cast<std::size_t>(Y.dims().dim(1));
-    const std::size_t pX = static_cast<std::size_t>(X.dims().dim(1));
+    const keel::usize n  = static_cast<keel::usize>(Y.dims().dim(0));
+    const keel::usize pY = static_cast<keel::usize>(Y.dims().dim(1));
+    const keel::usize pX = static_cast<keel::usize>(X.dims().dim(1));
     const bool hasZ = !Z.isEmpty();
-    const std::size_t pZ = hasZ ? static_cast<std::size_t>(Z.dims().dim(1)) : 0;
+    const keel::usize pZ = hasZ ? static_cast<keel::usize>(Z.dims().dim(1)) : 0;
 
     const double *Xd = X.doubleData();
     const double *Yd = Y.doubleData();
@@ -157,43 +160,43 @@ Value partialcorri(const Value &Y, const Value &X, const Value &Z,
     auto Rout = Value::matrix(pY, pX, ValueType::DOUBLE, mr);
     double *R = Rout.doubleDataMut();
 
-    ScratchArena scratch(mr);
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
 
     // Control matrix per j: [1, X(:, ~j), Z] of size n × pCtrl where
     // pCtrl = 1 + (pX - 1) + pZ. We rebuild `C` from scratch for each
     // j — pX is typically small (≤ 20) and this keeps the code simple.
-    const std::size_t pCtrl = 1u + (pX > 0 ? pX - 1u : 0u) + pZ;
-    ScratchVec<double> C(n * pCtrl, 0.0, &scratch);
-    ScratchVec<double> MM(pCtrl * pCtrl, 0.0, &scratch);
-    ScratchVec<double> y_res(n, 0.0, &scratch);
-    ScratchVec<double> x_res(n, 0.0, &scratch);
+    const keel::usize pCtrl = 1u + (pX > 0 ? pX - 1u : 0u) + pZ;
+    keel::Array<double> C(n * pCtrl, 0.0, scratch.allocator());
+    keel::Array<double> MM(pCtrl * pCtrl, 0.0, scratch.allocator());
+    keel::Array<double> y_res(n, 0.0, scratch.allocator());
+    keel::Array<double> x_res(n, 0.0, scratch.allocator());
 
-    for (std::size_t j = 0; j < pX; ++j) {
+    for (keel::usize j = 0; j < pX; ++j) {
         // Build C column-major.
         std::fill(C.begin(), C.end(), 0.0);
         // Col 0: intercept (all ones).
-        for (std::size_t k = 0; k < n; ++k) C[0 * n + k] = 1.0;
+        for (keel::usize k = 0; k < n; ++k) C[0 * n + k] = 1.0;
         // Cols 1..(pX-1): X without col j.
-        std::size_t cidx = 1;
-        for (std::size_t jj = 0; jj < pX; ++jj) {
+        keel::usize cidx = 1;
+        for (keel::usize jj = 0; jj < pX; ++jj) {
             if (jj == j) continue;
-            for (std::size_t k = 0; k < n; ++k)
+            for (keel::usize k = 0; k < n; ++k)
                 C[cidx * n + k] = Xd[jj * n + k];
             ++cidx;
         }
         // Cols (pX)..(pCtrl-1): Z columns.
-        for (std::size_t jz = 0; jz < pZ; ++jz) {
-            for (std::size_t k = 0; k < n; ++k)
+        for (keel::usize jz = 0; jz < pZ; ++jz) {
+            for (keel::usize k = 0; k < n; ++k)
                 C[cidx * n + k] = Zd[jz * n + k];
             ++cidx;
         }
 
         // MM = C' · C (pCtrl × pCtrl, row-major for solveGauss).
         std::fill(MM.begin(), MM.end(), 0.0);
-        for (std::size_t a = 0; a < pCtrl; ++a)
-            for (std::size_t b = 0; b < pCtrl; ++b) {
+        for (keel::usize a = 0; a < pCtrl; ++a)
+            for (keel::usize b = 0; b < pCtrl; ++b) {
                 double s = 0.0;
-                for (std::size_t k = 0; k < n; ++k)
+                for (keel::usize k = 0; k < n; ++k)
                     s += C[a * n + k] * C[b * n + k];
                 MM[a * pCtrl + b] = s;
             }
@@ -203,7 +206,7 @@ Value partialcorri(const Value &Y, const Value &X, const Value &Z,
                            Xd + j * n, x_res.data(), mr);
 
         // Residualise each Y(:, i) on C and correlate.
-        for (std::size_t i = 0; i < pY; ++i) {
+        for (keel::usize i = 0; i < pY; ++i) {
             residualiseColumn(C.data(), n, pCtrl, MM.data(),
                                Yd + i * n, y_res.data(), mr);
             R[j * pY + i] = pearsonOfCentered(y_res.data(),
@@ -214,14 +217,14 @@ Value partialcorri(const Value &Y, const Value &X, const Value &Z,
 }
 
 CanoncorrResult canoncorr(const Value &X, const Value &Y,
-                           std::pmr::memory_resource *mr)
+                           keel::Allocator *mr)
 {
     if (X.dims().ndim() > 2 || Y.dims().ndim() > 2)
         throw Error("canoncorr: X, Y must be 2D matrices",
                     0, 0, "canoncorr", "", "numkit:canoncorr:notMatrix");
-    const std::size_t n = static_cast<std::size_t>(X.dims().dim(0));
-    const std::size_t p = static_cast<std::size_t>(X.dims().dim(1));
-    const std::size_t q = static_cast<std::size_t>(Y.dims().dim(1));
+    const keel::usize n = static_cast<keel::usize>(X.dims().dim(0));
+    const keel::usize p = static_cast<keel::usize>(X.dims().dim(1));
+    const keel::usize q = static_cast<keel::usize>(Y.dims().dim(1));
     if (Y.dims().dim(0) != static_cast<long long>(n))
         throw Error("canoncorr: rows(Y) must equal rows(X)",
                     0, 0, "canoncorr", "", "numkit:canoncorr:dimMismatch");
@@ -229,8 +232,8 @@ CanoncorrResult canoncorr(const Value &X, const Value &Y,
         throw Error("canoncorr: insufficient observations (need n >= p + q)",
                     0, 0, "canoncorr", "", "numkit:canoncorr:tooFewRows");
 
-    const std::size_t k = std::min(p, q);
-    ScratchArena scratch(mr);
+    const keel::usize k = std::min(p, q);
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
 
     // Centre X and Y.
     auto Xc = Value::matrix(n, p, ValueType::DOUBLE, mr);
@@ -238,20 +241,20 @@ CanoncorrResult canoncorr(const Value &X, const Value &Y,
     {
         const double *Xd = X.doubleData();
         double *Xcd = Xc.doubleDataMut();
-        for (std::size_t j = 0; j < p; ++j) {
+        for (keel::usize j = 0; j < p; ++j) {
             double m = 0.0;
-            for (std::size_t i = 0; i < n; ++i) m += Xd[j * n + i];
+            for (keel::usize i = 0; i < n; ++i) m += Xd[j * n + i];
             m /= static_cast<double>(n);
-            for (std::size_t i = 0; i < n; ++i)
+            for (keel::usize i = 0; i < n; ++i)
                 Xcd[j * n + i] = Xd[j * n + i] - m;
         }
         const double *Yd = Y.doubleData();
         double *Ycd = Yc.doubleDataMut();
-        for (std::size_t j = 0; j < q; ++j) {
+        for (keel::usize j = 0; j < q; ++j) {
             double m = 0.0;
-            for (std::size_t i = 0; i < n; ++i) m += Yd[j * n + i];
+            for (keel::usize i = 0; i < n; ++i) m += Yd[j * n + i];
             m /= static_cast<double>(n);
-            for (std::size_t i = 0; i < n; ++i)
+            for (keel::usize i = 0; i < n; ++i)
                 Ycd[j * n + i] = Yd[j * n + i] - m;
         }
     }
@@ -267,13 +270,13 @@ CanoncorrResult canoncorr(const Value &X, const Value &Y,
     // reused below on U (p × p) and V (q × q), where p, q < n. Hardcoding `n`
     // rows there read past the U/V buffers — an out-of-bounds access (a
     // non-deterministic SEH 0xc0000005 crash, or silently wrong values).
-    auto sliceCols = [&](const Value &Q, std::size_t cols) {
-        const std::size_t rows = Q.dims().rows();
+    auto sliceCols = [&](const Value &Q, keel::usize cols) {
+        const keel::usize rows = Q.dims().rows();
         auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
         double *od = out.doubleDataMut();
         const double *qd = Q.doubleData();
-        for (std::size_t j = 0; j < cols; ++j)
-            for (std::size_t i = 0; i < rows; ++i)
+        for (keel::usize j = 0; j < cols; ++j)
+            for (keel::usize i = 0; i < rows; ++i)
                 od[j * rows + i] = qd[j * rows + i];
         return out;
     };
@@ -286,10 +289,10 @@ CanoncorrResult canoncorr(const Value &X, const Value &Y,
         double *Md = M.doubleDataMut();
         const double *qxd = QX1.doubleData();
         const double *qyd = QY1.doubleData();
-        for (std::size_t a = 0; a < p; ++a)
-            for (std::size_t b = 0; b < q; ++b) {
+        for (keel::usize a = 0; a < p; ++a)
+            for (keel::usize b = 0; b < q; ++b) {
                 double s = 0.0;
-                for (std::size_t i = 0; i < n; ++i)
+                for (keel::usize i = 0; i < n; ++i)
                     s += qxd[a * n + i] * qyd[b * n + i];
                 Md[b * p + a] = s;
             }
@@ -301,15 +304,15 @@ CanoncorrResult canoncorr(const Value &X, const Value &Y,
     // A_top = RX(1:p, 1:p) \ U(:, 1:k)
     //   ↔ solve RX1 · A_top = U(:, 1:k) for A_top (p × k).
     // RX1 is upper-triangular → back-sub.
-    auto solveR = [&](const Value &R, const Value &RHS, std::size_t cols, std::size_t dim) {
+    auto solveR = [&](const Value &R, const Value &RHS, keel::usize cols, keel::usize dim) {
         auto Out = Value::matrix(dim, cols, ValueType::DOUBLE, mr);
         const double *Rd = R.doubleData();
         const double *Bd = RHS.doubleData();
         double *Od = Out.doubleDataMut();
-        for (std::size_t col = 0; col < cols; ++col) {
-            for (std::size_t i = dim; i-- > 0;) {
+        for (keel::usize col = 0; col < cols; ++col) {
+            for (keel::usize i = dim; i-- > 0;) {
                 double s = Bd[col * dim + i];   // B is dim × cols when sliced
-                for (std::size_t j = i + 1; j < dim; ++j)
+                for (keel::usize j = i + 1; j < dim; ++j)
                     s -= Rd[j * R.dims().rows() + i] * Od[col * dim + j];
                 const double diag = Rd[i * R.dims().rows() + i];
                 Od[col * dim + i] = (std::fabs(diag) > 0.0) ? s / diag : 0.0;
@@ -329,8 +332,8 @@ CanoncorrResult canoncorr(const Value &X, const Value &Y,
     {
         double *rd = r.doubleDataMut();
         const double *Sd = S.doubleData();
-        const std::size_t Sr = S.dims().rows();
-        for (std::size_t i = 0; i < k; ++i) {
+        const keel::usize Sr = S.dims().rows();
+        for (keel::usize i = 0; i < k; ++i) {
             // Clamp to [0, 1] — FP drift can push it slightly outside.
             const double si = Sd[i * Sr + i];
             rd[i] = std::min(1.0, std::max(0.0, si));

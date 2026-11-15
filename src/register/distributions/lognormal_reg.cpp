@@ -3,6 +3,8 @@
 // CallContext register half of distributions/lognormal.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
+#include <keel/core.h>
+#include <keel/ref.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/builtin/datafun.hpp>
 #include <numkit/stats/distributions/lognormal.hpp>
@@ -11,14 +13,11 @@
 #include "distributions/dist_helpers.hpp"
 #include "distributions/lognormal_detail.hpp"
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <complex>
 #include <cstddef>
 #include <string>
 #include <tuple>
@@ -30,18 +29,18 @@ namespace numkit::stats {
 namespace detail {
 
 namespace {
-inline double argMu(Span<const Value> args, size_t i) {
+inline double argMu(keel::ArrayRef<Value> args, keel::usize i) {
     return (args.size() > i && !args[i].isEmpty()) ? args[i].toScalar() : 0.0;
 }
-inline double argSigma(Span<const Value> args, size_t i) {
+inline double argSigma(keel::ArrayRef<Value> args, keel::usize i) {
     return (args.size() > i && !args[i].isEmpty()) ? args[i].toScalar() : 1.0;
 }
 }
 
-void lognpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void lognpdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 3, "lognpdf");
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     Value hmu, hsig;
     const Value &mu  = dist_param(args, 1, 0.0, mr, hmu);
     const Value &sig = dist_param(args, 2, 1.0, mr, hsig);
@@ -51,14 +50,14 @@ void lognpdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
         outs[0] = broadcast_dist3(args[0], mu, sig, mr, "lognpdf", lognpdfK);
 }
 
-void logncdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void logncdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 5, "logncdf");
     bool upper = false;
-    const Span<const Value> s = args.subspan(0, stripUpperFlag(args, upper));
+    const keel::ArrayRef<Value> s = args.slice(0, stripUpperFlag(args, upper));
     if (s.empty())
         throw Error("logncdf: requires (x[, mu, sigma][, 'upper'])", 0, 0, "logncdf", "", "numkit:logncdf:nargin");
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     Value hmu, hsig;
     const Value &mu  = dist_param(s, 1, 0.0, mr, hmu);
     const Value &sig = dist_param(s, 2, 1.0, mr, hsig);
@@ -69,10 +68,10 @@ void logncdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     outs[0] = std::move(v);
 }
 
-void logninv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void logninv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 5, "logninv");
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     Value hmu, hsig;
     const Value &mu  = dist_param(args, 1, 0.0, mr, hmu);
     const Value &sig = dist_param(args, 2, 1.0, mr, hsig);
@@ -82,20 +81,20 @@ void logninv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
         outs[0] = broadcast_dist3(args[0], mu, sig, mr, "logninv", logninvK);
 }
 
-void lognrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void lognrnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "lognrnd");  // no max: trailing size args (N-D tail; nk caps at two — bugs/opened/stats/rnd-nd-size-tails.md)
     const double mu    = argMu(args, 0);
     const double sigma = argSigma(args, 1);
-    size_t rows, cols;
+    keel::usize rows, cols;
     parse_rng_size(args, 2, rows, cols, "lognrnd");
-    outs[0] = reshape_rng_nd(lognrnd(ctx.engine->rng(), mu, sigma, rows, cols, ctx.engine->resource()), args, 2, ctx.engine->resource(), "lognrnd");
+    outs[0] = reshape_rng_nd(lognrnd(ctx.engine->rng(), mu, sigma, rows, cols, ctx.engine->allocator()), args, 2, ctx.engine->allocator(), "lognrnd");
 }
 
-void lognstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+void lognstat_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 2, "lognstat");
-    emit_vec_stat_2arg(args, nargout, outs, ctx.engine->resource(), "lognstat",
+    emit_vec_stat_2arg(args, nargout, outs, ctx.engine->allocator(), "lognstat",
                        [](double mu, double sigma) { return lognstat(mu, sigma); });
 }
 

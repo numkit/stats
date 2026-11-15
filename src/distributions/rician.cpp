@@ -1,5 +1,7 @@
 // toolboxes/stats/src/distributions/rician.cpp
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/distributions/rician.hpp>
 
 #include <numkit/builtin/specfun.hpp>   // besseli, marcumq
@@ -30,7 +32,7 @@ inline bool rice_argcheck(double s, double sigma) noexcept
 }
 } // namespace
 
-Value ricepdf(const Value &x, double s, double sigma, std::pmr::memory_resource *mr)
+Value ricepdf(const Value &x, double s, double sigma, keel::Allocator *mr)
 {
     if (!rice_argcheck(s, sigma))
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -48,7 +50,7 @@ Value ricepdf(const Value &x, double s, double sigma, std::pmr::memory_resource 
     }, mr);
 }
 
-Value ricecdf(const Value &x, double s, double sigma, std::pmr::memory_resource *mr)
+Value ricecdf(const Value &x, double s, double sigma, keel::Allocator *mr)
 {
     if (sigma <= 0.0 || s < 0.0)
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -58,7 +60,7 @@ Value ricecdf(const Value &x, double s, double sigma, std::pmr::memory_resource 
     }, mr);
 }
 
-Value riceinv(const Value &p, double s, double sigma, std::pmr::memory_resource *mr)
+Value riceinv(const Value &p, double s, double sigma, keel::Allocator *mr)
 {
     if (sigma <= 0.0 || s < 0.0)
         return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -86,16 +88,16 @@ Value riceinv(const Value &p, double s, double sigma, std::pmr::memory_resource 
     }, mr);
 }
 
-Value ricernd(::numkit::ops::RngContext &rng, double s, double sigma, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value ricernd(::numkit::ops::RngContext &rng, double s, double sigma, keel::usize rows, keel::usize cols, keel::Allocator *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (sigma <= 0.0 || s < 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
-    const size_t n = rows * cols;
+    const keel::usize n = rows * cols;
     std::normal_distribution<double> nd1(s, sigma);
     std::normal_distribution<double> nd2(0.0, sigma);
-    for (size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const double a = nd1(gen);
         const double b = nd2(gen);
         od[i] = std::sqrt(a * a + b * b);
@@ -103,7 +105,7 @@ Value ricernd(::numkit::ops::RngContext &rng, double s, double sigma, size_t row
     return out;
 }
 
-std::tuple<double, double> ricestat(double s, double sigma, std::pmr::memory_resource *mr)
+std::tuple<double, double> ricestat(double s, double sigma, keel::Allocator *mr)
 {
     if (sigma <= 0.0 || s < 0.0) {
         const double nan = std::numeric_limits<double>::quiet_NaN();

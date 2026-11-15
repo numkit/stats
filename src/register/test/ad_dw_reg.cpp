@@ -3,24 +3,22 @@
 // CallContext register half of test/ad_dw.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
+#include <keel/core.h>
+#include <keel/ref.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/linalg/eig.hpp>   // eig_symmetric — exact DW p-value (Imhof)
 #include <numkit/stats/distributions/beta.hpp>
 #include <numkit/stats/distributions/normal.hpp>
 #include <numkit/stats/test/hypothesis.hpp>
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
 #include <numkit/value/value.hpp>
 #include "test/ad_dw_detail.hpp"
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <complex>
 #include <cstddef>
 #include <string>
 #include <tuple>
@@ -31,25 +29,25 @@ namespace numkit::stats {
 
 namespace detail {
 
-void adtest_reg(Span<const Value> args, size_t nargout,
-                Span<Value> outs, CallContext &ctx)
+void adtest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "adtest");  // no max: name-value tail in the reference
     double alpha = 0.05;
     if (args.size() >= 2 && !args[1].isEmpty())
         alpha = args[1].toScalar();
-    auto [h, p, stat, cv] = adtest(args[0], alpha, ctx.engine->resource());
+    auto [h, p, stat, cv] = adtest(args[0], alpha, ctx.engine->allocator());
     outs[0] = std::move(h);
     if (nargout > 1) outs[1] = std::move(p);
     if (nargout > 2) outs[2] = std::move(stat);
     if (nargout > 3) outs[3] = std::move(cv);
 }
 
-void dwtest_reg(Span<const Value> args, size_t nargout,
-                Span<Value> outs, CallContext &ctx)
+void dwtest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "dwtest");  // no max: name-value tail in the reference
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
 
     auto toLowerAscii = [](std::string s) {
         for (char &c : s) if (c >= 'A' && c <= 'Z') c = static_cast<char>(c + 32);
@@ -60,7 +58,7 @@ void dwtest_reg(Span<const Value> args, size_t nargout,
     // 'Method' (exact|approximate, default exact — matches MATLAB).
     int  tail  = 0;        // 0=both, 1=right (positive ac), 2=left (negative ac)
     bool exact = true;
-    for (size_t i = 2; i + 1 < args.size(); i += 2) {
+    for (keel::usize i = 2; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error("dwtest: expected option name (string)",
                         0, 0, "dwtest", "", "numkit:dwtest:badOption");

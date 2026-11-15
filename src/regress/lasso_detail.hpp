@@ -3,10 +3,9 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
+#include <keel/core.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
 #include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
 
 #include <algorithm>
@@ -15,7 +14,6 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
-#include <memory_resource>
 #include <numeric>
 #include <string>
 #include <tuple>
@@ -40,30 +38,30 @@ double softThreshold(double z, double g)
 
 // Standardise X (n×p column-major) in-place: each column has mean 0,
 // std 1 (population std, divides by sqrt(n)). Returns (mu, sd) vectors.
-void standardise(double *X, std::size_t n, std::size_t p,
+void standardise(double *X, keel::usize n, keel::usize p,
                   std::vector<double> &mu, std::vector<double> &sd)
 {
     mu.assign(p, 0.0);
     sd.assign(p, 1.0);
-    for (std::size_t j = 0; j < p; ++j) {
+    for (keel::usize j = 0; j < p; ++j) {
         double s = 0.0;
-        for (std::size_t i = 0; i < n; ++i) s += X[j * n + i];
+        for (keel::usize i = 0; i < n; ++i) s += X[j * n + i];
         mu[j] = s / static_cast<double>(n);
         double s2 = 0.0;
-        for (std::size_t i = 0; i < n; ++i) {
+        for (keel::usize i = 0; i < n; ++i) {
             const double d = X[j * n + i] - mu[j];
             s2 += d * d;
         }
         sd[j] = std::sqrt(s2 / static_cast<double>(n));
         if (sd[j] < 1e-12) sd[j] = 1.0;   // constant column → keep as 0-coef
-        for (std::size_t i = 0; i < n; ++i)
+        for (keel::usize i = 0; i < n; ++i)
             X[j * n + i] = (X[j * n + i] - mu[j]) / sd[j];
     }
 }
 
 // One-pass coordinate descent on standardised X. Updates beta in place.
 // Returns true if max coefficient change < tol.
-bool coordDescentSweep(const double *Xs, std::size_t n, std::size_t p,
+bool coordDescentSweep(const double *Xs, keel::usize n, keel::usize p,
                         const double *y,
                         std::vector<double> &r, std::vector<double> &beta,
                         const std::vector<double> &XjNormSq,
@@ -71,11 +69,11 @@ bool coordDescentSweep(const double *Xs, std::size_t n, std::size_t p,
                         double tol)
 {
     double maxChange = 0.0;
-    for (std::size_t j = 0; j < p; ++j) {
+    for (keel::usize j = 0; j < p; ++j) {
         const double oldB = beta[j];
         // z_j = (X_j · r + ||X_j||² · β_j) / n
         double xr = 0.0;
-        for (std::size_t i = 0; i < n; ++i)
+        for (keel::usize i = 0; i < n; ++i)
             xr += Xs[j * n + i] * r[i];
         const double z = xr + XjNormSq[j] * oldB;
         const double newB = softThreshold(z / static_cast<double>(n), lambda_eff)
@@ -83,7 +81,7 @@ bool coordDescentSweep(const double *Xs, std::size_t n, std::size_t p,
         beta[j] = newB;
         const double delta = newB - oldB;
         if (delta != 0.0) {
-            for (std::size_t i = 0; i < n; ++i)
+            for (keel::usize i = 0; i < n; ++i)
                 r[i] -= delta * Xs[j * n + i];
             maxChange = std::max(maxChange, std::fabs(delta));
         }

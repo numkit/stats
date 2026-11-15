@@ -1,5 +1,7 @@
 // toolboxes/stats/src/distributions/unid.cpp
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/distributions/unid.hpp>
 
 #include <numkit/builtin/datafun.hpp>
@@ -25,7 +27,7 @@ inline bool unid_argcheck(double N) noexcept
 }
 } // namespace
 
-Value unidpdf(const Value &k, double N, std::pmr::memory_resource *mr)
+Value unidpdf(const Value &k, double N, keel::Allocator *mr)
 {
     if (!unid_argcheck(N))
         return elementwise(k, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -36,7 +38,7 @@ Value unidpdf(const Value &k, double N, std::pmr::memory_resource *mr)
     }, mr);
 }
 
-Value unidcdf(const Value &k, double N, std::pmr::memory_resource *mr)
+Value unidcdf(const Value &k, double N, keel::Allocator *mr)
 {
     if (N < 1.0 || std::floor(N) != N)
         return elementwise(k, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -48,7 +50,7 @@ Value unidcdf(const Value &k, double N, std::pmr::memory_resource *mr)
     }, mr);
 }
 
-Value unidinv(const Value &p, double N, std::pmr::memory_resource *mr)
+Value unidinv(const Value &p, double N, keel::Allocator *mr)
 {
     if (!(N >= 1.0) || std::floor(N) != N)  // also catches NaN N
         return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -62,15 +64,15 @@ Value unidinv(const Value &p, double N, std::pmr::memory_resource *mr)
     }, mr);
 }
 
-Value unidrnd(::numkit::ops::RngContext &rng, double N, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value unidrnd(::numkit::ops::RngContext &rng, double N, keel::usize rows, keel::usize cols, keel::Allocator *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (N < 1.0 || std::floor(N) != N || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
-    const size_t cnt = rows * cols;
+    const keel::usize cnt = rows * cols;
     std::uniform_int_distribution<long long> ud(1, static_cast<long long>(N));
-    for (size_t i = 0; i < cnt; ++i) od[i] = static_cast<double>(ud(gen));
+    for (keel::usize i = 0; i < cnt; ++i) od[i] = static_cast<double>(ud(gen));
     return out;
 }
 

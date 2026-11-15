@@ -6,9 +6,10 @@
 
 #pragma once
 
+#include <keel/core.h>
+#include <keel/memory.h>
+#include <keel/ref.h>
 #include <limits>
-#include <memory_resource>
-#include <numkit/value/span.hpp>
 #include <numkit/value/value.hpp>
 #include <numkit/value/fn_handle.hpp>
 
@@ -40,8 +41,8 @@ namespace numkit::stats {
 ///               is not provided in this revision.
 /// @see ridge, lscov
 std::tuple<Value, Value, Value, Value>
-regress(const Value &y, const Value &X, double alpha,
-        std::pmr::memory_resource *mr = nullptr);
+regress(const Value &y, const Value &X, keel::f64 alpha,
+        keel::Allocator *mr = nullptr);
 
 /// @brief Ridge regression (`B = ridge(y, X, k, scaled)`).
 ///
@@ -60,14 +61,14 @@ regress(const Value &y, const Value &X, double alpha,
 /// @return        Coefficient matrix.
 /// @see regress
 Value ridge(const Value &y, const Value &X, const Value &k, bool scaled,
-            std::pmr::memory_resource *mr = nullptr);
+            keel::Allocator *mr = nullptr);
 
 /// @brief Full `ridge` entry (probed R2025b, probe76.m R-series): the
 /// 0/1/empty scaling flag (anything else rejects), the row-match and
 /// column-vector y gates, and missing-value row removal, then the
 /// normal-equations kernel.
 Value ridge_full(const Value &y, const Value &X, const Value &kVec,
-                 const Value &flag, std::pmr::memory_resource *mr = nullptr);
+                 const Value &flag, keel::Allocator *mr = nullptr);
 
 /// @brief Weighted least squares (`[x, stdx, mse, S] = lscov(A, b, w)`).
 ///
@@ -87,7 +88,7 @@ Value ridge_full(const Value &y, const Value &X, const Value &kVec,
 /// @see regress
 std::tuple<Value, Value, Value, Value>
 lscov(const Value &A, const Value &b, const Value &w,
-      std::pmr::memory_resource *mr = nullptr);
+      keel::Allocator *mr = nullptr);
 
 /// @brief Nonlinear least-squares fit result
 /// (`[beta, R, J, CovB, MSE] = nlinfit(X, y, fun, beta0)`).
@@ -122,7 +123,7 @@ struct NlinfitResult {
 /// @return       `{beta, R, J, CovB, MSE}`.
 NlinfitResult nlinfit(const Value &X, const Value &y,
                       FnHandle model, const Value &beta0,
-                      std::pmr::memory_resource *mr = nullptr);
+                      keel::Allocator *mr = nullptr);
 
 /// @brief Parameter confidence intervals from an nlinfit fit
 /// (`ci = nlparci(beta, R, J [, alpha])`).
@@ -137,15 +138,15 @@ NlinfitResult nlinfit(const Value &X, const Value &y,
 /// @param mr     Memory resource.
 /// @return       `p × 2` CI matrix; `[lower, upper]` per row.
 Value nlparci(const Value &beta, const Value &R, const Value &J,
-              double alpha = 0.05,
-              std::pmr::memory_resource *mr = nullptr);
+              keel::f64 alpha = 0.05,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Full `nlparci` entry (probed R2025b, probe76.m N-series): the
 /// positional (BETA, RESID, J[, ALPHA]) and 'covar' forms, the complex
 /// gate, the (0,1) alpha range, NaN-residual removal, and the
 /// J-shape / covariance-based standard errors.
 Value nlparci_full(const Value &beta, const Value &resid,
-                   Span<const Value> tail, std::pmr::memory_resource *mr = nullptr);
+                   keel::ArrayRef<Value> tail, keel::Allocator *mr = nullptr);
 
 /// @brief Prediction confidence intervals from an nlinfit fit
 /// (`[ypred, delta] = nlpredci(fun, X, beta, R, J [, alpha])`).
@@ -166,8 +167,8 @@ Value nlparci_full(const Value &beta, const Value &resid,
 std::tuple<Value, Value>
 nlpredci(FnHandle model, const Value &X, const Value &beta,
          const Value &R, const Value &J,
-         double alpha,
-         std::pmr::memory_resource *mr = nullptr);
+         keel::f64 alpha,
+         keel::Allocator *mr = nullptr);
 
 /// @brief Robust regression weight functions (MATLAB robustfit set).
 enum class RobustWeight {
@@ -212,8 +213,8 @@ struct RobustfitResult {
 /// @see regress, fitlm
 RobustfitResult robustfit(const Value &X, const Value &y,
                            RobustWeight weight = RobustWeight::Bisquare,
-                           double tune = std::numeric_limits<double>::quiet_NaN(),
-                           std::pmr::memory_resource *mr = nullptr);
+                           keel::f64 tune = std::numeric_limits<keel::f64>::quiet_NaN(),
+                           keel::Allocator *mr = nullptr);
 
 /// @brief Result of robust covariance estimation (`[sigma, mu] = robustcov(X)`).
 struct RobustcovResult {
@@ -227,7 +228,7 @@ struct RobustcovResult {
 /// @return RobustcovResult containing robust covariance `sigma` and location `mu`.
 /// @see cov, corrcoef
 RobustcovResult robustcov(const Value &X,
-                           std::pmr::memory_resource *mr = nullptr);
+                           keel::Allocator *mr = nullptr);
 
 /// @brief GLM family of error distributions.
 enum class GlmDistribution {
@@ -280,7 +281,7 @@ struct GlmfitResult {
 GlmfitResult glmfit(const Value &X, const Value &y,
                      GlmDistribution distr,
                      GlmLink link = GlmLink::Identity,
-                     std::pmr::memory_resource *mr = nullptr);
+                     keel::Allocator *mr = nullptr);
 
 /// @brief Evaluate a fitted GLM (`yhat = glmval(b, X, link)`).
 ///
@@ -294,7 +295,7 @@ GlmfitResult glmfit(const Value &X, const Value &y,
 /// @param mr     Memory resource.
 /// @return       `m × 1` vector of predicted means.
 Value glmval(const Value &b, const Value &X, GlmLink link,
-              std::pmr::memory_resource *mr = nullptr);
+              keel::Allocator *mr = nullptr);
 
 /// @brief GLM prediction result with confidence bounds (`[yhat, dylo, dyhi] = glmval(...)`).
 struct GlmvalResult {
@@ -305,14 +306,14 @@ struct GlmvalResult {
 
 /// @brief Full `glmval` entry returning predictions and optional confidence bounds.
 GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &link,
-                                Span<const Value> tail, bool wantBounds,
+                                keel::ArrayRef<Value> tail, bool wantBounds,
                                 FnHandle customInvLink,
-                                std::pmr::memory_resource *mr = nullptr);
+                                keel::Allocator *mr = nullptr);
 
 /// @brief Full `glmval` entry (single-output convenience wrapper).
 Value glmval_full(const Value &b, const Value &X, const Value &link,
-                  Span<const Value> tail, bool wantBounds,
-                  std::pmr::memory_resource *mr = nullptr);
+                  keel::ArrayRef<Value> tail, bool wantBounds,
+                  keel::Allocator *mr = nullptr);
 
 /// @brief Lasso result.
 struct LassoResult {
@@ -350,8 +351,8 @@ struct LassoResult {
 /// @param mr        Memory resource (nullptr → process default).
 /// @return          `{B, Intercept, Lambda}`.
 LassoResult lasso(const Value &X, const Value &y, const Value &lambdas,
-                   double alpha = 1.0,
-                   std::pmr::memory_resource *mr = nullptr);
+                   keel::f64 alpha = 1.0,
+                   keel::Allocator *mr = nullptr);
 
 /// @brief Lasso-regularised GLM
 /// (`[B, FitInfo] = lassoglm(X, y, distr, lambdas, alpha)`).
@@ -373,8 +374,8 @@ LassoResult lasso(const Value &X, const Value &y, const Value &lambdas,
 /// @return          `{B, Intercept, Lambda}` (same layout as lasso).
 LassoResult lassoglm(const Value &X, const Value &y,
                       GlmDistribution distr,
-                      const Value &lambdas, double alpha = 1.0,
-                      std::pmr::memory_resource *mr = nullptr);
+                      const Value &lambdas, keel::f64 alpha = 1.0,
+                      keel::Allocator *mr = nullptr);
 
 
 /// @}

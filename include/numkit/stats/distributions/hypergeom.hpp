@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <memory_resource>
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
 #include <tuple>
@@ -30,8 +31,8 @@ namespace numkit::stats {
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Array of pmf values, same shape as `k`.
 /// @see hygecdf, hygeinv, hygernd, hygestat
-Value hygepdf(const Value &k, double M, double K, double N,
-              std::pmr::memory_resource *mr = nullptr);
+Value hygepdf(const Value &k, keel::f64 M, keel::f64 K, keel::f64 N,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Hypergeometric cdf (`F = hygecdf(k, M, K, N)`).
 ///
@@ -42,8 +43,8 @@ Value hygepdf(const Value &k, double M, double K, double N,
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Array of cdf values in `[0, 1]`.
 /// @see hygepdf, hygeinv
-Value hygecdf(const Value &k, double M, double K, double N,
-              std::pmr::memory_resource *mr = nullptr);
+Value hygecdf(const Value &k, keel::f64 M, keel::f64 K, keel::f64 N,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Hypergeometric inverse cdf (`k = hygeinv(q, M, K, N)`).
 ///
@@ -54,8 +55,8 @@ Value hygecdf(const Value &k, double M, double K, double N,
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Quantile array, same shape as `q`.
 /// @see hygecdf
-Value hygeinv(const Value &q, double M, double K, double N,
-              std::pmr::memory_resource *mr = nullptr);
+Value hygeinv(const Value &q, keel::f64 M, keel::f64 K, keel::f64 N,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Hypergeometric random samples (`r = hygernd(M, K, N, rows, cols)`).
 ///
@@ -67,9 +68,9 @@ Value hygeinv(const Value &q, double M, double K, double N,
 /// @param mr    Memory resource (nullptr → process default).
 /// @return      `rows × cols` matrix of hypergeometric samples.
 /// @see hygepdf
-Value hygernd(::numkit::ops::RngContext &rng, double M, double K, double N,
-              size_t rows = 1, size_t cols = 1,
-              std::pmr::memory_resource *mr = nullptr);
+Value hygernd(::numkit::ops::RngContext &rng, keel::f64 M, keel::f64 K, keel::f64 N,
+              keel::usize rows = 1, keel::usize cols = 1,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Hypergeometric mean and variance (`[m, v] = hygestat(M, K, N)`).
 ///
@@ -82,7 +83,7 @@ Value hygernd(::numkit::ops::RngContext &rng, double M, double K, double N,
 /// @param N  Sample size.
 /// @return   `{mean, variance}` pair.
 /// @see hygepdf
-std::tuple<double, double> hygestat(double M, double K, double N);
+std::tuple<keel::f64, keel::f64> hygestat(keel::f64 M, keel::f64 K, keel::f64 N);
 
 
 /// @}

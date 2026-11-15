@@ -20,6 +20,9 @@
 //   5. If p > 0, return empty T.
 //   6. Else (PSD), keep eigvals d > tol and rebuild T = sqrt(d_keep) .* V_keep'.
 
+#include <keel/core.h>
+#include <keel/memory.h>
+#include <keel/math.h>
 #include <numkit/stats/descriptive/descriptive.hpp>
 
 #include <numkit/builtin/elmat.hpp>
@@ -48,21 +51,21 @@ void cholcov_argcheck(const Value &SIGMA)
 // In-place upper-tri Cholesky attempt. Returns true if SIGMA is PD;
 // fills `out` with R such that R'*R = SIGMA. On any non-positive
 // pivot, returns false.
-bool tryCholesky(const Value &SIGMA, std::vector<double> &out, size_t n)
+bool tryCholesky(const Value &SIGMA, std::vector<double> &out, keel::usize n)
 {
     const double *a = SIGMA.doubleData();
     out.assign(n * n, 0.0);
     double *r = out.data();
-    for (size_t j = 0; j < n; ++j) {
+    for (keel::usize j = 0; j < n; ++j) {
         double s = a[j + j * n];
-        for (size_t k = 0; k < j; ++k)
+        for (keel::usize k = 0; k < j; ++k)
             s -= r[k + j * n] * r[k + j * n];
         if (s <= 0.0) return false;
         r[j + j * n] = std::sqrt(s);
         const double inv_diag = 1.0 / r[j + j * n];
-        for (size_t i = j + 1; i < n; ++i) {
+        for (keel::usize i = j + 1; i < n; ++i) {
             double t = a[j + i * n];
-            for (size_t k = 0; k < j; ++k)
+            for (keel::usize k = 0; k < j; ++k)
                 t -= r[k + j * n] * r[k + i * n];
             r[j + i * n] = t * inv_diag;
         }
@@ -73,10 +76,10 @@ bool tryCholesky(const Value &SIGMA, std::vector<double> &out, size_t n)
 } // namespace
 
 std::pair<Value, Value>
-cholcov(const Value &SIGMA, std::pmr::memory_resource *mr)
+cholcov(const Value &SIGMA, keel::Allocator *mr)
 {
     cholcov_argcheck(SIGMA);
-    const size_t R = SIGMA.dims().rows();
+    const keel::usize R = SIGMA.dims().rows();
     if (R == 0) {
         Value T = Value::matrix(0, 0, ValueType::DOUBLE, mr);
         return {std::move(T), Value::scalar(0.0, mr)};
@@ -98,15 +101,15 @@ cholcov(const Value &SIGMA, std::pmr::memory_resource *mr)
     std::vector<double> d(R);
     {
         const double *dd = D.doubleData();
-        for (size_t i = 0; i < R; ++i) d[i] = dd[i + i * R];
+        for (keel::usize i = 0; i < R; ++i) d[i] = dd[i + i * R];
     }
     double maxAbsD = 0.0;
-    for (double v : d) maxAbsD = std::max(maxAbsD, std::abs(v));
+    for (double v : d) maxAbsD = std::max(maxAbsD, keel::abs(v));
     const double tol = std::pow(std::numeric_limits<double>::epsilon(),
                                 0.75) * maxAbsD;
 
     // 3. Count "negative" eigenvalues beyond tolerance.
-    size_t p = 0;
+    keel::usize p = 0;
     for (double v : d) if (v <= -tol) ++p;
     if (p > 0) {
         Value T = Value::matrix(0, 0, ValueType::DOUBLE, mr);
@@ -114,18 +117,18 @@ cholcov(const Value &SIGMA, std::pmr::memory_resource *mr)
     }
 
     // 4. PSD: keep eigvals > tol, rebuild T = sqrt(d_keep) .* V_keep'.
-    std::vector<size_t> keep;
+    std::vector<keel::usize> keep;
     keep.reserve(R);
-    for (size_t i = 0; i < R; ++i) if (d[i] > tol) keep.push_back(i);
-    const size_t r = keep.size();
+    for (keel::usize i = 0; i < R; ++i) if (d[i] > tol) keep.push_back(i);
+    const keel::usize r = keep.size();
     Value T = Value::matrix(r, R, ValueType::DOUBLE, mr);
     double *o = T.doubleDataMut();
     const double *vd = V.doubleData();
-    for (size_t k = 0; k < r; ++k) {
-        const size_t col = keep[k];
+    for (keel::usize k = 0; k < r; ++k) {
+        const keel::usize col = keep[k];
         const double s = std::sqrt(d[col]);
         // T(k, j) = s * V(j, col)
-        for (size_t j = 0; j < R; ++j)
+        for (keel::usize j = 0; j < R; ++j)
             o[k + j * r] = s * vd[j + col * R];
     }
     return {std::move(T), Value::scalar(0.0, mr)};

@@ -3,22 +3,21 @@
 // CallContext register half of cluster/kmedoids.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
+#include <keel/core.h>
+#include <keel/memory.h>
+#include <keel/ref.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/builtin/datafun.hpp>
 #include <numkit/stats/cluster/kmedoids.hpp>
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
 #include <numkit/value/value.hpp>
 #include "cluster/kmedoids_detail.hpp"
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <complex>
 #include <cstddef>
 #include <string>
 #include <tuple>
@@ -29,8 +28,8 @@ namespace numkit::stats {
 
 namespace detail {
 
-void kmedoids_reg(Span<const Value> args, size_t nargout,
-                  Span<Value> outs, CallContext &ctx)
+void kmedoids_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                  keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "kmedoids");  // no max: name-value tail in the reference
     const int K = (int)args[1].toScalar();
@@ -44,7 +43,7 @@ void kmedoids_reg(Span<const Value> args, size_t nargout,
         for (auto &c : s) c = (char)std::tolower((unsigned char)c);
         return s;
     };
-    for (size_t i = 2; i + 1 < args.size(); i += 2) {
+    for (keel::usize i = 2; i + 1 < args.size(); i += 2) {
         if (!(args[i].isChar() || args[i].isString())) continue;
         const std::string key = lower(args[i].toString());
         const Value &v = args[i + 1];
@@ -55,14 +54,14 @@ void kmedoids_reg(Span<const Value> args, size_t nargout,
         else if (key == "start")      start      = lower(v.toString());
         // 'OnlinePhase' / 'Options' / 'PercentNeighbors' silently accepted.
     }
-    auto R = kmedoids_full(ctx.engine->rng(), args[0], K, max_iter, replicates, metric, ctx.engine->resource());
+    auto R = kmedoids_full(ctx.engine->rng(), args[0], K, max_iter, replicates, metric, ctx.engine->allocator());
     outs[0] = std::move(R.idx);
     if (nargout > 1) outs[1] = std::move(R.C);
     if (nargout > 2) outs[2] = std::move(R.sumd);
     if (nargout > 3) outs[3] = std::move(R.D);
     if (nargout > 4) outs[4] = std::move(R.midx);
     if (nargout > 5) {
-        std::pmr::memory_resource *mr = ctx.engine->resource();
+        keel::Allocator *mr = ctx.engine->allocator();
         Value info = Value::structure(mr);
         info.field("algorithm")     = Value::fromString(algorithm, mr);
         info.field("start")         = Value::fromString(start, mr);
@@ -73,8 +72,8 @@ void kmedoids_reg(Span<const Value> args, size_t nargout,
     }
 }
 
-void dbscan_reg(Span<const Value> args, size_t nargout,
-                Span<Value> outs, CallContext &ctx)
+void dbscan_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 3, "dbscan");  // no max: name-value tail in the reference
     const double eps    = args[1].toScalar();
@@ -87,7 +86,7 @@ void dbscan_reg(Span<const Value> args, size_t nargout,
     };
     // MATLAB requires N-V form; we also tolerate a 4th positional metric
     // string for backward compat with prior nk usage.
-    size_t i = 3;
+    keel::usize i = 3;
     if (i < args.size() && (args[i].isChar() || args[i].isString())) {
         const std::string s = lower(args[i].toString());
         if (s != "distance" && s != "p" && s != "cov" && s != "scale") {
@@ -104,7 +103,7 @@ void dbscan_reg(Span<const Value> args, size_t nargout,
         // 'Cov' and 'Scale' silently accepted but ignored — only matter
         // for mahalanobis / seuclidean which dbscan() doesn't yet wire up.
     }
-    auto [idx, core] = dbscan(args[0], eps, minpts, metric, p, ctx.engine->resource());
+    auto [idx, core] = dbscan(args[0], eps, minpts, metric, p, ctx.engine->allocator());
     outs[0] = std::move(idx);
     if (nargout > 1) outs[1] = std::move(core);
 }

@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <memory_resource>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
 namespace numkit::stats {
@@ -28,7 +28,7 @@ namespace numkit::stats {
 /// @return      Stream descriptor.
 /// @see net
 Value haltonset(int d, long long skip, long long leap,
-                std::pmr::memory_resource *mr = nullptr);
+                keel::Allocator *mr = nullptr);
 
 /// @brief Extract points from a quasi-random stream (`X = net(p, n)`).
 ///
@@ -43,11 +43,11 @@ Value haltonset(int d, long long skip, long long leap,
 /// @throws Error  Unknown stream kind (`m:net:badStream`).
 /// @see haltonset
 Value net(const Value &stream, long long n,
-          std::pmr::memory_resource *mr = nullptr);
+          keel::Allocator *mr = nullptr);
 
 /// @brief Apply scrambling to a quasi-random stream (`p = scramble(p, type)`).
 Value scramble(const Value &stream, const std::string &type,
-               std::pmr::memory_resource *mr = nullptr);
+               keel::Allocator *mr = nullptr);
 
 /// @}
 } // namespace numkit::stats

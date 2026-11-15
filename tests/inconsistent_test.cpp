@@ -1,6 +1,7 @@
 // toolboxes/stats/tests/inconsistent_test.cpp
 // inconsistent.
 
+#include <keel/core.h>
 #include <numkit/core/standard_engine.hpp>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
@@ -23,8 +24,8 @@ TEST_F(InconsistentTest, DefaultDepth2)
 {
     eval("X = [1 1; 1.5 1.5; 5 5; 5.5 5.5; 10 10];");
     eval("Y = inconsistent(linkage(pdist(X)));");
-    EXPECT_EQ(static_cast<size_t>(evalScalar("size(Y, 1)")), 4u);
-    EXPECT_EQ(static_cast<size_t>(evalScalar("size(Y, 2)")), 4u);
+    EXPECT_EQ(static_cast<keel::usize>(evalScalar("size(Y, 1)")), 4u);
+    EXPECT_EQ(static_cast<keel::usize>(evalScalar("size(Y, 2)")), 4u);
     // Leaf-level rows have count=1, std=0, inc=0.
     EXPECT_NEAR(evalScalar("Y(1,1)"), 0.7071067812, 1e-9);
     EXPECT_DOUBLE_EQ(evalScalar("Y(1,2)"), 0.0);
@@ -53,5 +54,5 @@ TEST_F(InconsistentTest, RowCountMatchesNonLeafNodes)
     // For N data points, the linkage tree has N-1 non-leaf nodes.
     eval("X = [1 1; 1.5 1.5; 5 5; 5.5 5.5; 10 10];");
     eval("Y = inconsistent(linkage(pdist(X)));");
-    EXPECT_EQ(static_cast<size_t>(evalScalar("size(Y, 1)")), 4u);  // 5 - 1
+    EXPECT_EQ(static_cast<keel::usize>(evalScalar("size(Y, 1)")), 4u);  // 5 - 1
 }

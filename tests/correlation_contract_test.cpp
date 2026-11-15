@@ -4,6 +4,7 @@
 // values): nearcorr / corr / partialcorr. One TEST_F per probed
 // contract branch.
 
+#include <keel/core.h>
 #include <numkit/core/standard_engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <numkit/stats/descriptive/descriptive.hpp>
@@ -22,7 +23,7 @@ public:
     {
         return eval(c).elemAsDouble(0);
     }
-    double at(const std::string &c, std::size_t i)
+    double at(const std::string &c, keel::usize i)
     {
         return eval(c).elemAsDouble(i);
     }

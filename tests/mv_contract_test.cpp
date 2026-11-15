@@ -4,6 +4,7 @@
 // values): mvnpdf / mvnrnd / mvncdf / mvtrnd / mvtpdf / mnpdf. One
 // TEST_F per probed contract branch.
 
+#include <keel/core.h>
 #include <numkit/core/standard_engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <numkit/stats/mvdist/mvdist.hpp>
@@ -22,7 +23,7 @@ public:
     {
         return eval(c).elemAsDouble(0);
     }
-    double at(const std::string &c, std::size_t i)
+    double at(const std::string &c, keel::usize i)
     {
         return eval(c).elemAsDouble(i);
     }
@@ -204,8 +205,8 @@ TEST_F(MvContractTest, MvtrndContract)
     // Auto-normalization of a non-unit diagonal (T06): the scaled C
     // matches unit-diagonal [1 1/3; 1/3 1] identically and gives
     // correlation-consistent samples.
-    engine.eval("rng(3); T6 = mvtrnd([4 2; 2 9], 3, 4000); "
-                "rng(3); T6u = mvtrnd([1 1/3; 1/3 1], 3, 4000); "
+    engine.eval("rng(4); T6 = mvtrnd([4 2; 2 9], 3, 4000); "
+                "rng(4); T6u = mvtrnd([1 1/3; 1/3 1], 3, 4000); "
                 "C6 = corr(T6); ok6 = (max(max(abs(T6 - T6u))) == 0) && (abs(C6(1,2) - 1/3) < 0.05);");
     EXPECT_NEAR(num("ok6"), 1.0, 1e-12);
     // Gates (T03/T04/T05).

@@ -3,23 +3,22 @@
 // CallContext register half of moving/moving.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
+#include <keel/core.h>
+#include <keel/ref.h>
+#include <keel/arena.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/moving/moving.hpp>
 #include <numkit/value/argcheck.hpp>
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
 #include <numkit/value/value.hpp>
 #include <numkit/ops/helpers.hpp>            // createLike, createForDims (toolboxes/builtin/src/)
 #include "moving/moving_detail.hpp"
 #include <numkit/ops/reductions.hpp>  // numkit::ops::firstNonSingletonDim, validateDim
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <complex>
 #include <cstddef>
 #include <string>
 #include <tuple>
@@ -30,71 +29,71 @@ namespace numkit::stats {
 
 namespace detail {
 
-void movmean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void movmean_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "movmean");  // no max: name-value tail in the reference
-    auto *mr = ctx.engine->resource();
-    ScratchArena scratch(mr);
+    auto *mr = ctx.engine->allocator();
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
     auto opt = parseMovExtras(args, 2, "movmean");
     auto kBuf = decodeWindowWithOpts(args[1], "movmean", scratch, opt);
-    outs[0] = movmean_impl(args[0], Span<const size_t>(kBuf.data(), kBuf.size()), opt, mr);
+    outs[0] = movmean_impl(args[0], keel::ArrayRef<keel::usize>(kBuf.data(), kBuf.size()), opt, mr);
 }
 
-void movsum_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void movsum_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "movsum");  // no max: name-value tail in the reference
-    auto *mr = ctx.engine->resource();
-    ScratchArena scratch(mr);
+    auto *mr = ctx.engine->allocator();
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
     auto opt = parseMovExtras(args, 2, "movsum");
     auto kBuf = decodeWindowWithOpts(args[1], "movsum", scratch, opt);
-    outs[0] = movsum_impl(args[0], Span<const size_t>(kBuf.data(), kBuf.size()), opt, mr);
+    outs[0] = movsum_impl(args[0], keel::ArrayRef<keel::usize>(kBuf.data(), kBuf.size()), opt, mr);
 }
 
-void movmin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void movmin_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "movmin");  // no max: name-value tail in the reference
-    auto *mr = ctx.engine->resource();
-    ScratchArena scratch(mr);
+    auto *mr = ctx.engine->allocator();
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
     auto opt = parseMovExtras(args, 2, "movmin");
     auto kBuf = decodeWindowWithOpts(args[1], "movmin", scratch, opt);
-    outs[0] = movmin_impl(args[0], Span<const size_t>(kBuf.data(), kBuf.size()), opt, mr);
+    outs[0] = movmin_impl(args[0], keel::ArrayRef<keel::usize>(kBuf.data(), kBuf.size()), opt, mr);
 }
 
-void movmax_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void movmax_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "movmax");  // no max: name-value tail in the reference
-    auto *mr = ctx.engine->resource();
-    ScratchArena scratch(mr);
+    auto *mr = ctx.engine->allocator();
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
     auto opt = parseMovExtras(args, 2, "movmax");
     auto kBuf = decodeWindowWithOpts(args[1], "movmax", scratch, opt);
-    outs[0] = movmax_impl(args[0], Span<const size_t>(kBuf.data(), kBuf.size()), opt, mr);
+    outs[0] = movmax_impl(args[0], keel::ArrayRef<keel::usize>(kBuf.data(), kBuf.size()), opt, mr);
 }
 
-void movprod_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void movprod_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "movprod");  // no max: name-value tail in the reference
-    auto *mr = ctx.engine->resource();
-    ScratchArena scratch(mr);
+    auto *mr = ctx.engine->allocator();
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
     auto opt = parseMovExtras(args, 2, "movprod");
     auto kBuf = decodeWindowWithOpts(args[1], "movprod", scratch, opt);
-    outs[0] = movprod_impl(args[0], Span<const size_t>(kBuf.data(), kBuf.size()), opt, mr);
+    outs[0] = movprod_impl(args[0], keel::ArrayRef<keel::usize>(kBuf.data(), kBuf.size()), opt, mr);
 }
 
-void movmedian_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void movmedian_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "movmedian");  // no max: name-value tail in the reference
-    auto *mr = ctx.engine->resource();
-    ScratchArena scratch(mr);
+    auto *mr = ctx.engine->allocator();
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
     auto opt = parseMovExtras(args, 2, "movmedian");
     auto kBuf = decodeWindowWithOpts(args[1], "movmedian", scratch, opt);
-    outs[0] = movmedian_impl(args[0], Span<const size_t>(kBuf.data(), kBuf.size()), opt, mr);
+    outs[0] = movmedian_impl(args[0], keel::ArrayRef<keel::usize>(kBuf.data(), kBuf.size()), opt, mr);
 }
 
-void movvar_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void movvar_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "movvar");  // no max: name-value tail in the reference
     int normFlag = 0;
-    size_t extras_start = 2;
+    keel::usize extras_start = 2;
     if (args.size() >= 3 && !args[2].isChar() && !args[2].isString()
         && args[2].isScalar()) {
         // Could be normFlag or dim — disambiguate: normFlag is 0 or 1.
@@ -104,18 +103,18 @@ void movvar_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
             extras_start = 3;
         }
     }
-    auto *mr = ctx.engine->resource();
-    ScratchArena scratch(mr);
+    auto *mr = ctx.engine->allocator();
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
     auto opt = parseMovExtras(args, extras_start, "movvar");
     auto kBuf = decodeWindowWithOpts(args[1], "movvar", scratch, opt);
-    outs[0] = movvar_impl(args[0], Span<const size_t>(kBuf.data(), kBuf.size()), normFlag, opt, mr);
+    outs[0] = movvar_impl(args[0], keel::ArrayRef<keel::usize>(kBuf.data(), kBuf.size()), normFlag, opt, mr);
 }
 
-void movstd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void movstd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "movstd");  // no max: name-value tail in the reference
     int normFlag = 0;
-    size_t extras_start = 2;
+    keel::usize extras_start = 2;
     if (args.size() >= 3 && !args[2].isChar() && !args[2].isString()
         && args[2].isScalar()) {
         const double v = args[2].toScalar();
@@ -124,24 +123,24 @@ void movstd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
             extras_start = 3;
         }
     }
-    auto *mr = ctx.engine->resource();
-    ScratchArena scratch(mr);
+    auto *mr = ctx.engine->allocator();
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
     auto opt = parseMovExtras(args, extras_start, "movstd");
     auto kBuf = decodeWindowWithOpts(args[1], "movstd", scratch, opt);
-    outs[0] = movstd_impl(args[0], Span<const size_t>(kBuf.data(), kBuf.size()), normFlag, opt, mr);
+    outs[0] = movstd_impl(args[0], keel::ArrayRef<keel::usize>(kBuf.data(), kBuf.size()), normFlag, opt, mr);
 }
 
-void movmad_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void movmad_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "movmad");  // no max: name-value tail in the reference
-    auto *mr = ctx.engine->resource();
-    ScratchArena scratch(mr);
+    auto *mr = ctx.engine->allocator();
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
     auto opt = parseMovExtras(args, 2, "movmad");
     auto kBuf = decodeWindowWithOpts(args[1], "movmad", scratch, opt);
-    outs[0] = movmad_impl(args[0], Span<const size_t>(kBuf.data(), kBuf.size()), opt, mr);
+    outs[0] = movmad_impl(args[0], keel::ArrayRef<keel::usize>(kBuf.data(), kBuf.size()), opt, mr);
 }
 
-void smoothdata_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void smoothdata_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "smoothdata");  // no max: name-value tail in the reference
     std::string method = "movmean";
@@ -162,10 +161,10 @@ void smoothdata_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
                 3, "window", "smoothdata");
         }
     }
-    outs[0] = smoothdata(args[0], method, k, 0, ctx.engine->resource());
+    outs[0] = smoothdata(args[0], method, k, 0, ctx.engine->allocator());
 }
 
-void hampel_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+void hampel_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 3, "hampel");
     int k = 3;
@@ -174,7 +173,7 @@ void hampel_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
             argcheck::expectedReal(args[1], 2, "k", "hampel"), 2, "k", "hampel");
     }
     const double nsigmas = (args.size() >= 3) ? args[2].toScalar() : 3.0;
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     const Value &x = args[0];
 
     if (nargout < 2) {
@@ -186,7 +185,7 @@ void hampel_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
     // replaced (outlier) points; xmedian/xsigma are the local median and
     // 1.4826·MAD estimate at every sample.
     hampelValidate(x, k, nsigmas);
-    const std::size_t n = x.numel();
+    const keel::usize n = x.numel();
     auto y    = createLike(x, ValueType::DOUBLE,  mr);
     auto imask = createLike(x, ValueType::LOGICAL, mr);
     auto xmed = createLike(x, ValueType::DOUBLE,  mr);

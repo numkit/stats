@@ -3,6 +3,8 @@
 // CallContext register half of distributions/dist_fits.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
+#include <keel/core.h>
+#include <keel/ref.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/builtin/specfun.hpp>   // gammainc (used by gamfit_full)
 #include <numkit/stats/distributions/beta.hpp>
@@ -16,14 +18,11 @@
 #include <numkit/value/value.hpp>
 #include "distributions/dist_fits_detail.hpp"
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <complex>
 #include <cstddef>
 #include <string>
 #include <tuple>
@@ -36,7 +35,7 @@ namespace detail {
 
 namespace {
 // Helper: read optional `alpha` (2nd positional arg), default 0.05.
-double parse_alpha(Span<const Value> args, std::size_t idx = 1)
+double parse_alpha(keel::ArrayRef<Value> args, keel::usize idx = 1)
 {
     if (args.size() > idx) {
         const Value &v = args[idx];
@@ -47,11 +46,11 @@ double parse_alpha(Span<const Value> args, std::size_t idx = 1)
 }
 } // anonymous
 
-void gamfit_reg(Span<const Value> args, size_t nargout,
-                Span<Value> outs, CallContext &ctx)
+void gamfit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 5, "gamfit");
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     const Value cens = (args.size() > 2) ? args[2] : Value::Empty;
     const Value freq = (args.size() > 3) ? args[3] : Value::Empty;
     outs[0] = gamfit(args[0], cens, freq, mr);
@@ -59,11 +58,11 @@ void gamfit_reg(Span<const Value> args, size_t nargout,
         outs[1] = gamfit_ci(args[0], parse_alpha(args), cens, freq, mr);
 }
 
-void wblfit_reg(Span<const Value> args, size_t nargout,
-                Span<Value> outs, CallContext &ctx)
+void wblfit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 5, "wblfit");
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     const Value cens = (args.size() > 2) ? args[2] : Value::Empty;
     const Value freq = (args.size() > 3) ? args[3] : Value::Empty;
     outs[0] = wblfit(args[0], cens, freq, mr);
@@ -71,29 +70,29 @@ void wblfit_reg(Span<const Value> args, size_t nargout,
         outs[1] = wblfit_ci(args[0], parse_alpha(args), cens, freq, mr);
 }
 
-void betafit_reg(Span<const Value> args, size_t nargout,
-                 Span<Value> outs, CallContext &ctx)
+void betafit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                 keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 2, "betafit");
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     outs[0] = betafit(args[0], mr);
     if (nargout >= 2) outs[1] = betafit_ci(args[0], parse_alpha(args), mr);
 }
 
-void nbinfit_reg(Span<const Value> args, size_t nargout,
-                 Span<Value> outs, CallContext &ctx)
+void nbinfit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                 keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 3, "nbinfit");
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     outs[0] = nbinfit(args[0], mr);
     if (nargout >= 2) outs[1] = nbinfit_ci(args[0], parse_alpha(args), mr);
 }
 
-void evfit_reg(Span<const Value> args, size_t nargout,
-               Span<Value> outs, CallContext &ctx)
+void evfit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+               keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 5, "evfit");
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     const Value cens = (args.size() > 2) ? args[2] : Value::Empty;
     const Value freq = (args.size() > 3) ? args[3] : Value::Empty;
     // args[4] = options struct — currently no-op (parsed for compat).
@@ -102,20 +101,20 @@ void evfit_reg(Span<const Value> args, size_t nargout,
         outs[1] = evfit_ci(args[0], parse_alpha(args), cens, freq, mr);
 }
 
-void gpfit_reg(Span<const Value> args, size_t nargout,
-               Span<Value> outs, CallContext &ctx)
+void gpfit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+               keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 3, "gpfit");
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     outs[0] = gpfit(args[0], mr);
     if (nargout >= 2) outs[1] = gpfit_ci(args[0], parse_alpha(args), mr);
 }
 
-void gevfit_reg(Span<const Value> args, size_t nargout,
-                Span<Value> outs, CallContext &ctx)
+void gevfit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 3, "gevfit");
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     outs[0] = gevfit(args[0], mr);
     if (nargout >= 2) outs[1] = gevfit_ci(args[0], parse_alpha(args), mr);
 }

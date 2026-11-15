@@ -2,6 +2,9 @@
 // the stats toolbox in Phase E (callback decoupling): the FnHandle LM kernels
 // (nlinfit/nlpredci) stay core-free in the toolbox; this Engine-coupled glue
 // (the @handle->FnHandle bridge + the pausable .m wrapper) lives in bundle.
+#include <keel/core.h>
+#include <keel/memory.h>
+#include <keel/ref.h>
 #include <numkit/stats/regress/regress.hpp>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/sys/plugin.hpp>
@@ -14,8 +17,8 @@ namespace numkit::stats {
 // ── Adapters ─────────────────────────────────────────────────────────
 namespace detail {
 
-void nlinfit_reg(Span<const Value> args, size_t nargout,
-                 Span<Value> outs, CallContext &ctx)
+void nlinfit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                 keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     if (args.size() < 4)
         throw Error("nlinfit: requires (X, y, fun, beta0)",
@@ -24,13 +27,13 @@ void nlinfit_reg(Span<const Value> args, size_t nargout,
         throw Error("nlinfit: `fun` must be a function handle",
                     0, 0, "nlinfit", "", "numkit:nlinfit:notFuncHandle");
     const Value &fun = args[2];
-    auto model = [&ctx, &fun](Span<const Value> a, Span<Value> o,
-                              std::pmr::memory_resource * /*mr*/) {
+    auto model = [&ctx, &fun](keel::ArrayRef<Value> a, keel::MutArrayRef<Value> o,
+                              keel::Allocator * /*mr*/) {
         Value r = ctx.engine->callFunctionHandle(fun, a);
         if (!o.empty()) o[0] = std::move(r);
     };
     auto res = nlinfit(args[0], args[1], model, args[3],
-                       ctx.engine->resource());
+                       ctx.engine->allocator());
     outs[0] = std::move(res.beta);
     if (nargout > 1) outs[1] = std::move(res.R);
     if (nargout > 2) outs[2] = std::move(res.J);
@@ -38,19 +41,19 @@ void nlinfit_reg(Span<const Value> args, size_t nargout,
     if (nargout > 4) outs[4] = std::move(res.MSE);
 }
 
-void nlparci_reg(Span<const Value> args, size_t /*nargout*/,
-                 Span<Value> outs, CallContext &ctx)
+void nlparci_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
+                 keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 3, "nlparci");  // no max: name-value tail in the reference
     // Marshalling only — the positional/'covar' forms, the complex and
     // alpha gates, and the NaN-residual removal live in nlparci_full.
     outs[0] = nlparci_full(args[0], args[1],
-                           Span<const Value>(args.data() + 2, args.size() - 2),
-                           ctx.engine->resource());
+                           keel::ArrayRef<Value>(args.data() + 2, args.size() - 2),
+                           ctx.engine->allocator());
 }
 
-void nlpredci_reg(Span<const Value> args, size_t nargout,
-                  Span<Value> outs, CallContext &ctx)
+void nlpredci_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                  keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 5, "nlpredci");  // no max: name-value tail in the reference
     double alpha = 0.05;
@@ -60,14 +63,14 @@ void nlpredci_reg(Span<const Value> args, size_t nargout,
         throw Error("nlpredci: `fun` must be a function handle",
                     0, 0, "nlpredci", "", "numkit:nlpredci:notFuncHandle");
     const Value &fun = args[0];
-    auto model = [&ctx, &fun](Span<const Value> a, Span<Value> o,
-                              std::pmr::memory_resource * /*mr*/) {
+    auto model = [&ctx, &fun](keel::ArrayRef<Value> a, keel::MutArrayRef<Value> o,
+                              keel::Allocator * /*mr*/) {
         Value r = ctx.engine->callFunctionHandle(fun, a);
         if (!o.empty()) o[0] = std::move(r);
     };
     auto [ypred, delta] = nlpredci(model, args[1], args[2],
                                     args[3], args[4], alpha,
-                                    ctx.engine->resource());
+                                    ctx.engine->allocator());
     outs[0] = std::move(ypred);
     if (nargout > 1) outs[1] = std::move(delta);
 }

@@ -3,12 +3,16 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
+#include <keel/core.h>
+#include <keel/memory.h>
+#include <keel/ref.h>
+#include <keel/arena.h>
+#include <keel/array.h>
+#include <keel/complex.h>
+#include <keel/math.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
-#include <numkit/value/span.hpp>
-#include <numkit/value/scratch.hpp>
 #include <numkit/ops/reductions.hpp>  // numkit::builtin::detail dim-infra (engine-free, ops re-export)
-#include <numkit/value/scratch.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -16,7 +20,6 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
-#include <memory_resource>
 #include <numeric>
 #include <string>
 #include <tuple>
@@ -43,7 +46,7 @@ struct Window {
     long kf;   // samples forward
 };
 
-Window decodeWindow(Span<const size_t> k, const char *fn)
+Window decodeWindow(keel::ArrayRef<keel::usize> k, const char *fn)
 {
     auto badK = [&]() {
         throw Error(std::string(fn) + ": Window length must be a finite, "
@@ -52,7 +55,7 @@ Window decodeWindow(Span<const size_t> k, const char *fn)
                     0, 0, fn, "", std::string("numkit:") + fn + ":badK");
     };
     if (k.size() == 1) {
-        const size_t n = k[0];
+        const keel::usize n = k[0];
         if (n == 0) badK();
         // A scalar window of even length is centred about the CURRENT
         // and PREVIOUS elements — it leans BACKWARD: kb = floor(k/2),
@@ -70,8 +73,8 @@ Window decodeWindow(Span<const size_t> k, const char *fn)
 // Adapter / smoothdata path: extract k from a Value (scalar or 2-vec) into
 // a ScratchVec<size_t>, with the same validation that decodeWindow used to
 // do directly. Returns by value (live for the caller's scratch lifetime).
-ScratchVec<size_t> decodeWindowValueToScratch(const Value &k, const char *fn,
-                                               ScratchArena &scratch)
+keel::Array<keel::usize> decodeWindowValueToScratch(const Value &k, const char *fn,
+                                               const keel::ArenaTemp &scratch)
 {
     auto badK = [&]() {
         throw Error(std::string(fn) + ": Window length must be a finite, "
@@ -79,11 +82,11 @@ ScratchVec<size_t> decodeWindowValueToScratch(const Value &k, const char *fn,
                     "nonnegative, real scalars.",
                     0, 0, fn, "", std::string("numkit:") + fn + ":badK");
     };
-    ScratchVec<size_t> out(&scratch);
+    keel::Array<keel::usize> out(scratch.allocator());
     if (k.isScalar()) {
         const double v = k.toScalar();
         if (!std::isfinite(v) || v <= 0 || std::floor(v) != v) badK();
-        out.push_back(static_cast<size_t>(v));
+        out.push_back(static_cast<keel::usize>(v));
         return out;
     }
     if (k.numel() == 2) {
@@ -91,8 +94,8 @@ ScratchVec<size_t> decodeWindowValueToScratch(const Value &k, const char *fn,
         const double b = k.elemAsDouble(1);
         if (!std::isfinite(a) || !std::isfinite(b) ||
             a < 0 || b < 0 || std::floor(a) != a || std::floor(b) != b) badK();
-        out.push_back(static_cast<size_t>(a));
-        out.push_back(static_cast<size_t>(b));
+        out.push_back(static_cast<keel::usize>(a));
+        out.push_back(static_cast<keel::usize>(b));
         return out;
     }
     badK();
@@ -127,11 +130,11 @@ inline std::string toLower(std::string s)
     return s;
 }
 
-MovOpts parseMovExtras(Span<const Value> args, size_t start, const char *fn)
+MovOpts parseMovExtras(keel::ArrayRef<Value> args, keel::usize start, const char *fn)
 {
     MovOpts o;
     o.fn_name = fn;
-    size_t i = start;
+    keel::usize i = start;
 
     // Optional positional `dim`: numeric scalar that's not a string and
     // appears before any string argument.
@@ -185,10 +188,10 @@ MovOpts parseMovExtras(Span<const Value> args, size_t start, const char *fn)
                 throw Error(std::string(fn) + ": 'SamplePoints' must be a non-empty real numeric vector of strictly increasing finite values",
                             0, 0, fn, "", std::string("numkit:") + fn + ":samplePts");
             }
-            const size_t nt = val.numel();
+            const keel::usize nt = val.numel();
             o.sample_points.clear();
             o.sample_points.reserve(nt);
-            for (size_t idx = 0; idx < nt; ++idx) {
+            for (keel::usize idx = 0; idx < nt; ++idx) {
                 const double tj = val.elemAsDouble(idx);
                 if (!std::isfinite(tj) || (idx > 0 && tj <= o.sample_points.back())) {
                     throw Error(std::string(fn) + ": 'SamplePoints' must be strictly increasing and finite",
@@ -214,8 +217,8 @@ MovOpts parseMovExtras(Span<const Value> args, size_t start, const char *fn)
     return o;
 }
 
-ScratchVec<size_t> decodeWindowWithOpts(const Value &k, const char *fn,
-                                        ScratchArena &scratch, MovOpts &opt)
+keel::Array<keel::usize> decodeWindowWithOpts(const Value &k, const char *fn,
+                                        const keel::ArenaTemp &scratch, MovOpts &opt)
 {
     if (!opt.has_sample_points)
         return decodeWindowValueToScratch(k, fn, scratch);
@@ -228,7 +231,7 @@ ScratchVec<size_t> decodeWindowWithOpts(const Value &k, const char *fn,
     };
     if (k.isEmpty() || k.isChar() || k.isString() || k.type() == ValueType::COMPLEX || k.type() == ValueType::LOGICAL)
         badK();
-    ScratchVec<size_t> out(&scratch);
+    keel::Array<keel::usize> out(scratch.allocator());
     if (k.isScalar()) {
         const double v = k.toScalar();
         if (!std::isfinite(v) || v <= 0.0) badK();
@@ -251,7 +254,7 @@ ScratchVec<size_t> decodeWindowWithOpts(const Value &k, const char *fn,
 }
 
 // Allocate a same-shape DOUBLE output via createLike.
-Value allocSameShape(const Value &x, std::pmr::memory_resource *mr)
+Value allocSameShape(const Value &x, keel::Allocator *mr)
 {
     return createLike(x, ValueType::DOUBLE, mr);
 }
@@ -267,16 +270,16 @@ Value allocSameShape(const Value &x, std::pmr::memory_resource *mr)
 // `omit_nan == true` filters NaN out of the (possibly already padded)
 // window before the reducer; an empty filtered window collapses to NaN.
 template <typename F>
-void runMoving(const double *src, size_t n, ptrdiff_t step,
-               double *dst, const Window &w, ScratchArena &scratch,
+void runMoving(const double *src, keel::usize n, keel::isize step,
+               double *dst, const Window &w, const keel::ArenaTemp &scratch,
                bool omit_nan, EndpointMode ep, double ep_fill, F &&fn)
 {
     if (n == 0) return;
     const long N = static_cast<long>(n);
     const long fullLen = w.kb + w.kf + 1;
-    auto buf = ScratchVec<double>(static_cast<size_t>(fullLen), &scratch);
+    auto buf = keel::Array<double>(static_cast<keel::usize>(fullLen), scratch.allocator());
     for (long i = 0; i < N; ++i) {
-        size_t bufN = 0;
+        keel::usize bufN = 0;
         for (long j = -w.kb; j <= w.kf; ++j) {
             const long pos = i + j;
             double v;
@@ -302,7 +305,7 @@ void runMoving(const double *src, size_t n, ptrdiff_t step,
 // (kb + kf) elements. For Shrink/Fill/Scalar the output keeps the same
 // shape as input.
 template <typename F>
-Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &opt, F &&fn, std::pmr::memory_resource *mr)
+Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &opt, F &&fn, keel::Allocator *mr)
 {
     if (x.isEmpty())
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
@@ -320,10 +323,10 @@ Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &o
                                      : fn(&v, 1);
         return out;
     }
-    ScratchArena scratch(mr);
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
     const double *src = x.doubleData();
 
-    auto runSamplePoints = [&](const double *colSrc, size_t n, ptrdiff_t step,
+    auto runSamplePoints = [&](const double *colSrc, keel::usize n, keel::isize step,
                                double *colDst) {
         if (n == 0) return;
         const auto &t = opt.sample_points;
@@ -331,26 +334,26 @@ Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &o
         const double kf = opt.sp_kf;
         const double span = (n > 1) ? std::fabs(t[n - 1] - t[0]) : 1.0;
         const double tol = 1e-12 * std::max(1.0, span);
-        auto buf = ScratchVec<double>(n + 2, &scratch);
-        size_t outI = 0;
-        for (size_t i = 0; i < n; ++i) {
+        auto buf = keel::Array<double>(n + 2, scratch.allocator());
+        keel::usize outI = 0;
+        for (keel::usize i = 0; i < n; ++i) {
             const bool leftOut  = (t[i] - kb < t[0] - tol);
             const bool rightOut = (t[i] + kf > t[n - 1] + tol);
             if (opt.ep == EndpointMode::Discard && (leftOut || rightOut))
                 continue;
             const double tLo = t[i] - kb - tol;
             const double tHi = t[i] + kf + tol;
-            size_t bufN = 0;
+            keel::usize bufN = 0;
             if (leftOut) {
                 if (opt.ep == EndpointMode::Fill && !opt.omit_nan)
                     buf[bufN++] = std::numeric_limits<double>::quiet_NaN();
                 else if (opt.ep == EndpointMode::Scalar && !(opt.omit_nan && std::isnan(opt.ep_fill)))
                     buf[bufN++] = opt.ep_fill;
             }
-            for (size_t j = 0; j < n; ++j) {
+            for (keel::usize j = 0; j < n; ++j) {
                 if (t[j] < tLo) continue;
                 if (t[j] > tHi) break;
-                const double v = colSrc[static_cast<ptrdiff_t>(j) * step];
+                const double v = colSrc[static_cast<keel::isize>(j) * step];
                 if (opt.omit_nan && std::isnan(v)) continue;
                 buf[bufN++] = v;
             }
@@ -360,24 +363,24 @@ Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &o
                 else if (opt.ep == EndpointMode::Scalar && !(opt.omit_nan && std::isnan(opt.ep_fill)))
                     buf[bufN++] = opt.ep_fill;
             }
-            colDst[static_cast<ptrdiff_t>(outI) * step] =
+            colDst[static_cast<keel::isize>(outI) * step] =
                 (bufN == 0) ? std::numeric_limits<double>::quiet_NaN()
                             : fn(buf.data(), bufN);
             ++outI;
         }
     };
 
-    auto runDiscard = [&](const double *colSrc, size_t n, ptrdiff_t step,
+    auto runDiscard = [&](const double *colSrc, keel::usize n, keel::isize step,
                           double *colDst) {
         // Discard: emit only positions i where the window is fully in-bounds,
         // i.e. i in [kb, n-1-kf]. Output length = n - (kb+kf) (or 0).
         const long kb = w.kb, kf = w.kf;
         const long fullLen = kb + kf + 1;
         if (static_cast<long>(n) < fullLen) return;
-        auto buf = ScratchVec<double>(static_cast<size_t>(fullLen), &scratch);
+        auto buf = keel::Array<double>(static_cast<keel::usize>(fullLen), scratch.allocator());
         long outI = 0;
         for (long i = kb; i + kf < static_cast<long>(n); ++i) {
-            size_t bufN = 0;
+            keel::usize bufN = 0;
             if (opt.omit_nan) {
                 for (long j = -kb; j <= kf; ++j) {
                     const double v = colSrc[(i + j) * step];
@@ -385,8 +388,8 @@ Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &o
                 }
             } else {
                 for (long j = -kb; j <= kf; ++j)
-                    buf[static_cast<size_t>(j + kb)] = colSrc[(i + j) * step];
-                bufN = static_cast<size_t>(fullLen);
+                    buf[static_cast<keel::usize>(j + kb)] = colSrc[(i + j) * step];
+                bufN = static_cast<keel::usize>(fullLen);
             }
             colDst[outI * step] = (bufN == 0)
                                       ? std::numeric_limits<double>::quiet_NaN()
@@ -396,14 +399,14 @@ Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &o
     };
 
     // Compute output dims for Discard mode.
-    auto reducedLen = [&](size_t L) -> size_t {
+    auto reducedLen = [&](keel::usize L) -> keel::usize {
         if (opt.has_sample_points) {
             if (L == 0) return 0;
             const auto &t = opt.sample_points;
             const double span = (L > 1) ? std::fabs(t[L - 1] - t[0]) : 1.0;
             const double tol = 1e-12 * std::max(1.0, span);
-            size_t cnt = 0;
-            for (size_t i = 0; i < L; ++i) {
+            keel::usize cnt = 0;
+            for (keel::usize i = 0; i < L; ++i) {
                 if (t[i] - opt.sp_kb >= t[0] - tol && t[i] + opt.sp_kf <= t[L - 1] + tol)
                     ++cnt;
             }
@@ -411,19 +414,19 @@ Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &o
         }
         const long delta = w.kb + w.kf;
         if (static_cast<long>(L) <= delta) return 0;
-        return L - static_cast<size_t>(delta);
+        return L - static_cast<keel::usize>(delta);
     };
 
     if (x.dims().isVector()) {
-        const size_t N = x.numel();
+        const keel::usize N = x.numel();
         if (opt.has_sample_points && opt.sample_points.size() != N) {
             throw Error(std::string(opt.fn_name) + ": 'SamplePoints' length must match the operating dimension length",
                         0, 0, opt.fn_name, "", std::string("numkit:") + opt.fn_name + ":samplePts");
         }
-        size_t outN = N;
+        keel::usize outN = N;
         if (opt.ep == EndpointMode::Discard) outN = reducedLen(N);
-        const size_t r = (x.dims().rows() > 1) ? outN : 1;
-        const size_t c = (x.dims().rows() > 1) ? 1    : outN;
+        const keel::usize r = (x.dims().rows() > 1) ? outN : 1;
+        const keel::usize c = (x.dims().rows() > 1) ? 1    : outN;
         Value out = Value::matrix(r, c, ValueType::DOUBLE, mr);
         if (outN == 0) return out;
         double *dst = out.doubleDataMut();
@@ -439,12 +442,12 @@ Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &o
     }
 
     const auto &d = x.dims();
-    const size_t R = d.rows(), C = d.cols();
-    const size_t P = d.is3D() ? d.pages() : 1;
-    const size_t pageStride = R * C;
+    const keel::usize R = d.rows(), C = d.cols();
+    const keel::usize P = d.is3D() ? d.pages() : 1;
+    const keel::usize pageStride = R * C;
 
     if (opt.has_sample_points) {
-        const size_t expectedLen = (dim == 1) ? R : (dim == 2 ? C : (dim == 3 && d.is3D() ? P : 1));
+        const keel::usize expectedLen = (dim == 1) ? R : (dim == 2 ? C : (dim == 3 && d.is3D() ? P : 1));
         if (opt.sample_points.size() != expectedLen) {
             throw Error(std::string(opt.fn_name) + ": 'SamplePoints' length must match the operating dimension length",
                         0, 0, opt.fn_name, "", std::string("numkit:") + opt.fn_name + ":samplePts");
@@ -452,7 +455,7 @@ Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &o
     }
 
     // Determine output dims.
-    size_t outR = R, outC = C, outP = P;
+    keel::usize outR = R, outC = C, outP = P;
     if (opt.ep == EndpointMode::Discard) {
         if      (dim == 1) outR = reducedLen(R);
         else if (dim == 2) outC = reducedLen(C);
@@ -463,9 +466,9 @@ Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &o
     else          out = Value::matrix(outR, outC, ValueType::DOUBLE, mr);
     if (out.numel() == 0) return out;
     double *dst = out.doubleDataMut();
-    const size_t outPageStride = outR * outC;
+    const keel::usize outPageStride = outR * outC;
 
-    auto run = [&](const double *colSrc, size_t inLen, ptrdiff_t step,
+    auto run = [&](const double *colSrc, keel::usize inLen, keel::isize step,
                    double *colDst) {
         if (opt.has_sample_points)           runSamplePoints(colSrc, inLen, step, colDst);
         else if (opt.ep == EndpointMode::Discard) runDiscard(colSrc, inLen, step, colDst);
@@ -474,25 +477,25 @@ Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &o
     };
 
     if (dim == 1) {
-        for (size_t p = 0; p < P; ++p)
-            for (size_t c = 0; c < C; ++c) {
+        for (keel::usize p = 0; p < P; ++p)
+            for (keel::usize c = 0; c < C; ++c) {
                 const double *colSrc = src + p * pageStride + c * R;
                 double       *colDst = dst + p * outPageStride + c * outR;
                 run(colSrc, R, /*step=*/1, colDst);
             }
     } else if (dim == 2) {
-        for (size_t p = 0; p < P; ++p)
-            for (size_t r = 0; r < R; ++r) {
+        for (keel::usize p = 0; p < P; ++p)
+            for (keel::usize r = 0; r < R; ++r) {
                 const double *rowSrc = src + p * pageStride + r;
                 double       *rowDst = dst + p * outPageStride + r;
-                run(rowSrc, C, /*step=*/static_cast<ptrdiff_t>(R), rowDst);
+                run(rowSrc, C, /*step=*/static_cast<keel::isize>(R), rowDst);
             }
     } else if (dim == 3 && d.is3D()) {
-        for (size_t c = 0; c < C; ++c)
-            for (size_t r = 0; r < R; ++r) {
+        for (keel::usize c = 0; c < C; ++c)
+            for (keel::usize r = 0; r < R; ++r) {
                 const double *pgSrc = src + c * R + r;
                 double       *pgDst = dst + c * outR + r;
-                run(pgSrc, P, /*step=*/static_cast<ptrdiff_t>(pageStride), pgDst);
+                run(pgSrc, P, /*step=*/static_cast<keel::isize>(pageStride), pgDst);
             }
     } else {
         // Trailing-singleton or out-of-rank: identity copy (legacy behaviour).
@@ -503,63 +506,63 @@ Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &o
 
 // ── per-window reducers ───────────────────────────────────────────────
 
-double winMean(const double *w, size_t n)
+double winMean(const double *w, keel::usize n)
 {
     if (n == 0) return std::numeric_limits<double>::quiet_NaN();
     double s = 0.0;
-    for (size_t i = 0; i < n; ++i) s += w[i];
+    for (keel::usize i = 0; i < n; ++i) s += w[i];
     return s / static_cast<double>(n);
 }
 
-double winSum(const double *w, size_t n)
+double winSum(const double *w, keel::usize n)
 {
     double s = 0.0;
-    for (size_t i = 0; i < n; ++i) s += w[i];
+    for (keel::usize i = 0; i < n; ++i) s += w[i];
     return s;
 }
 
-double winMin(const double *w, size_t n)
+double winMin(const double *w, keel::usize n)
 {
     if (n == 0) return std::numeric_limits<double>::quiet_NaN();
     double m = w[0];
-    for (size_t i = 1; i < n; ++i)
+    for (keel::usize i = 1; i < n; ++i)
         if (w[i] < m) m = w[i];
     return m;
 }
 
-double winMax(const double *w, size_t n)
+double winMax(const double *w, keel::usize n)
 {
     if (n == 0) return std::numeric_limits<double>::quiet_NaN();
     double m = w[0];
-    for (size_t i = 1; i < n; ++i)
+    for (keel::usize i = 1; i < n; ++i)
         if (w[i] > m) m = w[i];
     return m;
 }
 
-double winProd(const double *w, size_t n)
+double winProd(const double *w, keel::usize n)
 {
     double p = 1.0;
-    for (size_t i = 0; i < n; ++i) p *= w[i];
+    for (keel::usize i = 0; i < n; ++i) p *= w[i];
     return p;
 }
 
 // nth_element on a scratch copy (window already lives in caller's buf).
-double winMedianInPlace(double *w, size_t n)
+double winMedianInPlace(double *w, keel::usize n)
 {
     if (n == 0) return std::numeric_limits<double>::quiet_NaN();
     if (n == 1) return w[0];
-    const size_t mid = n / 2;
+    const keel::usize mid = n / 2;
     std::nth_element(w, w + mid, w + n);
     if (n % 2 == 1)
         return w[mid];
     const double upper = w[mid];
     double lower = w[0];
-    for (size_t i = 1; i < mid; ++i)
+    for (keel::usize i = 1; i < mid; ++i)
         if (w[i] > lower) lower = w[i];
     return 0.5 * (upper + lower);
 }
 
-double winVar(const double *w, size_t n, int normFlag)
+double winVar(const double *w, keel::usize n, int normFlag)
 {
     if (n == 0) return std::numeric_limits<double>::quiet_NaN();
     // The reference engine defines std/var of a single value as 0 regardless of the
@@ -568,10 +571,10 @@ double winVar(const double *w, size_t n, int normFlag)
     // windows that reduce to a single valid element.
     if (n == 1) return 0.0;
     double s = 0.0;
-    for (size_t i = 0; i < n; ++i) s += w[i];
+    for (keel::usize i = 0; i < n; ++i) s += w[i];
     const double mean = s / static_cast<double>(n);
     double sq = 0.0;
-    for (size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const double d = w[i] - mean;
         sq += d * d;
     }
@@ -581,14 +584,14 @@ double winVar(const double *w, size_t n, int normFlag)
 }
 
 // Median absolute deviation: median(|x - median(x)|).
-double winMadInPlace(double *w, size_t n, ScratchArena &scratch)
+double winMadInPlace(double *w, keel::usize n, const keel::ArenaTemp &scratch)
 {
     if (n == 0) return std::numeric_limits<double>::quiet_NaN();
-    auto copy = ScratchVec<double>(n, &scratch);
+    auto copy = keel::Array<double>(n, scratch.allocator());
     std::copy(w, w + n, copy.data());
     const double med = winMedianInPlace(copy.data(), n);
-    auto devs = ScratchVec<double>(n, &scratch);
-    for (size_t i = 0; i < n; ++i) devs[i] = std::abs(w[i] - med);
+    auto devs = keel::Array<double>(n, scratch.allocator());
+    for (keel::usize i = 0; i < n; ++i) devs[i] = keel::abs(w[i] - med);
     return winMedianInPlace(devs.data(), n);
 }
 
@@ -597,31 +600,31 @@ namespace {
 
 // Real / imaginary parts of a COMPLEX value as same-shape DOUBLE arrays, and
 // the inverse combine (movmean is linear, so it commutes with this split).
-Value cplxRealPart(const Value &f, std::pmr::memory_resource *mr)
+Value cplxRealPart(const Value &f, keel::Allocator *mr)
 {
     auto r = createLike(f, ValueType::DOUBLE, mr);
     double *d = r.doubleDataMut();
-    const Complex *c = f.complexData();
-    const size_t n = f.numel();
-    for (size_t i = 0; i < n; ++i) d[i] = c[i].real();
+    const keel::c64 *c = f.complexData();
+    const keel::usize n = f.numel();
+    for (keel::usize i = 0; i < n; ++i) d[i] = c[i].real();
     return r;
 }
-Value cplxImagPart(const Value &f, std::pmr::memory_resource *mr)
+Value cplxImagPart(const Value &f, keel::Allocator *mr)
 {
     auto r = createLike(f, ValueType::DOUBLE, mr);
     double *d = r.doubleDataMut();
-    const Complex *c = f.complexData();
-    const size_t n = f.numel();
-    for (size_t i = 0; i < n; ++i) d[i] = c[i].imag();
+    const keel::c64 *c = f.complexData();
+    const keel::usize n = f.numel();
+    for (keel::usize i = 0; i < n; ++i) d[i] = c[i].imag();
     return r;
 }
-Value cplxCombine(const Value &re, const Value &im, std::pmr::memory_resource *mr)
+Value cplxCombine(const Value &re, const Value &im, keel::Allocator *mr)
 {
     auto out = createLike(re, ValueType::COMPLEX, mr);
-    Complex *o = out.complexDataMut();
+    keel::c64 *o = out.complexDataMut();
     const double *r = re.doubleData(), *m = im.doubleData();
-    const size_t n = out.numel();
-    for (size_t i = 0; i < n; ++i) o[i] = Complex(r[i], m[i]);
+    const keel::usize n = out.numel();
+    for (keel::usize i = 0; i < n; ++i) o[i] = keel::c64(r[i], m[i]);
     return out;
 }
 
@@ -630,18 +633,18 @@ Value cplxCombine(const Value &re, const Value &im, std::pmr::memory_resource *m
 // double, NOT int8. Promote element-wise here; double/single/complex pass
 // through unchanged. char is NOT promoted, so the doubleData() path keeps throwing for it.
 // bugs/builtin/movfun-typeclass.md.
-static Value movPromoteIntLogical(const Value &x, std::pmr::memory_resource *mr)
+static Value movPromoteIntLogical(const Value &x, keel::Allocator *mr)
 {
     const ValueType t = x.type();
     if (!(isIntegerType(t) || t == ValueType::LOGICAL)) return x;
     Value r = createLike(x, ValueType::DOUBLE, mr);
     double *dst = r.doubleDataMut();
-    const size_t n = x.numel();
-    for (size_t i = 0; i < n; ++i) dst[i] = x.elemAsDouble(i);
+    const keel::usize n = x.numel();
+    for (keel::usize i = 0; i < n; ++i) dst[i] = x.elemAsDouble(i);
     return r;
 }
 
-Value movmean_impl(const Value &x, Span<const size_t> k, const MovOpts &opt, std::pmr::memory_resource *mr)
+Value movmean_impl(const Value &x, keel::ArrayRef<keel::usize> k, const MovOpts &opt, keel::Allocator *mr)
 {
     // Complex: moving-mean the real + imaginary parts separately, recombine
     // (window / endpoints / dim all carry through each recursive call).
@@ -653,70 +656,70 @@ Value movmean_impl(const Value &x, Span<const size_t> k, const MovOpts &opt, std
     const Value xd = movPromoteIntLogical(x, mr);
     const auto w = decodeWindow(k, "movmean");
     const int d = resolveDim(xd, opt.dim, "movmean");
-    return movingDriverDim(xd, w, d, opt, [](const double *win, size_t n) { return winMean(win, n); }, mr);
+    return movingDriverDim(xd, w, d, opt, [](const double *win, keel::usize n) { return winMean(win, n); }, mr);
 }
 
-Value movsum_impl(const Value &x, Span<const size_t> k, const MovOpts &opt, std::pmr::memory_resource *mr)
+Value movsum_impl(const Value &x, keel::ArrayRef<keel::usize> k, const MovOpts &opt, keel::Allocator *mr)
 {
     const Value xd = movPromoteIntLogical(x, mr);
     const auto w = decodeWindow(k, "movsum");
     const int d = resolveDim(xd, opt.dim, "movsum");
-    return movingDriverDim(xd, w, d, opt, [](const double *win, size_t n) { return winSum(win, n); }, mr);
+    return movingDriverDim(xd, w, d, opt, [](const double *win, keel::usize n) { return winSum(win, n); }, mr);
 }
 
 // movmax/movmin PRESERVE the input class (order statistics): integer -> integer
 // (values are exact) and logical -> logical. movmedian preserves the INTEGER
 // class with ROUND-half-away (a window median can be fractional), but on LOGICAL
 // returns DOUBLE (a 0.5 median can't be logical). bugs/stats/movfun-order-stats.md.
-static Value movNarrowToLogical(const Value &d, std::pmr::memory_resource *mr)
+static Value movNarrowToLogical(const Value &d, keel::Allocator *mr)
 {
     if (d.isScalar()) return Value::logicalScalar(d.toScalar() != 0.0, mr);
     Value r = createLike(d, ValueType::LOGICAL, mr);
-    uint8_t *dst = r.logicalDataMut();
-    const size_t n = d.numel();
-    for (size_t i = 0; i < n; ++i) dst[i] = (d.elemAsDouble(i) != 0.0) ? 1 : 0;
+    keel::u8 *dst = r.logicalDataMut();
+    const keel::usize n = d.numel();
+    for (keel::usize i = 0; i < n; ++i) dst[i] = (d.elemAsDouble(i) != 0.0) ? 1 : 0;
     return r;
 }
 
-Value movmin_impl(const Value &x, Span<const size_t> k, const MovOpts &opt, std::pmr::memory_resource *mr)
+Value movmin_impl(const Value &x, keel::ArrayRef<keel::usize> k, const MovOpts &opt, keel::Allocator *mr)
 {
     const ValueType ot = x.type();
     const Value xd = movPromoteIntLogical(x, mr);
     const auto w = decodeWindow(k, "movmin");
     const int d = resolveDim(xd, opt.dim, "movmin");
-    Value out = movingDriverDim(xd, w, d, opt, [](const double *win, size_t n) { return winMin(win, n); }, mr);
+    Value out = movingDriverDim(xd, w, d, opt, [](const double *win, keel::usize n) { return winMin(win, n); }, mr);
     if (isIntegerType(ot)) return doubleToIntegerExact(out, ot, mr);   // exact (subset)
     if (ot == ValueType::LOGICAL) return movNarrowToLogical(out, mr);
     return out;
 }
 
-Value movmax_impl(const Value &x, Span<const size_t> k, const MovOpts &opt, std::pmr::memory_resource *mr)
+Value movmax_impl(const Value &x, keel::ArrayRef<keel::usize> k, const MovOpts &opt, keel::Allocator *mr)
 {
     const ValueType ot = x.type();
     const Value xd = movPromoteIntLogical(x, mr);
     const auto w = decodeWindow(k, "movmax");
     const int d = resolveDim(xd, opt.dim, "movmax");
-    Value out = movingDriverDim(xd, w, d, opt, [](const double *win, size_t n) { return winMax(win, n); }, mr);
+    Value out = movingDriverDim(xd, w, d, opt, [](const double *win, keel::usize n) { return winMax(win, n); }, mr);
     if (isIntegerType(ot)) return doubleToIntegerExact(out, ot, mr);   // exact (subset)
     if (ot == ValueType::LOGICAL) return movNarrowToLogical(out, mr);
     return out;
 }
 
-Value movprod_impl(const Value &x, Span<const size_t> k, const MovOpts &opt, std::pmr::memory_resource *mr)
+Value movprod_impl(const Value &x, keel::ArrayRef<keel::usize> k, const MovOpts &opt, keel::Allocator *mr)
 {
     const Value xd = movPromoteIntLogical(x, mr);
     const auto w = decodeWindow(k, "movprod");
     const int d = resolveDim(xd, opt.dim, "movprod");
-    return movingDriverDim(xd, w, d, opt, [](const double *win, size_t n) { return winProd(win, n); }, mr);
+    return movingDriverDim(xd, w, d, opt, [](const double *win, keel::usize n) { return winProd(win, n); }, mr);
 }
 
-Value movmedian_impl(const Value &x, Span<const size_t> k, const MovOpts &opt, std::pmr::memory_resource *mr)
+Value movmedian_impl(const Value &x, keel::ArrayRef<keel::usize> k, const MovOpts &opt, keel::Allocator *mr)
 {
     const ValueType ot = x.type();
     const Value xd = movPromoteIntLogical(x, mr);
     const auto w = decodeWindow(k, "movmedian");
     const int d = resolveDim(xd, opt.dim, "movmedian");
-    Value out = movingDriverDim(xd, w, d, opt, [](const double *win, size_t n) {
+    Value out = movingDriverDim(xd, w, d, opt, [](const double *win, keel::usize n) {
             double tmp[1024];   // typical k <= a few hundred
             if (n <= sizeof(tmp) / sizeof(tmp[0])) {
                 std::copy(win, win + n, tmp);
@@ -731,40 +734,40 @@ Value movmedian_impl(const Value &x, Span<const size_t> k, const MovOpts &opt, s
         // into the double buffer first. LOGICAL input returns DOUBLE (a 0.5
         // median has no logical representation), so no narrow there.
         double *p = out.doubleDataMut();
-        const size_t n = out.numel();
-        for (size_t i = 0; i < n; ++i) p[i] = std::round(p[i]);
+        const keel::usize n = out.numel();
+        for (keel::usize i = 0; i < n; ++i) p[i] = std::round(p[i]);
         return doubleToIntegerExact(out, ot, mr);
     }
     return out;
 }
 
-Value movvar_impl(const Value &x, Span<const size_t> k, int normFlag, const MovOpts &opt, std::pmr::memory_resource *mr)
+Value movvar_impl(const Value &x, keel::ArrayRef<keel::usize> k, int normFlag, const MovOpts &opt, keel::Allocator *mr)
 {
     if (normFlag != 0 && normFlag != 1)
         throw Error("movvar: normFlag must be 0 or 1",
                      0, 0, "movvar", "", "numkit:movvar:badNormFlag");
     const auto w = decodeWindow(k, "movvar");
     const int d = resolveDim(x, opt.dim, "movvar");
-    return movingDriverDim(x, w, d, opt, [normFlag](const double *win, size_t n) { return winVar(win, n, normFlag); }, mr);
+    return movingDriverDim(x, w, d, opt, [normFlag](const double *win, keel::usize n) { return winVar(win, n, normFlag); }, mr);
 }
 
-Value movstd_impl(const Value &x, Span<const size_t> k, int normFlag, const MovOpts &opt, std::pmr::memory_resource *mr)
+Value movstd_impl(const Value &x, keel::ArrayRef<keel::usize> k, int normFlag, const MovOpts &opt, keel::Allocator *mr)
 {
     auto v = movvar_impl(x, k, normFlag, opt, mr);
     double *p = v.doubleDataMut();
-    const size_t n = v.numel();
-    for (size_t i = 0; i < n; ++i)
+    const keel::usize n = v.numel();
+    for (keel::usize i = 0; i < n; ++i)
         p[i] = std::sqrt(p[i]);
     return v;
 }
 
-Value movmad_impl(const Value &x, Span<const size_t> k, const MovOpts &opt, std::pmr::memory_resource *mr)
+Value movmad_impl(const Value &x, keel::ArrayRef<keel::usize> k, const MovOpts &opt, keel::Allocator *mr)
 {
     const auto w = decodeWindow(k, "movmad");
     const int d = resolveDim(x, opt.dim, "movmad");
-    return movingDriverDim(x, w, d, opt, [mr](const double *win, size_t n) -> double {
-            ScratchArena local(mr);
-            auto buf = ScratchVec<double>(n, &local);
+    return movingDriverDim(x, w, d, opt, [mr](const double *win, keel::usize n) -> double {
+            keel::ArenaTemp local = keel::get_scratch(mr);
+            auto buf = keel::Array<double>(n, local.allocator());
             std::copy(win, win + n, buf.data());
             return winMadInPlace(buf.data(), n, local);
         }, mr);
@@ -775,8 +778,8 @@ Value movmad_impl(const Value &x, Span<const size_t> k, const MovOpts &opt, std:
 // hampel internals (def in moving.cpp, external): raw-buffer outlier core +
 // the Value-level argument validator.
 void hampelValidate(const Value &x, int k, double nsigmas);
-void hampelCore(const double *src, std::size_t n, int k, double nsigmas,
-                double *dst, std::uint8_t *mask, double *median,
-                double *sigma, std::pmr::memory_resource *mr);
+void hampelCore(const double *src, keel::usize n, int k, double nsigmas,
+                double *dst, keel::u8 *mask, double *median,
+                double *sigma, keel::Allocator *mr);
 
 } // namespace numkit::stats

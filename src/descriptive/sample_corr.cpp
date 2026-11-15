@@ -11,6 +11,9 @@
 // rank-robust least-squares path — deferred to its own change. See
 // bugs/stats/autocorr.md.
 
+#include <keel/core.h>
+#include <keel/memory.h>
+#include <keel/math.h>
 #include <numkit/stats/descriptive/descriptive.hpp>
 
 #include <numkit/value/value.hpp>
@@ -25,64 +28,64 @@ namespace numkit::stats {
 namespace {
 
 // Default lag count: MATLAB uses min(20, N-1).
-size_t defaultNumLags(size_t N)
+keel::usize defaultNumLags(keel::usize N)
 {
-    const size_t cap = (N >= 1) ? N - 1 : 0;
-    return std::min<size_t>(20, cap);
+    const keel::usize cap = (N >= 1) ? N - 1 : 0;
+    return std::min<keel::usize>(20, cap);
 }
 
 // Centred copy of a (vector) Value's data: out[i] = v[i] - mean(v).
 void centred(const Value &v, std::vector<double> &out, double &c0)
 {
-    const size_t n = v.numel();
+    const keel::usize n = v.numel();
     out.resize(n);
     double mean = 0.0;
-    for (size_t i = 0; i < n; ++i) mean += v.elemAsDouble(i);
+    for (keel::usize i = 0; i < n; ++i) mean += v.elemAsDouble(i);
     mean = (n > 0) ? mean / static_cast<double>(n) : 0.0;
     c0 = 0.0;
-    for (size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         out[i] = v.elemAsDouble(i) - mean;
         c0 += out[i] * out[i];
     }
     c0 /= static_cast<double>(n);   // biased variance
 }
 
-Value colVec(const std::vector<double> &v, std::pmr::memory_resource *mr)
+Value colVec(const std::vector<double> &v, keel::Allocator *mr)
 {
     Value out = Value::matrix(v.size(), 1, ValueType::DOUBLE, mr);
     double *d = out.doubleDataMut();
-    for (size_t i = 0; i < v.size(); ++i) d[i] = v[i];
+    for (keel::usize i = 0; i < v.size(); ++i) d[i] = v[i];
     return out;
 }
 
 // Solve the n×n system A·x = b in place (row-major A, Gaussian elimination with
 // partial pivoting). Returns false on a near-singular pivot; on success the
 // solution overwrites b. Used for the per-lag OLS normal equations in parcorr.
-bool solveDense(std::vector<double> &A, std::vector<double> &b, size_t n)
+bool solveDense(std::vector<double> &A, std::vector<double> &b, keel::usize n)
 {
-    for (size_t col = 0; col < n; ++col) {
-        size_t piv = col;
-        double best = std::abs(A[col * n + col]);
-        for (size_t r = col + 1; r < n; ++r) {
-            const double v = std::abs(A[r * n + col]);
+    for (keel::usize col = 0; col < n; ++col) {
+        keel::usize piv = col;
+        double best = keel::abs(A[col * n + col]);
+        for (keel::usize r = col + 1; r < n; ++r) {
+            const double v = keel::abs(A[r * n + col]);
             if (v > best) { best = v; piv = r; }
         }
         if (best < 1e-294) return false;
         if (piv != col) {
-            for (size_t c = 0; c < n; ++c) std::swap(A[col * n + c], A[piv * n + c]);
+            for (keel::usize c = 0; c < n; ++c) std::swap(A[col * n + c], A[piv * n + c]);
             std::swap(b[col], b[piv]);
         }
         const double d = A[col * n + col];
-        for (size_t r = col + 1; r < n; ++r) {
+        for (keel::usize r = col + 1; r < n; ++r) {
             const double f = A[r * n + col] / d;
             if (f == 0.0) continue;
-            for (size_t c = col; c < n; ++c) A[r * n + c] -= f * A[col * n + c];
+            for (keel::usize c = col; c < n; ++c) A[r * n + c] -= f * A[col * n + c];
             b[r] -= f * b[col];
         }
     }
-    for (size_t i = n; i-- > 0;) {
+    for (keel::usize i = n; i-- > 0;) {
         double s = b[i];
-        for (size_t c = i + 1; c < n; ++c) s -= A[i * n + c] * b[c];
+        for (keel::usize c = i + 1; c < n; ++c) s -= A[i * n + c] * b[c];
         b[i] = s / A[i * n + i];
     }
     return true;
@@ -98,19 +101,19 @@ void crosscorr_argcheck(const Value &y1, const Value &y2)
 } // namespace
 
 std::tuple<Value, Value, Value>
-autocorr(const Value &y, int numLags, double numSTD, std::pmr::memory_resource *mr)
+autocorr(const Value &y, int numLags, double numSTD, keel::Allocator *mr)
 {
-    const size_t N = y.numel();
-    const size_t K = (numLags >= 0) ? static_cast<size_t>(numLags) : defaultNumLags(N);
+    const keel::usize N = y.numel();
+    const keel::usize K = (numLags >= 0) ? static_cast<keel::usize>(numLags) : defaultNumLags(N);
 
     std::vector<double> yc;
     double c0 = 0.0;
     centred(y, yc, c0);
 
     std::vector<double> acf(K + 1), lags(K + 1);
-    for (size_t k = 0; k <= K; ++k) {
+    for (keel::usize k = 0; k <= K; ++k) {
         double ck = 0.0;
-        for (size_t t = 0; t + k < N; ++t)
+        for (keel::usize t = 0; t + k < N; ++t)
             ck += yc[t] * yc[t + k];
         ck /= static_cast<double>(N);            // biased autocovariance
         acf[k]  = (c0 != 0.0) ? ck / c0 : (k == 0 ? 1.0 : 0.0);
@@ -124,11 +127,11 @@ autocorr(const Value &y, int numLags, double numSTD, std::pmr::memory_resource *
 
 std::tuple<Value, Value, Value>
 crosscorr(const Value &y1, const Value &y2, int numLags, double numSTD,
-          std::pmr::memory_resource *mr)
+          keel::Allocator *mr)
 {
     crosscorr_argcheck(y1, y2);
-    const size_t N = y1.numel();
-    const size_t K = (numLags >= 0) ? static_cast<size_t>(numLags) : defaultNumLags(N);
+    const keel::usize N = y1.numel();
+    const keel::usize K = (numLags >= 0) ? static_cast<keel::usize>(numLags) : defaultNumLags(N);
 
     std::vector<double> c1, c2;
     double v1 = 0.0, v2 = 0.0;
@@ -143,9 +146,9 @@ crosscorr(const Value &y1, const Value &y2, int numLags, double numSTD,
         double s = 0.0;
         const long t0 = std::max(0L, -k), t1 = std::min(Nl, Nl - k);
         for (long t = t0; t < t1; ++t)
-            s += c1[static_cast<size_t>(t)] * c2[static_cast<size_t>(t + k)];
+            s += c1[static_cast<keel::usize>(t)] * c2[static_cast<keel::usize>(t + k)];
         s /= static_cast<double>(N);
-        const size_t idx = static_cast<size_t>(k + Kl);
+        const keel::usize idx = static_cast<keel::usize>(k + Kl);
         xcf[idx]  = (denom != 0.0) ? s / denom : 0.0;
         lags[idx] = static_cast<double>(k);
     }
@@ -156,13 +159,13 @@ crosscorr(const Value &y1, const Value &y2, int numLags, double numSTD,
 }
 
 std::tuple<Value, Value, Value>
-parcorr(const Value &y, int numLags, double numSTD, std::pmr::memory_resource *mr)
+parcorr(const Value &y, int numLags, double numSTD, keel::Allocator *mr)
 {
-    const size_t N = y.numel();
-    const size_t K = (numLags >= 0) ? static_cast<size_t>(numLags) : defaultNumLags(N);
+    const keel::usize N = y.numel();
+    const keel::usize K = (numLags >= 0) ? static_cast<keel::usize>(numLags) : defaultNumLags(N);
 
     std::vector<double> yv(N);
-    for (size_t i = 0; i < N; ++i) yv[i] = y.elemAsDouble(i);
+    for (keel::usize i = 0; i < N; ++i) yv[i] = y.elemAsDouble(i);
 
     std::vector<double> pacf(K + 1, 0.0), lags(K + 1, 0.0);
     pacf[0] = 1.0;   // lag 0
@@ -172,18 +175,18 @@ parcorr(const Value &y, int numLags, double numSTD, std::pmr::memory_resource *m
     // MATLAB's QR to full precision on well-conditioned lags (N-k ≥ k+1);
     // deeper, rank-deficient lags are unstable in both engines.
     std::vector<double> xr;   // predictor row, reused
-    for (size_t k = 1; k <= K; ++k) {
+    for (keel::usize k = 1; k <= K; ++k) {
         lags[k] = static_cast<double>(k);
         if (N <= k) continue;                 // no observations → leave 0
-        const size_t p = k + 1;               // intercept + k lags
+        const keel::usize p = k + 1;               // intercept + k lags
         std::vector<double> A(p * p, 0.0), bb(p, 0.0);
         xr.assign(p, 0.0);
-        for (size_t t = k; t < N; ++t) {
+        for (keel::usize t = k; t < N; ++t) {
             xr[0] = 1.0;
-            for (size_t j = 1; j <= k; ++j) xr[j] = yv[t - j];
-            for (size_t r = 0; r < p; ++r) {
+            for (keel::usize j = 1; j <= k; ++j) xr[j] = yv[t - j];
+            for (keel::usize r = 0; r < p; ++r) {
                 bb[r] += xr[r] * yv[t];
-                for (size_t c = 0; c < p; ++c) A[r * p + c] += xr[r] * xr[c];
+                for (keel::usize c = 0; c < p; ++c) A[r * p + c] += xr[r] * xr[c];
             }
         }
         if (solveDense(A, bb, p)) pacf[k] = bb[p - 1];   // φ_k; else leave 0

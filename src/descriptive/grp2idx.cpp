@@ -18,6 +18,8 @@
 //
 // (categorical input and column-aligned char matrices are not yet handled.)
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/descriptive/descriptive.hpp>
 
 #include <numkit/value/value.hpp>
@@ -57,10 +59,10 @@ void grp2idx_argcheck(const Value &s)
 
 // ── Public C++ API (see descriptive.hpp) ──────────────────────────────
 
-Grp2idxResult grp2idx(const Value &s, std::pmr::memory_resource *mr)
+Grp2idxResult grp2idx(const Value &s, keel::Allocator *mr)
 {
     grp2idx_argcheck(s);
-    const size_t n = s.numel();
+    const keel::usize n = s.numel();
 
     std::vector<double>      g;        // index per element (NaN allowed)
     std::vector<std::string> names;    // group names in group order
@@ -72,7 +74,7 @@ Grp2idxResult grp2idx(const Value &s, std::pmr::memory_resource *mr)
         for (const auto &e : vec) {
             const std::string str = e.toString();
             int idx = -1;
-            for (size_t k = 0; k < names.size(); ++k)
+            for (keel::usize k = 0; k < names.size(); ++k)
                 if (names[k] == str) { idx = static_cast<int>(k); break; }
             if (idx < 0) { names.push_back(str); idx = static_cast<int>(names.size()) - 1; }
             g.push_back(static_cast<double>(idx + 1));
@@ -85,7 +87,7 @@ Grp2idxResult grp2idx(const Value &s, std::pmr::memory_resource *mr)
         // Numeric / logical: sorted-ascending unique values; NaN -> NaN index.
         std::vector<double> uniq;
         uniq.reserve(n);
-        for (size_t i = 0; i < n; ++i) {
+        for (keel::usize i = 0; i < n; ++i) {
             const double xi = s.elemAsDouble(i);
             if (!std::isnan(xi)) uniq.push_back(xi);
         }
@@ -94,7 +96,7 @@ Grp2idxResult grp2idx(const Value &s, std::pmr::memory_resource *mr)
         names.reserve(uniq.size());
         for (double u : uniq) names.push_back(fmtGroupNum(u));
         g.reserve(n);
-        for (size_t i = 0; i < n; ++i) {
+        for (keel::usize i = 0; i < n; ++i) {
             const double xi = s.elemAsDouble(i);
             if (std::isnan(xi)) {
                 g.push_back(std::numeric_limits<double>::quiet_NaN());
@@ -112,7 +114,7 @@ Grp2idxResult grp2idx(const Value &s, std::pmr::memory_resource *mr)
     // GN / GL: column cell of char rows (GL == GN for these input types).
     r.GN = Value::cell(names.size(), 1, mr);
     r.GL = Value::cell(names.size(), 1, mr);
-    for (size_t k = 0; k < names.size(); ++k) {
+    for (keel::usize k = 0; k < names.size(); ++k) {
         r.GN.cellAt(k) = Value::fromString(names[k], mr);
         r.GL.cellAt(k) = Value::fromString(names[k], mr);
     }

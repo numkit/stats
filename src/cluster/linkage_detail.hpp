@@ -3,14 +3,14 @@
 // linkage.cpp, external). Phase 2b compute/register split.
 #pragma once
 
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
-#include <memory_resource>
 #include <tuple>
 
 namespace numkit::stats {
 
 std::tuple<Value, Value> cophenet_full(const Value &Z, const Value &Y,
-                                       std::pmr::memory_resource *mr);
+                                       keel::Allocator *mr);
 
 } // namespace numkit::stats

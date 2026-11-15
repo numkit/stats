@@ -20,6 +20,8 @@
 // NaN values are excluded from the row/col index sets and from the
 // total N.
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/descriptive/descriptive.hpp>
 
 #include <numkit/value/value.hpp>
@@ -49,59 +51,59 @@ void crosstab_argcheck(const Value &x, const Value &y_opt)
 } // namespace
 
 std::tuple<Value, double, double>
-crosstab(const Value &x, const Value &y_opt, std::pmr::memory_resource *mr)
+crosstab(const Value &x, const Value &y_opt, keel::Allocator *mr)
 {
     crosstab_argcheck(x, y_opt);
-    const size_t Nx = x.numel();
+    const keel::usize Nx = x.numel();
     const bool have_y = !y_opt.isEmpty();
 
     auto u_x = sortedUniqueNoNaN(x);
-    const size_t R = u_x.size();
+    const keel::usize R = u_x.size();
 
     if (!have_y) {
         // Single-arg form: column vector with frequency counts of unique x.
-        std::vector<size_t> count(R, 0);
-        for (size_t k = 0; k < Nx; ++k) {
+        std::vector<keel::usize> count(R, 0);
+        for (keel::usize k = 0; k < Nx; ++k) {
             const double xk = x.elemAsDouble(k);
             if (std::isnan(xk)) continue;
             count[indexOf(u_x, xk)]++;
         }
         Value T = Value::matrix(R, 1, ValueType::DOUBLE, mr);
         double *o = T.doubleDataMut();
-        for (size_t i = 0; i < R; ++i) o[i] = static_cast<double>(count[i]);
+        for (keel::usize i = 0; i < R; ++i) o[i] = static_cast<double>(count[i]);
         return {std::move(T), 0.0, 1.0};
     }
 
     // Two-arg form.
     auto u_y = sortedUniqueNoNaN(y_opt);
-    const size_t C = u_y.size();
+    const keel::usize C = u_y.size();
 
     Value T = Value::matrix(R, C, ValueType::DOUBLE, mr);
     double *o = T.doubleDataMut();
     std::fill(o, o + R * C, 0.0);
 
-    size_t Ntot = 0;
-    for (size_t k = 0; k < Nx; ++k) {
+    keel::usize Ntot = 0;
+    for (keel::usize k = 0; k < Nx; ++k) {
         const double xk = x.elemAsDouble(k);
         const double yk = y_opt.elemAsDouble(k);
         if (std::isnan(xk) || std::isnan(yk)) continue;
-        const size_t i = indexOf(u_x, xk);
-        const size_t j = indexOf(u_y, yk);
+        const keel::usize i = indexOf(u_x, xk);
+        const keel::usize j = indexOf(u_y, yk);
         o[i + j * R] += 1.0;
         ++Ntot;
     }
 
     // Chi-square test.
     std::vector<double> row_tot(R, 0.0), col_tot(C, 0.0);
-    for (size_t j = 0; j < C; ++j)
-        for (size_t i = 0; i < R; ++i) {
+    for (keel::usize j = 0; j < C; ++j)
+        for (keel::usize i = 0; i < R; ++i) {
             row_tot[i] += o[i + j * R];
             col_tot[j] += o[i + j * R];
         }
     double chi2 = 0.0;
     if (Ntot > 0) {
-        for (size_t j = 0; j < C; ++j) {
-            for (size_t i = 0; i < R; ++i) {
+        for (keel::usize j = 0; j < C; ++j) {
+            for (keel::usize i = 0; i < R; ++i) {
                 const double E = row_tot[i] * col_tot[j]
                                / static_cast<double>(Ntot);
                 if (E > 0.0) {

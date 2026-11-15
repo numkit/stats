@@ -8,6 +8,8 @@
 //   evfit   — Type-I EV (Gumbel-min)      (1-D Newton, μ profiled)
 //   gpfit   — Generalised Pareto          (PWM / Hosking-Wallis)
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/distributions/gamma_dist.hpp>
 #include <numkit/stats/distributions/weibull.hpp>
 #include <numkit/stats/distributions/beta.hpp>
@@ -41,12 +43,12 @@ static double nll_gam_full(double a, double b,
                            const std::vector<double> &xv,
                            const std::vector<double> &cens,
                            const std::vector<double> &freq,
-                           std::pmr::memory_resource *mr)
+                           keel::Allocator *mr)
 {
     if (!(a > 0.0) || !(b > 0.0)) return std::numeric_limits<double>::infinity();
-    const std::size_t n = xv.size();
+    const keel::usize n = xv.size();
     double nuw = 0.0, lxw = 0.0, sxw = 0.0, S_cens = 0.0;
-    for (std::size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const double f = freq[i];
         const double u = 1.0 - cens[i];
         nuw += f * u;
@@ -65,7 +67,7 @@ static double nll_gam_full(double a, double b,
          - (a - 1.0) * lxw + sxw / b + S_cens;
 }
 
-Value gamfit(const Value &x, std::pmr::memory_resource *mr)
+Value gamfit(const Value &x, keel::Allocator *mr)
 {
     return gamfit(x, Value::Empty, Value::Empty, mr);
 }
@@ -74,7 +76,7 @@ namespace {
 void gamfit_argcheck(const std::vector<double> &xv, const Value &censoring, const Value &freq,
                      std::vector<double> &cens, std::vector<double> &wf)
 {
-    const std::size_t n = xv.size();
+    const keel::usize n = xv.size();
     if (n < 2)
         throw Error("gamfit: need at least 2 observations",
                     0, 0, "gamfit", "", "numkit:gamfit:tooFewObs");
@@ -89,14 +91,14 @@ void gamfit_argcheck(const std::vector<double> &xv, const Value &censoring, cons
         if (censoring.numel() != n)
             throw Error("gamfit: censoring length mismatch",
                         0, 0, "gamfit", "", "numkit:gamfit:censLen");
-        for (std::size_t i = 0; i < n; ++i)
+        for (keel::usize i = 0; i < n; ++i)
             cens[i] = censoring.elemAsDouble(i) ? 1.0 : 0.0;
     }
     if (!freq.isEmpty()) {
         if (freq.numel() != n)
             throw Error("gamfit: freq length mismatch",
                         0, 0, "gamfit", "", "numkit:gamfit:freqLen");
-        for (std::size_t i = 0; i < n; ++i) {
+        for (keel::usize i = 0; i < n; ++i) {
             wf[i] = freq.elemAsDouble(i);
             if (!(wf[i] >= 0.0))
                 throw Error("gamfit: freq must be non-negative",
@@ -107,18 +109,18 @@ void gamfit_argcheck(const std::vector<double> &xv, const Value &censoring, cons
 } // namespace
 
 Value gamfit(const Value &x, const Value &censoring, const Value &freq,
-             std::pmr::memory_resource *mr)
+             keel::Allocator *mr)
 {
     auto xv = toFlat(x);
-    const std::size_t n = xv.size();
+    const keel::usize n = xv.size();
     std::vector<double> cens, wf;
     gamfit_argcheck(xv, censoring, freq, cens, wf);
 
     bool freq_trivial = true;
-    for (std::size_t i = 0; i < n; ++i)
+    for (keel::usize i = 0; i < n; ++i)
         if (wf[i] != 1.0) { freq_trivial = false; break; }
     bool has_cens = false;
-    for (std::size_t i = 0; i < n; ++i)
+    for (keel::usize i = 0; i < n; ++i)
         if (cens[i] != 0.0) { has_cens = true; break; }
 
     if (!has_cens && freq_trivial) {
@@ -154,7 +156,7 @@ Value gamfit(const Value &x, const Value &censoring, const Value &freq,
     // Weighted/censored path: 2-D Newton on (a, b) via FD on
     // nll_gam_full. Initial guess from weighted uncensored moments.
     double nuw = 0.0, sx = 0.0, slx = 0.0;
-    for (std::size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const double u = 1.0 - cens[i];
         nuw += wf[i] * u;
         sx  += wf[i] * u * xv[i];
@@ -229,9 +231,9 @@ static double nll_wbl_full(double a, double b,
                            const std::vector<double> &freq)
 {
     if (!(a > 0.0) || !(b > 0.0)) return std::numeric_limits<double>::infinity();
-    const std::size_t n = xv.size();
+    const keel::usize n = xv.size();
     double nuw = 0.0, lxw = 0.0, sumW = 0.0;
-    for (std::size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const double f = freq[i];
         const double u = 1.0 - cens[i];
         nuw  += f * u;
@@ -242,10 +244,10 @@ static double nll_wbl_full(double a, double b,
 }
 
 Value wblfit(const Value &x, const Value &censoring, const Value &freq,
-             std::pmr::memory_resource *mr)
+             keel::Allocator *mr)
 {
     auto xv = toFlat(x);
-    const std::size_t n = xv.size();
+    const keel::usize n = xv.size();
     if (n < 2)
         throw Error("wblfit: need at least 2 observations",
                     0, 0, "wblfit", "", "numkit:wblfit:tooFewObs");
@@ -259,14 +261,14 @@ Value wblfit(const Value &x, const Value &censoring, const Value &freq,
         if (censoring.numel() != n)
             throw Error("wblfit: censoring length mismatch",
                         0, 0, "wblfit", "", "numkit:wblfit:censLen");
-        for (std::size_t i = 0; i < n; ++i)
+        for (keel::usize i = 0; i < n; ++i)
             cens[i] = censoring.elemAsDouble(i) ? 1.0 : 0.0;
     }
     if (!freq.isEmpty()) {
         if (freq.numel() != n)
             throw Error("wblfit: freq length mismatch",
                         0, 0, "wblfit", "", "numkit:wblfit:freqLen");
-        for (std::size_t i = 0; i < n; ++i) {
+        for (keel::usize i = 0; i < n; ++i) {
             wf[i] = freq.elemAsDouble(i);
             if (!(wf[i] >= 0.0))
                 throw Error("wblfit: freq must be non-negative",
@@ -276,23 +278,23 @@ Value wblfit(const Value &x, const Value &censoring, const Value &freq,
 
     // Detect trivial case → existing closed-form path.
     bool freq_trivial = true;
-    for (std::size_t i = 0; i < n; ++i)
+    for (keel::usize i = 0; i < n; ++i)
         if (wf[i] != 1.0) { freq_trivial = false; break; }
     bool has_cens = false;
-    for (std::size_t i = 0; i < n; ++i)
+    for (keel::usize i = 0; i < n; ++i)
         if (cens[i] != 0.0) { has_cens = true; break; }
 
     if (!has_cens && freq_trivial) {
         // Fast path: existing Newton on shape via profile σ.
         std::vector<double> lx(n);
         double sumLog = 0.0;
-        for (std::size_t i = 0; i < n; ++i) {
+        for (keel::usize i = 0; i < n; ++i) {
             lx[i] = std::log(xv[i]);
             sumLog += lx[i];
         }
         const double meanLog = sumLog / static_cast<double>(n);
         double v2 = 0.0;
-        for (std::size_t i = 0; i < n; ++i) {
+        for (keel::usize i = 0; i < n; ++i) {
             const double d = lx[i] - meanLog;
             v2 += d * d;
         }
@@ -302,7 +304,7 @@ Value wblfit(const Value &x, const Value &censoring, const Value &freq,
 
         for (int it = 0; it < 100; ++it) {
             double S0 = 0.0, S1 = 0.0, S2 = 0.0;
-            for (std::size_t i = 0; i < n; ++i) {
+            for (keel::usize i = 0; i < n; ++i) {
                 const double w = std::pow(xv[i], b);
                 S0 += w;
                 S1 += w * lx[i];
@@ -332,14 +334,14 @@ Value wblfit(const Value &x, const Value &censoring, const Value &freq,
     // Initial b from naïve closed form on uncensored subset.
     double nuw_init = 0.0;
     double sum_lx_uncens_w = 0.0;
-    for (std::size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const double u = 1.0 - cens[i];
         nuw_init += wf[i] * u;
         sum_lx_uncens_w += wf[i] * u * std::log(xv[i]);
     }
     const double meanLog_w = (nuw_init > 0.0) ? sum_lx_uncens_w / nuw_init : 0.0;
     double v2 = 0.0;
-    for (std::size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const double u = 1.0 - cens[i];
         const double d = std::log(xv[i]) - meanLog_w;
         v2 += wf[i] * u * d * d;
@@ -350,7 +352,7 @@ Value wblfit(const Value &x, const Value &censoring, const Value &freq,
 
     auto profile_a = [&](double b) -> double {
         double S = 0.0, U = 0.0;
-        for (std::size_t i = 0; i < n; ++i) {
+        for (keel::usize i = 0; i < n; ++i) {
             S += wf[i] * std::pow(xv[i], b);
             U += wf[i] * (1.0 - cens[i]);
         }
@@ -399,15 +401,15 @@ Value wblfit(const Value &x, const Value &censoring, const Value &freq,
     return out;
 }
 
-Value wblfit(const Value &x, std::pmr::memory_resource *mr)
+Value wblfit(const Value &x, keel::Allocator *mr)
 {
     return wblfit(x, Value::Empty, Value::Empty, mr);
 }
 
-Value betafit(const Value &x, std::pmr::memory_resource *mr)
+Value betafit(const Value &x, keel::Allocator *mr)
 {
     auto xv = toFlat(x);
-    const std::size_t n = xv.size();
+    const keel::usize n = xv.size();
     if (n < 2)
         throw Error("betafit: need at least 2 observations",
                     0, 0, "betafit", "", "numkit:betafit:tooFewObs");
@@ -470,10 +472,10 @@ Value betafit(const Value &x, std::pmr::memory_resource *mr)
     return out;
 }
 
-Value nbinfit(const Value &x, std::pmr::memory_resource *mr)
+Value nbinfit(const Value &x, keel::Allocator *mr)
 {
     auto xv = toFlat(x);
-    const std::size_t n = xv.size();
+    const keel::usize n = xv.size();
     if (n < 2)
         throw Error("nbinfit: need at least 2 observations",
                     0, 0, "nbinfit", "", "numkit:nbinfit:tooFewObs");
@@ -538,17 +540,17 @@ static double nll_ev_full(double mu, double sigma,
                           const std::vector<double> &freq)
 {
     if (!(sigma > 0.0)) return std::numeric_limits<double>::infinity();
-    const std::size_t n = xv.size();
+    const keel::usize n = xv.size();
     // Shift by max(t_i) to keep exp from overflowing.
     double t_max = -std::numeric_limits<double>::infinity();
-    for (std::size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const double t = (xv[i] - mu) / sigma;
         if (t > t_max) t_max = t;
     }
     double nuw = 0.0;        // Σ f_i (1 - c_i)
     double Suw = 0.0;        // Σ f_i (1 - c_i) t_i
     double Wexp = 0.0;       // Σ f_i · exp(t_i - t_max)
-    for (std::size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const double t = (xv[i] - mu) / sigma;
         const double f = freq[i];
         const double u = 1.0 - cens[i];
@@ -561,16 +563,16 @@ static double nll_ev_full(double mu, double sigma,
     return nuw * std::log(sigma) - Suw + std::exp(t_max) * Wexp;
 }
 
-Value evfit(const Value &x, std::pmr::memory_resource *mr)
+Value evfit(const Value &x, keel::Allocator *mr)
 {
     return evfit(x, Value::Empty, Value::Empty, mr);
 }
 
 Value evfit(const Value &x, const Value &censoring, const Value &freq,
-            std::pmr::memory_resource *mr)
+            keel::Allocator *mr)
 {
     auto xv = toFlat(x);
-    const std::size_t n = xv.size();
+    const keel::usize n = xv.size();
     if (n < 2)
         throw Error("evfit: need at least 2 observations",
                     0, 0, "evfit", "", "numkit:evfit:tooFewObs");
@@ -585,14 +587,14 @@ Value evfit(const Value &x, const Value &censoring, const Value &freq,
         if (censoring.numel() != n)
             throw Error("evfit: censoring must match data length",
                         0, 0, "evfit", "", "numkit:evfit:censLen");
-        for (std::size_t i = 0; i < n; ++i)
+        for (keel::usize i = 0; i < n; ++i)
             cens[i] = censoring.elemAsDouble(i) ? 1.0 : 0.0;
     }
     if (!freq.isEmpty()) {
         if (freq.numel() != n)
             throw Error("evfit: freq must match data length",
                         0, 0, "evfit", "", "numkit:evfit:freqLen");
-        for (std::size_t i = 0; i < n; ++i) {
+        for (keel::usize i = 0; i < n; ++i) {
             wf[i] = freq.elemAsDouble(i);
             if (!(wf[i] >= 0.0))
                 throw Error("evfit: freq must be non-negative",
@@ -604,7 +606,7 @@ Value evfit(const Value &x, const Value &censoring, const Value &freq,
     double sum_fw = 0.0, sum_uw = 0.0;
     double sum_fwx = 0.0, sum_uwx = 0.0;
     double sum_uwxx = 0.0;
-    for (std::size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const double f = wf[i];
         const double u = 1.0 - cens[i];
         sum_fw   += f;
@@ -624,7 +626,7 @@ Value evfit(const Value &x, const Value &censoring, const Value &freq,
         // uncensored values) as an error to match MATLAB's behaviour
         // on degenerate input.
         bool freq_trivial = true;
-        for (std::size_t i = 0; i < n; ++i)
+        for (keel::usize i = 0; i < n; ++i)
             if (wf[i] != 1.0) { freq_trivial = false; break; }
         const bool has_cens_local = (sum_uw < sum_fw);
         if (!has_cens_local && freq_trivial)
@@ -643,7 +645,7 @@ Value evfit(const Value &x, const Value &censoring, const Value &freq,
     // dispatch to the existing fast closed-form path.
     const bool has_cens = (sum_uw < sum_fw);
     bool freq_trivial = true;
-    for (std::size_t i = 0; i < n; ++i)
+    for (keel::usize i = 0; i < n; ++i)
         if (wf[i] != 1.0) { freq_trivial = false; break; }
 
     if (!has_cens && freq_trivial) {
@@ -739,7 +741,7 @@ static double gp_nll(double k, double sigma,
                      const std::vector<double> &xv)
 {
     if (!(sigma > 0.0)) return std::numeric_limits<double>::infinity();
-    const std::size_t n = xv.size();
+    const keel::usize n = xv.size();
     double nll = static_cast<double>(n) * std::log(sigma);
     if (std::fabs(k) < 1e-10) {
         // Exponential limit.
@@ -772,10 +774,10 @@ static void gp_nll_grad(double k, double sigma,
     gs = (gp_nll(k, sigma + hs, xv) - gp_nll(k, sigma - hs, xv)) / (2.0 * hs);
 }
 
-Value gpfit(const Value &x, std::pmr::memory_resource *mr)
+Value gpfit(const Value &x, keel::Allocator *mr)
 {
     auto xv = toFlat(x);
-    const std::size_t n = xv.size();
+    const keel::usize n = xv.size();
     if (n < 2)
         throw Error("gpfit: need at least 2 observations",
                     0, 0, "gpfit", "", "numkit:gpfit:tooFewObs");
@@ -793,7 +795,7 @@ Value gpfit(const Value &x, std::pmr::memory_resource *mr)
     for (double v : xs) sumX += v;
     const double beta0 = sumX / static_cast<double>(n);
     double beta1 = 0.0;
-    for (std::size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const double F = (static_cast<double>(i + 1) - 0.35) / static_cast<double>(n);
         beta1 += (1.0 - F) * xs[i];
     }
@@ -886,24 +888,24 @@ Value gpfit(const Value &x, std::pmr::memory_resource *mr)
 // ════════════════════════════════════════════════════════════════════
 
 
-Value gamfit_ci(const Value &x, double alpha, std::pmr::memory_resource *mr)
+Value gamfit_ci(const Value &x, double alpha, keel::Allocator *mr)
 {
     return gamfit_ci(x, alpha, Value::Empty, Value::Empty, mr);
 }
 
 Value gamfit_ci(const Value &x, double alpha,
                 const Value &censoring, const Value &freq,
-                std::pmr::memory_resource *mr)
+                keel::Allocator *mr)
 {
     auto xv = toFlat(x);
-    const std::size_t n = xv.size();
+    const keel::usize n = xv.size();
     std::vector<double> cens(n, 0.0), wf(n, 1.0);
     if (!censoring.isEmpty()) {
-        for (std::size_t i = 0; i < n; ++i)
+        for (keel::usize i = 0; i < n; ++i)
             cens[i] = censoring.elemAsDouble(i) ? 1.0 : 0.0;
     }
     if (!freq.isEmpty()) {
-        for (std::size_t i = 0; i < n; ++i) wf[i] = freq.elemAsDouble(i);
+        for (keel::usize i = 0; i < n; ++i) wf[i] = freq.elemAsDouble(i);
     }
     Value parm = gamfit(x, censoring, freq, mr);
     const double a_hat = parm.elemAsDouble(0);
@@ -921,24 +923,24 @@ Value gamfit_ci(const Value &x, double alpha,
                       alpha, mr);
 }
 
-Value wblfit_ci(const Value &x, double alpha, std::pmr::memory_resource *mr)
+Value wblfit_ci(const Value &x, double alpha, keel::Allocator *mr)
 {
     return wblfit_ci(x, alpha, Value::Empty, Value::Empty, mr);
 }
 
 Value wblfit_ci(const Value &x, double alpha,
                 const Value &censoring, const Value &freq,
-                std::pmr::memory_resource *mr)
+                keel::Allocator *mr)
 {
     auto xv = toFlat(x);
-    const std::size_t n = xv.size();
+    const keel::usize n = xv.size();
     std::vector<double> cens(n, 0.0), wf(n, 1.0);
     if (!censoring.isEmpty()) {
-        for (std::size_t i = 0; i < n; ++i)
+        for (keel::usize i = 0; i < n; ++i)
             cens[i] = censoring.elemAsDouble(i) ? 1.0 : 0.0;
     }
     if (!freq.isEmpty()) {
-        for (std::size_t i = 0; i < n; ++i) wf[i] = freq.elemAsDouble(i);
+        for (keel::usize i = 0; i < n; ++i) wf[i] = freq.elemAsDouble(i);
     }
     Value parm = wblfit(x, censoring, freq, mr);
     const double a_hat = parm.elemAsDouble(0);
@@ -963,7 +965,7 @@ Value wblfit_ci(const Value &x, double alpha,
 // drop down to closed-form to keep CI bit-equal with MATLAB.
 
 
-Value betafit_ci(const Value &x, double alpha, std::pmr::memory_resource *mr)
+Value betafit_ci(const Value &x, double alpha, keel::Allocator *mr)
 {
     auto xv = toFlat(x);
     Value parm = betafit(x, mr);
@@ -983,7 +985,7 @@ Value betafit_ci(const Value &x, double alpha, std::pmr::memory_resource *mr)
                                 alpha, mr);
 }
 
-Value nbinfit_ci(const Value &x, double alpha, std::pmr::memory_resource *mr)
+Value nbinfit_ci(const Value &x, double alpha, keel::Allocator *mr)
 {
     auto xv = toFlat(x);
     Value parm = nbinfit(x, mr);
@@ -1008,24 +1010,24 @@ Value nbinfit_ci(const Value &x, double alpha, std::pmr::memory_resource *mr)
                                 alpha, mr);
 }
 
-Value evfit_ci(const Value &x, double alpha, std::pmr::memory_resource *mr)
+Value evfit_ci(const Value &x, double alpha, keel::Allocator *mr)
 {
     return evfit_ci(x, alpha, Value::Empty, Value::Empty, mr);
 }
 
 Value evfit_ci(const Value &x, double alpha,
                const Value &censoring, const Value &freq,
-               std::pmr::memory_resource *mr)
+               keel::Allocator *mr)
 {
     auto xv = toFlat(x);
-    const std::size_t n = xv.size();
+    const keel::usize n = xv.size();
     std::vector<double> cens(n, 0.0), wf(n, 1.0);
     if (!censoring.isEmpty()) {
-        for (std::size_t i = 0; i < n; ++i)
+        for (keel::usize i = 0; i < n; ++i)
             cens[i] = censoring.elemAsDouble(i) ? 1.0 : 0.0;
     }
     if (!freq.isEmpty()) {
-        for (std::size_t i = 0; i < n; ++i)
+        for (keel::usize i = 0; i < n; ++i)
             wf[i] = freq.elemAsDouble(i);
     }
     Value parm = evfit(x, censoring, freq, mr);
@@ -1038,7 +1040,7 @@ Value evfit_ci(const Value &x, double alpha,
                       alpha, mr);
 }
 
-Value gpfit_ci(const Value &x, double alpha, std::pmr::memory_resource *mr)
+Value gpfit_ci(const Value &x, double alpha, keel::Allocator *mr)
 {
     auto xv = toFlat(x);
     Value parm = gpfit(x, mr);
@@ -1061,7 +1063,7 @@ static double nll_gev(double k, double sigma, double mu,
                       const std::vector<double> &xv)
 {
     if (!(sigma > 0.0)) return std::numeric_limits<double>::infinity();
-    const std::size_t n = xv.size();
+    const keel::usize n = xv.size();
     double nll = static_cast<double>(n) * std::log(sigma);
     if (std::fabs(k) < 1e-10) {
         // Gumbel-max limit.
@@ -1082,10 +1084,10 @@ static double nll_gev(double k, double sigma, double mu,
     return nll;
 }
 
-Value gevfit(const Value &x, std::pmr::memory_resource *mr)
+Value gevfit(const Value &x, keel::Allocator *mr)
 {
     auto xv = toFlat(x);
-    const std::size_t n = xv.size();
+    const keel::usize n = xv.size();
     if (n < 3)
         throw Error("gevfit: need at least 3 observations",
                     0, 0, "gevfit", "", "numkit:gevfit:tooFewObs");
@@ -1100,7 +1102,7 @@ Value gevfit(const Value &x, std::pmr::memory_resource *mr)
     std::sort(xs.begin(), xs.end());
     double b0 = 0.0, b1 = 0.0, b2 = 0.0;
     const double dN = static_cast<double>(n);
-    for (std::size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const double dI = static_cast<double>(i + 1);
         // PWM using plotting positions p_i = (i - 0.35) / n.
         const double Fhat = (dI - 0.35) / dN;
@@ -1239,7 +1241,7 @@ Value gevfit(const Value &x, std::pmr::memory_resource *mr)
     return out;
 }
 
-Value gevfit_ci(const Value &x, double alpha, std::pmr::memory_resource *mr)
+Value gevfit_ci(const Value &x, double alpha, keel::Allocator *mr)
 {
     auto xv = toFlat(x);
     Value parm = gevfit(x, mr);

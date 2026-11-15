@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <memory_resource>
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
 #include <tuple>
@@ -33,8 +34,8 @@ namespace numkit::stats {
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Array of pdf values, same shape as `x`.
 /// @see gpcdf, gpinv, gprnd, gpstat
-Value gppdf(const Value &x, double k, double sigma, double theta,
-            std::pmr::memory_resource *mr = nullptr);
+Value gppdf(const Value &x, keel::f64 k, keel::f64 sigma, keel::f64 theta,
+            keel::Allocator *mr = nullptr);
 
 /// @brief Generalised Pareto cdf (`p = gpcdf(x, k, sigma, theta)`).
 ///
@@ -45,8 +46,8 @@ Value gppdf(const Value &x, double k, double sigma, double theta,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Array of cdf values in `[0, 1]`.
 /// @see gppdf, gpinv
-Value gpcdf(const Value &x, double k, double sigma, double theta,
-            std::pmr::memory_resource *mr = nullptr);
+Value gpcdf(const Value &x, keel::f64 k, keel::f64 sigma, keel::f64 theta,
+            keel::Allocator *mr = nullptr);
 
 /// @brief Generalised Pareto inverse cdf (`x = gpinv(p, k, sigma, theta)`).
 ///
@@ -57,8 +58,8 @@ Value gpcdf(const Value &x, double k, double sigma, double theta,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Quantile array, same shape as `p`.
 /// @see gpcdf
-Value gpinv(const Value &p, double k, double sigma, double theta,
-            std::pmr::memory_resource *mr = nullptr);
+Value gpinv(const Value &p, keel::f64 k, keel::f64 sigma, keel::f64 theta,
+            keel::Allocator *mr = nullptr);
 
 /// @brief Generalised Pareto random samples (`r = gprnd(k, sigma, theta, rows, cols)`).
 ///
@@ -70,9 +71,9 @@ Value gpinv(const Value &p, double k, double sigma, double theta,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `rows × cols` matrix of GP samples.
 /// @see gppdf
-Value gprnd(::numkit::ops::RngContext &rng, double k, double sigma, double theta,
-            size_t rows = 1, size_t cols = 1,
-            std::pmr::memory_resource *mr = nullptr);
+Value gprnd(::numkit::ops::RngContext &rng, keel::f64 k, keel::f64 sigma, keel::f64 theta,
+            keel::usize rows = 1, keel::usize cols = 1,
+            keel::Allocator *mr = nullptr);
 
 /// @brief Generalised Pareto mean and variance (`[m, v] = gpstat(k, sigma, theta)`).
 ///
@@ -84,8 +85,8 @@ Value gprnd(::numkit::ops::RngContext &rng, double k, double sigma, double theta
 /// @param theta  Threshold parameter.
 /// @return       `{mean, variance}` pair.
 /// @see gppdf
-std::tuple<double, double>
-gpstat(double k, double sigma, double theta);
+std::tuple<keel::f64, keel::f64>
+gpstat(keel::f64 k, keel::f64 sigma, keel::f64 theta);
 
 /// @brief Generalised Pareto MLE fit (`[khat, sigmahat] = gpfit(x)`).
 ///
@@ -108,7 +109,7 @@ gpstat(double k, double sigma, double theta);
 /// @param mr  Memory resource.
 /// @return    `[khat, sigmahat]` as a `1 × 2` row.
 /// @see gppdf, gplike
-Value gpfit(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value gpfit(const Value &x, keel::Allocator *mr = nullptr);
 
 /// @brief 95% Wald CI for gpfit (`pci = gpfit_ci(x, alpha)`).
 ///
@@ -116,8 +117,8 @@ Value gpfit(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// from the observed Fisher information (central-FD Hessian of NLL).
 /// `k` uses a linear Wald CI; `sigma` uses a log-scale CI (MATLAB
 /// convention).
-Value gpfit_ci(const Value &x, double alpha = 0.05,
-               std::pmr::memory_resource *mr = nullptr);
+Value gpfit_ci(const Value &x, keel::f64 alpha = 0.05,
+               keel::Allocator *mr = nullptr);
 
 
 /// @}

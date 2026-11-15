@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <memory_resource>
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
 #include <string>
@@ -37,8 +38,8 @@ namespace numkit::stats {
 /// @see rangesearch, pdist
 std::tuple<Value, Value>
 knnsearch(const Value &X, const Value &Y, int K = 1,
-          const std::string &metric = "euclidean", double p = 2.0,
-          std::pmr::memory_resource *mr = nullptr);
+          const std::string &metric = "euclidean", keel::f64 p = 2.0,
+          keel::Allocator *mr = nullptr);
 
 /// Radius search (`[Idx, D] = rangesearch(X, Y, r, metric, p)`).
 ///
@@ -58,9 +59,9 @@ knnsearch(const Value &X, const Value &Y, int K = 1,
 ///
 /// @see knnsearch
 std::tuple<Value, Value>
-rangesearch(const Value &X, const Value &Y, double r,
-            const std::string &metric = "euclidean", double p = 2.0,
-            std::pmr::memory_resource *mr = nullptr);
+rangesearch(const Value &X, const Value &Y, keel::f64 r,
+            const std::string &metric = "euclidean", keel::f64 p = 2.0,
+            keel::Allocator *mr = nullptr);
 
 
 /// @}

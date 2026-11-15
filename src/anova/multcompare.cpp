@@ -4,12 +4,13 @@
 // Tukey-Kramer HSD (default), Bonferroni-corrected pairwise t-tests,
 // and Fisher LSD.
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/anova/anova.hpp>
 
 #include <numkit/stats/distributions/students_t.hpp>   // tinv, tcdf
 
 #include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
@@ -39,7 +40,7 @@ void multcompare_argcheck(const Value &stats, double alpha)
 }
 
 // Two-sided t p-value: 2 * (1 - tcdf(|t|, df)).
-double tTwoSidedP(double tStat, double df, std::pmr::memory_resource *mr)
+double tTwoSidedP(double tStat, double df, keel::Allocator *mr)
 {
     Value tV = Value::scalar(std::fabs(tStat), mr);
     const double F = tcdf(tV, df, mr).toScalar();
@@ -82,7 +83,7 @@ inline double normCdfScalar(double z)
 
 // Normal range CDF: P(max_{1..k} Z_i - min_{1..k} Z_i <= w)
 // = k * \int_{-\infty}^{\infty} \phi(z) [\Phi(z + w) - \Phi(z)]^{k - 1} dz.
-double normalRangeCDF(double w, std::size_t k)
+double normalRangeCDF(double w, keel::usize k)
 {
     if (w <= 0.0) return 0.0;
     const double kd = static_cast<double>(k);
@@ -107,7 +108,7 @@ double normalRangeCDF(double w, std::size_t k)
 }
 
 // Studentized range CDF F_Q(q; k, df).
-double studentizedRangeCDF(double q, std::size_t k, double df)
+double studentizedRangeCDF(double q, keel::usize k, double df)
 {
     if (q <= 0.0) return 0.0;
     if (!std::isfinite(df) || df > 1e5) return normalRangeCDF(q, k);
@@ -145,7 +146,7 @@ double studentizedRangeCDF(double q, std::size_t k, double df)
 }
 
 // Inverse studentized range quantile q_{p; k, df} via bracketed bisection.
-double studentizedRangeInv(double p, std::size_t k, double df)
+double studentizedRangeInv(double p, keel::usize k, double df)
 {
     if (p <= 0.0) return 0.0;
     if (p >= 1.0) return std::numeric_limits<double>::infinity();
@@ -167,7 +168,7 @@ double studentizedRangeInv(double p, std::size_t k, double df)
 } // namespace
 
 Value multcompare(const Value &stats, double alpha, McCorrection ctype,
-                   std::pmr::memory_resource *mr)
+                   keel::Allocator *mr)
 {
     multcompare_argcheck(stats, alpha);
 
@@ -175,16 +176,16 @@ Value multcompare(const Value &stats, double alpha, McCorrection ctype,
     const Value &nv    = stats.field("n");
     const double s     = stats.field("s").toScalar();
     const double df    = stats.field("df").toScalar();
-    const std::size_t K = means.numel();
+    const keel::usize K = means.numel();
 
     std::vector<double> m(K), n(K);
-    for (std::size_t i = 0; i < K; ++i) {
+    for (keel::usize i = 0; i < K; ++i) {
         m[i] = means.elemAsDouble(i);
         n[i] = nv.elemAsDouble(i);
     }
 
     // Number of pairs K · (K - 1) / 2.
-    const std::size_t nPairs = K * (K - 1) / 2;
+    const keel::usize nPairs = K * (K - 1) / 2;
 
     double tCrit = 0.0;
     if (ctype == McCorrection::TukeyKramer) {
@@ -201,9 +202,9 @@ Value multcompare(const Value &stats, double alpha, McCorrection ctype,
     auto out = Value::matrix(nPairs, 6, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
 
-    std::size_t row = 0;
-    for (std::size_t i = 0; i < K; ++i) {
-        for (std::size_t j = i + 1; j < K; ++j) {
+    keel::usize row = 0;
+    for (keel::usize i = 0; i < K; ++i) {
+        for (keel::usize j = i + 1; j < K; ++j) {
             const double diff = m[i] - m[j];
             const double se   = s * std::sqrt(1.0 / n[i] + 1.0 / n[j]);
             const double halfCI = tCrit * se;

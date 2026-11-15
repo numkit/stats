@@ -3,6 +3,8 @@
 // Hypergeometric distribution: drawing N items without replacement from a
 // population of M with K successes. f(k; M, K, N) = C(K, k)·C(M-K, N-k)/C(M, N).
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/distributions/hypergeom.hpp>
 
 #include <numkit/builtin/datafun.hpp>
@@ -29,37 +31,37 @@ inline bool hyge_argcheck(double M, double K, double N) noexcept
 }
 } // namespace
 
-Value hygepdf(const Value &k, double M, double K, double N, std::pmr::memory_resource *mr)
+Value hygepdf(const Value &k, double M, double K, double N, keel::Allocator *mr)
 {
     if (!hyge_argcheck(M, K, N))
         return elementwise(k, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     return elementwise(k, [=](double ki){ return hyge_pmf(ki, M, K, N); }, mr);
 }
 
-Value hygecdf(const Value &k, double M, double K, double N, std::pmr::memory_resource *mr)
+Value hygecdf(const Value &k, double M, double K, double N, keel::Allocator *mr)
 {
     if (!params_valid(M, K, N))
         return elementwise(k, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     return elementwise(k, [=](double ki){ return hyge_cdf_scalar(ki, M, K, N); }, mr);
 }
 
-Value hygeinv(const Value &q, double M, double K, double N, std::pmr::memory_resource *mr)
+Value hygeinv(const Value &q, double M, double K, double N, keel::Allocator *mr)
 {
     if (!params_valid(M, K, N))
         return elementwise(q, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     return elementwise(q, [=](double qi){ return hyge_inv_scalar(qi, M, K, N); }, mr);
 }
 
-Value hygernd(::numkit::ops::RngContext &rng, double M, double K, double N, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value hygernd(::numkit::ops::RngContext &rng, double M, double K, double N, keel::usize rows, keel::usize cols, keel::Allocator *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (!params_valid(M, K, N) || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
-    const size_t cnt = rows * cols;
+    const keel::usize cnt = rows * cols;
     // Inverse-cdf walk per draw. M, K, N fixed so the walk is fast.
     std::uniform_real_distribution<double> ud(0.0, 1.0);
-    for (size_t i = 0; i < cnt; ++i) od[i] = hyge_inv_scalar(ud(gen), M, K, N);
+    for (keel::usize i = 0; i < cnt; ++i) od[i] = hyge_inv_scalar(ud(gen), M, K, N);
     return out;
 }
 

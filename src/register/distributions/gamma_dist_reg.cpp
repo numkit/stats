@@ -3,6 +3,8 @@
 // CallContext register half of distributions/gamma_dist.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
+#include <keel/core.h>
+#include <keel/ref.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/builtin/datafun.hpp>
 #include <numkit/builtin/specfun.hpp>
@@ -12,14 +14,11 @@
 #include "distributions/dist_helpers.hpp"
 #include "distributions/gamma_dist_detail.hpp"
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <complex>
 #include <cstddef>
 #include <string>
 #include <tuple>
@@ -30,10 +29,10 @@ namespace numkit::stats {
 
 namespace detail {
 
-void gampdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void gampdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 3, 3, "gampdf");
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     const Value &a = args[1];
     const Value &b = args[2];
     if (a.isScalar() && b.isScalar())
@@ -42,14 +41,14 @@ void gampdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
         outs[0] = broadcast_dist3(args[0], a, b, mr, "gampdf", gampdfK);
 }
 
-void gamcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void gamcdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 5, "gamcdf");
     bool upper = false;
-    const Span<const Value> a0 = args.subspan(0, stripUpperFlag(args, upper));
+    const keel::ArrayRef<Value> a0 = args.slice(0, stripUpperFlag(args, upper));
     if (a0.size() < 3)
         throw Error("gamcdf: requires (x, a, b[, 'upper'])", 0, 0, "gamcdf", "", "numkit:gamcdf:nargin");
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     const Value &a = a0[1];
     const Value &b = a0[2];
     Value v;
@@ -69,10 +68,10 @@ void gamcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     outs[0] = std::move(v);
 }
 
-void gaminv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void gaminv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 3, 5, "gaminv");
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     const Value &p = args[0];
     const Value &a = args[1];
     const Value &b = args[2];
@@ -83,19 +82,19 @@ void gaminv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     // Broadcast: q = gammaincinv(p, a) (broadcasts (p, a)); then scale by b and
     // apply the degenerate quantile per element, matching the scalar gaminv:
     // a<0 or b<=0 → NaN; a==0 → 0 (p∈[0,1]) / NaN; else b·gammaincinv(p, a).
-    const size_t np = p.numel(), na = a.numel(), nb = b.numel();
+    const keel::usize np = p.numel(), na = a.numel(), nb = b.numel();
     if (np == 0 || na == 0 || nb == 0) {
         outs[0] = dist_empty_like(np == 0 ? p : (na == 0 ? a : b), mr);
         return;
     }
-    const size_t N = dist_match_numel({np, na, nb}, "gaminv");
+    const keel::usize N = dist_match_numel({np, na, nb}, "gaminv");
     Value q = ::numkit::builtin::gammaincinv(p, a, mr);
-    const size_t nq = q.numel();
+    const keel::usize nq = q.numel();
     const Value &ref = (np == N) ? p : (na == N ? a : b);
     Value out = dist_empty_like(ref, mr);
     double *od = out.doubleDataMut();
     const double NaN = std::numeric_limits<double>::quiet_NaN();
-    for (size_t i = 0; i < N; ++i) {
+    for (keel::usize i = 0; i < N; ++i) {
         const double pi = p.elemAsDouble(np == 1 ? 0 : i);
         const double ai = a.elemAsDouble(na == 1 ? 0 : i);
         const double bi = b.elemAsDouble(nb == 1 ? 0 : i);
@@ -107,22 +106,22 @@ void gaminv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     outs[0] = std::move(out);
 }
 
-void gamrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void gamrnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "gamrnd");  // no max: trailing size args (N-D tail; nk caps at two — bugs/opened/stats/rnd-nd-size-tails.md)
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     if (args.size() == 2 && (!args[0].isScalar() || !args[1].isScalar())) {
         const Value &a = args[0], &b = args[1];
-        const size_t na = a.numel(), nb = b.numel();
+        const keel::usize na = a.numel(), nb = b.numel();
         if (na == 0 || nb == 0) {
             outs[0] = dist_empty_like(na == 0 ? a : b, mr);
             return;
         }
-        const size_t N = dist_match_numel({na, nb}, "gamrnd");
+        const keel::usize N = dist_match_numel({na, nb}, "gamrnd");
         const Value &ref = (na == N) ? a : b;
         Value out = dist_empty_like(ref, mr);
         double *od = out.doubleDataMut();
-        for (size_t i = 0; i < N; ++i) {
+        for (keel::usize i = 0; i < N; ++i) {
             const double ai = a.elemAsDouble(na == 1 ? 0 : i);
             const double bi = b.elemAsDouble(nb == 1 ? 0 : i);
             Value sample = gamrnd(ctx.engine->rng(), ai, bi, 1, 1, mr);
@@ -133,15 +132,15 @@ void gamrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     }
     const double a = args[0].toScalar();
     const double b = args[1].toScalar();
-    size_t rows, cols;
+    keel::usize rows, cols;
     parse_rng_size(args, 2, rows, cols, "gamrnd");
     outs[0] = reshape_rng_nd(gamrnd(ctx.engine->rng(), a, b, rows, cols, mr), args, 2, mr, "gamrnd");
 }
 
-void gamstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+void gamstat_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 2, "gamstat");
-    emit_vec_stat_2arg(args, nargout, outs, ctx.engine->resource(), "gamstat",
+    emit_vec_stat_2arg(args, nargout, outs, ctx.engine->allocator(), "gamstat",
                        [](double a, double b) { return gamstat(a, b); });
 }
 
@@ -158,10 +157,10 @@ void gamstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 // Implementation: delegate to gamrnd with b = 1. When shape is an array
 // and no explicit size args are given, draw one sample per shape entry
 // (each with its own shape parameter).
-void randg_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void randg_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 0, "randg");  // no max: trailing size args (builtin in the reference build)
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     if (args.empty()) {
         outs[0] = randg(ctx.engine->rng(), 1.0, 1, 1, mr);
         return;
@@ -173,9 +172,9 @@ void randg_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
         return;
     }
     // Scalar shape — pull size from the remaining args (or default 1×1).
-    std::size_t rows = 1, cols = 1;
+    keel::usize rows = 1, cols = 1;
     parse_rng_size(args, 1, rows, cols, "randg");
-    outs[0] = reshape_rng_nd(randg(ctx.engine->rng(), shape.toScalar(), rows, cols, mr), args, 1, ctx.engine->resource(), "randg");
+    outs[0] = reshape_rng_nd(randg(ctx.engine->rng(), shape.toScalar(), rows, cols, mr), args, 1, ctx.engine->allocator(), "randg");
 }
 
 } // namespace detail

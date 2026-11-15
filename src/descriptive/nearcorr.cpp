@@ -45,13 +45,15 @@
 // iteration in single arithmetic; the fixed point agrees to single
 // precision but the iteration path may differ in the last digits).
 
+#include <keel/core.h>
+#include <keel/memory.h>
+#include <keel/ref.h>
 #include <numkit/stats/descriptive/descriptive.hpp>
 #include "descriptive/descriptive_extras_detail.hpp"
 
 #include <numkit/linalg/eig.hpp>             // eig_symmetric (migrated)
 #include <numkit/value/argcheck.hpp>
 #include <numkit/value/error.hpp>
-#include <numkit/value/span.hpp>
 #include <numkit/value/value.hpp>
 
 #include <algorithm>
@@ -73,12 +75,12 @@ inline constexpr argcheck::ClassMask kFloatReal =
 // Symmetrise input first to guard against tiny asymmetry from the
 // previous iteration.
 std::vector<double>
-projPSD(const std::vector<double> &M, size_t n, std::pmr::memory_resource *mr)
+projPSD(const std::vector<double> &M, keel::usize n, keel::Allocator *mr)
 {
     // Symmetrise: M_sym = (M + M') / 2
     std::vector<double> Msym(n * n);
-    for (size_t j = 0; j < n; ++j)
-        for (size_t i = 0; i < n; ++i)
+    for (keel::usize j = 0; j < n; ++j)
+        for (keel::usize i = 0; i < n; ++i)
             Msym[i + j * n] = 0.5 * (M[i + j * n] + M[j + i * n]);
     Value M_v = Value::matrix(n, n, ValueType::DOUBLE, mr);
     std::copy(Msym.begin(), Msym.end(), M_v.doubleDataMut());
@@ -89,20 +91,20 @@ projPSD(const std::vector<double> &M, size_t n, std::pmr::memory_resource *mr)
 
     // Build sqrt(d_pos) and reconstruct V * diag(d_pos) * V'.
     std::vector<double> sqrt_d(n);
-    for (size_t i = 0; i < n; ++i)
+    for (keel::usize i = 0; i < n; ++i)
         sqrt_d[i] = std::sqrt(std::max(dd[i + i * n], 0.0));
 
     // X = V * diag(d_pos) * V' = (V * diag(sqrt_d)) * (V * diag(sqrt_d))'
     std::vector<double> VS(n * n);
-    for (size_t j = 0; j < n; ++j)
-        for (size_t i = 0; i < n; ++i)
+    for (keel::usize j = 0; j < n; ++j)
+        for (keel::usize i = 0; i < n; ++i)
             VS[i + j * n] = vd[i + j * n] * sqrt_d[j];
 
     std::vector<double> X(n * n, 0.0);
-    for (size_t i = 0; i < n; ++i)
-        for (size_t j = 0; j < n; ++j) {
+    for (keel::usize i = 0; i < n; ++i)
+        for (keel::usize j = 0; j < n; ++j) {
             double s = 0.0;
-            for (size_t k = 0; k < n; ++k)
+            for (keel::usize k = 0; k < n; ++k)
                 s += VS[i + k * n] * VS[j + k * n];   // VS * VS'
             X[i + j * n] = s;
         }
@@ -132,11 +134,11 @@ void nearcorr_argcheck(const Value &A)
         rejectA("integer classes are not accepted; pass double or single");
     if (A.isComplex())
         rejectA("got a complex array");
-    const size_t N = A.dims().rows();
+    const keel::usize N = A.dims().rows();
     if (A.dims().cols() != N)
         rejectA("the matrix is not square");
-    for (size_t j = 0; j < N; ++j)
-        for (size_t i = 0; i < N; ++i) {
+    for (keel::usize j = 0; j < N; ++j)
+        for (keel::usize i = 0; i < N; ++i) {
             const double v = A.elemAsDouble(i + j * N);
             if (v < -1.0 || v > 1.0)
                 rejectA("entry (" + std::to_string(i + 1) + ","
@@ -144,7 +146,7 @@ void nearcorr_argcheck(const Value &A)
             if (i < j && v != A.elemAsDouble(j + i * N))
                 rejectA("the matrix is not symmetric");
         }
-    for (size_t i = 0; i < N; ++i)
+    for (keel::usize i = 0; i < N; ++i)
         if (A.elemAsDouble(i + i * N) != 1.0)
             rejectA("diagonal entry (" + std::to_string(i + 1) + ","
                     + std::to_string(i + 1) + ") is not 1");
@@ -152,11 +154,11 @@ void nearcorr_argcheck(const Value &A)
 
 } // namespace
 
-Value nearcorr_full(const Value &A, Span<const Value> nv,
-                    std::pmr::memory_resource *mr)
+Value nearcorr_full(const Value &A, keel::ArrayRef<Value> nv,
+                    keel::Allocator *mr)
 {
     nearcorr_argcheck(A);
-    const size_t N = A.dims().rows();
+    const keel::usize N = A.dims().rows();
     const bool wantSingle = (A.type() == ValueType::SINGLE);
 
     // ── name-value parse (probe71 N05-N07: one optional-input class) ────
@@ -172,9 +174,9 @@ Value nearcorr_full(const Value &A, Span<const Value> nv,
                     0, 0, "nearcorr", "", "numkit:nearcorr:optionalInputError");
     };
     argcheck::forEachNvPair(
-        nv, 0, Span<const std::string_view>(kNv), "nearcorr",
+        nv, 0, keel::ArrayRef<std::string_view>(kNv), "nearcorr",
         "numkit:nearcorr:optionalInputError",
-        [&](std::size_t hit, const Value &v) {
+        [&](keel::usize hit, const Value &v) {
             switch (hit) {
             case 0: {  // Tolerance: double scalar > 0
                 if (v.type() != ValueType::DOUBLE || !v.isScalar())
@@ -215,19 +217,19 @@ Value nearcorr_full(const Value &A, Span<const Value> nv,
                 const bool isMat = (v.dims().rows() == N && v.dims().cols() == N);
                 if (!isVec && !isMat)
                     badOpt("'Weights' must be a length-N vector or N-by-N matrix");
-                for (size_t k = 0; k < v.numel(); ++k) {
+                for (keel::usize k = 0; k < v.numel(); ++k) {
                     const double wk = v.elemAsDouble(k);
                     if (!(wk > 0.0) || !std::isfinite(wk))
                         badOpt("'Weights' entries must be finite and positive");
                 }
                 wScale.resize(N * N);
                 if (isVec) {
-                    for (size_t j = 0; j < N; ++j)
-                        for (size_t i = 0; i < N; ++i)
+                    for (keel::usize j = 0; j < N; ++j)
+                        for (keel::usize i = 0; i < N; ++i)
                             wScale[i + j * N] = std::sqrt(v.elemAsDouble(i) * v.elemAsDouble(j));
                 } else {
-                    for (size_t j = 0; j < N; ++j)
-                        for (size_t i = 0; i < N; ++i) {
+                    for (keel::usize j = 0; j < N; ++j)
+                        for (keel::usize i = 0; i < N; ++i) {
                             if (i < j && v.elemAsDouble(i + j * N) != v.elemAsDouble(j + i * N))
                                 badOpt("'Weights' matrix must be symmetric");
                             wScale[i + j * N] = std::sqrt(v.elemAsDouble(i + j * N));
@@ -248,32 +250,32 @@ Value nearcorr_full(const Value &A, Span<const Value> nv,
 
     // ── alternating projections with Dykstra's correction ───────────────
     std::vector<double> Yold(N * N), Xold;
-    for (size_t k = 0; k < N * N; ++k) Yold[k] = A.elemAsDouble(k);
+    for (keel::usize k = 0; k < N * N; ++k) Yold[k] = A.elemAsDouble(k);
     Xold = Yold;
     std::vector<double> dS(N * N, 0.0), Y = Yold;
 
     for (long it = 0; it <= maxIter; ++it) {
         // R = Yold - dS; X = proj_PSD_W(R); dS = X - R; Y = X, unit diag.
         std::vector<double> R(N * N);
-        for (size_t k = 0; k < N * N; ++k) R[k] = Yold[k] - dS[k];
+        for (keel::usize k = 0; k < N * N; ++k) R[k] = Yold[k] - dS[k];
         std::vector<double> X;
         if (hasWeights) {
             std::vector<double> Rw(N * N);
-            for (size_t k = 0; k < N * N; ++k) Rw[k] = R[k] * wScale[k];
+            for (keel::usize k = 0; k < N * N; ++k) Rw[k] = R[k] * wScale[k];
             std::vector<double> Xw = projPSD(Rw, N, mr);
             X.resize(N * N);
-            for (size_t k = 0; k < N * N; ++k) X[k] = Xw[k] / wScale[k];
+            for (keel::usize k = 0; k < N * N; ++k) X[k] = Xw[k] / wScale[k];
         } else {
             X = projPSD(R, N, mr);
         }
-        for (size_t k = 0; k < N * N; ++k) dS[k] = X[k] - R[k];
+        for (keel::usize k = 0; k < N * N; ++k) dS[k] = X[k] - R[k];
         Y = X;
-        for (size_t i = 0; i < N; ++i) Y[i + i * N] = 1.0;
+        for (keel::usize i = 0; i < N; ++i) Y[i + i * N] = 1.0;
 
         // Exit conditions (the reference checks all three).
         const double normY = frobNorm(Y);
         std::vector<double> d1(N * N), d2(N * N), d3(N * N);
-        for (size_t k = 0; k < N * N; ++k) {
+        for (keel::usize k = 0; k < N * N; ++k) {
             d1[k] = Y[k] - Yold[k];
             d2[k] = X[k] - Xold[k];
             d3[k] = Y[k] - X[k];
@@ -292,26 +294,26 @@ Value nearcorr_full(const Value &A, Span<const Value> nv,
     // Restore the unit diagonal: Y = X ./ sqrt(diag(X) * diag(X)'), then
     // symmetrise (small numerical drift is possible).
     std::vector<double> dd(N);
-    for (size_t i = 0; i < N; ++i) dd[i] = Xold[i + i * N];
+    for (keel::usize i = 0; i < N; ++i) dd[i] = Xold[i + i * N];
     Value out = wantSingle ? Value::matrix(N, N, ValueType::SINGLE, mr)
                            : Value::matrix(N, N, ValueType::DOUBLE, mr);
-    auto putElem = [&](std::size_t lin, double v) {
+    auto putElem = [&](keel::usize lin, double v) {
         if (wantSingle)
             out.singleDataMut()[lin] = static_cast<float>(v);
         else
             out.doubleDataMut()[lin] = v;
     };
-    for (size_t j = 0; j < N; ++j)
-        for (size_t i = 0; i < N; ++i) {
+    for (keel::usize j = 0; j < N; ++j)
+        for (keel::usize i = 0; i < N; ++i) {
             const double v = Xold[i + j * N] / std::sqrt(dd[i] * dd[j]);
             putElem(i + j * N, 0.5 * (v + Xold[j + i * N] / std::sqrt(dd[i] * dd[j])));
         }
     return out;
 }
 
-Value nearcorr(const Value &A, std::pmr::memory_resource *mr)
+Value nearcorr(const Value &A, keel::Allocator *mr)
 {
-    return nearcorr_full(A, Span<const Value>(), mr);
+    return nearcorr_full(A, keel::ArrayRef<Value>(), mr);
 }
 
 } // namespace numkit::stats

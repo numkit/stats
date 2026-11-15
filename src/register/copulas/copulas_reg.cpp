@@ -3,6 +3,8 @@
 // CallContext register half of copulas/copulas.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
+#include <keel/core.h>
+#include <keel/ref.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/copulas/copulas.hpp>
 #include <numkit/stats/distributions/multivariate.hpp>
@@ -11,14 +13,11 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <complex>
 #include <cstddef>
 #include <string>
 #include <tuple>
@@ -38,11 +37,11 @@ std::string family_lower(const Value &v)
 }
 }
 
-void copulapdf_reg(Span<const Value> args, size_t /*nargout*/,
-                   Span<Value> outs, CallContext &ctx)
+void copulapdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
+                   keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 3, "copulapdf");  // no max: name-value tail in the reference
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     const std::string fam = family_lower(args[0]);
     if (fam == "gaussian") {
         outs[0] = copulapdf_gaussian(args[1], args[2], mr);
@@ -63,11 +62,11 @@ void copulapdf_reg(Span<const Value> args, size_t /*nargout*/,
     }
 }
 
-void copulacdf_reg(Span<const Value> args, size_t /*nargout*/,
-                   Span<Value> outs, CallContext &ctx)
+void copulacdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
+                   keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 3, "copulacdf");  // no max: name-value tail in the reference
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     const std::string fam = family_lower(args[0]);
     if (fam == "gaussian") {
         outs[0] = copulacdf_gaussian(args[1], args[2], mr);

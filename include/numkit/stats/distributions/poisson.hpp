@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <memory_resource>
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
 #include <tuple>
@@ -29,8 +30,8 @@ namespace numkit::stats {
 /// @param mr      Memory resource (nullptr → process default).
 /// @return        Array of pmf values, same shape as `k`.
 /// @see poisscdf, poissinv, poissrnd, poisstat
-Value poisspdf(const Value &k, double lambda,
-               std::pmr::memory_resource *mr = nullptr);
+Value poisspdf(const Value &k, keel::f64 lambda,
+               keel::Allocator *mr = nullptr);
 
 /// @brief Poisson cumulative distribution (`F = poisscdf(k, lambda)`).
 ///
@@ -44,8 +45,8 @@ Value poisspdf(const Value &k, double lambda,
 /// @param mr      Memory resource (nullptr → process default).
 /// @return        Array of cdf values in `[0, 1]`, same shape as `k`.
 /// @see poisspdf, poissinv
-Value poisscdf(const Value &k, double lambda,
-               std::pmr::memory_resource *mr = nullptr);
+Value poisscdf(const Value &k, keel::f64 lambda,
+               keel::Allocator *mr = nullptr);
 
 /// @brief Poisson inverse cdf (`k = poissinv(p, lambda)`).
 ///
@@ -56,8 +57,8 @@ Value poisscdf(const Value &k, double lambda,
 /// @param mr      Memory resource (nullptr → process default).
 /// @return        Quantile array, same shape as `p`.
 /// @see poisscdf
-Value poissinv(const Value &p, double lambda,
-               std::pmr::memory_resource *mr = nullptr);
+Value poissinv(const Value &p, keel::f64 lambda,
+               keel::Allocator *mr = nullptr);
 
 /// @brief Poisson random samples (`r = poissrnd(lambda, rows, cols)`).
 ///
@@ -69,8 +70,8 @@ Value poissinv(const Value &p, double lambda,
 /// @param mr      Memory resource (nullptr → process default).
 /// @return        `rows × cols` matrix of Poisson samples.
 /// @see poisspdf
-Value poissrnd(::numkit::ops::RngContext &rng, double lambda, size_t rows = 1, size_t cols = 1,
-               std::pmr::memory_resource *mr = nullptr);
+Value poissrnd(::numkit::ops::RngContext &rng, keel::f64 lambda, keel::usize rows = 1, keel::usize cols = 1,
+               keel::Allocator *mr = nullptr);
 
 /// @brief Poisson mean and variance (`[m, v] = poisstat(lambda)`).
 ///
@@ -79,7 +80,7 @@ Value poissrnd(::numkit::ops::RngContext &rng, double lambda, size_t rows = 1, s
 /// @param lambda  Rate parameter.
 /// @return        `{mean, variance}` pair.
 /// @see poisspdf
-std::tuple<double, double> poisstat(double lambda);
+std::tuple<keel::f64, keel::f64> poisstat(keel::f64 lambda);
 
 
 /// @}

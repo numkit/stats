@@ -7,7 +7,8 @@
 
 #pragma once
 
-#include <memory_resource>
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
 #include <tuple>
@@ -30,7 +31,7 @@ namespace numkit::stats {
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Array of pdf values, same shape as `x`.
 /// @see expcdf, expinv, exprnd, expstat
-Value exppdf(const Value &x, double mu, std::pmr::memory_resource *mr = nullptr);
+Value exppdf(const Value &x, keel::f64 mu, keel::Allocator *mr = nullptr);
 
 /// @brief Exponential cdf (`F = expcdf(x, mu)`).
 ///
@@ -41,7 +42,7 @@ Value exppdf(const Value &x, double mu, std::pmr::memory_resource *mr = nullptr)
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Array of cdf values in `[0, 1]`.
 /// @see exppdf, expinv
-Value expcdf(const Value &x, double mu, std::pmr::memory_resource *mr = nullptr);
+Value expcdf(const Value &x, keel::f64 mu, keel::Allocator *mr = nullptr);
 
 /// @brief Exponential inverse cdf (`x = expinv(p, mu)`).
 ///
@@ -52,7 +53,7 @@ Value expcdf(const Value &x, double mu, std::pmr::memory_resource *mr = nullptr)
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Quantile array, same shape as `p`.
 /// @see expcdf
-Value expinv(const Value &p, double mu, std::pmr::memory_resource *mr = nullptr);
+Value expinv(const Value &p, keel::f64 mu, keel::Allocator *mr = nullptr);
 
 /// @brief Exponential random samples (`r = exprnd(mu, rows, cols)`).
 ///
@@ -64,7 +65,7 @@ Value expinv(const Value &p, double mu, std::pmr::memory_resource *mr = nullptr)
 /// @param mr    Memory resource (nullptr → process default).
 /// @return      `rows × cols` matrix of exponential samples.
 /// @see exppdf
-Value exprnd(::numkit::ops::RngContext &rng, double mu, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
+Value exprnd(::numkit::ops::RngContext &rng, keel::f64 mu, keel::usize rows = 1, keel::usize cols = 1, keel::Allocator *mr = nullptr);
 
 /// @brief Exponential mean and variance (`[m, v] = expstat(mu)`).
 ///
@@ -73,7 +74,7 @@ Value exprnd(::numkit::ops::RngContext &rng, double mu, size_t rows = 1, size_t 
 /// @param mu  Mean parameter.
 /// @return    `{mean, variance}` pair.
 /// @see exppdf
-std::tuple<double, double> expstat(double mu);
+std::tuple<keel::f64, keel::f64> expstat(keel::f64 mu);
 
 
 /// @}

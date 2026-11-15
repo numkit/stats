@@ -39,6 +39,12 @@
 //     integer/logical/char arrays flow through UNCHANGED; single stays
 //     single.
 
+#include <keel/core.h>
+#include <keel/memory.h>
+#include <keel/ref.h>
+#include <keel/arena.h>
+#include <keel/array.h>
+#include <keel/complex.h>
 #include <numkit/stats/descriptive/descriptive.hpp>
 #include <numkit/builtin/datatypes.hpp>   // standardizeMissing (live bare-name impl)
 #include <numkit/stats/distributions/normal.hpp>     // norminv (via descriptive_detail.hpp)
@@ -46,8 +52,6 @@
 
 #include <numkit/value/argcheck.hpp>
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
 #include <numkit/value/value.hpp>
 #include <numkit/value/value_type.hpp>
 
@@ -128,7 +132,7 @@ void parseWindowHalfSpans(const Value &wl, const char *fn, long &hb, long &hf,
     }
 }
 
-std::vector<double> validateSamplePoints(const Value &sp, std::size_t expectedLen,
+std::vector<double> validateSamplePoints(const Value &sp, keel::usize expectedLen,
                                          bool arrayIsEmpty, bool floatOnly,
                                          const char *fn)
 {
@@ -161,7 +165,7 @@ std::vector<double> validateSamplePoints(const Value &sp, std::size_t expectedLe
                     0, 0, fn, "",
                     std::string("numkit:") + fn + ":samplePointsComplex");
     std::vector<double> out(expectedLen);
-    for (std::size_t j = 0; j < expectedLen; ++j) {
+    for (keel::usize j = 0; j < expectedLen; ++j) {
         const double v = sp.elemAsDouble(j);
         if (!std::isfinite(v))
             throw Error(std::string(fn) + ": 'SamplePoints' must contain finite values",
@@ -169,7 +173,7 @@ std::vector<double> validateSamplePoints(const Value &sp, std::size_t expectedLe
                         std::string("numkit:") + fn + ":samplePointsNonFinite");
         out[j] = v;
     }
-    for (std::size_t j = 1; j < expectedLen; ++j) {
+    for (keel::usize j = 1; j < expectedLen; ++j) {
         if (out[j] == out[j - 1])
             throw Error(std::string(fn) + ": 'SamplePoints' must contain unique values",
                         0, 0, fn, "",
@@ -185,7 +189,7 @@ std::vector<double> validateSamplePoints(const Value &sp, std::size_t expectedLe
 // ── outlier detection (mirrors locateoutliers.m) ──────────────────────
 
 struct ColStats {
-    std::vector<uint8_t> mask;
+    std::vector<keel::u8> mask;
     double center = std::numeric_limits<double>::quiet_NaN();
     double lo = -std::numeric_limits<double>::infinity();
     double hi = std::numeric_limits<double>::infinity();
@@ -194,20 +198,20 @@ struct ColStats {
 // Iterative Grubbs test; tf is the significance level alpha. The final
 // bounds are those of the last TESTED state (post-removal) and the mask
 // is the STATIC rule against them — exactly locateoutliers 'grubbs'.
-ColStats grubbsColumn(const double *x, std::size_t n, double alpha,
-                      std::pmr::memory_resource *mr)
+ColStats grubbsColumn(const double *x, keel::usize n, double alpha,
+                      keel::Allocator *mr)
 {
     ColStats r;
     r.mask.assign(n, 0);
-    std::vector<std::size_t> idx;
+    std::vector<keel::usize> idx;
     std::vector<double> v;
     idx.reserve(n); v.reserve(n);
-    for (std::size_t i = 0; i < n; ++i)
+    for (keel::usize i = 0; i < n; ++i)
         if (!std::isnan(x[i])) { v.push_back(x[i]); idx.push_back(i); }
     if (v.empty()) return r;
     double astd = 0.0, thr = 0.0, cen = 0.0;
     while (v.size() >= 3) {
-        const std::size_t m = v.size();
+        const keel::usize m = v.size();
         double s = 0.0;
         for (double e : v) s += e;
         cen = s / double(m);
@@ -215,8 +219,8 @@ ColStats grubbsColumn(const double *x, std::size_t n, double alpha,
         for (double e : v) ss += (e - cen) * (e - cen);
         astd = std::sqrt(ss / double(m - 1));
         if (!(astd > 0.0)) break;
-        std::size_t jmax = 0; double amax = -1.0;
-        for (std::size_t j = 0; j < m; ++j) {
+        keel::usize jmax = 0; double amax = -1.0;
+        for (keel::usize j = 0; j < m; ++j) {
             const double ad = std::fabs(v[j] - cen);
             if (ad > amax) { amax = ad; jmax = j; }
         }
@@ -226,8 +230,8 @@ ColStats grubbsColumn(const double *x, std::size_t n, double alpha,
         thr = ((double(m) - 1.0) / std::sqrt(double(m))) *
               std::fabs(t) / std::sqrt(dof + t * t);
         if (amax / astd > thr) {
-            v.erase(v.begin() + static_cast<std::ptrdiff_t>(jmax));
-            idx.erase(idx.begin() + static_cast<std::ptrdiff_t>(jmax));
+            v.erase(v.begin() + static_cast<keel::isize>(jmax));
+            idx.erase(idx.begin() + static_cast<keel::isize>(jmax));
         } else {
             break;
         }
@@ -235,7 +239,7 @@ ColStats grubbsColumn(const double *x, std::size_t n, double alpha,
     r.center = cen;
     r.lo = cen - astd * thr;
     r.hi = cen + astd * thr;
-    for (std::size_t i = 0; i < n; ++i)
+    for (keel::usize i = 0; i < n; ++i)
         r.mask[i] = (std::isnan(x[i]) ? 0
                     : ((x[i] > r.hi || x[i] < r.lo) ? 1 : 0));
     return r;
@@ -244,40 +248,40 @@ ColStats grubbsColumn(const double *x, std::size_t n, double alpha,
 // Generalized ESD; tf is the significance level alpha. Thresholds come
 // from iteration tindex = (last exceeding R)+1 clamped; the mask is the
 // STATIC rule at tindex — exactly locateoutliers 'gesd'.
-ColStats gesdColumn(const double *x, std::size_t n, double alpha,
-                    long maxOutArg, std::pmr::memory_resource *mr)
+ColStats gesdColumn(const double *x, keel::usize n, double alpha,
+                    long maxOutArg, keel::Allocator *mr)
 {
     ColStats r;
     r.mask.assign(n, 0);
     std::vector<double> v;
     v.reserve(n);
-    for (std::size_t i = 0; i < n; ++i)
+    for (keel::usize i = 0; i < n; ++i)
         if (!std::isnan(x[i])) v.push_back(x[i]);
-    const std::size_t N = v.size();
+    const keel::usize N = v.size();
     if (N < 2) return r;
-    const std::size_t maxo = (maxOutArg >= 0)
-        ? static_cast<std::size_t>(maxOutArg)
-        : static_cast<std::size_t>(std::ceil(0.1 * double(N)));
-    const std::size_t rounds = std::min(N, maxo);
+    const keel::usize maxo = (maxOutArg >= 0)
+        ? static_cast<keel::usize>(maxOutArg)
+        : static_cast<keel::usize>(std::ceil(0.1 * double(N)));
+    const keel::usize rounds = std::min(N, maxo);
     std::vector<double> amean(rounds, 0.0), astd(rounds, 0.0),
                         lam(rounds, 0.0), R(rounds, 0.0);
-    for (std::size_t it = 0; it < rounds; ++it) {
-        const std::size_t m = v.size();
-        const std::size_t nm1 = N - it;       // n-i+1 (ref 1-based)
+    for (keel::usize it = 0; it < rounds; ++it) {
+        const keel::usize m = v.size();
+        const keel::usize nm1 = N - it;       // n-i+1 (ref 1-based)
         double s = 0.0;
         for (double e : v) s += e;
         amean[it] = s / double(m);
         double ss = 0.0;
         for (double e : v) ss += (e - amean[it]) * (e - amean[it]);
         astd[it] = (m >= 2) ? std::sqrt(ss / double(m - 1)) : 0.0;
-        std::size_t jmax = 0; double amax = -1.0;
-        for (std::size_t j = 0; j < m; ++j) {
+        keel::usize jmax = 0; double amax = -1.0;
+        for (keel::usize j = 0; j < m; ++j) {
             const double ad = std::fabs(v[j] - amean[it]);
             if (ad > amax) { amax = ad; jmax = j; }
         }
         R[it] = (astd[it] > 0.0) ? amax / astd[it]
                                 : std::numeric_limits<double>::infinity();
-        v.erase(v.begin() + static_cast<std::ptrdiff_t>(jmax));
+        v.erase(v.begin() + static_cast<keel::isize>(jmax));
         const double dof = double(N) - double(it) - 1.0;   // n-i-1
         const double pp = 1.0 - alpha / (2.0 * double(nm1));
         const double t = tinv(Value::scalar(pp, mr), dof, mr).toScalar();
@@ -285,15 +289,15 @@ ColStats gesdColumn(const double *x, std::size_t n, double alpha,
     }
     long last = -1;
     for (long it = 0; it < static_cast<long>(rounds); ++it)
-        if (R[static_cast<std::size_t>(it)] > lam[static_cast<std::size_t>(it)])
+        if (R[static_cast<keel::usize>(it)] > lam[static_cast<keel::usize>(it)])
             last = it;
-    const std::size_t tindex = (last < 0)
+    const keel::usize tindex = (last < 0)
         ? 0
-        : std::min<std::size_t>(static_cast<std::size_t>(last) + 1, rounds - 1);
+        : std::min<keel::usize>(static_cast<keel::usize>(last) + 1, rounds - 1);
     r.center = amean[tindex];
     r.lo = amean[tindex] - astd[tindex] * lam[tindex];
     r.hi = amean[tindex] + astd[tindex] * lam[tindex];
-    for (std::size_t i = 0; i < n; ++i)
+    for (keel::usize i = 0; i < n; ++i)
         r.mask[i] = (std::isnan(x[i]) ? 0
                     : ((x[i] > r.hi || x[i] < r.lo) ? 1 : 0));
     return r;
@@ -305,11 +309,11 @@ ColStats detectRun(const std::vector<double> &x, const std::string &method,
                    double tf, long hb, long hf, double loP, double hiP,
                    long maxOut, std::vector<double> *movCenter,
                    std::vector<double> *movLo, std::vector<double> *movHi,
-                   std::pmr::memory_resource *mr,
+                   keel::Allocator *mr,
                    const double *sp = nullptr, double hbSpan = 0.0,
                    double hfSpan = 0.0, bool winTwoElem = false)
 {
-    const std::size_t n = x.size();
+    const keel::usize n = x.size();
     ColStats r;
     r.mask.assign(n, 0);
     if (method == "grubbs") return grubbsColumn(x.data(), n, tf, mr);
@@ -317,7 +321,7 @@ ColStats detectRun(const std::vector<double> &x, const std::string &method,
     if (method == "percentiles") {
         FoDetect d = detect_percentile_column(x.data(), n, loP, hiP);
         r.center = d.center; r.lo = d.lo; r.hi = d.hi;
-        for (std::size_t i = 0; i < n; ++i) r.mask[i] = d.mask[i];
+        for (keel::usize i = 0; i < n; ++i) r.mask[i] = d.mask[i];
         return r;
     }
     if (method == "movmedian" || method == "movmean") {
@@ -329,16 +333,16 @@ ColStats detectRun(const std::vector<double> &x, const std::string &method,
             movHi->assign(n, nanv);
         }
         auto medOf = [](std::vector<double> &w) {
-            const std::size_t k = w.size();
+            const keel::usize k = w.size();
             return (k % 2 == 1) ? w[k / 2] : 0.5 * (w[k / 2 - 1] + w[k / 2]);
         };
         std::vector<double> win, dev, sorted;
-        for (std::size_t i = 0; i < n; ++i) {
+        for (keel::usize i = 0; i < n; ++i) {
             win.clear();
             if (sp) {
                 const double loS = sp[i] - hbSpan;
                 const double hiS = sp[i] + hfSpan;
-                for (std::size_t j = 0; j < n; ++j) {
+                for (keel::usize j = 0; j < n; ++j) {
                     const bool inWin = winTwoElem
                                            ? (sp[j] >= loS && sp[j] <= hiS)
                                            : (sp[j] >= loS && sp[j] < hiS);
@@ -349,8 +353,8 @@ ColStats detectRun(const std::vector<double> &x, const std::string &method,
                 long hi = static_cast<long>(i) + hf;
                 if (hi > static_cast<long>(n) - 1) hi = static_cast<long>(n) - 1;
                 for (long j = lo; j <= hi; ++j)
-                    if (!std::isnan(x[static_cast<std::size_t>(j)]))
-                        win.push_back(x[static_cast<std::size_t>(j)]);
+                    if (!std::isnan(x[static_cast<keel::usize>(j)]))
+                        win.push_back(x[static_cast<keel::usize>(j)]);
             }
             if (win.empty()) continue;
             double center, scale;
@@ -388,7 +392,7 @@ ColStats detectRun(const std::vector<double> &x, const std::string &method,
     // median / mean / quartiles — static detectors.
     FoDetect d = detect_one_column(x.data(), n, method, tf);
     r.center = d.center; r.lo = d.lo; r.hi = d.hi;
-    for (std::size_t i = 0; i < n; ++i) r.mask[i] = d.mask[i];
+    for (keel::usize i = 0; i < n; ++i) r.mask[i] = d.mask[i];
     return r;
 }
 
@@ -402,7 +406,7 @@ namespace {
 // errors with the probed rejection classes; unknown method / NV names
 // participate in prefix matching exactly like the reference
 // validatestring call (an NV-name match falls through to the NV loop).
-void isoutlierParse(const Value &A, Span<const Value> in, bool forRmoutliers,
+void isoutlierParse(const Value &A, keel::ArrayRef<Value> in, bool forRmoutliers,
                     IsOutlierPlan &p, const Value *&outlierLocations)
 {
     static constexpr std::string_view kMethods[] = {
@@ -414,23 +418,23 @@ void isoutlierParse(const Value &A, Span<const Value> in, bool forRmoutliers,
     static constexpr std::string_view kNvIso[] = {
         "samplepoints", "datavariables", "thresholdfactor",
         "maxnumoutliers", "outputformat"};
-    const Span<const std::string_view> nvNames =
-        forRmoutliers ? Span<const std::string_view>(kNvRm)
-                      : Span<const std::string_view>(kNvIso);
-    std::size_t i = 0;
+    const keel::ArrayRef<std::string_view> nvNames =
+        forRmoutliers ? keel::ArrayRef<std::string_view>(kNvRm)
+                      : keel::ArrayRef<std::string_view>(kNvIso);
+    keel::usize i = 0;
     if (!in.empty() && isStringValue(in[0])) {
         std::vector<std::string_view> all(std::begin(kMethods),
                                           std::end(kMethods));
         all.insert(all.end(), nvNames.begin(), nvNames.end());
         const int hit = argcheck::matchStringChoice(
-            in[0], Span<const std::string_view>(all));
+            in[0], keel::ArrayRef<std::string_view>(all));
         if (hit < 0)
             throw Error("isoutlier: unrecognized method or parameter name '" +
                         in[0].toString() + "' (expected median, mean, "
                         "quartiles, grubbs, gesd, movmedian, movmean, or "
                         "percentiles)",
                         0, 0, "isoutlier", "", "numkit:isoutlier:badMethod");
-        const std::string_view m = all[static_cast<std::size_t>(hit)];
+        const std::string_view m = all[static_cast<keel::usize>(hit)];
         if (m == "movmedian" || m == "movmean") {
             p.method = m;
             if (in.size() < 2)
@@ -493,12 +497,12 @@ void isoutlierParse(const Value &A, Span<const Value> in, bool forRmoutliers,
     for (; i + 1 < in.size(); i += 2) {
         if (!isStringValue(in[i])) continue;
         const int hit = argcheck::matchStringChoice(
-            in[i], Span<const std::string_view>(nvNames));
+            in[i], keel::ArrayRef<std::string_view>(nvNames));
         if (hit < 0)
             throw Error("isoutlier: unrecognized parameter name '" +
                         in[i].toString() + "'",
                         0, 0, "isoutlier", "", "numkit:isoutlier:badParam");
-        const std::string_view name = nvNames[static_cast<std::size_t>(hit)];
+        const std::string_view name = nvNames[static_cast<keel::usize>(hit)];
         const Value &v = in[i + 1];
         if (name == "thresholdfactor") {
             if (p.method == "percentiles")
@@ -573,19 +577,19 @@ void isoutlierApplyTfDefaults(IsOutlierPlan &p, const Value &A)
             throw Error("isoutlier: 'MaxNumOutliers' is supported only for "
                         "the 'gesd' method",
                         0, 0, "isoutlier", "", "numkit:isoutlier:maxNumGesdOnly");
-        std::size_t dlen = 1;
+        keel::usize dlen = 1;
         if (p.dim > 0) {
-            dlen = static_cast<std::size_t>(A.dims().dim(p.dim - 1));
+            dlen = static_cast<keel::usize>(A.dims().dim(p.dim - 1));
         } else {
             // first non-singleton dim (row vectors operate along dim 2)
             for (int k = 0; k < A.dims().ndim(); ++k) {
                 if (A.dims().dim(k) > 1) {
-                    dlen = static_cast<std::size_t>(A.dims().dim(k));
+                    dlen = static_cast<keel::usize>(A.dims().dim(k));
                     break;
                 }
             }
         }
-        if (static_cast<std::size_t>(p.maxOut) > dlen)
+        if (static_cast<keel::usize>(p.maxOut) > dlen)
             throw Error("isoutlier: MaxNumOutliers must not exceed the "
                         "length of the operating dimension",
                         0, 0, "isoutlier", "", "numkit:isoutlier:maxNumTooLarge");
@@ -607,8 +611,8 @@ void rmoutliersFull_argcheck(const Value &A)
 
 } // anonymous namespace
 
-IsOutlierOut isoutlier_full(const Value &A, Span<const Value> in,
-                            bool wantThresholds, std::pmr::memory_resource *mr)
+IsOutlierOut isoutlier_full(const Value &A, keel::ArrayRef<Value> in,
+                            bool wantThresholds, keel::Allocator *mr)
 {
     isoutlierFull_argcheck(A);
 
@@ -629,13 +633,13 @@ IsOutlierOut isoutlier_full(const Value &A, Span<const Value> in,
         }
         if (dim > 2) dim = 2;   // N-D beyond dim 2: reduce in the dim-2 view
     }
-    const std::size_t r = static_cast<std::size_t>(A.dims().dim(0));
-    const std::size_t cols = (A.dims().ndim() >= 2)
-                                 ? A.numel() / std::max<std::size_t>(r, 1) : 1;
+    const keel::usize r = static_cast<keel::usize>(A.dims().dim(0));
+    const keel::usize cols = (A.dims().ndim() >= 2)
+                                 ? A.numel() / std::max<keel::usize>(r, 1) : 1;
     // Runs along dim: dim 1 → contiguous columns; dim 2 → rows (stride r).
     const bool along2 = (dim == 2 && A.dims().ndim() >= 2);
-    const std::size_t runLen = along2 ? cols : r;
-    const std::size_t nRuns = along2 ? r : cols;
+    const keel::usize runLen = along2 ? cols : r;
+    const keel::usize nRuns = along2 ? r : cols;
 
     if (p.samplePointsRaw) {
         p.samplePoints = validateSamplePoints(
@@ -652,7 +656,7 @@ IsOutlierOut isoutlier_full(const Value &A, Span<const Value> in,
     }
 
     Value mask = Value::matrix(r, cols, ValueType::LOGICAL, mr);
-    uint8_t *md = mask.logicalDataMut();
+    keel::u8 *md = mask.logicalDataMut();
 
     const bool isMoving = (p.method == "movmedian" || p.method == "movmean");
     Value loM, hiM, ceM;
@@ -663,7 +667,7 @@ IsOutlierOut isoutlier_full(const Value &A, Span<const Value> in,
             hiM = Value::matrix(r, cols, ValueType::DOUBLE, mr);
             ceM = Value::matrix(r, cols, ValueType::DOUBLE, mr);
         } else {
-            const std::size_t tq = along2 ? r : cols;
+            const keel::usize tq = along2 ? r : cols;
             loM = Value::matrix(1, tq, ValueType::DOUBLE, mr);
             hiM = Value::matrix(1, tq, ValueType::DOUBLE, mr);
             ceM = Value::matrix(1, tq, ValueType::DOUBLE, mr);
@@ -676,8 +680,8 @@ IsOutlierOut isoutlier_full(const Value &A, Span<const Value> in,
     const double *spPtr = p.samplePoints.empty() ? nullptr : p.samplePoints.data();
     std::vector<double> run(runLen);
     std::vector<double> movC, movL, movH;
-    for (std::size_t k = 0; k < nRuns; ++k) {
-        for (std::size_t j = 0; j < runLen; ++j)
+    for (keel::usize k = 0; k < nRuns; ++k) {
+        for (keel::usize j = 0; j < runLen; ++j)
             run[j] = A.elemAsDouble(along2 ? k + j * r : k * runLen + j);
         ColStats st = detectRun(run, p.method, p.tf, p.hb, p.hf, p.loP, p.hiP,
                                 p.maxOut,
@@ -685,8 +689,8 @@ IsOutlierOut isoutlier_full(const Value &A, Span<const Value> in,
                                 isMoving ? &movL : nullptr,
                                 isMoving ? &movH : nullptr, mr,
                                 spPtr, p.hbSpan, p.hfSpan, p.winTwoElem);
-        for (std::size_t j = 0; j < runLen; ++j) {
-            const std::size_t lin = along2 ? k + j * r : k * runLen + j;
+        for (keel::usize j = 0; j < runLen; ++j) {
+            const keel::usize lin = along2 ? k + j * r : k * runLen + j;
             md[lin] = st.mask[j];
             if (wantThresholds) {
                 if (isMoving) {
@@ -712,8 +716,8 @@ IsOutlierOut isoutlier_full(const Value &A, Span<const Value> in,
 
 // ── rmoutliers ────────────────────────────────────────────────────────
 
-RmOutliersOut rmoutliers_full(const Value &A, Span<const Value> in,
-                              std::pmr::memory_resource *mr)
+RmOutliersOut rmoutliers_full(const Value &A, keel::ArrayRef<Value> in,
+                              keel::Allocator *mr)
 {
     rmoutliersFull_argcheck(A);
 
@@ -722,9 +726,9 @@ RmOutliersOut rmoutliers_full(const Value &A, Span<const Value> in,
     isoutlierParse(A, in, true, p, locs);
     isoutlierApplyTfDefaults(p, A);
 
-    const std::size_t r = static_cast<std::size_t>(A.dims().dim(0));
-    const std::size_t c = (A.dims().ndim() >= 2)
-                              ? static_cast<std::size_t>(A.dims().dim(1)) : 1;
+    const keel::usize r = static_cast<keel::usize>(A.dims().dim(0));
+    const keel::usize c = (A.dims().ndim() >= 2)
+                              ? static_cast<keel::usize>(A.dims().dim(1)) : 1;
     const bool single = (A.type() == ValueType::SINGLE);
     RmOutliersOut out;
 
@@ -744,7 +748,7 @@ RmOutliersOut rmoutliers_full(const Value &A, Span<const Value> in,
         map = *locs;
         Value nanRow = Value::matrix(
             1, (A.dims().ndim() >= 2) ? A.numel() /
-                std::max<std::size_t>(A.dims().dim(0), 1) : 1,
+                std::max<keel::usize>(A.dims().dim(0), 1) : 1,
             ValueType::DOUBLE, mr);
         double *nd = nanRow.doubleDataMut();
         std::fill_n(nd, nanRow.numel(),
@@ -754,18 +758,18 @@ RmOutliersOut rmoutliers_full(const Value &A, Span<const Value> in,
         // Detection sees the SAME tail minus the rmoutliers-only NV
         // pairs (isoutlier's own parse rejects those names).
         std::vector<Value> filtered;
-        Span<const Value> detect = in;
+        keel::ArrayRef<Value> detect = in;
         if (!p.dropIdx.empty()) {
             filtered.reserve(in.size() - p.dropIdx.size());
-            for (std::size_t q = 0; q < in.size(); ++q)
+            for (keel::usize q = 0; q < in.size(); ++q)
                 if (!std::count(p.dropIdx.begin(), p.dropIdx.end(), q))
                     filtered.push_back(in[q]);
-            detect = Span<const Value>(filtered.data(), filtered.size());
+            detect = keel::ArrayRef<Value>(filtered.data(), filtered.size());
         }
         iso = isoutlier_full(A, detect, true, mr);
         map = std::move(iso.tf);
     }
-    const uint8_t *m = map.logicalData();
+    const keel::u8 *m = map.logicalData();
 
     if (A.numel() == 0) {
         out.B = Value::matrix(0, 0, single ? ValueType::SINGLE : ValueType::DOUBLE, mr);
@@ -775,21 +779,21 @@ RmOutliersOut rmoutliers_full(const Value &A, Span<const Value> in,
 
     const bool isVec = (A.dims().isVector() || A.isScalar());
     const long minNum = std::max<long>(p.minNum, 1);
-    auto putB = [&](Value &B, std::size_t lin, double v) {
+    auto putB = [&](Value &B, keel::usize lin, double v) {
         if (single) B.singleDataMut()[lin] = static_cast<float>(v);
         else        B.doubleDataMut()[lin] = v;
     };
     if (isVec) {
         // Vector (either orientation): drop flagged entries.
-        const std::size_t n = A.numel();
-        std::size_t kept = 0;
-        for (std::size_t i = 0; i < n; ++i) kept += m[i] ? 0u : 1u;
+        const keel::usize n = A.numel();
+        keel::usize kept = 0;
+        for (keel::usize i = 0; i < n; ++i) kept += m[i] ? 0u : 1u;
         const bool colOrient = (r != 1);
         Value B = colOrient
             ? Value::matrix(kept, 1, single ? ValueType::SINGLE : ValueType::DOUBLE, mr)
             : Value::matrix(1, kept, single ? ValueType::SINGLE : ValueType::DOUBLE, mr);
-        std::size_t w = 0;
-        for (std::size_t i = 0; i < n; ++i)
+        keel::usize w = 0;
+        for (keel::usize i = 0; i < n; ++i)
             if (!m[i]) putB(B, w++, A.elemAsDouble(i));
         Value ind = colOrient ? Value::matrix(n, 1, ValueType::LOGICAL, mr)
                               : Value::matrix(1, n, ValueType::LOGICAL, mr);
@@ -804,22 +808,22 @@ RmOutliersOut rmoutliers_full(const Value &A, Span<const Value> in,
     }
 
     if (dim == 1) {
-        std::vector<std::size_t> cnt(r, 0);
-        for (std::size_t col = 0; col < c; ++col)
-            for (std::size_t i = 0; i < r; ++i)
+        std::vector<keel::usize> cnt(r, 0);
+        for (keel::usize col = 0; col < c; ++col)
+            for (keel::usize i = 0; i < r; ++i)
                 if (m[col * r + i]) ++cnt[i];
-        std::vector<uint8_t> rm(r, 0);
-        std::size_t kept = 0;
-        for (std::size_t i = 0; i < r; ++i) {
-            rm[i] = (cnt[i] >= static_cast<std::size_t>(minNum)) ? 1 : 0;
+        std::vector<keel::u8> rm(r, 0);
+        keel::usize kept = 0;
+        for (keel::usize i = 0; i < r; ++i) {
+            rm[i] = (cnt[i] >= static_cast<keel::usize>(minNum)) ? 1 : 0;
             kept += rm[i] ? 0u : 1u;
         }
         Value B = Value::matrix(kept, c,
                                 single ? ValueType::SINGLE : ValueType::DOUBLE, mr);
-        std::size_t orow = 0;
-        for (std::size_t i = 0; i < r; ++i) {
+        keel::usize orow = 0;
+        for (keel::usize i = 0; i < r; ++i) {
             if (rm[i]) continue;
-            for (std::size_t col = 0; col < c; ++col)
+            for (keel::usize col = 0; col < c; ++col)
                 putB(B, col * kept + orow, A.elemAsDouble(col * r + i));
             ++orow;
         }
@@ -834,21 +838,21 @@ RmOutliersOut rmoutliers_full(const Value &A, Span<const Value> in,
         return out;
     }
     // dim == 2: remove columns.
-    std::vector<std::size_t> cnt(c, 0);
-    for (std::size_t col = 0; col < c; ++col)
-        for (std::size_t i = 0; i < r; ++i)
+    std::vector<keel::usize> cnt(c, 0);
+    for (keel::usize col = 0; col < c; ++col)
+        for (keel::usize i = 0; i < r; ++i)
             if (m[col * r + i]) ++cnt[col];
-    std::vector<uint8_t> rm(c, 0);
-    std::size_t kept = 0;
-    for (std::size_t col = 0; col < c; ++col) {
-        rm[col] = (cnt[col] >= static_cast<std::size_t>(minNum)) ? 1 : 0;
+    std::vector<keel::u8> rm(c, 0);
+    keel::usize kept = 0;
+    for (keel::usize col = 0; col < c; ++col) {
+        rm[col] = (cnt[col] >= static_cast<keel::usize>(minNum)) ? 1 : 0;
         kept += rm[col] ? 0u : 1u;
     }
     Value B = Value::matrix(r, kept, single ? ValueType::SINGLE : ValueType::DOUBLE, mr);
-    std::size_t ocol = 0;
-    for (std::size_t col = 0; col < c; ++col) {
+    keel::usize ocol = 0;
+    for (keel::usize col = 0; col < c; ++col) {
         if (rm[col]) continue;
-        for (std::size_t i = 0; i < r; ++i)
+        for (keel::usize i = 0; i < r; ++i)
             putB(B, ocol * r + i, A.elemAsDouble(col * r + i));
         ++ocol;
     }
@@ -865,8 +869,8 @@ RmOutliersOut rmoutliers_full(const Value &A, Span<const Value> in,
 
 // ── rmmissing ─────────────────────────────────────────────────────────
 
-RmMissingOut rmmissing_full(const Value &A, Span<const Value> in,
-                            std::pmr::memory_resource *mr)
+RmMissingOut rmmissing_full(const Value &A, keel::ArrayRef<Value> in,
+                            keel::Allocator *mr)
 {
     // rmmissingFull_argcheck: numeric / logical / char arrays (strings
     // and cells are a voiced gap — the reference supports them).
@@ -892,14 +896,14 @@ RmMissingOut rmmissing_full(const Value &A, Span<const Value> in,
                         0, 0, "rmmissing", "", "numkit:rmmissing:badDim");
         dim = static_cast<int>(dd);
     }
-    for (std::size_t i = isStringValue(in.empty() ? Value() : in[0]) || in.empty()
+    for (keel::usize i = isStringValue(in.empty() ? Value() : in[0]) || in.empty()
                              ? 0 : 1;
          i + 1 < in.size() || (i + 1 == in.size() && false); i += 2) {
         if (i >= in.size() || !isStringValue(in[i])) continue;
         static constexpr std::string_view kRmNv[] = {"minnummissing",
                                                      "datavariables"};
         const int hit = argcheck::matchStringChoice(
-            in[i], Span<const std::string_view>(kRmNv));
+            in[i], keel::ArrayRef<std::string_view>(kRmNv));
         if (hit == 0) {
             const Value &v = in[i + 1];
             const double mo = (v.isNumeric() && !v.isComplex() && v.numel() == 1)
@@ -923,9 +927,9 @@ RmMissingOut rmmissing_full(const Value &A, Span<const Value> in,
     const bool floaty = (t == ValueType::DOUBLE || t == ValueType::SINGLE ||
                          t == ValueType::COMPLEX);
     const bool single = (t == ValueType::SINGLE);
-    const std::size_t r = static_cast<std::size_t>(A.dims().dim(0));
-    const std::size_t c = (A.dims().ndim() >= 2)
-                              ? static_cast<std::size_t>(A.dims().dim(1)) : 1;
+    const keel::usize r = static_cast<keel::usize>(A.dims().dim(0));
+    const keel::usize c = (A.dims().ndim() >= 2)
+                              ? static_cast<keel::usize>(A.dims().dim(1)) : 1;
     RmMissingOut out;
 
     // Integer / logical / char arrays cannot hold a standard missing
@@ -939,28 +943,28 @@ RmMissingOut rmmissing_full(const Value &A, Span<const Value> in,
                    : Value::matrix(A.numel(), 1, ValueType::LOGICAL, mr))
             : ((dim == 2) ? Value::matrix(1, c, ValueType::LOGICAL, mr)
                           : Value::matrix(r, 1, ValueType::LOGICAL, mr));
-        std::fill_n(ind.logicalDataMut(), ind.numel(), std::uint8_t{0});
+        std::fill_n(ind.logicalDataMut(), ind.numel(), keel::u8{0});
         out.ind = std::move(ind);
         return out;
     }
 
     // NaN map (complex: NaN in either part).
-    std::vector<uint8_t> miss(A.numel(), 0);
+    std::vector<keel::u8> miss(A.numel(), 0);
     if (t == ValueType::COMPLEX) {
-        const Complex *z = A.complexData();
-        for (std::size_t i = 0; i < A.numel(); ++i)
+        const keel::c64 *z = A.complexData();
+        for (keel::usize i = 0; i < A.numel(); ++i)
             miss[i] = (std::isnan(z[i].real()) || std::isnan(z[i].imag())) ? 1 : 0;
     } else if (single) {
         const float *xd = A.singleData();
-        for (std::size_t i = 0; i < A.numel(); ++i)
+        for (keel::usize i = 0; i < A.numel(); ++i)
             miss[i] = std::isnan(xd[i]) ? 1 : 0;
     } else {
         const double *xd = A.doubleData();
-        for (std::size_t i = 0; i < A.numel(); ++i)
+        for (keel::usize i = 0; i < A.numel(); ++i)
             miss[i] = std::isnan(xd[i]) ? 1 : 0;
     }
 
-    auto copyIn = [&](std::size_t lin, Value &B, std::size_t lout) {
+    auto copyIn = [&](keel::usize lin, Value &B, keel::usize lout) {
         if (t == ValueType::COMPLEX)
             B.complexDataMut()[lout] = A.complexData()[lin];
         else if (single)
@@ -973,15 +977,15 @@ RmMissingOut rmmissing_full(const Value &A, Span<const Value> in,
     const bool byRows = isVec ? true : (dim != 2);
     const auto outT = t;
     if (isVec) {
-        const std::size_t n = A.numel();
-        std::vector<std::size_t> keep;
+        const keel::usize n = A.numel();
+        std::vector<keel::usize> keep;
         keep.reserve(n);
-        for (std::size_t i = 0; i < n; ++i)
+        for (keel::usize i = 0; i < n; ++i)
             if (!miss[i]) keep.push_back(i);
         const bool colOrient = (r != 1);
         Value B = colOrient ? Value::matrix(keep.size(), 1, outT, mr)
                             : Value::matrix(1, keep.size(), outT, mr);
-        for (std::size_t w = 0; w < keep.size(); ++w) copyIn(keep[w], B, w);
+        for (keel::usize w = 0; w < keep.size(); ++w) copyIn(keep[w], B, w);
         Value ind = colOrient ? Value::matrix(n, 1, ValueType::LOGICAL, mr)
                               : Value::matrix(1, n, ValueType::LOGICAL, mr);
         std::copy(miss.begin(), miss.end(), ind.logicalDataMut());
@@ -991,19 +995,19 @@ RmMissingOut rmmissing_full(const Value &A, Span<const Value> in,
     }
 
     if (byRows) {
-        std::vector<std::size_t> cnt(r, 0);
-        for (std::size_t col = 0; col < c; ++col)
-            for (std::size_t i = 0; i < r; ++i)
+        std::vector<keel::usize> cnt(r, 0);
+        for (keel::usize col = 0; col < c; ++col)
+            for (keel::usize i = 0; i < r; ++i)
                 if (miss[col * r + i]) ++cnt[i];
-        std::vector<uint8_t> rm(r, 0);
-        std::vector<std::size_t> keep;
-        for (std::size_t i = 0; i < r; ++i) {
-            rm[i] = (cnt[i] >= static_cast<std::size_t>(minNum)) ? 1 : 0;
+        std::vector<keel::u8> rm(r, 0);
+        std::vector<keel::usize> keep;
+        for (keel::usize i = 0; i < r; ++i) {
+            rm[i] = (cnt[i] >= static_cast<keel::usize>(minNum)) ? 1 : 0;
             if (!rm[i]) keep.push_back(i);
         }
         Value B = Value::matrix(keep.size(), c, outT, mr);
-        for (std::size_t col = 0; col < c; ++col)
-            for (std::size_t w = 0; w < keep.size(); ++w)
+        for (keel::usize col = 0; col < c; ++col)
+            for (keel::usize w = 0; w < keep.size(); ++w)
                 copyIn(col * r + keep[w], B, col * keep.size() + w);
         Value ind = Value::matrix(r, 1, ValueType::LOGICAL, mr);
         std::copy(rm.begin(), rm.end(), ind.logicalDataMut());
@@ -1011,19 +1015,19 @@ RmMissingOut rmmissing_full(const Value &A, Span<const Value> in,
         out.ind = std::move(ind);
         return out;
     }
-    std::vector<std::size_t> cnt(c, 0);
-    for (std::size_t col = 0; col < c; ++col)
-        for (std::size_t i = 0; i < r; ++i)
+    std::vector<keel::usize> cnt(c, 0);
+    for (keel::usize col = 0; col < c; ++col)
+        for (keel::usize i = 0; i < r; ++i)
             if (miss[col * r + i]) ++cnt[col];
-    std::vector<uint8_t> rm(c, 0);
-    std::vector<std::size_t> keep;
-    for (std::size_t col = 0; col < c; ++col) {
-        rm[col] = (cnt[col] >= static_cast<std::size_t>(minNum)) ? 1 : 0;
+    std::vector<keel::u8> rm(c, 0);
+    std::vector<keel::usize> keep;
+    for (keel::usize col = 0; col < c; ++col) {
+        rm[col] = (cnt[col] >= static_cast<keel::usize>(minNum)) ? 1 : 0;
         if (!rm[col]) keep.push_back(col);
     }
     Value B = Value::matrix(r, keep.size(), outT, mr);
-    for (std::size_t w = 0; w < keep.size(); ++w)
-        for (std::size_t i = 0; i < r; ++i)
+    for (keel::usize w = 0; w < keep.size(); ++w)
+        for (keel::usize i = 0; i < r; ++i)
             copyIn(keep[w] * r + i, B, w * r + i);
     Value ind = Value::matrix(1, c, ValueType::LOGICAL, mr);
     std::copy(rm.begin(), rm.end(), ind.logicalDataMut());
@@ -1035,7 +1039,7 @@ RmMissingOut rmmissing_full(const Value &A, Span<const Value> in,
 // ── standardizeMissing ────────────────────────────────────────────────
 
 Value standardizeMissing_full(const Value &A, const Value &indicators,
-                              std::pmr::memory_resource *mr)
+                              keel::Allocator *mr)
 {
     // The live interpreter path resolves the bare name to the builtin
     // implementation (numkit::builtin::standardizeMissing); this entry
@@ -1049,7 +1053,7 @@ Value standardizeMissing_full(const Value &A, const Value &indicators,
 namespace {
 
 // Numeric scalar / per-slice vector constant (checkConstantsSize).
-std::vector<double> parseConstants(const Value &C, std::size_t nVects,
+std::vector<double> parseConstants(const Value &C, keel::usize nVects,
                                    const char *fn, const char *eidSuffix,
                                    std::vector<double> *imagParts = nullptr)
 {
@@ -1066,9 +1070,9 @@ std::vector<double> parseConstants(const Value &C, std::size_t nVects,
                     "supported only for complex inputs",
                     0, 0, fn, "",
                     std::string("numkit:") + fn + ":constantNumeric");
-    auto partOf = [&](std::size_t i) {
+    auto partOf = [&](keel::usize i) {
         if (!cplx) return C.elemAsDouble(i);
-        const Complex z = C.complexData()[i];
+        const keel::c64 z = C.complexData()[i];
         if (imagParts) (*imagParts)[i] = z.imag();
         return z.real();
     };
@@ -1084,16 +1088,16 @@ std::vector<double> parseConstants(const Value &C, std::size_t nVects,
                     std::string("numkit:") + fn + ":SizeConstant" + eidSuffix);
     if (imagParts) imagParts->resize(C.numel(), 0.0);
     std::vector<double> v(C.numel());
-    for (std::size_t i = 0; i < C.numel(); ++i) v[i] = partOf(i);
+    for (keel::usize i = 0; i < C.numel(); ++i) v[i] = partOf(i);
     return v;
 }
 
 } // anonymous namespace
 
 FillMissingOut fillmissing_full(
-    const Value &A, Span<const Value> in, bool wantFilled,
-    std::pmr::memory_resource *mr,
-    std::function<Value(const Value &, Span<const Value>)> callFn)
+    const Value &A, keel::ArrayRef<Value> in, bool wantFilled,
+    keel::Allocator *mr,
+    std::function<Value(const Value &, keel::ArrayRef<Value>)> callFn)
 {
     // fillmissingFull_argcheck: supported-array gate + method contract.
     const char *fn = "fillmissing";
@@ -1110,8 +1114,8 @@ FillMissingOut fillmissing_full(
     static constexpr std::string_view kFmMethods[] = {
         "constant", "previous", "next", "nearest", "linear",
         "spline", "pchip", "movmean", "movmedian", "makima", "knn"};
-    const Span<const std::string_view> methods =
-        Span<const std::string_view>(kFmMethods);
+    const keel::ArrayRef<std::string_view> methods =
+        keel::ArrayRef<std::string_view>(kFmMethods);
     if (in.empty())
         throw Error(std::string(fn) + ": specify a fill method",
                     0, 0, fn, "", std::string("numkit:") + fn + ":methodInvalid");
@@ -1124,8 +1128,8 @@ FillMissingOut fillmissing_full(
     long hb = 0, hf = 0;
     double hbSpan = 0.0, hfSpan = 0.0;
     bool winTwoElem = false;
-    std::size_t knnK = 1;
-    std::size_t i = 1;
+    keel::usize knnK = 1;
+    keel::usize i = 1;
 
     if (in[0].isFuncHandle()) {
         isFnHandle = true;
@@ -1141,7 +1145,7 @@ FillMissingOut fillmissing_full(
         bool okVal = okNum;
         if (okNum) {
             bool anyPos = false;
-            for (std::size_t q = 0; q < wl.numel(); ++q) {
+            for (keel::usize q = 0; q < wl.numel(); ++q) {
                 const double wv = wl.elemAsDouble(q);
                 if (!std::isfinite(wv) || wv < 0.0) okVal = false;
                 if (wv > 0.0) anyPos = true;
@@ -1171,7 +1175,7 @@ FillMissingOut fillmissing_full(
                         "'knn', or a function handle (got '" +
                         in[0].toString() + "'; ambiguous or unrecognized)",
                         0, 0, fn, "", std::string("numkit:") + fn + ":methodInvalid");
-        m = std::string(methods[static_cast<std::size_t>(mhit)]);
+        m = std::string(methods[static_cast<keel::usize>(mhit)]);
         if (m == "constant") {
             if (in.size() < 2)
                 throw Error(std::string(fn) + ": specify a fill value after the "
@@ -1194,7 +1198,7 @@ FillMissingOut fillmissing_full(
                     throw Error(std::string(fn) + ": number of nearest neighbors k "
                                 "must be a positive integer scalar",
                                 0, 0, fn, "", std::string("numkit:") + fn + ":invalidK");
-                knnK = static_cast<std::size_t>(kd);
+                knnK = static_cast<keel::usize>(kd);
                 ++i;
             }
         }
@@ -1223,8 +1227,8 @@ FillMissingOut fillmissing_full(
     static constexpr std::string_view kFmNv[] = {
         "endvalues", "datavariables", "replacevalues", "samplepoints",
         "missinglocations", "maxgap", "distance"};
-    const Span<const std::string_view> nvNames =
-        Span<const std::string_view>(kFmNv);
+    const keel::ArrayRef<std::string_view> nvNames =
+        keel::ArrayRef<std::string_view>(kFmNv);
     const Value *constRaw = (m == "constant") ? &in[1] : nullptr;
     const Value *endRaw = nullptr;
     int endMode = 0;   // 0 extrap / 1 none / 2 nearest / 3 prevEnd / 4 nextEnd / 5 const
@@ -1246,12 +1250,12 @@ FillMissingOut fillmissing_full(
             throw Error(std::string(fn) + ": expected a parameter name",
                         0, 0, fn, "", std::string("numkit:") + fn + ":nameValuePairs");
         const int hit = argcheck::matchStringChoice(
-            in[i], Span<const std::string_view>(nvNames));
+            in[i], keel::ArrayRef<std::string_view>(nvNames));
         if (hit < 0)
             throw Error(std::string(fn) + ": unrecognized parameter name '" +
                         in[i].toString() + "'",
                         0, 0, fn, "", std::string("numkit:") + fn + ":nameValueNames");
-        const std::string_view name = nvNames[static_cast<std::size_t>(hit)];
+        const std::string_view name = nvNames[static_cast<keel::usize>(hit)];
         const Value &v = in[i + 1];
         if (name == "endvalues") {
             if (m == "knn")
@@ -1264,7 +1268,7 @@ FillMissingOut fillmissing_full(
                 static constexpr std::string_view kEndModes[] = {
                     "extrap", "previous", "next", "nearest", "none"};
                 const int eh = argcheck::matchStringChoice(
-                    v, Span<const std::string_view>(kEndModes));
+                    v, keel::ArrayRef<std::string_view>(kEndModes));
                 if (eh < 0)
                     throw Error(std::string(fn) + ": 'EndValues' must be "
                                 "'extrap', 'previous', 'next', 'nearest', "
@@ -1316,13 +1320,13 @@ FillMissingOut fillmissing_full(
                 static constexpr std::string_view kDist[] = {
                     "euclidean", "seuclidean"};
                 const int dh = argcheck::matchStringChoice(
-                    v, Span<const std::string_view>(kDist));
+                    v, keel::ArrayRef<std::string_view>(kDist));
                 if (dh < 0)
                     throw Error(std::string(fn) + ": 'Distance' must be "
                                 "'euclidean', 'seuclidean', or a function handle",
                                 0, 0, fn, "",
                                 std::string("numkit:") + fn + ":invalidDistance");
-                knnDist = std::string(kDist[static_cast<std::size_t>(dh)]);
+                knnDist = std::string(kDist[static_cast<keel::usize>(dh)]);
                 distFnVal = nullptr;
             } else if (v.isFuncHandle()) {
                 distFnVal = &v;
@@ -1352,12 +1356,12 @@ FillMissingOut fillmissing_full(
             A.dims().dim(1) > 1)
             dim = 2;
     }
-    const std::size_t r = static_cast<std::size_t>(A.dims().dim(0));
-    const std::size_t c = (A.dims().ndim() >= 2)
-                              ? static_cast<std::size_t>(A.dims().dim(1)) : 1;
+    const keel::usize r = static_cast<keel::usize>(A.dims().dim(0));
+    const keel::usize c = (A.dims().ndim() >= 2)
+                              ? static_cast<keel::usize>(A.dims().dim(1)) : 1;
     const bool along2 = (dim == 2 && A.dims().ndim() >= 2);
-    const std::size_t runLen = along2 ? c : r;
-    const std::size_t nRuns = along2 ? r : c;
+    const keel::usize runLen = along2 ? c : r;
+    const keel::usize nRuns = along2 ? r : c;
 
     std::vector<double> samplePoints;
     if (samplePointsRaw) {
@@ -1397,7 +1401,7 @@ FillMissingOut fillmissing_full(
         out.B = A;
         if (wantFilled) {
             Value f = Value::matrix(r, c, ValueType::LOGICAL, mr);
-            std::fill_n(f.logicalDataMut(), f.numel(), std::uint8_t{0});
+            std::fill_n(f.logicalDataMut(), f.numel(), keel::u8{0});
             out.filled = std::move(f);
         }
         return out;
@@ -1409,31 +1413,31 @@ FillMissingOut fillmissing_full(
                          : Value::matrix(r, c, ValueType::DOUBLE, mr);
     Value filledMap = wantFilled ? Value::matrix(r, c, ValueType::LOGICAL, mr)
                                  : Value();
-    uint8_t *fmd = wantFilled ? filledMap.logicalDataMut() : nullptr;
-    if (fmd) std::fill_n(fmd, A.numel(), std::uint8_t{0});
+    keel::u8 *fmd = wantFilled ? filledMap.logicalDataMut() : nullptr;
+    if (fmd) std::fill_n(fmd, A.numel(), keel::u8{0});
 
     // Original missing map (or the explicit override).
-    std::vector<uint8_t> missMap(A.numel(), 0);
+    std::vector<keel::u8> missMap(A.numel(), 0);
     if (missingLocations) {
-        const uint8_t *lm = missingLocations->logicalData();
+        const keel::u8 *lm = missingLocations->logicalData();
         std::copy(lm, lm + A.numel(), missMap.begin());
     } else if (complex) {
-        const Complex *z = A.complexData();
-        for (std::size_t j = 0; j < A.numel(); ++j)
+        const keel::c64 *z = A.complexData();
+        for (keel::usize j = 0; j < A.numel(); ++j)
             missMap[j] = (std::isnan(z[j].real()) ||
                           std::isnan(z[j].imag())) ? 1 : 0;
     } else {
-        for (std::size_t j = 0; j < A.numel(); ++j)
+        for (keel::usize j = 0; j < A.numel(); ++j)
             missMap[j] = std::isnan(A.elemAsDouble(j)) ? 1 : 0;
     }
 
     // ── knn fill path ─────────────────────────────────────────────────
     if (m == "knn") {
         // Initialize B from A.
-        for (std::size_t j = 0; j < A.numel(); ++j) {
+        for (keel::usize j = 0; j < A.numel(); ++j) {
             if (outComplex) {
                 B.complexDataMut()[j] = complex ? A.complexData()[j]
-                                                : Complex(A.elemAsDouble(j), 0.0);
+                                                : keel::c64(A.elemAsDouble(j), 0.0);
             } else if (single) {
                 B.singleDataMut()[j] = static_cast<float>(A.elemAsDouble(j));
             } else {
@@ -1448,26 +1452,26 @@ FillMissingOut fillmissing_full(
         // When dim == 1, vectors are rows (M = r, N = c); when dim == 2,
         // vectors are columns (M = c, N = r).
         const bool transpose = (dim == 2);
-        const std::size_t M = transpose ? c : r;
-        const std::size_t N = transpose ? r : c;
-        auto linAt = [&](std::size_t row, std::size_t col) -> std::size_t {
+        const keel::usize M = transpose ? c : r;
+        const keel::usize N = transpose ? r : c;
+        auto linAt = [&](keel::usize row, keel::usize col) -> keel::usize {
             return transpose ? (col + row * r) : (row + col * r);
         };
-        auto reAt = [&](std::size_t row, std::size_t col) -> double {
-            const std::size_t idx = linAt(row, col);
+        auto reAt = [&](keel::usize row, keel::usize col) -> double {
+            const keel::usize idx = linAt(row, col);
             return complex ? A.complexData()[idx].real() : A.elemAsDouble(idx);
         };
-        auto imAt = [&](std::size_t row, std::size_t col) -> double {
+        auto imAt = [&](keel::usize row, keel::usize col) -> double {
             if (!complex) return 0.0;
             return A.complexData()[linAt(row, col)].imag();
         };
 
         std::vector<double> scale(N, 1.0);
         if (!distFnVal && knnDist == "seuclidean") {
-            for (std::size_t col = 0; col < N; ++col) {
+            for (keel::usize col = 0; col < N; ++col) {
                 double mRe = 0.0, mIm = 0.0;
-                std::size_t cnt = 0;
-                for (std::size_t row = 0; row < M; ++row) {
+                keel::usize cnt = 0;
+                for (keel::usize row = 0; row < M; ++row) {
                     if (!missMap[linAt(row, col)]) {
                         mRe += reAt(row, col);
                         mIm += imAt(row, col);
@@ -1480,7 +1484,7 @@ FillMissingOut fillmissing_full(
                     mRe /= double(cnt);
                     mIm /= double(cnt);
                     double ss = 0.0;
-                    for (std::size_t row = 0; row < M; ++row) {
+                    for (keel::usize row = 0; row < M; ++row) {
                         if (!missMap[linAt(row, col)]) {
                             const double dr = reAt(row, col) - mRe;
                             const double di = imAt(row, col) - mIm;
@@ -1494,16 +1498,16 @@ FillMissingOut fillmissing_full(
 
         const double nanv = std::numeric_limits<double>::quiet_NaN();
         std::vector<double> dists(M, nanv);
-        std::vector<std::size_t> ord(M);
-        for (std::size_t ii = 0; ii < M; ++ii) {
+        std::vector<keel::usize> ord(M);
+        for (keel::usize ii = 0; ii < M; ++ii) {
             bool anyMiss = false, allMiss = true;
-            for (std::size_t col = 0; col < N; ++col) {
+            for (keel::usize col = 0; col < N; ++col) {
                 if (missMap[linAt(ii, col)]) anyMiss = true;
                 else                         allMiss = false;
             }
             if (!anyMiss || allMiss) continue;
 
-            for (std::size_t jj = 0; jj < M; ++jj) {
+            for (keel::usize jj = 0; jj < M; ++jj) {
                 if (jj == ii) {
                     dists[jj] = nanv;
                     continue;
@@ -1517,12 +1521,12 @@ FillMissingOut fillmissing_full(
                     Value X2 = outComplex ? Value::matrix(2, N, ValueType::COMPLEX, mr)
                                           : Value::matrix(2, N, ValueType::DOUBLE, mr);
                     Value M2 = Value::matrix(2, N, ValueType::LOGICAL, mr);
-                    for (std::size_t col = 0; col < N; ++col) {
+                    for (keel::usize col = 0; col < N; ++col) {
                         if (outComplex) {
                             X2.complexDataMut()[0 + col * 2] =
-                                Complex(reAt(ii, col), imAt(ii, col));
+                                keel::c64(reAt(ii, col), imAt(ii, col));
                             X2.complexDataMut()[1 + col * 2] =
-                                Complex(reAt(jj, col), imAt(jj, col));
+                                keel::c64(reAt(jj, col), imAt(jj, col));
                         } else {
                             X2.doubleDataMut()[0 + col * 2] = reAt(ii, col);
                             X2.doubleDataMut()[1 + col * 2] = reAt(jj, col);
@@ -1531,7 +1535,7 @@ FillMissingOut fillmissing_full(
                         M2.logicalDataMut()[1 + col * 2] = missMap[linAt(jj, col)];
                     }
                     Value fargs[2] = {std::move(X2), std::move(M2)};
-                    Value dv = callFn(*distFnVal, Span<const Value>(fargs, 2));
+                    Value dv = callFn(*distFnVal, keel::ArrayRef<Value>(fargs, 2));
                     if (!dv.isNumeric() || dv.isComplex() || dv.numel() != 1)
                         throw Error(std::string(fn) + ": custom distance function "
                                     "must return a real scalar",
@@ -1540,7 +1544,7 @@ FillMissingOut fillmissing_full(
                     dists[jj] = dv.elemAsDouble(0);
                 } else {
                     double sumSq = 0.0;
-                    for (std::size_t col = 0; col < N; ++col) {
+                    for (keel::usize col = 0; col < N; ++col) {
                         if (missMap[linAt(ii, col)]) continue;
                         if (missMap[linAt(jj, col)]) {
                             sumSq = nanv;
@@ -1561,20 +1565,20 @@ FillMissingOut fillmissing_full(
             }
 
             ord.clear();
-            for (std::size_t jj = 0; jj < M; ++jj)
+            for (keel::usize jj = 0; jj < M; ++jj)
                 if (!std::isnan(dists[jj])) ord.push_back(jj);
             std::stable_sort(ord.begin(), ord.end(),
-                             [&](std::size_t a, std::size_t b) {
+                             [&](keel::usize a, keel::usize b) {
                                  return dists[a] < dists[b];
                              });
             if (ord.empty()) continue;
 
-            for (std::size_t col = 0; col < N; ++col) {
-                const std::size_t dstLin = linAt(ii, col);
+            for (keel::usize col = 0; col < N; ++col) {
+                const keel::usize dstLin = linAt(ii, col);
                 if (!missMap[dstLin]) continue;
                 double sumRe = 0.0, sumIm = 0.0;
-                std::size_t used = 0;
-                for (std::size_t cand : ord) {
+                keel::usize used = 0;
+                for (keel::usize cand : ord) {
                     if (!missMap[linAt(cand, col)]) {
                         sumRe += reAt(cand, col);
                         sumIm += imAt(cand, col);
@@ -1585,7 +1589,7 @@ FillMissingOut fillmissing_full(
                     const double fRe = sumRe / double(used);
                     const double fIm = sumIm / double(used);
                     if (outComplex) {
-                        B.complexDataMut()[dstLin] = Complex(fRe, fIm);
+                        B.complexDataMut()[dstLin] = keel::c64(fRe, fIm);
                     } else if (single) {
                         B.singleDataMut()[dstLin] = static_cast<float>(fRe);
                     } else {
@@ -1604,30 +1608,30 @@ FillMissingOut fillmissing_full(
     const double nanv = std::numeric_limits<double>::quiet_NaN();
     const bool useSp = !samplePoints.empty();
     std::vector<double> sVec(runLen);
-    for (std::size_t j = 0; j < runLen; ++j)
+    for (keel::usize j = 0; j < runLen; ++j)
         sVec[j] = useSp ? samplePoints[j] : static_cast<double>(j + 1);
     const double *spPtr = useSp ? sVec.data() : nullptr;
 
     std::vector<double> re(runLen), im(runLen, 0.0), origRe(runLen), origIm(runLen, 0.0);
-    std::vector<uint8_t> ma(runLen), maBeforeInterp(runLen), origMiss(runLen);
+    std::vector<keel::u8> ma(runLen), maBeforeInterp(runLen), origMiss(runLen);
 
-    auto removeLargeGapsSlice = [&](std::vector<uint8_t> &mask) {
+    auto removeLargeGapsSlice = [&](std::vector<keel::u8> &mask) {
         if (!std::isfinite(maxGap) || runLen == 0) return;
-        std::size_t j = 0;
+        keel::usize j = 0;
         while (j < runLen) {
             if (!mask[j]) { ++j; continue; }
-            std::size_t k = j;
+            keel::usize k = j;
             while (k + 1 < runLen && mask[k + 1]) ++k;
             const double leftX = (j == 0) ? sVec[0] : sVec[j - 1];
             const double rightX = (k + 1 == runLen) ? sVec[runLen - 1] : sVec[k + 1];
             if (!(leftX + maxGap >= rightX)) {
-                for (std::size_t q = j; q <= k; ++q) mask[q] = 0;
+                for (keel::usize q = j; q <= k; ++q) mask[q] = 0;
             }
             j = k + 1;
         }
     };
 
-    for (std::size_t k = 0; k < nRuns; ++k) {
+    for (keel::usize k = 0; k < nRuns; ++k) {
         const double cv = (constVals.size() > 1) ? constVals[k]
                           : (constVals.empty() ? 0.0 : constVals[0]);
         const double cim = (outComplex && constImag.size() > 1)
@@ -1641,11 +1645,11 @@ FillMissingOut fillmissing_full(
                                 : (outComplex && !endImag.empty()
                                        ? endImag[0] : 0.0);
 
-        std::size_t numNonMissing = 0;
-        for (std::size_t j = 0; j < runLen; ++j) {
-            const std::size_t lin = along2 ? k + j * r : k * runLen + j;
+        keel::usize numNonMissing = 0;
+        for (keel::usize j = 0; j < runLen; ++j) {
+            const keel::usize lin = along2 ? k + j * r : k * runLen + j;
             if (complex) {
-                const Complex z = A.complexData()[lin];
+                const keel::c64 z = A.complexData()[lin];
                 re[j] = z.real();
                 im[j] = z.imag();
             } else {
@@ -1666,13 +1670,13 @@ FillMissingOut fillmissing_full(
                     Value xs = Value::matrix(0, 1, ValueType::DOUBLE, mr);
                     Value ts = Value::matrix(0, 1, ValueType::DOUBLE, mr);
                     Value tq = Value::matrix(runLen, 1, ValueType::DOUBLE, mr);
-                    for (std::size_t j = 0; j < runLen; ++j)
+                    for (keel::usize j = 0; j < runLen; ++j)
                         tq.doubleDataMut()[j] = sVec[j];
                     Value fargs[3] = {std::move(xs), std::move(ts), std::move(tq)};
-                    Value ytmp = callFn(*fhVal, Span<const Value>(fargs, 3));
+                    Value ytmp = callFn(*fhVal, keel::ArrayRef<Value>(fargs, 3));
                     if (ytmp.numel() == 1 || (ytmp.dims().isVector() && ytmp.numel() == runLen)) {
-                        for (std::size_t j = 0; j < runLen; ++j) {
-                            const std::size_t yi = (ytmp.numel() == 1) ? 0 : j;
+                        for (keel::usize j = 0; j < runLen; ++j) {
+                            const keel::usize yi = (ytmp.numel() == 1) ? 0 : j;
                             re[j] = ytmp.elemAsDouble(yi);
                             if (ytmp.isComplex()) im[j] = ytmp.complexData()[yi].imag();
                         }
@@ -1683,25 +1687,25 @@ FillMissingOut fillmissing_full(
                                     std::string("numkit:") + fn + ":functionHandleInvalidOutputSize");
                     }
                 } else if (endMode == 5) {
-                    for (std::size_t j = 0; j < runLen; ++j) {
+                    for (keel::usize j = 0; j < runLen; ++j) {
                         re[j] = evRe;
                         im[j] = evIm;
                     }
                 } else if (m == "constant" && endMode == 0) {
-                    for (std::size_t j = 0; j < runLen; ++j) {
+                    for (keel::usize j = 0; j < runLen; ++j) {
                         re[j] = cv;
                         im[j] = cim;
                     }
                 } else {
-                    std::fill(ma.begin(), ma.end(), std::uint8_t{0});
+                    std::fill(ma.begin(), ma.end(), keel::u8{0});
                 }
             } else {
-                std::fill(ma.begin(), ma.end(), std::uint8_t{0});
+                std::fill(ma.begin(), ma.end(), keel::u8{0});
             }
-            for (std::size_t j = 0; j < runLen; ++j) {
-                const std::size_t lin = along2 ? k + j * r : k * runLen + j;
+            for (keel::usize j = 0; j < runLen; ++j) {
+                const keel::usize lin = along2 ? k + j * r : k * runLen + j;
                 if (outComplex) {
-                    B.complexDataMut()[lin] = Complex(re[j], im[j]);
+                    B.complexDataMut()[lin] = keel::c64(re[j], im[j]);
                 } else if (single) {
                     B.singleDataMut()[lin] = static_cast<float>(re[j]);
                 } else {
@@ -1721,11 +1725,11 @@ FillMissingOut fillmissing_full(
         maBeforeInterp = ma;
 
         // Find leading/trailing gap boundaries from maBeforeInterp.
-        std::size_t indBeg = 0;
+        keel::usize indBeg = 0;
         if (maBeforeInterp[0]) {
             while (indBeg < runLen && maBeforeInterp[indBeg]) ++indBeg;
         }
-        std::size_t indEnd = runLen - 1;
+        keel::usize indEnd = runLen - 1;
         if (maBeforeInterp[runLen - 1]) {
             while (indEnd > 0 && maBeforeInterp[indEnd]) --indEnd;
         }
@@ -1738,18 +1742,18 @@ FillMissingOut fillmissing_full(
                             std::string("numkit:") + fn + ":functionHandleInput");
             const bool isExtrap = (endMode == 0);
             if (!isExtrap) {
-                for (std::size_t j = 0; j < indBeg; ++j) ma[j] = 0;
-                for (std::size_t j = indEnd + 1; j < runLen; ++j) ma[j] = 0;
+                for (keel::usize j = 0; j < indBeg; ++j) ma[j] = 0;
+                for (keel::usize j = indEnd + 1; j < runLen; ++j) ma[j] = 0;
             }
             const double aSpan = fhTwoElem ? fhA : (useSp ? 0.5 * fhA : std::floor(0.5 * fhA));
             const double bSpan = fhTwoElem ? fhB : (useSp ? 0.5 * fhB : std::floor(0.5 * fhB));
-            std::size_t j0 = 0;
+            keel::usize j0 = 0;
             while (j0 < runLen) {
                 if (!ma[j0]) { ++j0; continue; }
-                std::size_t j1 = j0;
+                keel::usize j1 = j0;
                 while (j1 + 1 < runLen && ma[j1 + 1]) ++j1;
-                std::vector<std::size_t> ind;
-                for (std::size_t q = 0; q < runLen; ++q) {
+                std::vector<keel::usize> ind;
+                for (keel::usize q = 0; q < runLen; ++q) {
                     if (origMiss[q]) continue;
                     bool inW = false;
                     if (useSp) {
@@ -1764,30 +1768,30 @@ FillMissingOut fillmissing_full(
                     }
                     if (inW) ind.push_back(q);
                 }
-                const std::size_t gapLen = j1 - j0 + 1;
+                const keel::usize gapLen = j1 - j0 + 1;
                 Value xs = outComplex ? Value::matrix(ind.size(), 1, ValueType::COMPLEX, mr)
                                       : Value::matrix(ind.size(), 1, ValueType::DOUBLE, mr);
                 Value ts = Value::matrix(ind.size(), 1, ValueType::DOUBLE, mr);
                 Value tq = Value::matrix(gapLen, 1, ValueType::DOUBLE, mr);
-                for (std::size_t q = 0; q < ind.size(); ++q) {
+                for (keel::usize q = 0; q < ind.size(); ++q) {
                     if (outComplex)
-                        xs.complexDataMut()[q] = Complex(origRe[ind[q]], origIm[ind[q]]);
+                        xs.complexDataMut()[q] = keel::c64(origRe[ind[q]], origIm[ind[q]]);
                     else
                         xs.doubleDataMut()[q] = origRe[ind[q]];
                     ts.doubleDataMut()[q] = sVec[ind[q]];
                 }
-                for (std::size_t q = 0; q < gapLen; ++q)
+                for (keel::usize q = 0; q < gapLen; ++q)
                     tq.doubleDataMut()[q] = sVec[j0 + q];
                 Value fargs[3] = {std::move(xs), std::move(ts), std::move(tq)};
-                Value ytmp = callFn(*fhVal, Span<const Value>(fargs, 3));
+                Value ytmp = callFn(*fhVal, keel::ArrayRef<Value>(fargs, 3));
                 if (!(ytmp.numel() == 1 ||
                       (ytmp.dims().isVector() && ytmp.numel() == gapLen)))
                     throw Error(std::string(fn) + ": function handle output "
                                 "must be a scalar or a vector matching the gap length",
                                 0, 0, fn, "",
                                 std::string("numkit:") + fn + ":functionHandleInvalidOutputSize");
-                for (std::size_t q = 0; q < gapLen; ++q) {
-                    const std::size_t yi = (ytmp.numel() == 1) ? 0 : q;
+                for (keel::usize q = 0; q < gapLen; ++q) {
+                    const keel::usize yi = (ytmp.numel() == 1) ? 0 : q;
                     re[j0 + q] = ytmp.elemAsDouble(yi);
                     if (ytmp.isComplex())
                         im[j0 + q] = ytmp.complexData()[yi].imag();
@@ -1795,7 +1799,7 @@ FillMissingOut fillmissing_full(
                 j0 = j1 + 1;
             }
         } else if (m == "constant") {
-            for (std::size_t j = 0; j < runLen; ++j) {
+            for (keel::usize j = 0; j < runLen; ++j) {
                 if (ma[j]) {
                     re[j] = cv;
                     im[j] = cim;
@@ -1807,14 +1811,14 @@ FillMissingOut fillmissing_full(
             // feed later windows.
             const bool isMean = (m == "movmean");
             std::vector<double> winRe, winIm;
-            for (std::size_t j = 0; j < runLen; ++j) {
+            for (keel::usize j = 0; j < runLen; ++j) {
                 if (!ma[j]) continue;
                 winRe.clear();
                 winIm.clear();
                 if (useSp) {
                     const double loS = sVec[j] - hbSpan;
                     const double hiS = sVec[j] + hfSpan;
-                    for (std::size_t q = 0; q < runLen; ++q) {
+                    for (keel::usize q = 0; q < runLen; ++q) {
                         const bool inW = winTwoElem
                                              ? (sVec[q] >= loS && sVec[q] <= hiS)
                                              : (sVec[q] >= loS && sVec[q] < hiS);
@@ -1829,7 +1833,7 @@ FillMissingOut fillmissing_full(
                     if (hi > static_cast<long>(runLen) - 1)
                         hi = static_cast<long>(runLen) - 1;
                     for (long q = lo; q <= hi; ++q) {
-                        const std::size_t qi = static_cast<std::size_t>(q);
+                        const keel::usize qi = static_cast<keel::usize>(q);
                         if (!origMiss[qi]) {
                             winRe.push_back(origRe[qi]);
                             if (outComplex) winIm.push_back(origIm[qi]);
@@ -1848,7 +1852,7 @@ FillMissingOut fillmissing_full(
                     }
                 } else {
                     std::sort(winRe.begin(), winRe.end());
-                    const std::size_t k2 = winRe.size();
+                    const keel::usize k2 = winRe.size();
                     re[j] = (k2 % 2 == 1) ? winRe[k2 / 2]
                                           : 0.5 * (winRe[k2 / 2 - 1] + winRe[k2 / 2]);
                     if (outComplex) {
@@ -1863,14 +1867,14 @@ FillMissingOut fillmissing_full(
             // fill_one_column sees true known points, then copy back only
             // at ma[j] == 1 (respecting MaxGap).
             std::vector<double> workRe(runLen), workIm(runLen, 0.0);
-            for (std::size_t j = 0; j < runLen; ++j) {
+            for (keel::usize j = 0; j < runLen; ++j) {
                 workRe[j] = origMiss[j] ? nanv : origRe[j];
                 if (outComplex) workIm[j] = origMiss[j] ? nanv : origIm[j];
             }
             fill_one_column(workRe.data(), runLen, m, 0.0, spPtr, mr);
             if (outComplex)
                 fill_one_column(workIm.data(), runLen, m, 0.0, spPtr, mr);
-            for (std::size_t j = 0; j < runLen; ++j) {
+            for (keel::usize j = 0; j < runLen; ++j) {
                 if (ma[j]) {
                     re[j] = workRe[j];
                     if (outComplex) im[j] = workIm[j];
@@ -1881,13 +1885,13 @@ FillMissingOut fillmissing_full(
         // EndValues post-pass on the leading [0..indBeg-1] and trailing
         // [indEnd+1..runLen-1] gaps that survived MaxGap.
         if (haveEnd && (indBeg > 0 || indEnd + 1 < runLen)) {
-            auto applyEndAt = [&](std::size_t j, bool leading) {
+            auto applyEndAt = [&](keel::usize j, bool leading) {
                 if (endMode == 1) { // 'none'
                     re[j] = origRe[j];
                     im[j] = origIm[j];
                     ma[j] = 0;
                 } else if (endMode == 2) { // 'nearest'
-                    const std::size_t src = leading ? indBeg : indEnd;
+                    const keel::usize src = leading ? indBeg : indEnd;
                     re[j] = origRe[src];
                     im[j] = origIm[src];
                     ma[j] = 1;
@@ -1917,14 +1921,14 @@ FillMissingOut fillmissing_full(
                     ma[j] = 1;
                 }
             };
-            for (std::size_t j = 0; j < indBeg; ++j) applyEndAt(j, true);
-            for (std::size_t j = indEnd + 1; j < runLen; ++j) applyEndAt(j, false);
+            for (keel::usize j = 0; j < indBeg; ++j) applyEndAt(j, true);
+            for (keel::usize j = indEnd + 1; j < runLen; ++j) applyEndAt(j, false);
         }
 
-        for (std::size_t j = 0; j < runLen; ++j) {
-            const std::size_t lin = along2 ? k + j * r : k * runLen + j;
+        for (keel::usize j = 0; j < runLen; ++j) {
+            const keel::usize lin = along2 ? k + j * r : k * runLen + j;
             if (outComplex) {
-                B.complexDataMut()[lin] = Complex(re[j], im[j]);
+                B.complexDataMut()[lin] = keel::c64(re[j], im[j]);
             } else if (single) {
                 B.singleDataMut()[lin] = static_cast<float>(re[j]);
             } else {
@@ -1950,64 +1954,64 @@ namespace {
 // n×k) against one data run: dst = src − W·coef. Rank-deficient pivots
 // get a free variable fixed at 0 (a basic solution) so degenerate
 // designs still subtract an exact fit through the data.
-void detrendDesignFit(const double *W, std::size_t n, std::size_t k,
+void detrendDesignFit(const double *W, keel::usize n, keel::usize k,
                       const double *src, double *dst,
-                      std::pmr::memory_resource *mr)
+                      keel::Allocator *mr)
 {
-    ScratchArena sc(mr);
-    ScratchVec<double> G(k * k, 0.0, &sc), rhs(k, 0.0, &sc);
-    for (std::size_t a = 0; a < k; ++a) {
-        for (std::size_t b = a; b < k; ++b) {
+    keel::ArenaTemp sc = keel::get_scratch(mr);
+    keel::Array<double> G(k * k, 0.0, sc.allocator()), rhs(k, 0.0, sc.allocator());
+    for (keel::usize a = 0; a < k; ++a) {
+        for (keel::usize b = a; b < k; ++b) {
             double s = 0.0;
-            for (std::size_t r = 0; r < n; ++r) s += W[a * n + r] * W[b * n + r];
+            for (keel::usize r = 0; r < n; ++r) s += W[a * n + r] * W[b * n + r];
             G[a * k + b] = s;
             G[b * k + a] = s;
         }
         double s = 0.0;
-        for (std::size_t r = 0; r < n; ++r) s += W[a * n + r] * src[r];
+        for (keel::usize r = 0; r < n; ++r) s += W[a * n + r] * src[r];
         rhs[a] = s;
     }
     // Gaussian elimination; a zero pivot pins that variable to 0.
     std::vector<char> freeVar(k, 0);
-    for (std::size_t col = 0; col < k; ++col) {
-        std::size_t piv = col;
+    for (keel::usize col = 0; col < k; ++col) {
+        keel::usize piv = col;
         double best = std::fabs(G[col * k + col]);
-        for (std::size_t r2 = col + 1; r2 < k; ++r2) {
+        for (keel::usize r2 = col + 1; r2 < k; ++r2) {
             const double v = std::fabs(G[r2 * k + col]);
             if (v > best) { best = v; piv = r2; }
         }
         if (best <= 0.0) { freeVar[col] = 1; continue; }
         if (piv != col) {
-            for (std::size_t j = 0; j < k; ++j)
+            for (keel::usize j = 0; j < k; ++j)
                 std::swap(G[col * k + j], G[piv * k + j]);
             std::swap(rhs[col], rhs[piv]);
         }
         const double d = G[col * k + col];
-        for (std::size_t r2 = col + 1; r2 < k; ++r2) {
+        for (keel::usize r2 = col + 1; r2 < k; ++r2) {
             const double f = G[r2 * k + col] / d;
             if (f == 0.0) continue;
-            for (std::size_t j = col; j < k; ++j) G[r2 * k + j] -= f * G[col * k + j];
+            for (keel::usize j = col; j < k; ++j) G[r2 * k + j] -= f * G[col * k + j];
             rhs[r2] -= f * rhs[col];
         }
     }
-    ScratchVec<double> coef(k, 0.0, &sc);
-    for (std::size_t ii = k; ii-- > 0;) {
+    keel::Array<double> coef(k, 0.0, sc.allocator());
+    for (keel::usize ii = k; ii-- > 0;) {
         if (freeVar[ii]) { coef[ii] = 0.0; continue; }
         double s = rhs[ii];
-        for (std::size_t j = ii + 1; j < k; ++j) s -= G[ii * k + j] * coef[j];
+        for (keel::usize j = ii + 1; j < k; ++j) s -= G[ii * k + j] * coef[j];
         coef[ii] = s / G[ii * k + ii];
     }
-    for (std::size_t r = 0; r < n; ++r) {
+    for (keel::usize r = 0; r < n; ++r) {
         double fit = 0.0;
-        for (std::size_t a = 0; a < k; ++a) fit += W[a * n + r] * coef[a];
+        for (keel::usize a = 0; a < k; ++a) fit += W[a * n + r] * coef[a];
         dst[r] = src[r] - fit;
     }
 }
 
 } // anonymous namespace
 
-Value detrend_full(const Value &x, Span<const Value> in,
-                   std::pmr::memory_resource *mr)
+Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
+                   keel::Allocator *mr)
 {
     // detrendFull_argcheck: float-only gate (single/double, complex ok),
     // degree / bp / nanflag / NV contracts.
@@ -2016,12 +2020,12 @@ Value detrend_full(const Value &x, Span<const Value> in,
     int polyDeg = 1;
     std::vector<double> bp;                  // sample-axis positions (raw)
     bool bpLogical = false;
-    std::vector<std::size_t> bpLogIdx;
+    std::vector<keel::usize> bpLogIdx;
     bool omitNan = false;
     bool continuity = true;
     const Value *samplePointsRaw = nullptr;
 
-    std::size_t i = 0;
+    keel::usize i = 0;
     if (!in.empty()) {
         const Value &a0 = in[0];
         if (isStringValue(a0)) {
@@ -2057,11 +2061,11 @@ Value detrend_full(const Value &x, Span<const Value> in,
         const Value &b = in[i];
         if (b.isLogical()) {
             bpLogical = true;
-            for (std::size_t j = 0; j < b.numel(); ++j)
+            for (keel::usize j = 0; j < b.numel(); ++j)
                 if (b.logicalData()[j]) bpLogIdx.push_back(j);
         } else if (b.isNumeric() && !b.isComplex()) {
             bp.reserve(b.numel());
-            for (std::size_t j = 0; j < b.numel(); ++j)
+            for (keel::usize j = 0; j < b.numel(); ++j)
                 bp.push_back(b.elemAsDouble(j));
         } else {
             throw Error("detrend: breakpoints must be a real numeric or "
@@ -2112,10 +2116,10 @@ Value detrend_full(const Value &x, Span<const Value> in,
     // Geometry: row vectors run whole; N-D flattens to dim0 × rest.
     const auto &d = x.dims();
     const bool isRow = (d.ndim() == 2 && d.dim(0) == 1);
-    const std::size_t N = isRow ? static_cast<std::size_t>(x.numel())
-                                : static_cast<std::size_t>(d.dim(0));
-    const std::size_t ncols = isRow ? 1
-        : static_cast<std::size_t>(d.numel() / std::max<std::size_t>(N, 1));
+    const keel::usize N = isRow ? static_cast<keel::usize>(x.numel())
+                                : static_cast<keel::usize>(d.dim(0));
+    const keel::usize ncols = isRow ? 1
+        : static_cast<keel::usize>(d.numel() / std::max<keel::usize>(N, 1));
     const bool single = (x.type() == ValueType::SINGLE);
     const bool complex = (x.type() == ValueType::COMPLEX);
 
@@ -2125,18 +2129,18 @@ Value detrend_full(const Value &x, Span<const Value> in,
         std::vector<double> sp = validateSamplePoints(
             *samplePointsRaw, N, x.isEmpty(), true, "detrend");
         minS = sp.empty() ? 0.0 : sp[0];
-        for (std::size_t j = 0; j < N; ++j) sVec[j] = sp[j] - minS;
+        for (keel::usize j = 0; j < N; ++j) sVec[j] = sp[j] - minS;
     } else {
-        for (std::size_t j = 0; j < N; ++j) sVec[j] = static_cast<double>(j);
+        for (keel::usize j = 0; j < N; ++j) sVec[j] = static_cast<double>(j);
     }
 
-    auto detrendRun = [&](const double *src, double *dst, std::size_t n) {
+    auto detrendRun = [&](const double *src, double *dst, keel::usize n) {
         const double nanv = std::numeric_limits<double>::quiet_NaN();
         if (n == 0) return;
         // Knots on the centered abscissa sVec (0..sVec.back()).
         std::vector<double> knots;
         if (bpLogical) {
-            for (std::size_t j : bpLogIdx)
+            for (keel::usize j : bpLogIdx)
                 if (j < n) knots.push_back(sVec[j]);
         } else {
             for (double v : bp) knots.push_back(v - minS);
@@ -2152,21 +2156,21 @@ Value detrend_full(const Value &x, Span<const Value> in,
         knots.erase(std::unique(knots.begin(), knots.end()), knots.end());
 
         // NaN policy.
-        std::vector<std::size_t> orig;
+        std::vector<keel::usize> orig;
         std::vector<double> xs, ys;
-        for (std::size_t j = 0; j < n; ++j) dst[j] = nanv;
+        for (keel::usize j = 0; j < n; ++j) dst[j] = nanv;
         {
             bool anyNaN = false;
-            for (std::size_t j = 0; j < n; ++j) anyNaN = anyNaN || std::isnan(src[j]);
+            for (keel::usize j = 0; j < n; ++j) anyNaN = anyNaN || std::isnan(src[j]);
             if (anyNaN && !omitNan) return;   // includenan poisons the run
-            for (std::size_t j = 0; j < n; ++j) {
+            for (keel::usize j = 0; j < n; ++j) {
                 if (omitNan && std::isnan(src[j])) continue;
                 xs.push_back(sVec[j]);
                 ys.push_back(src[j]);
                 orig.push_back(j);
             }
         }
-        const std::size_t m = xs.size();
+        const keel::usize m = xs.size();
         if (m == 0) return;
 
         const bool plainPoly = knots.size() <= 1 && !bpLogical && bp.empty();
@@ -2176,67 +2180,67 @@ Value detrend_full(const Value &x, Span<const Value> in,
                 double s = 0.0;
                 for (double v : ys) s += v;
                 const double mean = s / double(m);
-                for (std::size_t j = 0; j < m; ++j) dst[orig[j]] = ys[j] - mean;
+                for (keel::usize j = 0; j < m; ++j) dst[orig[j]] = ys[j] - mean;
                 return;
             }
             // Vandermonde on the normalized abscissa.
             const double scale = (xs.back() != 0.0) ? xs.back() : 1.0;
-            const std::size_t nb = static_cast<std::size_t>(polyDeg) + 1;
-            ScratchArena sc(mr);
-            ScratchVec<double> V(m * nb, 0.0, &sc);
-            for (std::size_t j = 0; j < m; ++j) {
+            const keel::usize nb = static_cast<keel::usize>(polyDeg) + 1;
+            keel::ArenaTemp sc = keel::get_scratch(mr);
+            keel::Array<double> V(m * nb, 0.0, sc.allocator());
+            for (keel::usize j = 0; j < m; ++j) {
                 const double a = xs[j] / scale;
                 for (int pw = polyDeg; pw >= 1; --pw)
-                    V[static_cast<std::size_t>(polyDeg - pw) * m + j] =
+                    V[static_cast<keel::usize>(polyDeg - pw) * m + j] =
                         std::pow(a, double(pw));
-                V[static_cast<std::size_t>(polyDeg) * m + j] = 1.0;
+                V[static_cast<keel::usize>(polyDeg) * m + j] = 1.0;
             }
             std::vector<double> fitted(m);
             detrendDesignFit(V.data(), m, nb, ys.data(), fitted.data(), mr);
-            for (std::size_t j = 0; j < m; ++j) dst[orig[j]] = fitted[j];
+            for (keel::usize j = 0; j < m; ++j) dst[orig[j]] = fitted[j];
             return;
         }
 
         if (!continuity) {
             // Segment-wise: segment k covers s in [knots[k], knots[k+1]).
-            for (std::size_t j = 0; j < m; ++j) dst[orig[j]] = ys[j];
-            for (std::size_t k = 0; k < knots.size(); ++k) {
+            for (keel::usize j = 0; j < m; ++j) dst[orig[j]] = ys[j];
+            for (keel::usize k = 0; k < knots.size(); ++k) {
                 const double lo = knots[k];
                 const double hi = (k + 1 < knots.size())
                                       ? knots[k + 1] : (sVec.back() + 1.0);
-                std::vector<std::size_t> seg;
-                for (std::size_t j = 0; j < m; ++j)
+                std::vector<keel::usize> seg;
+                for (keel::usize j = 0; j < m; ++j)
                     if (xs[j] >= lo && xs[j] < hi) seg.push_back(j);
                 if (seg.empty()) continue;
                 if (polyDeg == 0 || seg.size() == 1) {
                     double s = 0.0;
-                    for (std::size_t j : seg) s += ys[j];
+                    for (keel::usize j : seg) s += ys[j];
                     const double mean = s / double(seg.size());
-                    for (std::size_t j : seg) dst[orig[j]] = ys[j] - mean;
+                    for (keel::usize j : seg) dst[orig[j]] = ys[j] - mean;
                     continue;
                 }
                 double ms = 0.0;
-                for (std::size_t j : seg) ms += xs[j];
+                for (keel::usize j : seg) ms += xs[j];
                 ms /= double(seg.size());
                 double ss = 0.0;
-                for (std::size_t j : seg) ss += (xs[j] - ms) * (xs[j] - ms);
+                for (keel::usize j : seg) ss += (xs[j] - ms) * (xs[j] - ms);
                 const double sd = std::sqrt(ss / double(seg.size() - 1));
-                const std::size_t nb = static_cast<std::size_t>(polyDeg) + 1;
-                ScratchArena sc(mr);
-                ScratchVec<double> V(seg.size() * nb, 0.0, &sc);
+                const keel::usize nb = static_cast<keel::usize>(polyDeg) + 1;
+                keel::ArenaTemp sc = keel::get_scratch(mr);
+                keel::Array<double> V(seg.size() * nb, 0.0, sc.allocator());
                 std::vector<double> yseg(seg.size());
-                for (std::size_t q = 0; q < seg.size(); ++q) {
+                for (keel::usize q = 0; q < seg.size(); ++q) {
                     const double a = (sd > 0.0) ? (xs[seg[q]] - ms) / sd : 0.0;
                     for (int pw = polyDeg; pw >= 1; --pw)
-                        V[static_cast<std::size_t>(polyDeg - pw) * seg.size() + q] =
+                        V[static_cast<keel::usize>(polyDeg - pw) * seg.size() + q] =
                             std::pow(a, double(pw));
-                    V[static_cast<std::size_t>(polyDeg) * seg.size() + q] = 1.0;
+                    V[static_cast<keel::usize>(polyDeg) * seg.size() + q] = 1.0;
                     yseg[q] = ys[seg[q]];
                 }
                 std::vector<double> fitted(seg.size());
                 detrendDesignFit(V.data(), seg.size(), nb, yseg.data(),
                                  fitted.data(), mr);
-                for (std::size_t q = 0; q < seg.size(); ++q)
+                for (keel::usize q = 0; q < seg.size(); ++q)
                     dst[orig[seg[q]]] = fitted[q];
             }
             return;
@@ -2245,10 +2249,10 @@ Value detrend_full(const Value &x, Span<const Value> in,
         // Continuous piecewise design (reference b-basis).
         if (polyDeg == 0) {
             // Subtract the mean of the first segment.
-            std::size_t b = 0, e = m - 1;
+            keel::usize b = 0, e = m - 1;
             if (knots.size() >= 2) {
                 double bestE = 1e300;
-                for (std::size_t j = 0; j < m; ++j) {
+                for (keel::usize j = 0; j < m; ++j) {
                     if (std::fabs(xs[j] - knots[1]) < bestE) {
                         bestE = std::fabs(xs[j] - knots[1]);
                         e = j;
@@ -2256,34 +2260,34 @@ Value detrend_full(const Value &x, Span<const Value> in,
                 }
             }
             double s = 0.0;
-            std::size_t cnt = 0;
-            for (std::size_t j = 0; j < m; ++j)
+            keel::usize cnt = 0;
+            for (keel::usize j = 0; j < m; ++j)
                 if (j >= b && j <= e) { s += ys[j]; ++cnt; }
             const double mean = cnt ? s / double(cnt) : 0.0;
-            for (std::size_t j = 0; j < m; ++j) dst[orig[j]] = ys[j] - mean;
+            for (keel::usize j = 0; j < m; ++j) dst[orig[j]] = ys[j] - mean;
             return;
         }
         const double scaleS = (xs.back() != 0.0) ? xs.back() : 1.0;
-        const std::size_t nRamp = knots.size();
-        const std::size_t nb = nRamp * static_cast<std::size_t>(polyDeg) + 1;
-        ScratchArena sc(mr);
-        ScratchVec<double> W(m * nb, 0.0, &sc);
-        for (std::size_t rr = 0; rr < nRamp; ++rr) {
+        const keel::usize nRamp = knots.size();
+        const keel::usize nb = nRamp * static_cast<keel::usize>(polyDeg) + 1;
+        keel::ArenaTemp sc = keel::get_scratch(mr);
+        keel::Array<double> W(m * nb, 0.0, sc.allocator());
+        for (keel::usize rr = 0; rr < nRamp; ++rr) {
             const double bk = knots[rr] / scaleS;
             for (int pw = polyDeg; pw >= 1; --pw) {
                 double *col = W.data() +
-                    (rr * static_cast<std::size_t>(polyDeg) +
-                     static_cast<std::size_t>(polyDeg - pw)) * m;
-                for (std::size_t j = 0; j < m; ++j) {
+                    (rr * static_cast<keel::usize>(polyDeg) +
+                     static_cast<keel::usize>(polyDeg - pw)) * m;
+                for (keel::usize j = 0; j < m; ++j) {
                     const double bb = xs[j] / scaleS - bk;
                     col[j] = (bb > 0.0) ? std::pow(bb, double(pw)) : 0.0;
                 }
             }
         }
-        for (std::size_t j = 0; j < m; ++j) W[(nb - 1) * m + j] = 1.0;
+        for (keel::usize j = 0; j < m; ++j) W[(nb - 1) * m + j] = 1.0;
         std::vector<double> fitted(m);
         detrendDesignFit(W.data(), m, nb, ys.data(), fitted.data(), mr);
-        for (std::size_t j = 0; j < m; ++j) dst[orig[j]] = fitted[j];
+        for (keel::usize j = 0; j < m; ++j) dst[orig[j]] = fitted[j];
     };
 
     Value out = createForDims(d, complex ? ValueType::COMPLEX
@@ -2292,30 +2296,30 @@ Value detrend_full(const Value &x, Span<const Value> in,
 
     std::vector<double> re(N), im, dst(N);
     if (complex) im.resize(N);
-    const std::size_t nRuns = isRow ? 1 : ncols;
-    for (std::size_t k = 0; k < nRuns; ++k) {
+    const keel::usize nRuns = isRow ? 1 : ncols;
+    for (keel::usize k = 0; k < nRuns; ++k) {
         if (complex) {
-            const Complex *z = x.complexData() + (isRow ? 0 : k * N);
-            for (std::size_t j = 0; j < N; ++j) {
+            const keel::c64 *z = x.complexData() + (isRow ? 0 : k * N);
+            for (keel::usize j = 0; j < N; ++j) {
                 re[j] = z[j].real();
                 im[j] = z[j].imag();
             }
         } else {
-            for (std::size_t j = 0; j < N; ++j)
+            for (keel::usize j = 0; j < N; ++j)
                 re[j] = x.elemAsDouble(isRow ? j : k * N + j);
         }
         detrendRun(re.data(), dst.data(), N);
         if (complex) {
             std::vector<double> dst2(N);
             detrendRun(im.data(), dst2.data(), N);
-            Complex *od = out.complexDataMut() + (isRow ? 0 : k * N);
-            for (std::size_t j = 0; j < N; ++j) od[j] = Complex(dst[j], dst2[j]);
+            keel::c64 *od = out.complexDataMut() + (isRow ? 0 : k * N);
+            for (keel::usize j = 0; j < N; ++j) od[j] = keel::c64(dst[j], dst2[j]);
         } else if (single) {
             float *od = out.singleDataMut() + (isRow ? 0 : k * N);
-            for (std::size_t j = 0; j < N; ++j) od[j] = static_cast<float>(dst[j]);
+            for (keel::usize j = 0; j < N; ++j) od[j] = static_cast<float>(dst[j]);
         } else {
             double *od = out.doubleDataMut() + (isRow ? 0 : k * N);
-            for (std::size_t j = 0; j < N; ++j) od[j] = dst[j];
+            for (keel::usize j = 0; j < N; ++j) od[j] = dst[j];
         }
     }
     return out;

@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <memory_resource>
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
 #include <tuple>
@@ -36,8 +37,8 @@ namespace numkit::stats {
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Array of pdf values, same shape as `x`.
 /// @see gevcdf, gevinv, gevrnd, gevstat
-Value gevpdf(const Value &x, double k, double sigma, double mu,
-             std::pmr::memory_resource *mr = nullptr);
+Value gevpdf(const Value &x, keel::f64 k, keel::f64 sigma, keel::f64 mu,
+             keel::Allocator *mr = nullptr);
 
 /// @brief GEV cdf (`p = gevcdf(x, k, sigma, mu)`).
 ///
@@ -48,8 +49,8 @@ Value gevpdf(const Value &x, double k, double sigma, double mu,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Array of cdf values in `[0, 1]`.
 /// @see gevpdf, gevinv
-Value gevcdf(const Value &x, double k, double sigma, double mu,
-             std::pmr::memory_resource *mr = nullptr);
+Value gevcdf(const Value &x, keel::f64 k, keel::f64 sigma, keel::f64 mu,
+             keel::Allocator *mr = nullptr);
 
 /// @brief GEV inverse cdf (`x = gevinv(p, k, sigma, mu)`).
 ///
@@ -60,8 +61,8 @@ Value gevcdf(const Value &x, double k, double sigma, double mu,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Quantile array, same shape as `p`.
 /// @see gevcdf
-Value gevinv(const Value &p, double k, double sigma, double mu,
-             std::pmr::memory_resource *mr = nullptr);
+Value gevinv(const Value &p, keel::f64 k, keel::f64 sigma, keel::f64 mu,
+             keel::Allocator *mr = nullptr);
 
 /// @brief GEV random samples (`r = gevrnd(k, sigma, mu, rows, cols)`).
 ///
@@ -73,9 +74,9 @@ Value gevinv(const Value &p, double k, double sigma, double mu,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `rows × cols` matrix of GEV samples.
 /// @see gevpdf
-Value gevrnd(::numkit::ops::RngContext &rng, double k, double sigma, double mu,
-             size_t rows = 1, size_t cols = 1,
-             std::pmr::memory_resource *mr = nullptr);
+Value gevrnd(::numkit::ops::RngContext &rng, keel::f64 k, keel::f64 sigma, keel::f64 mu,
+             keel::usize rows = 1, keel::usize cols = 1,
+             keel::Allocator *mr = nullptr);
 
 /// @brief GEV mean and variance (`[m, v] = gevstat(k, sigma, mu)`).
 ///
@@ -87,8 +88,8 @@ Value gevrnd(::numkit::ops::RngContext &rng, double k, double sigma, double mu,
 /// @param mu     Location parameter.
 /// @return       `{mean, variance}` pair.
 /// @see gevpdf
-std::tuple<double, double>
-gevstat(double k, double sigma, double mu);
+std::tuple<keel::f64, keel::f64>
+gevstat(keel::f64 k, keel::f64 sigma, keel::f64 mu);
 
 /// @brief GEV MLE fit (`[parmhat, parmci] = gevfit(x, alpha)`).
 ///
@@ -112,7 +113,7 @@ gevstat(double k, double sigma, double mu);
 /// @param mr     Memory resource.
 /// @return       `[khat, sigmahat, muhat]` as a `1 × 3` row.
 /// @see gevpdf, gevlike
-Value gevfit(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value gevfit(const Value &x, keel::Allocator *mr = nullptr);
 
 /// @brief 95% Wald CI for gevfit (`pci = gevfit_ci(x, alpha)`).
 ///
@@ -120,8 +121,8 @@ Value gevfit(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// from the observed Fisher information (central-FD Hessian of NLL).
 /// `k` and `μ` use linear Wald CI; `σ` uses log-scale (MATLAB
 /// convention).
-Value gevfit_ci(const Value &x, double alpha = 0.05,
-                std::pmr::memory_resource *mr = nullptr);
+Value gevfit_ci(const Value &x, keel::f64 alpha = 0.05,
+                keel::Allocator *mr = nullptr);
 
 
 /// @}

@@ -7,7 +7,8 @@
 
 #pragma once
 
-#include <memory_resource>
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
 #include <tuple>
@@ -32,8 +33,8 @@ namespace numkit::stats {
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Array of pdf values, same shape as `x`.
 /// @see normcdf, norminv, normrnd, normstat
-Value normpdf(const Value &x, double mu = 0.0, double sigma = 1.0,
-              std::pmr::memory_resource *mr = nullptr);
+Value normpdf(const Value &x, keel::f64 mu = 0.0, keel::f64 sigma = 1.0,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Normal cdf (`p = normcdf(x, mu, sigma)`).
 ///
@@ -46,8 +47,8 @@ Value normpdf(const Value &x, double mu = 0.0, double sigma = 1.0,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Array of cdf values in `[0, 1]`.
 /// @see normpdf, norminv
-Value normcdf(const Value &x, double mu = 0.0, double sigma = 1.0,
-              std::pmr::memory_resource *mr = nullptr);
+Value normcdf(const Value &x, keel::f64 mu = 0.0, keel::f64 sigma = 1.0,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Normal inverse cdf / quantile (`x = norminv(p, mu, sigma)`).
 ///
@@ -60,8 +61,8 @@ Value normcdf(const Value &x, double mu = 0.0, double sigma = 1.0,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Quantile array, same shape as `p`.
 /// @see normcdf
-Value norminv(const Value &p, double mu = 0.0, double sigma = 1.0,
-              std::pmr::memory_resource *mr = nullptr);
+Value norminv(const Value &p, keel::f64 mu = 0.0, keel::f64 sigma = 1.0,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Normal random samples (`r = normrnd(mu, sigma, rows, cols)`).
 ///
@@ -72,8 +73,8 @@ Value norminv(const Value &p, double mu = 0.0, double sigma = 1.0,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `rows × cols` matrix of normal samples.
 /// @see normpdf
-Value normrnd(::numkit::ops::RngContext &rng, double mu, double sigma, size_t rows = 1, size_t cols = 1,
-              std::pmr::memory_resource *mr = nullptr);
+Value normrnd(::numkit::ops::RngContext &rng, keel::f64 mu, keel::f64 sigma, keel::usize rows = 1, keel::usize cols = 1,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Normal mean and variance (`[m, v] = normstat(mu, sigma)`).
 ///
@@ -83,7 +84,7 @@ Value normrnd(::numkit::ops::RngContext &rng, double mu, double sigma, size_t ro
 /// @param sigma  Standard deviation.
 /// @return       `{mean, variance}` pair.
 /// @see normpdf
-std::tuple<double, double> normstat(double mu, double sigma);
+std::tuple<keel::f64, keel::f64> normstat(keel::f64 mu, keel::f64 sigma);
 
 
 /// @}

@@ -4,10 +4,13 @@
 // Extracted from toolboxes/builtin/src/stats.cpp during the
 // MATLAB-taxonomy refactor — Statistics Toolbox content.
 
+#include <keel/core.h>
+#include <keel/memory.h>
+#include <keel/arena.h>
+#include <keel/array.h>
 #include <numkit/stats/nan_aware/nan_aware.hpp>
 
 #include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
 #include <numkit/value/error.hpp>
 
 #include <numkit/ops/helpers.hpp>
@@ -40,7 +43,7 @@ inline void nanvar_argcheck(int normFlag, const char *fn)
 }
 } // namespace
 
-Value nansum(const Value &x, int dim, std::pmr::memory_resource *mr)
+Value nansum(const Value &x, int dim, keel::Allocator *mr)
 {
     if (x.isEmpty())
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
@@ -49,12 +52,12 @@ Value nansum(const Value &x, int dim, std::pmr::memory_resource *mr)
 
     const int d = resolveDim(x, dim, "nansum");
     return applyAlongDim(x, d,
-        [](size_t, double *slice, size_t n) {
+        [](keel::usize, double *slice, keel::usize n) {
             return nanSumScan(slice, n); // all-NaN → 0
         }, mr);
 }
 
-Value nanmean(const Value &x, int dim, std::pmr::memory_resource *mr)
+Value nanmean(const Value &x, int dim, keel::Allocator *mr)
 {
     if (x.isEmpty())
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
@@ -66,14 +69,14 @@ Value nanmean(const Value &x, int dim, std::pmr::memory_resource *mr)
 
     const int d = resolveDim(x, dim, "nanmean");
     return applyAlongDim(x, d,
-        [](size_t, double *slice, size_t n) {
+        [](keel::usize, double *slice, keel::usize n) {
             const auto r = nanSumCountScan(slice, n);
             return r.count > 0 ? r.sum / static_cast<double>(r.count)
                                : std::nan("");
         }, mr);
 }
 
-Value nanmax(const Value &x, int dim, std::pmr::memory_resource *mr)
+Value nanmax(const Value &x, int dim, keel::Allocator *mr)
 {
     if (x.isEmpty())
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
@@ -82,12 +85,12 @@ Value nanmax(const Value &x, int dim, std::pmr::memory_resource *mr)
 
     const int d = resolveDim(x, dim, "nanmax");
     return applyAlongDim(x, d,
-        [](size_t, double *slice, size_t n) {
+        [](keel::usize, double *slice, keel::usize n) {
             return nanMaxScan(slice, n);
         }, mr);
 }
 
-Value nanmin(const Value &x, int dim, std::pmr::memory_resource *mr)
+Value nanmin(const Value &x, int dim, keel::Allocator *mr)
 {
     if (x.isEmpty())
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
@@ -96,12 +99,12 @@ Value nanmin(const Value &x, int dim, std::pmr::memory_resource *mr)
 
     const int d = resolveDim(x, dim, "nanmin");
     return applyAlongDim(x, d,
-        [](size_t, double *slice, size_t n) {
+        [](keel::usize, double *slice, keel::usize n) {
             return nanMinScan(slice, n);
         }, mr);
 }
 
-Value nanvar(const Value &x, int normFlag, int dim, std::pmr::memory_resource *mr)
+Value nanvar(const Value &x, int normFlag, int dim, keel::Allocator *mr)
 {
     nanvar_argcheck(normFlag, "nanvar");
     if (x.isEmpty())
@@ -111,12 +114,12 @@ Value nanvar(const Value &x, int normFlag, int dim, std::pmr::memory_resource *m
 
     const int d = resolveDim(x, dim, "nanvar");
     return applyAlongDim(x, d,
-        [normFlag](size_t, double *slice, size_t n) {
+        [normFlag](keel::usize, double *slice, keel::usize n) {
             return nanVarianceTwoPass(slice, n, normFlag);
         }, mr);
 }
 
-Value nanstdev(const Value &x, int normFlag, int dim, std::pmr::memory_resource *mr)
+Value nanstdev(const Value &x, int normFlag, int dim, keel::Allocator *mr)
 {
     validateNormFlag(normFlag, "nanstd");
     if (x.isEmpty())
@@ -126,17 +129,17 @@ Value nanstdev(const Value &x, int normFlag, int dim, std::pmr::memory_resource 
 
     const int d = resolveDim(x, dim, "nanstd");
     return applyAlongDim(x, d,
-        [normFlag](size_t, double *slice, size_t n) {
+        [normFlag](keel::usize, double *slice, keel::usize n) {
             return std::sqrt(nanVarianceTwoPass(slice, n, normFlag));
         }, mr);
 }
 
-Value nanmedian(const Value &x, int dim, std::pmr::memory_resource *mr)
+Value nanmedian(const Value &x, int dim, keel::Allocator *mr)
 {
     const int d = resolveDim(x, dim, "nanmedian");
     return applyAlongDim(x, d,
-        [](size_t, double *slice, size_t n) {
-            const size_t k = compactNonNan(slice, n);
+        [](keel::usize, double *slice, keel::usize n) {
+            const keel::usize k = compactNonNan(slice, n);
             return medianFromSlice(slice, k); // returns NaN at k==0
         }, mr);
 }
@@ -148,32 +151,32 @@ Value nanmedian(const Value &x, int dim, std::pmr::memory_resource *mr)
 // covariance. `'pairwise'` mode is a documented v1 gap.
 
 
-Value nancov(const Value &x, int normFlag, std::pmr::memory_resource *mr)
+Value nancov(const Value &x, int normFlag, keel::Allocator *mr)
 {
     validateNormFlag(normFlag, "nancov");
     if (x.isEmpty())
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
 
-    ScratchArena scratch(mr);
-    ScratchVec<double> raw(&scratch);
-    std::size_t n_orig = 0, p = 0;
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    keel::Array<double> raw(scratch.allocator());
+    keel::usize n_orig = 0, p = 0;
     readObsMatrix(x, raw, n_orig, p);
 
     // Drop NaN-containing rows. We can do this in-place on `raw` since
     // dropNanRows compacts within each column down to row index w-1.
-    const std::size_t n_kept = dropNanRows(raw.data(), n_orig, p);
+    const keel::usize n_kept = dropNanRows(raw.data(), n_orig, p);
 
     if (n_kept == 0) {
         // All rows dropped → MATLAB returns NaN-filled p×p (or scalar NaN for vector).
         if (p == 1) return Value::scalar(std::nan(""), mr);
         auto out = Value::matrix(p, p, ValueType::DOUBLE, mr);
         double *d = out.doubleDataMut();
-        for (std::size_t k = 0; k < p * p; ++k) d[k] = std::nan("");
+        for (keel::usize k = 0; k < p * p; ++k) d[k] = std::nan("");
         return out;
     }
 
     // Pack the kept rows into a tight n_kept × p layout.
-    ScratchVec<double> tight(n_kept * p, &scratch);
+    keel::Array<double> tight(n_kept * p, scratch.allocator());
     packKeptRows(raw.data(), n_orig, n_kept, p, tight.data());
 
     centerColumnsLocal(tight.data(), n_kept, p);
@@ -183,7 +186,7 @@ Value nancov(const Value &x, int normFlag, std::pmr::memory_resource *mr)
 
     if (p == 1) {
         double s = 0.0;
-        for (std::size_t i = 0; i < n_kept; ++i)
+        for (keel::usize i = 0; i < n_kept; ++i)
             s += tight[i] * tight[i];
         return Value::scalar(s / divisor, mr);
     }
@@ -191,7 +194,7 @@ Value nancov(const Value &x, int normFlag, std::pmr::memory_resource *mr)
 }
 
 Value nancov(const Value &x, const Value &y, int normFlag,
-             std::pmr::memory_resource *mr)
+             keel::Allocator *mr)
 {
     validateNormFlag(normFlag, "nancov");
     if (!x.dims().isVector() || !y.dims().isVector())
@@ -201,24 +204,24 @@ Value nancov(const Value &x, const Value &y, int normFlag,
         throw Error("nancov: x and y must have the same length",
                     0, 0, "nancov", "", "numkit:nancov:lengthMismatch");
 
-    const std::size_t n = x.numel();
+    const keel::usize n = x.numel();
     if (n == 0)
         return Value::matrix(2, 2, ValueType::DOUBLE, mr);
 
-    ScratchArena scratch(mr);
-    auto data = ScratchVec<double>(n * 2, &scratch);
-    for (std::size_t i = 0; i < n; ++i) {
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    auto data = keel::Array<double>(n * 2, scratch.allocator());
+    for (keel::usize i = 0; i < n; ++i) {
         data[i]       = x.elemAsDouble(i);      // column 0
         data[n + i]   = y.elemAsDouble(i);      // column 1
     }
-    const std::size_t n_kept = dropNanRows(data.data(), n, 2);
+    const keel::usize n_kept = dropNanRows(data.data(), n, 2);
     if (n_kept == 0) {
         auto out = Value::matrix(2, 2, ValueType::DOUBLE, mr);
         double *d = out.doubleDataMut();
-        for (std::size_t k = 0; k < 4; ++k) d[k] = std::nan("");
+        for (keel::usize k = 0; k < 4; ++k) d[k] = std::nan("");
         return out;
     }
-    ScratchVec<double> tight(n_kept * 2, &scratch);
+    keel::Array<double> tight(n_kept * 2, scratch.allocator());
     packKeptRows(data.data(), n, n_kept, 2, tight.data());
     centerColumnsLocal(tight.data(), n_kept, 2);
     const double divisor = (normFlag == 0)

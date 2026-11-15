@@ -5,6 +5,8 @@
 // (b^a · Γ(a)). cdf composes gammainc on x/b; icdf uses gammaincinv;
 // rnd uses MATLAB-exact Marsaglia-Tsang on RngContext.
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/distributions/gamma_dist.hpp>
 
 #include <numkit/builtin/datafun.hpp>
@@ -60,7 +62,7 @@ inline bool gam_argcheck(double a, double b) noexcept
 }
 } // namespace
 
-Value gampdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
+Value gampdf(const Value &x, double a, double b, keel::Allocator *mr)
 {
     // Reference convention: a<0 or b<=0 → NaN; a==0 → 0 (degenerate, all mass at 0).
     if (!gam_argcheck(a, b)) {
@@ -86,7 +88,7 @@ Value gampdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
     }, mr);
 }
 
-Value gamcdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
+Value gamcdf(const Value &x, double a, double b, keel::Allocator *mr)
 {
     if (a <= 0.0 || b <= 0.0)
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -97,7 +99,7 @@ Value gamcdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
     return ::numkit::builtin::gammainc(xs, av, mr);
 }
 
-Value gaminv(const Value &p, double a, double b, std::pmr::memory_resource *mr)
+Value gaminv(const Value &p, double a, double b, keel::Allocator *mr)
 {
     // MATLAB: a<0 / b<=0 → NaN; a==0 → 0 for p∈[0,1] (degenerate quantile = 0).
     if (a < 0.0 || b <= 0.0)
@@ -112,32 +114,32 @@ Value gaminv(const Value &p, double a, double b, std::pmr::memory_resource *mr)
     return elementwise(q, [=](double qi){ return b * qi; }, mr);
 }
 
-Value gamrnd(::numkit::ops::RngContext &rng, double a, double b, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value gamrnd(::numkit::ops::RngContext &rng, double a, double b, keel::usize rows, keel::usize cols, keel::Allocator *mr)
 {
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (a <= 0.0 || b <= 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
-    const size_t n = rows * cols;
-    for (size_t i = 0; i < n; ++i) od[i] = b * sampleGamma1(rng, a);
+    const keel::usize n = rows * cols;
+    for (keel::usize i = 0; i < n; ++i) od[i] = b * sampleGamma1(rng, a);
     return out;
 }
 
-Value randg(::numkit::ops::RngContext &rng, double shape, size_t rows, size_t cols,
-            std::pmr::memory_resource *mr)
+Value randg(::numkit::ops::RngContext &rng, double shape, keel::usize rows, keel::usize cols,
+            keel::Allocator *mr)
 {
     // randg(shape) ≡ gamrnd(shape, 1, rows, cols) — pure scale = 1.
     return gamrnd(rng, shape, 1.0, rows, cols, mr);
 }
 
-Value randg(::numkit::ops::RngContext &rng, const Value &shapeArray, std::pmr::memory_resource *mr)
+Value randg(::numkit::ops::RngContext &rng, const Value &shapeArray, keel::Allocator *mr)
 {
-    const std::size_t rows = shapeArray.dims().rows();
-    const std::size_t cols = shapeArray.dims().cols();
+    const keel::usize rows = shapeArray.dims().rows();
+    const keel::usize cols = shapeArray.dims().cols();
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
-    const std::size_t n = rows * cols;
+    const keel::usize n = rows * cols;
     if (n == 0) return out;
     double *od = out.doubleDataMut();
-    for (std::size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const double a = shapeArray.elemAsDouble(i);
         od[i] = sampleGamma1(rng, a);
     }

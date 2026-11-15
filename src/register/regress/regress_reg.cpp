@@ -3,6 +3,8 @@
 // CallContext register half of regress/regress.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
+#include <keel/core.h>
+#include <keel/ref.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/distributions/fisher_f.hpp>
 #include <numkit/stats/distributions/students_t.hpp>
@@ -11,14 +13,11 @@
 #include <numkit/value/value.hpp>
 #include "regress/regress_detail.hpp"
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <complex>
 #include <cstddef>
 #include <string>
 #include <tuple>
@@ -29,13 +28,13 @@ namespace numkit::stats {
 
 namespace detail {
 
-void regress_reg(Span<const Value> args, size_t nargout,
-                 Span<Value> outs, CallContext &ctx)
+void regress_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                 keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 3, "regress");
     const double alpha = (args.size() >= 3 && !args[2].isEmpty())
                          ? args[2].toScalar() : 0.05;
-    auto [b, bint, r, rint, stats] = regress_full(args[0], args[1], alpha, ctx.engine->resource());
+    auto [b, bint, r, rint, stats] = regress_full(args[0], args[1], alpha, ctx.engine->allocator());
     outs[0] = std::move(b);
     if (nargout > 1) outs[1] = std::move(bint);
     if (nargout > 2) outs[2] = std::move(r);
@@ -43,22 +42,22 @@ void regress_reg(Span<const Value> args, size_t nargout,
     if (nargout > 4) outs[4] = std::move(stats);
 }
 
-void ridge_reg(Span<const Value> args, size_t /*nargout*/,
-               Span<Value> outs, CallContext &ctx)
+void ridge_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
+               keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 3, 4, "ridge");
     // Marshalling only — the scaling-flag / row / column-vector gates
     // and the missing-value removal live in ridge_full.
     const Value flag = (args.size() >= 4) ? args[3] : Value();
     outs[0] = ridge_full(args[0], args[1], args[2], flag,
-                         ctx.engine->resource());
+                         ctx.engine->allocator());
 }
 
-void lscov_reg(Span<const Value> args, size_t nargout,
-               Span<Value> outs, CallContext &ctx)
+void lscov_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+               keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 4, "lscov");
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     Value w_empty = Value::matrix(0, 0, ValueType::DOUBLE, mr);
     const Value &w = (args.size() >= 3) ? args[2] : w_empty;
     auto [x, stdx, mse, S] = lscov(args[0], args[1], w, mr);

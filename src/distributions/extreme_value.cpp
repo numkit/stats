@@ -1,5 +1,7 @@
 // toolboxes/stats/src/distributions/extreme_value.cpp
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/distributions/extreme_value.hpp>
 
 #include <numkit/builtin/datafun.hpp>
@@ -25,7 +27,7 @@ inline bool ev_argcheck(double sigma) noexcept
 }
 } // namespace
 
-Value evpdf(const Value &x, double mu, double sigma, std::pmr::memory_resource *mr)
+Value evpdf(const Value &x, double mu, double sigma, keel::Allocator *mr)
 {
     if (!ev_argcheck(sigma))
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -36,7 +38,7 @@ Value evpdf(const Value &x, double mu, double sigma, std::pmr::memory_resource *
     }, mr);
 }
 
-Value evcdf(const Value &x, double mu, double sigma, std::pmr::memory_resource *mr)
+Value evcdf(const Value &x, double mu, double sigma, keel::Allocator *mr)
 {
     if (sigma <= 0.0)
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -46,7 +48,7 @@ Value evcdf(const Value &x, double mu, double sigma, std::pmr::memory_resource *
     }, mr);
 }
 
-Value evinv(const Value &p, double mu, double sigma, std::pmr::memory_resource *mr)
+Value evinv(const Value &p, double mu, double sigma, keel::Allocator *mr)
 {
     if (sigma <= 0.0)
         return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -59,14 +61,14 @@ Value evinv(const Value &p, double mu, double sigma, std::pmr::memory_resource *
     }, mr);
 }
 
-Value evrnd(::numkit::ops::RngContext &rng, double mu, double sigma, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value evrnd(::numkit::ops::RngContext &rng, double mu, double sigma, keel::usize rows, keel::usize cols, keel::Allocator *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (sigma <= 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
-    const size_t n = rows * cols;
-    for (size_t i = 0; i < n; ++i) {
+    const keel::usize n = rows * cols;
+    for (keel::usize i = 0; i < n; ++i) {
         // genRes53 — MATLAB-canonical 53-bit uniform in [0, 1). Direct
         // call (bypasses std::uniform_real_distribution whose uint32->
         // double mapping is implementation-defined and breaks parity).

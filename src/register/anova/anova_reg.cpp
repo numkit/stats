@@ -3,6 +3,8 @@
 // CallContext register half of anova/anova.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
+#include <keel/core.h>
+#include <keel/ref.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/anova/anova.hpp>
 #include <numkit/stats/distributions/chi2.hpp>
@@ -12,13 +14,10 @@
 #include <numkit/value/value.hpp>
 #include "anova/anova_detail.hpp"
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <complex>
 #include <cstddef>
 #include <string>
 #include <tuple>
@@ -29,11 +28,11 @@ namespace numkit::stats {
 
 namespace detail {
 
-void anova1_reg(Span<const Value> args, size_t nargout,
-                Span<Value> outs, CallContext &ctx)
+void anova1_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 4, "anova1");
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
 
     // Two input forms:
     //   anova1(y, group)  — y vector, group is the grouping variable
@@ -45,14 +44,14 @@ void anova1_reg(Span<const Value> args, size_t nargout,
     const Value *yp = nullptr, *gp = nullptr;
     if (args[0].dims().rows() > 1 && args[0].dims().cols() > 1) {
         const Value &X = args[0];
-        const size_t R = X.dims().rows(), C = X.dims().cols();
+        const keel::usize R = X.dims().rows(), C = X.dims().cols();
         yStore = Value::matrix(R * C, 1, ValueType::DOUBLE, mr);
         gStore = Value::matrix(R * C, 1, ValueType::DOUBLE, mr);
         double *yd = yStore.doubleDataMut();
         double *gd = gStore.doubleDataMut();
-        size_t k = 0;
-        for (size_t c = 0; c < C; ++c)
-            for (size_t r = 0; r < R; ++r) {
+        keel::usize k = 0;
+        for (keel::usize c = 0; c < C; ++c)
+            for (keel::usize r = 0; r < R; ++r) {
                 yd[k] = X.elemAsDouble(c * R + r);
                 gd[k] = static_cast<double>(c + 1);
                 ++k;
@@ -77,7 +76,7 @@ void anova1_reg(Span<const Value> args, size_t nargout,
         const double nan = std::numeric_limits<double>::quiet_NaN();
         auto strV = [&](const char *s){ return Value::fromString(s, mr); };
         auto numV = [&](double v){ return Value::scalar(v, mr); };
-        auto setCell = [&](size_t r, size_t c, const Value &v) {
+        auto setCell = [&](keel::usize r, keel::usize c, const Value &v) {
             // column-major linear index for 4×6 cell: r + c*4
             tbl.cellAt(r + c * 4) = v;
         };
@@ -113,7 +112,7 @@ void anova1_reg(Span<const Value> args, size_t nargout,
         // we only do it here, when the third output is actually
         // requested.
         auto buckets = bucket(*yp, *gp);
-        const std::size_t K = buckets.size();
+        const keel::usize K = buckets.size();
         // means + per-group sizes.
         Value meansV = Value::matrix(K, 1, ValueType::DOUBLE, mr);
         Value nV     = Value::matrix(K, 1, ValueType::DOUBLE, mr);
@@ -122,10 +121,10 @@ void anova1_reg(Span<const Value> args, size_t nargout,
         double *nD = nV.doubleDataMut();
         double *gD = gnamesV.doubleDataMut();
         double sse = 0.0;
-        std::size_t total = 0;
-        for (std::size_t k = 0; k < K; ++k) {
+        keel::usize total = 0;
+        for (keel::usize k = 0; k < K; ++k) {
             const auto &g = buckets[k];
-            const std::size_t ng = g.values.size();
+            const keel::usize ng = g.values.size();
             double sum = 0.0;
             for (double x : g.values) sum += x;
             const double m = (ng > 0) ? sum / static_cast<double>(ng) : 0.0;
@@ -154,11 +153,11 @@ void anova1_reg(Span<const Value> args, size_t nargout,
     }
 }
 
-void kruskalwallis_reg(Span<const Value> args, size_t nargout,
-                       Span<Value> outs, CallContext &ctx)
+void kruskalwallis_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                       keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 3, "kruskalwallis");
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
 
     // Matrix-only form: when group is omitted (or the 2nd arg is the
     // 'off'/'on' display flag string), infer groups from columns. Build
@@ -166,7 +165,7 @@ void kruskalwallis_reg(Span<const Value> args, size_t nargout,
     Value yArg = args[0];
     Value gArg;
     bool haveExplicitGroup = false;
-    size_t flagPos = 1;
+    keel::usize flagPos = 1;
     if (args.size() >= 2 && !args[1].isChar() && !args[1].isString()
         && !args[1].isEmpty()) {
         gArg = args[1];
@@ -175,13 +174,13 @@ void kruskalwallis_reg(Span<const Value> args, size_t nargout,
     }
     if (!haveExplicitGroup && !args[0].dims().isVector() && !args[0].isScalar()) {
         const auto &dd = args[0].dims();
-        const size_t R = dd.rows(), C = dd.cols();
+        const keel::usize R = dd.rows(), C = dd.cols();
         Value yFlat = Value::matrix(R * C, 1, ValueType::DOUBLE, mr);
         Value gFlat = Value::matrix(R * C, 1, ValueType::DOUBLE, mr);
         double *yp = yFlat.doubleDataMut();
         double *gp = gFlat.doubleDataMut();
-        for (size_t c = 0; c < C; ++c)
-            for (size_t r = 0; r < R; ++r) {
+        for (keel::usize c = 0; c < C; ++c)
+            for (keel::usize r = 0; r < R; ++r) {
                 yp[c * R + r] = args[0].elemAsDouble(c * R + r);
                 gp[c * R + r] = static_cast<double>(c + 1);
             }
@@ -202,7 +201,7 @@ void kruskalwallis_reg(Span<const Value> args, size_t nargout,
         const double nan = std::numeric_limits<double>::quiet_NaN();
         auto strV = [&](const char *s){ return Value::fromString(s, mr); };
         auto numV = [&](double v){ return Value::scalar(v, mr); };
-        auto setCell = [&](size_t r, size_t c, const Value &v) {
+        auto setCell = [&](keel::usize r, keel::usize c, const Value &v) {
             tbl.cellAt(r + c * 4) = v;
         };
         setCell(0, 0, strV("Source"));
@@ -218,37 +217,37 @@ void kruskalwallis_reg(Span<const Value> args, size_t nargout,
         setCell(1, 4, H);
         setCell(1, 5, p);
         setCell(2, 0, strV("Error"));
-        for (size_t c = 1; c < 6; ++c) setCell(2, c, numV(nan));
+        for (keel::usize c = 1; c < 6; ++c) setCell(2, c, numV(nan));
         setCell(3, 0, strV("Total"));
-        for (size_t c = 1; c < 6; ++c) setCell(3, c, numV(nan));
+        for (keel::usize c = 1; c < 6; ++c) setCell(3, c, numV(nan));
         outs[1] = std::move(tbl);
     }
     if (nargout > 2) {
         // Compute per-group n[] and meanRanks[] for the documented stats
         // struct shape {gnames, n, source, meanranks, sumt}.
-        const size_t N = yArg.numel();
-        struct Pair { double v; size_t idx; double g; };
+        const keel::usize N = yArg.numel();
+        struct Pair { double v; keel::usize idx; double g; };
         std::vector<Pair> all;
         all.reserve(N);
-        for (size_t i = 0; i < N; ++i) {
+        for (keel::usize i = 0; i < N; ++i) {
             const double v = yArg.elemAsDouble(i);
             const double g = gArg.elemAsDouble(i);
             if (std::isnan(v) || std::isnan(g)) continue;
             all.push_back({v, i, g});
         }
-        const size_t M = all.size();
-        std::vector<size_t> ord(M);
-        for (size_t i = 0; i < M; ++i) ord[i] = i;
+        const keel::usize M = all.size();
+        std::vector<keel::usize> ord(M);
+        for (keel::usize i = 0; i < M; ++i) ord[i] = i;
         std::sort(ord.begin(), ord.end(),
-                  [&](size_t a, size_t b){ return all[a].v < all[b].v; });
+                  [&](keel::usize a, keel::usize b){ return all[a].v < all[b].v; });
         std::vector<double> rk(M);
-        std::vector<size_t> tieSizes;
-        size_t i = 0;
+        std::vector<keel::usize> tieSizes;
+        keel::usize i = 0;
         while (i < M) {
-            size_t j = i + 1;
+            keel::usize j = i + 1;
             while (j < M && all[ord[j]].v == all[ord[i]].v) ++j;
             const double avg = static_cast<double>(i + j + 1) / 2.0;
-            for (size_t k = i; k < j; ++k) rk[ord[k]] = avg;
+            for (keel::usize k = i; k < j; ++k) rk[ord[k]] = avg;
             if (j - i > 1) tieSizes.push_back(j - i);
             i = j;
         }
@@ -258,17 +257,17 @@ void kruskalwallis_reg(Span<const Value> args, size_t nargout,
         for (auto &p : all) uniq.push_back(p.g);
         std::sort(uniq.begin(), uniq.end());
         uniq.erase(std::unique(uniq.begin(), uniq.end()), uniq.end());
-        const size_t K = uniq.size();
-        std::vector<size_t> n(K, 0);
+        const keel::usize K = uniq.size();
+        std::vector<keel::usize> n(K, 0);
         std::vector<double> sumR(K, 0.0);
-        for (size_t k = 0; k < M; ++k) {
+        for (keel::usize k = 0; k < M; ++k) {
             auto it = std::lower_bound(uniq.begin(), uniq.end(), all[k].g);
-            const size_t gi = static_cast<size_t>(it - uniq.begin());
+            const keel::usize gi = static_cast<keel::usize>(it - uniq.begin());
             n[gi] += 1;
             sumR[gi] += rk[k];
         }
         double sumt = 0.0;
-        for (size_t t : tieSizes) {
+        for (keel::usize t : tieSizes) {
             const double td = static_cast<double>(t);
             sumt += td * td * td - td;
         }
@@ -276,7 +275,7 @@ void kruskalwallis_reg(Span<const Value> args, size_t nargout,
         Value nVec = Value::matrix(K, 1, ValueType::DOUBLE, mr);
         Value mrVec = Value::matrix(K, 1, ValueType::DOUBLE, mr);
         Value gnames = Value::cell(K, 1, mr);
-        for (size_t k = 0; k < K; ++k) {
+        for (keel::usize k = 0; k < K; ++k) {
             nVec.doubleDataMut()[k] = static_cast<double>(n[k]);
             mrVec.doubleDataMut()[k] = (n[k] > 0) ? sumR[k] / static_cast<double>(n[k]) : 0.0;
             // gnames as decimal string of the label (matches MATLAB)
@@ -297,15 +296,15 @@ void kruskalwallis_reg(Span<const Value> args, size_t nargout,
     }
 }
 
-void dummyvar_reg(Span<const Value> args, size_t /*nargout*/,
-                  Span<Value> outs, CallContext &ctx)
+void dummyvar_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
+                  keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 1, "dummyvar");
-    outs[0] = dummyvar(args[0], ctx.engine->resource());
+    outs[0] = dummyvar(args[0], ctx.engine->allocator());
 }
 
-void anova2_reg(Span<const Value> args, size_t nargout,
-                Span<Value> outs, CallContext &ctx)
+void anova2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 3, "anova2");
     int reps = 1;
@@ -314,18 +313,18 @@ void anova2_reg(Span<const Value> args, size_t nargout,
         reps = argcheck::expectedPositiveInteger(
             argcheck::expectedReal(args[1], 2, "reps", "anova2"), 2, "reps", "anova2");
     }
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     const Value &Y = args[0];
     if (Y.dims().ndim() != 2)
         throw Error("anova2: input must be a 2D matrix",
                     0, 0, "anova2", "", "numkit:anova2:notMatrix");
-    const std::size_t M = Y.dims().rows();
-    const std::size_t c = Y.dims().cols();
-    const std::size_t R = static_cast<std::size_t>(reps);
+    const keel::usize M = Y.dims().rows();
+    const keel::usize c = Y.dims().cols();
+    const keel::usize R = static_cast<keel::usize>(reps);
     if (c < 2 || M < 2 * R || (M % R) != 0)
         throw Error("anova2: row count must be an integer multiple (>= 2) of reps and columns >= 2",
                     0, 0, "anova2", "", "numkit:anova2:tooSmall");
-    const std::size_t r = M / R;
+    const keel::usize r = M / R;
     const double nan = std::numeric_limits<double>::quiet_NaN();
 
     double pCols = nan, pRows = nan, pInter = nan;
@@ -335,9 +334,9 @@ void anova2_reg(Span<const Value> args, size_t nargout,
 
     std::vector<double> rowMean(r, 0.0), colMean(c, 0.0);
     double grandSum = 0.0;
-    for (std::size_t j = 0; j < c; ++j) {
-        for (std::size_t i = 0; i < r; ++i) {
-            for (std::size_t k = 0; k < R; ++k) {
+    for (keel::usize j = 0; j < c; ++j) {
+        for (keel::usize i = 0; i < r; ++i) {
+            for (keel::usize k = 0; k < R; ++k) {
                 const double v = Y.elemAsDouble((i * R + k) + j * M);
                 rowMean[i] += v;
                 colMean[j] += v;
@@ -347,9 +346,9 @@ void anova2_reg(Span<const Value> args, size_t nargout,
     }
     const double N = static_cast<double>(r * c * R);
     const double grandMean = grandSum / N;
-    for (std::size_t i = 0; i < r; ++i)
+    for (keel::usize i = 0; i < r; ++i)
         rowMean[i] /= static_cast<double>(c * R);
-    for (std::size_t j = 0; j < c; ++j)
+    for (keel::usize j = 0; j < c; ++j)
         colMean[j] /= static_cast<double>(r * R);
 
     if (R == 1) {
@@ -357,28 +356,28 @@ void anova2_reg(Span<const Value> args, size_t nargout,
             anova2(Y, mr);
     } else {
         std::vector<double> cellMean(r * c, 0.0);
-        for (std::size_t j = 0; j < c; ++j) {
-            for (std::size_t i = 0; i < r; ++i) {
+        for (keel::usize j = 0; j < c; ++j) {
+            for (keel::usize i = 0; i < r; ++i) {
                 double s = 0.0;
-                for (std::size_t k = 0; k < R; ++k)
+                for (keel::usize k = 0; k < R; ++k)
                     s += Y.elemAsDouble((i * R + k) + j * M);
                 cellMean[i + j * r] = s / static_cast<double>(R);
             }
         }
-        for (std::size_t i = 0; i < r; ++i) {
+        for (keel::usize i = 0; i < r; ++i) {
             const double d = rowMean[i] - grandMean;
             ssR += static_cast<double>(c * R) * d * d;
         }
-        for (std::size_t j = 0; j < c; ++j) {
+        for (keel::usize j = 0; j < c; ++j) {
             const double d = colMean[j] - grandMean;
             ssC += static_cast<double>(r * R) * d * d;
         }
-        for (std::size_t j = 0; j < c; ++j) {
-            for (std::size_t i = 0; i < r; ++i) {
+        for (keel::usize j = 0; j < c; ++j) {
+            for (keel::usize i = 0; i < r; ++i) {
                 const double cm = cellMean[i + j * r];
                 const double di = cm - rowMean[i] - colMean[j] + grandMean;
                 ssI += static_cast<double>(R) * di * di;
-                for (std::size_t k = 0; k < R; ++k) {
+                for (keel::usize k = 0; k < R; ++k) {
                     const double de = Y.elemAsDouble((i * R + k) + j * M) - cm;
                     ssE += de * de;
                 }
@@ -413,11 +412,11 @@ void anova2_reg(Span<const Value> args, size_t nargout,
     outs[0] = std::move(pV);
 
     if (nargout > 1) {
-        const std::size_t tblRows = (R > 1) ? 6 : 5;
+        const keel::usize tblRows = (R > 1) ? 6 : 5;
         Value tbl = Value::cell(tblRows, 6, mr);
         auto strV = [&](const char *s){ return Value::fromString(s, mr); };
         auto numV = [&](double v){ return Value::scalar(v, mr); };
-        auto setCell = [&](size_t rr, size_t cc, const Value &v) {
+        auto setCell = [&](keel::usize rr, keel::usize cc, const Value &v) {
             tbl.cellAt(rr + cc * tblRows) = v;
         };
         setCell(0, 0, strV("Source"));
@@ -438,7 +437,7 @@ void anova2_reg(Span<const Value> args, size_t nargout,
         setCell(2, 3, numV(dfR > 0 ? ssR / dfR : nan));
         setCell(2, 4, numV(Fr));
         setCell(2, 5, numV(pRows));
-        std::size_t errRow = 3;
+        keel::usize errRow = 3;
         if (R > 1) {
             setCell(3, 0, strV("Interaction"));
             setCell(3, 1, numV(ssI));
@@ -464,10 +463,10 @@ void anova2_reg(Span<const Value> args, size_t nargout,
     }
     if (nargout > 2) {
         Value colMeansV = Value::matrix(1, c, ValueType::DOUBLE, mr);
-        for (std::size_t j = 0; j < c; ++j)
+        for (keel::usize j = 0; j < c; ++j)
             colMeansV.doubleDataMut()[j] = colMean[j];
         Value rowMeansV = Value::matrix(1, r, ValueType::DOUBLE, mr);
-        for (std::size_t i = 0; i < r; ++i)
+        for (keel::usize i = 0; i < r; ++i)
             rowMeansV.doubleDataMut()[i] = rowMean[i];
         Value s = Value::structure(mr);
         s.field("source")   = Value::fromString("anova2", mr);
@@ -483,11 +482,11 @@ void anova2_reg(Span<const Value> args, size_t nargout,
     }
 }
 
-void friedman_reg(Span<const Value> args, size_t nargout,
-                  Span<Value> outs, CallContext &ctx)
+void friedman_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                  keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 3, "friedman");
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
 
     // reps: numeric 2nd arg (default 1). A char 2nd/3rd arg is the
     // 'off'/'on' display flag — accepted and ignored.

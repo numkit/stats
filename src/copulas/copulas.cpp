@@ -10,6 +10,8 @@
 //   • Cherubini, Luciano & Vecchiato, "Copula Methods in Finance"
 //     (Wiley, 2004).
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/copulas/copulas.hpp>
 #include <numkit/stats/distributions/normal.hpp>
 #include <numkit/stats/distributions/students_t.hpp>
@@ -32,10 +34,10 @@ namespace {
 
 // Validate U is n × d and extract (n, d). Throws on bad shape /
 // out-of-range values.
-std::pair<std::size_t, std::size_t>
-copula_U_argcheck(const Value &U, std::size_t d_expected, const char *fn)
+std::pair<keel::usize, keel::usize>
+copula_U_argcheck(const Value &U, keel::usize d_expected, const char *fn)
 {
-    std::size_t n, d;
+    keel::usize n, d;
     if (U.isScalar()) {
         if (d_expected != 1)
             throw Error(std::string(fn) + ": U has wrong shape",
@@ -50,7 +52,7 @@ copula_U_argcheck(const Value &U, std::size_t d_expected, const char *fn)
         throw Error(std::string(fn) + ": U has " + std::to_string(d)
                   + " columns, expected " + std::to_string(d_expected),
                     0, 0, fn, "", std::string("numkit:") + fn + ":dimU");
-    for (std::size_t i = 0; i < n * d; ++i) {
+    for (keel::usize i = 0; i < n * d; ++i) {
         const double v = U.elemAsDouble(i);
         if (!(v > 0.0 && v < 1.0))
             throw Error(std::string(fn) + ": U entries must lie in (0, 1)",
@@ -83,19 +85,19 @@ double extract_rho_2x2(const Value &R, const char *fn)
 }
 
 // Generic R validation + dimension extraction (any d ≥ 2).
-std::size_t check_R_dim(const Value &R, const char *fn)
+keel::usize check_R_dim(const Value &R, const char *fn)
 {
     if (R.dims().rows() != R.dims().cols() || R.dims().rows() < 2)
         throw Error(std::string(fn) + ": R must be a square d × d "
                     "matrix with d ≥ 2",
                     0, 0, fn, "", std::string("numkit:") + fn + ":dimR");
-    const std::size_t d = R.dims().rows();
+    const keel::usize d = R.dims().rows();
     // Diagonal must be 1; matrix must be symmetric.
-    for (std::size_t i = 0; i < d; ++i) {
+    for (keel::usize i = 0; i < d; ++i) {
         if (std::fabs(R.elemAsDouble(i * d + i) - 1.0) > 1e-9)
             throw Error(std::string(fn) + ": R must have unit diagonal",
                         0, 0, fn, "", std::string("numkit:") + fn + ":Rdiag");
-        for (std::size_t j = i + 1; j < d; ++j) {
+        for (keel::usize j = i + 1; j < d; ++j) {
             if (std::fabs(R.elemAsDouble(j * d + i) - R.elemAsDouble(i * d + j))
                 > 1e-9)
                 throw Error(std::string(fn) + ": R must be symmetric",
@@ -106,12 +108,12 @@ std::size_t check_R_dim(const Value &R, const char *fn)
 }
 
 // In-place Cholesky (lower) of R (row-major). Returns det R via diag product.
-double chol_lower_inplace(double *R, std::size_t d, const char *fn)
+double chol_lower_inplace(double *R, keel::usize d, const char *fn)
 {
     double det = 1.0;
-    for (std::size_t j = 0; j < d; ++j) {
+    for (keel::usize j = 0; j < d; ++j) {
         double diag = R[j * d + j];
-        for (std::size_t k = 0; k < j; ++k)
+        for (keel::usize k = 0; k < j; ++k)
             diag -= R[j * d + k] * R[j * d + k];
         if (!(diag > 0.0))
             throw Error(std::string(fn) + ": R must be positive definite",
@@ -119,50 +121,50 @@ double chol_lower_inplace(double *R, std::size_t d, const char *fn)
         const double Ljj = std::sqrt(diag);
         R[j * d + j] = Ljj;
         det *= diag;
-        for (std::size_t i = j + 1; i < d; ++i) {
+        for (keel::usize i = j + 1; i < d; ++i) {
             double s = R[i * d + j];
-            for (std::size_t k = 0; k < j; ++k)
+            for (keel::usize k = 0; k < j; ++k)
                 s -= R[i * d + k] * R[j * d + k];
             R[i * d + j] = s / Ljj;
         }
-        for (std::size_t k = j + 1; k < d; ++k) R[j * d + k] = 0.0;
+        for (keel::usize k = j + 1; k < d; ++k) R[j * d + k] = 0.0;
     }
     return det;
 }
 
 // Solve L · y = b in place; L row-major lower-tri.
-void chol_lower_solve(const double *L, double *y, std::size_t d)
+void chol_lower_solve(const double *L, double *y, keel::usize d)
 {
-    for (std::size_t i = 0; i < d; ++i) {
+    for (keel::usize i = 0; i < d; ++i) {
         double s = y[i];
-        for (std::size_t k = 0; k < i; ++k) s -= L[i * d + k] * y[k];
+        for (keel::usize k = 0; k < i; ++k) s -= L[i * d + k] * y[k];
         y[i] = s / L[i * d + i];
     }
 }
 
 // Scalar Φ^{-1} via norminv.
-inline double phi_inv(double u, std::pmr::memory_resource *mr)
+inline double phi_inv(double u, keel::Allocator *mr)
 {
     Value uv = Value::scalar(u, mr);
     return norminv(uv, 0.0, 1.0, mr).toScalar();
 }
 
 // Scalar Φ via normcdf.
-inline double phi_cdf(double z, std::pmr::memory_resource *mr)
+inline double phi_cdf(double z, keel::Allocator *mr)
 {
     Value zv = Value::scalar(z, mr);
     return normcdf(zv, 0.0, 1.0, mr).toScalar();
 }
 
 // Scalar t-inv via tinv.
-inline double t_inv(double u, double nu, std::pmr::memory_resource *mr)
+inline double t_inv(double u, double nu, keel::Allocator *mr)
 {
     Value uv = Value::scalar(u, mr);
     return tinv(uv, nu, mr).toScalar();
 }
 
 // Scalar t-cdf via tcdf.
-inline double t_cdf(double z, double nu, std::pmr::memory_resource *mr)
+inline double t_cdf(double z, double nu, keel::Allocator *mr)
 {
     Value zv = Value::scalar(z, mr);
     return tcdf(zv, nu, mr).toScalar();
@@ -219,10 +221,10 @@ double bivtcdf(double a, double b, double rho, double nu)
 {
     // Delegate to mvtcdf which already has a deterministic MC path.
     // Build X = [a b] and C = [[1 ρ];[ρ 1]].
-    const std::size_t d = 2;
+    const keel::usize d = 2;
     std::vector<double> Cmat = {1.0, rho, rho, 1.0};   // col-major
     Value Cval = Value::matrix(2, 2, ValueType::DOUBLE, nullptr);
-    for (std::size_t i = 0; i < 4; ++i) Cval.doubleDataMut()[i] = Cmat[i];
+    for (keel::usize i = 0; i < 4; ++i) Cval.doubleDataMut()[i] = Cmat[i];
     Value Xval = Value::matrix(1, 2, ValueType::DOUBLE, nullptr);
     Xval.doubleDataMut()[0] = a;
     Xval.doubleDataMut()[1] = b;
@@ -231,13 +233,13 @@ double bivtcdf(double a, double b, double rho, double nu)
 }
 
 // Output helper: allocate n × 1.
-Value make_out(std::size_t n, std::pmr::memory_resource *mr)
+Value make_out(keel::usize n, keel::Allocator *mr)
 {
     return Value::matrix(n, 1, ValueType::DOUBLE, mr);
 }
 
 // Read U[row, j] in canonical n×d (or 1×d) col-major layout.
-inline double U_at(const Value &U, std::size_t row, std::size_t j, std::size_t n)
+inline double U_at(const Value &U, keel::usize row, keel::usize j, keel::usize n)
 {
     if (U.isScalar()) return U.toScalar();
     return U.elemAsDouble(j * n + row);
@@ -248,32 +250,32 @@ inline double U_at(const Value &U, std::size_t row, std::size_t j, std::size_t n
 // ── Gaussian copula (any d ≥ 2) ─────────────────────────────────────
 
 Value copulapdf_gaussian(const Value &U, const Value &R,
-                         std::pmr::memory_resource *mr)
+                         keel::Allocator *mr)
 {
-    const std::size_t d = check_R_dim(R, "copulapdf");
+    const keel::usize d = check_R_dim(R, "copulapdf");
     auto [n, dU] = copula_U_argcheck(U, d, "copulapdf");
     auto out = make_out(n, mr);
     if (n == 0) return out;
 
     // Lower Cholesky of R; det_R = ∏ diag(L)².
     std::vector<double> L(d * d);
-    for (std::size_t i = 0; i < d; ++i)
-        for (std::size_t j = 0; j < d; ++j)
+    for (keel::usize i = 0; i < d; ++i)
+        for (keel::usize j = 0; j < d; ++j)
             L[i * d + j] = R.elemAsDouble(j * d + i);   // col-major → row-major
     const double det_R = chol_lower_inplace(L.data(), d, "copulapdf");
     const double pref = 1.0 / std::sqrt(det_R);
     double *od = out.doubleDataMut();
     std::vector<double> z(d), y(d);
-    for (std::size_t i = 0; i < n; ++i) {
-        for (std::size_t j = 0; j < d; ++j)
+    for (keel::usize i = 0; i < n; ++i) {
+        for (keel::usize j = 0; j < d; ++j)
             z[j] = phi_inv(U_at(U, i, j, n), mr);
         // Solve L · y = z, then z' R^{-1} z = y' y.
         y = z;
         chol_lower_solve(L.data(), y.data(), d);
         double yty = 0.0;
-        for (std::size_t j = 0; j < d; ++j) yty += y[j] * y[j];
+        for (keel::usize j = 0; j < d; ++j) yty += y[j] * y[j];
         double ztz = 0.0;
-        for (std::size_t j = 0; j < d; ++j) ztz += z[j] * z[j];
+        for (keel::usize j = 0; j < d; ++j) ztz += z[j] * z[j];
         // Quad form for (R^{-1} - I) z = y'y - z'z.
         od[i] = pref * std::exp(-0.5 * (yty - ztz));
     }
@@ -281,9 +283,9 @@ Value copulapdf_gaussian(const Value &U, const Value &R,
 }
 
 Value copulacdf_gaussian(const Value &U, const Value &R,
-                         std::pmr::memory_resource *mr)
+                         keel::Allocator *mr)
 {
-    const std::size_t d = check_R_dim(R, "copulacdf");
+    const keel::usize d = check_R_dim(R, "copulacdf");
     auto [n, dU] = copula_U_argcheck(U, d, "copulacdf");
     auto out = make_out(n, mr);
     if (n == 0) return out;
@@ -292,7 +294,7 @@ Value copulacdf_gaussian(const Value &U, const Value &R,
     if (d == 2) {
         // Fast bivariate path (Drezner-Wesolowsky).
         const double rho = extract_rho_2x2(R, "copulacdf");
-        for (std::size_t i = 0; i < n; ++i) {
+        for (keel::usize i = 0; i < n; ++i) {
             const double z1 = phi_inv(U_at(U, i, 0, n), mr);
             const double z2 = phi_inv(U_at(U, i, 1, n), mr);
             od[i] = bivnormcdf(z1, z2, rho);
@@ -303,23 +305,23 @@ Value copulacdf_gaussian(const Value &U, const Value &R,
     // d ≥ 3: build Z = norminv(U) row-by-row and call mvncdf via
     // existing engine API. Build X as n × d.
     Value Xz = Value::matrix(n, d, ValueType::DOUBLE, mr);
-    for (std::size_t i = 0; i < n; ++i)
-        for (std::size_t j = 0; j < d; ++j)
+    for (keel::usize i = 0; i < n; ++i)
+        for (keel::usize j = 0; j < d; ++j)
             Xz.doubleDataMut()[j * n + i] = phi_inv(U_at(U, i, j, n), mr);
     // mvncdf(X, mu=zeros, Sigma=R). Call typed API.
     Value mu0 = Value::matrix(1, d, ValueType::DOUBLE, mr);
-    for (std::size_t j = 0; j < d; ++j) mu0.doubleDataMut()[j] = 0.0;
+    for (keel::usize j = 0; j < d; ++j) mu0.doubleDataMut()[j] = 0.0;
     Value Pv = mvncdf(Xz, mu0, R, mr);
-    for (std::size_t i = 0; i < n; ++i) od[i] = Pv.elemAsDouble(i);
+    for (keel::usize i = 0; i < n; ++i) od[i] = Pv.elemAsDouble(i);
     return out;
 }
 
 // ── Student-t copula ────────────────────────────────────────────────
 
 Value copulapdf_t(const Value &U, const Value &R, double nu,
-                  std::pmr::memory_resource *mr)
+                  keel::Allocator *mr)
 {
-    const std::size_t d = check_R_dim(R, "copulapdf");
+    const keel::usize d = check_R_dim(R, "copulapdf");
     auto [n, dU] = copula_U_argcheck(U, d, "copulapdf");
     if (!(nu > 0.0))
         throw Error("copulapdf: nu must be positive",
@@ -335,8 +337,8 @@ Value copulapdf_t(const Value &U, const Value &R, double nu,
     // log c(u; R, ν) = log f_d(z; R, ν) - Σ log f_1(z_j; ν)
 
     std::vector<double> L(d * d);
-    for (std::size_t i = 0; i < d; ++i)
-        for (std::size_t j = 0; j < d; ++j)
+    for (keel::usize i = 0; i < d; ++i)
+        for (keel::usize j = 0; j < d; ++j)
             L[i * d + j] = R.elemAsDouble(j * d + i);
     const double det_R = chol_lower_inplace(L.data(), d, "copulapdf");
 
@@ -351,17 +353,17 @@ Value copulapdf_t(const Value &U, const Value &R, double nu,
 
     double *od = out.doubleDataMut();
     std::vector<double> z(d), y(d);
-    for (std::size_t i = 0; i < n; ++i) {
-        for (std::size_t j = 0; j < d; ++j)
+    for (keel::usize i = 0; i < n; ++i) {
+        for (keel::usize j = 0; j < d; ++j)
             z[j] = t_inv(U_at(U, i, j, n), nu, mr);
         y = z;
         chol_lower_solve(L.data(), y.data(), d);
         double yty = 0.0;
-        for (std::size_t j = 0; j < d; ++j) yty += y[j] * y[j];
+        for (keel::usize j = 0; j < d; ++j) yty += y[j] * y[j];
         const double log_mv = log_norm_mv
                             - 0.5 * (nu + dD) * std::log1p(yty / nu);
         double log_unis = 0.0;
-        for (std::size_t j = 0; j < d; ++j)
+        for (keel::usize j = 0; j < d; ++j)
             log_unis += log_norm_uni
                       - 0.5 * (nu + 1.0) * std::log1p(z[j] * z[j] / nu);
         od[i] = std::exp(log_mv - log_unis);
@@ -370,9 +372,9 @@ Value copulapdf_t(const Value &U, const Value &R, double nu,
 }
 
 Value copulacdf_t(const Value &U, const Value &R, double nu,
-                  std::pmr::memory_resource *mr)
+                  keel::Allocator *mr)
 {
-    const std::size_t d = check_R_dim(R, "copulacdf");
+    const keel::usize d = check_R_dim(R, "copulacdf");
     auto [n, dU] = copula_U_argcheck(U, d, "copulacdf");
     if (!(nu > 0.0))
         throw Error("copulacdf: nu must be positive",
@@ -383,7 +385,7 @@ Value copulacdf_t(const Value &U, const Value &R, double nu,
     if (d == 2) {
         // Fast bivariate path.
         const double rho = extract_rho_2x2(R, "copulacdf");
-        for (std::size_t i = 0; i < n; ++i) {
+        for (keel::usize i = 0; i < n; ++i) {
             const double z1 = t_inv(U_at(U, i, 0, n), nu, mr);
             const double z2 = t_inv(U_at(U, i, 1, n), nu, mr);
             od[i] = bivtcdf(z1, z2, rho, nu);
@@ -392,18 +394,18 @@ Value copulacdf_t(const Value &U, const Value &R, double nu,
     }
     // d ≥ 3: stack Z = tinv(U) and call mvtcdf.
     Value Xz = Value::matrix(n, d, ValueType::DOUBLE, mr);
-    for (std::size_t i = 0; i < n; ++i)
-        for (std::size_t j = 0; j < d; ++j)
+    for (keel::usize i = 0; i < n; ++i)
+        for (keel::usize j = 0; j < d; ++j)
             Xz.doubleDataMut()[j * n + i] = t_inv(U_at(U, i, j, n), nu, mr);
     Value Pv = mvtcdf(Xz, R, nu, 0.005, mr);
-    for (std::size_t i = 0; i < n; ++i) od[i] = Pv.elemAsDouble(i);
+    for (keel::usize i = 0; i < n; ++i) od[i] = Pv.elemAsDouble(i);
     return out;
 }
 
 // ── Clayton copula ──────────────────────────────────────────────────
 
 Value copulapdf_clayton(const Value &U, double alpha,
-                        std::pmr::memory_resource *mr)
+                        keel::Allocator *mr)
 {
     auto [n, d] = copula_U_argcheck(U, 2, "copulapdf");
     if (!(alpha > 0.0))
@@ -412,7 +414,7 @@ Value copulapdf_clayton(const Value &U, double alpha,
     auto out = make_out(n, mr);
     if (n == 0) return out;
     double *od = out.doubleDataMut();
-    for (std::size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const double u = U_at(U, i, 0, n);
         const double v = U_at(U, i, 1, n);
         const double t = std::pow(u, -alpha) + std::pow(v, -alpha) - 1.0;
@@ -424,7 +426,7 @@ Value copulapdf_clayton(const Value &U, double alpha,
 }
 
 Value copulacdf_clayton(const Value &U, double alpha,
-                        std::pmr::memory_resource *mr)
+                        keel::Allocator *mr)
 {
     auto [n, d] = copula_U_argcheck(U, 2, "copulacdf");
     if (!(alpha > 0.0))
@@ -433,7 +435,7 @@ Value copulacdf_clayton(const Value &U, double alpha,
     auto out = make_out(n, mr);
     if (n == 0) return out;
     double *od = out.doubleDataMut();
-    for (std::size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const double u = U_at(U, i, 0, n);
         const double v = U_at(U, i, 1, n);
         const double t = std::pow(u, -alpha) + std::pow(v, -alpha) - 1.0;
@@ -445,7 +447,7 @@ Value copulacdf_clayton(const Value &U, double alpha,
 // ── Frank copula ────────────────────────────────────────────────────
 
 Value copulapdf_frank(const Value &U, double alpha,
-                      std::pmr::memory_resource *mr)
+                      keel::Allocator *mr)
 {
     auto [n, d] = copula_U_argcheck(U, 2, "copulapdf");
     auto out = make_out(n, mr);
@@ -456,7 +458,7 @@ Value copulapdf_frank(const Value &U, double alpha,
     //               [ (1 - e^{-α}) - (1 - e^{-αu})(1 - e^{-αv}) ]^2
     const double em_a = std::exp(-alpha);
     const double one_m_em_a = 1.0 - em_a;
-    for (std::size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const double u = U_at(U, i, 0, n);
         const double v = U_at(U, i, 1, n);
         const double em_au = std::exp(-alpha * u);
@@ -468,7 +470,7 @@ Value copulapdf_frank(const Value &U, double alpha,
 }
 
 Value copulacdf_frank(const Value &U, double alpha,
-                      std::pmr::memory_resource *mr)
+                      keel::Allocator *mr)
 {
     auto [n, d] = copula_U_argcheck(U, 2, "copulacdf");
     if (alpha == 0.0)
@@ -480,7 +482,7 @@ Value copulacdf_frank(const Value &U, double alpha,
     double *od = out.doubleDataMut();
     const double em_a = std::exp(-alpha);
     const double one_m_em_a = 1.0 - em_a;   // (e^{-α} - 1) negated for sign
-    for (std::size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const double u = U_at(U, i, 0, n);
         const double v = U_at(U, i, 1, n);
         const double num = (std::exp(-alpha * u) - 1.0)
@@ -498,7 +500,7 @@ Value copulacdf_frank(const Value &U, double alpha,
 // ── Gumbel copula ───────────────────────────────────────────────────
 
 Value copulapdf_gumbel(const Value &U, double alpha,
-                       std::pmr::memory_resource *mr)
+                       keel::Allocator *mr)
 {
     auto [n, d] = copula_U_argcheck(U, 2, "copulapdf");
     if (!(alpha >= 1.0))
@@ -511,7 +513,7 @@ Value copulapdf_gumbel(const Value &U, double alpha,
     //   c(u, v; α) = C(u, v) · (uv)^{-1} · (lu·lv)^{α-1} · A^{1/α - 2} ·
     //               [(α - 1) + A^{1/α}]
     // where lu = -log u, lv = -log v, A = lu^α + lv^α.
-    for (std::size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const double u = U_at(U, i, 0, n);
         const double v = U_at(U, i, 1, n);
         const double lu = -std::log(u);
@@ -530,7 +532,7 @@ Value copulapdf_gumbel(const Value &U, double alpha,
 }
 
 Value copulacdf_gumbel(const Value &U, double alpha,
-                       std::pmr::memory_resource *mr)
+                       keel::Allocator *mr)
 {
     auto [n, d] = copula_U_argcheck(U, 2, "copulacdf");
     if (!(alpha >= 1.0))
@@ -539,7 +541,7 @@ Value copulacdf_gumbel(const Value &U, double alpha,
     auto out = make_out(n, mr);
     if (n == 0) return out;
     double *od = out.doubleDataMut();
-    for (std::size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const double u = U_at(U, i, 0, n);
         const double v = U_at(U, i, 1, n);
         const double lu = -std::log(u);

@@ -4,7 +4,8 @@
 
 #pragma once
 
-#include <memory_resource>
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
 #include <tuple>
@@ -36,8 +37,8 @@ namespace numkit::stats {
 /// @return       `(muhat, sigmahat, muci, sigmaci)`.
 /// @see normlike
 std::tuple<Value, Value, Value, Value>
-normfit(const Value &x, double alpha,
-        std::pmr::memory_resource *mr = nullptr);
+normfit(const Value &x, keel::f64 alpha,
+        keel::Allocator *mr = nullptr);
 
 /// @brief Normal MLE with optional censoring and frequencies.
 ///
@@ -53,8 +54,8 @@ normfit(const Value &x, double alpha,
 /// @return       `(muhat, sigmahat, muci, sigmaci)`.
 /// @see normfit(x, alpha, mr)
 std::tuple<Value, Value, Value, Value>
-normfit(const Value &x, double alpha, const Value &cens, const Value &freq,
-        std::pmr::memory_resource *mr = nullptr);
+normfit(const Value &x, keel::f64 alpha, const Value &cens, const Value &freq,
+        keel::Allocator *mr = nullptr);
 
 /// @brief Poisson MLE (`[lhat, lci] = poissfit(x, alpha)`).
 ///
@@ -66,8 +67,8 @@ normfit(const Value &x, double alpha, const Value &cens, const Value &freq,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(lhat, lci)`.
 std::tuple<Value, Value>
-poissfit(const Value &x, double alpha,
-         std::pmr::memory_resource *mr = nullptr);
+poissfit(const Value &x, keel::f64 alpha,
+         keel::Allocator *mr = nullptr);
 
 /// @brief Exponential MLE
 /// (`[muhat, muci] = expfit(x, alpha, cens, freq)`).
@@ -83,9 +84,9 @@ poissfit(const Value &x, double alpha,
 /// @return       `(muhat, muci)`.
 /// @see explike
 std::tuple<Value, Value>
-expfit(const Value &x, double alpha,
+expfit(const Value &x, keel::f64 alpha,
        const Value &cens = Value::Empty, const Value &freq = Value::Empty,
-       std::pmr::memory_resource *mr = nullptr);
+       keel::Allocator *mr = nullptr);
 
 /// @brief Continuous-uniform MLE
 /// (`[ahat, bhat, aci, bci] = unifit(x, alpha)`).
@@ -97,8 +98,8 @@ expfit(const Value &x, double alpha,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(ahat, bhat, aci, bci)`.
 std::tuple<Value, Value, Value, Value>
-unifit(const Value &x, double alpha,
-       std::pmr::memory_resource *mr = nullptr);
+unifit(const Value &x, keel::f64 alpha,
+       keel::Allocator *mr = nullptr);
 
 /// @brief Lognormal MLE without censoring
 /// (`[parm, pci] = lognfit(x, alpha)`).
@@ -113,8 +114,8 @@ unifit(const Value &x, double alpha,
 /// @return       `(parm, pci)`.
 /// @see lognlike
 std::tuple<Value, Value>
-lognfit(const Value &x, double alpha,
-        std::pmr::memory_resource *mr = nullptr);
+lognfit(const Value &x, keel::f64 alpha,
+        keel::Allocator *mr = nullptr);
 
 /// @brief Lognormal MLE with censoring and frequencies.
 ///
@@ -130,8 +131,8 @@ lognfit(const Value &x, double alpha,
 /// @return       `(parm, pci)`.
 /// @see lognfit(x, alpha, mr)
 std::tuple<Value, Value>
-lognfit(const Value &x, double alpha, const Value &cens, const Value &freq,
-        std::pmr::memory_resource *mr = nullptr);
+lognfit(const Value &x, keel::f64 alpha, const Value &cens, const Value &freq,
+        keel::Allocator *mr = nullptr);
 
 /// @brief Binomial parameter CI (`[phat, pci] = binofit(x, n, alpha)`).
 ///
@@ -144,8 +145,8 @@ lognfit(const Value &x, double alpha, const Value &cens, const Value &freq,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(phat, pci)`.
 std::tuple<Value, Value>
-binofit(const Value &x, const Value &n, double alpha,
-        std::pmr::memory_resource *mr = nullptr);
+binofit(const Value &x, const Value &n, keel::f64 alpha,
+        keel::Allocator *mr = nullptr);
 
 /// @brief Rayleigh MLE (`[shat, sci] = raylfit(x, alpha)`).
 ///
@@ -157,8 +158,8 @@ binofit(const Value &x, const Value &n, double alpha,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(shat, sci)`.
 std::tuple<Value, Value>
-raylfit(const Value &x, double alpha,
-        std::pmr::memory_resource *mr = nullptr);
+raylfit(const Value &x, keel::f64 alpha,
+        keel::Allocator *mr = nullptr);
 
 /// @brief Normal negative-log-likelihood (`nLogL = normlike(mu, sigma, x, cens, freq)`).
 ///
@@ -179,9 +180,9 @@ raylfit(const Value &x, double alpha,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Scalar `-Σ log f(x_i; θ)`.
 /// @see normfit
-double normlike(double mu, double sigma, const Value &x,
+keel::f64 normlike(keel::f64 mu, keel::f64 sigma, const Value &x,
                 const Value &cens, const Value &freq,
-                std::pmr::memory_resource *mr = nullptr);
+                keel::Allocator *mr = nullptr);
 
 /// @brief Exponential nLogL (`nLogL = explike(mu, x)`).
 ///
@@ -190,8 +191,8 @@ double normlike(double mu, double sigma, const Value &x,
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Scalar negative log-likelihood.
 /// @see expfit
-double explike(double mu, const Value &x,
-               std::pmr::memory_resource *mr = nullptr);
+keel::f64 explike(keel::f64 mu, const Value &x,
+               keel::Allocator *mr = nullptr);
 
 /// @brief Lognormal nLogL (`nLogL = lognlike(mu, sigma, x)`).
 ///
@@ -201,8 +202,8 @@ double explike(double mu, const Value &x,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Scalar negative log-likelihood.
 /// @see lognfit
-double lognlike(double mu, double sigma, const Value &x,
-                std::pmr::memory_resource *mr = nullptr);
+keel::f64 lognlike(keel::f64 mu, keel::f64 sigma, const Value &x,
+                keel::Allocator *mr = nullptr);
 
 /// @brief Gamma nLogL (`nLogL = gamlike(a, b, x)`).
 ///
@@ -211,8 +212,8 @@ double lognlike(double mu, double sigma, const Value &x,
 /// @param x   Sample data.
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Scalar negative log-likelihood.
-double gamlike(double a, double b, const Value &x,
-               std::pmr::memory_resource *mr = nullptr);
+keel::f64 gamlike(keel::f64 a, keel::f64 b, const Value &x,
+               keel::Allocator *mr = nullptr);
 
 /// @brief Beta nLogL (`nLogL = betalike(a, b, x)`).
 ///
@@ -221,8 +222,8 @@ double gamlike(double a, double b, const Value &x,
 /// @param x   Sample data in `(0, 1)`.
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Scalar negative log-likelihood.
-double betalike(double a, double b, const Value &x,
-                std::pmr::memory_resource *mr = nullptr);
+keel::f64 betalike(keel::f64 a, keel::f64 b, const Value &x,
+                keel::Allocator *mr = nullptr);
 
 /// @brief Weibull nLogL (`nLogL = wbllike(a, b, x)`).
 ///
@@ -231,8 +232,8 @@ double betalike(double a, double b, const Value &x,
 /// @param x   Sample data.
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Scalar negative log-likelihood.
-double wbllike(double a, double b, const Value &x,
-               std::pmr::memory_resource *mr = nullptr);
+keel::f64 wbllike(keel::f64 a, keel::f64 b, const Value &x,
+               keel::Allocator *mr = nullptr);
 
 /// @brief Type-I EV nLogL (`nLogL = evlike(mu, sigma, x)`).
 ///
@@ -241,8 +242,8 @@ double wbllike(double a, double b, const Value &x,
 /// @param x      Sample data.
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Scalar negative log-likelihood.
-double evlike(double mu, double sigma, const Value &x,
-              std::pmr::memory_resource *mr = nullptr);
+keel::f64 evlike(keel::f64 mu, keel::f64 sigma, const Value &x,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Generalised Extreme Value nLogL (`nLogL = gevlike(k, sigma, mu, x)`).
 ///
@@ -252,8 +253,8 @@ double evlike(double mu, double sigma, const Value &x,
 /// @param x      Sample data.
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Scalar negative log-likelihood.
-double gevlike(double k, double sigma, double mu, const Value &x,
-               std::pmr::memory_resource *mr = nullptr);
+keel::f64 gevlike(keel::f64 k, keel::f64 sigma, keel::f64 mu, const Value &x,
+               keel::Allocator *mr = nullptr);
 
 /// @brief Generalised Pareto nLogL (`nLogL = gplike(k, sigma, x)`, theta = 0).
 ///
@@ -262,8 +263,8 @@ double gevlike(double k, double sigma, double mu, const Value &x,
 /// @param x      Sample data.
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Scalar negative log-likelihood.
-double gplike(double k, double sigma, const Value &x,
-              std::pmr::memory_resource *mr = nullptr);
+keel::f64 gplike(keel::f64 k, keel::f64 sigma, const Value &x,
+              keel::Allocator *mr = nullptr);
 
 
 /// @}

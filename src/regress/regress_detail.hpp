@@ -3,10 +3,10 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
 #include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
 
 #include <algorithm>
@@ -15,7 +15,6 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
-#include <memory_resource>
 #include <numeric>
 #include <string>
 #include <tuple>
@@ -32,18 +31,18 @@ namespace {
 
 // Cholesky factor of d×d symmetric PSD matrix M (column-major)
 // into L (lower-triangular, column-major). Returns true on success.
-bool cholesky(const double *M, double *L, size_t d)
+bool cholesky(const double *M, double *L, keel::usize d)
 {
-    for (size_t i = 0; i < d * d; ++i) L[i] = 0.0;
-    for (size_t j = 0; j < d; ++j) {
+    for (keel::usize i = 0; i < d * d; ++i) L[i] = 0.0;
+    for (keel::usize j = 0; j < d; ++j) {
         double s = M[j + j * d];
-        for (size_t k = 0; k < j; ++k) s -= L[j + k * d] * L[j + k * d];
+        for (keel::usize k = 0; k < j; ++k) s -= L[j + k * d] * L[j + k * d];
         if (s <= 0.0) return false;
         const double Ljj = std::sqrt(s);
         L[j + j * d] = Ljj;
-        for (size_t i = j + 1; i < d; ++i) {
+        for (keel::usize i = j + 1; i < d; ++i) {
             double t = M[i + j * d];
-            for (size_t k = 0; k < j; ++k) t -= L[i + k * d] * L[j + k * d];
+            for (keel::usize k = 0; k < j; ++k) t -= L[i + k * d] * L[j + k * d];
             L[i + j * d] = t / Ljj;
         }
     }
@@ -51,21 +50,21 @@ bool cholesky(const double *M, double *L, size_t d)
 }
 
 // Solve L · z = b (forward substitution).
-void fwd_solve(const double *L, double *z, const double *b, size_t d)
+void fwd_solve(const double *L, double *z, const double *b, keel::usize d)
 {
-    for (size_t i = 0; i < d; ++i) {
+    for (keel::usize i = 0; i < d; ++i) {
         double s = b[i];
-        for (size_t k = 0; k < i; ++k) s -= L[i + k * d] * z[k];
+        for (keel::usize k = 0; k < i; ++k) s -= L[i + k * d] * z[k];
         z[i] = s / L[i + i * d];
     }
 }
 
 // Solve L^T · x = z (backward substitution).
-void back_solve(const double *L, double *x, const double *z, size_t d)
+void back_solve(const double *L, double *x, const double *z, keel::usize d)
 {
-    for (size_t i = d; i-- > 0;) {
+    for (keel::usize i = d; i-- > 0;) {
         double s = z[i];
-        for (size_t k = i + 1; k < d; ++k) s -= L[k + i * d] * x[k];
+        for (keel::usize k = i + 1; k < d; ++k) s -= L[k + i * d] * x[k];
         x[i] = s / L[i + i * d];
     }
 }
@@ -76,6 +75,6 @@ void back_solve(const double *L, double *x, const double *z, size_t d)
 // regress.cpp (external).
 std::tuple<Value, Value, Value, Value, Value>
 regress_full(const Value &y, const Value &X, double alpha,
-             std::pmr::memory_resource *mr);
+             keel::Allocator *mr);
 
 } // namespace numkit::stats

@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <memory_resource>
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
 #include <tuple>
@@ -31,8 +32,8 @@ namespace numkit::stats {
 /// @param mr      Memory resource (nullptr → process default).
 /// @return        Array of pdf values, same shape as `x`.
 /// @see ncx2cdf, ncx2inv, ncx2rnd, ncx2stat, chi2pdf
-Value ncx2pdf(const Value &x, double k, double lambda,
-              std::pmr::memory_resource *mr = nullptr);
+Value ncx2pdf(const Value &x, keel::f64 k, keel::f64 lambda,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Noncentral χ² cdf (`p = ncx2cdf(x, k, lambda)`).
 ///
@@ -47,8 +48,8 @@ Value ncx2pdf(const Value &x, double k, double lambda,
 /// @param mr      Memory resource (nullptr → process default).
 /// @return        Array of cdf values in `[0, 1]`.
 /// @see ncx2pdf, ncx2inv
-Value ncx2cdf(const Value &x, double k, double lambda,
-              std::pmr::memory_resource *mr = nullptr);
+Value ncx2cdf(const Value &x, keel::f64 k, keel::f64 lambda,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Noncentral χ² inverse cdf (`x = ncx2inv(p, k, lambda)`).
 ///
@@ -58,8 +59,8 @@ Value ncx2cdf(const Value &x, double k, double lambda,
 /// @param mr      Memory resource (nullptr → process default).
 /// @return        Quantile array, same shape as `p`.
 /// @see ncx2cdf
-Value ncx2inv(const Value &p, double k, double lambda,
-              std::pmr::memory_resource *mr = nullptr);
+Value ncx2inv(const Value &p, keel::f64 k, keel::f64 lambda,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Noncentral χ² random samples (`r = ncx2rnd(k, lambda, rows, cols)`).
 ///
@@ -73,8 +74,8 @@ Value ncx2inv(const Value &p, double k, double lambda,
 /// @param mr      Memory resource (nullptr → process default).
 /// @return        `rows × cols` matrix of noncentral χ² samples.
 /// @see ncx2pdf
-Value ncx2rnd(::numkit::ops::RngContext &rng, double k, double lambda, size_t rows = 1, size_t cols = 1,
-              std::pmr::memory_resource *mr = nullptr);
+Value ncx2rnd(::numkit::ops::RngContext &rng, keel::f64 k, keel::f64 lambda, keel::usize rows = 1, keel::usize cols = 1,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Noncentral χ² mean and variance (`[m, v] = ncx2stat(k, lambda)`).
 ///
@@ -84,7 +85,7 @@ Value ncx2rnd(::numkit::ops::RngContext &rng, double k, double lambda, size_t ro
 /// @param lambda  Noncentrality parameter.
 /// @return        `{mean, variance}` pair.
 /// @see ncx2pdf
-std::tuple<double, double> ncx2stat(double k, double lambda);
+std::tuple<keel::f64, keel::f64> ncx2stat(keel::f64 k, keel::f64 lambda);
 
 
 /// @}

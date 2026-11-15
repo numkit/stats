@@ -9,6 +9,8 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
@@ -17,7 +19,6 @@
 #include <cstddef>
 #include <cstring>
 #include <limits>
-#include <memory_resource>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -31,28 +32,28 @@ namespace numkit::stats {
 namespace {
 
 template <typename Op>
-Value elementwise(const Value &x, Op op, std::pmr::memory_resource *mr)
+Value elementwise(const Value &x, Op op, keel::Allocator *mr)
 {
     if (x.isScalar()) return Value::scalar(op(x.toScalar()), mr);
     const auto &d = x.dims();
     Value out;
     if (d.is3D()) out = Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr);
     else          out = Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
-    const size_t n = x.numel();
+    const keel::usize n = x.numel();
     if (n == 0) return out;
     double *od = out.doubleDataMut();
-    for (size_t i = 0; i < n; ++i) od[i] = op(x.elemAsDouble(i));
+    for (keel::usize i = 0; i < n; ++i) od[i] = op(x.elemAsDouble(i));
     return out;
 }
 
-inline double besseli_scalar(double nu, double xx, std::pmr::memory_resource *mr)
+inline double besseli_scalar(double nu, double xx, keel::Allocator *mr)
 {
     Value nv = Value::scalar(nu, mr);
     Value xv = Value::scalar(xx, mr);
     return ::numkit::builtin::besseli(nv, xv, mr).toScalar();
 }
 
-inline double marcumq_scalar(double a, double b, std::pmr::memory_resource *mr)
+inline double marcumq_scalar(double a, double b, keel::Allocator *mr)
 {
     Value av = Value::scalar(a, mr);
     Value bv = Value::scalar(b, mr);

@@ -13,6 +13,8 @@
 // boundaries, mode tie-breaking, etc.). Ground-truth values come from
 // MATLAB R2024b for the non-trivial cases.
 
+#include <keel/core.h>
+#include <keel/math.h>
 #include "dual_engine_fixture.hpp"
 
 #include <cmath>
@@ -416,7 +418,7 @@ TEST_P(StatsTest, VarLargeNMatchesReference)
     eval("x = 1:1000; v = var(x);");
     auto *v = getVarPtr("v");
     const double ref = 1000.0 * 1001.0 / 12.0;     // = 83416.6666...
-    EXPECT_NEAR(v->toScalar(), ref, 1e-9 * std::abs(ref));
+    EXPECT_NEAR(v->toScalar(), ref, 1e-9 * keel::abs(ref));
 }
 
 TEST_P(StatsTest, VarLargeNRandomMatchesScalarReference)
@@ -460,8 +462,8 @@ TEST_P(StatsTest, VarMatrixDim1LargeRowsPerColumnReference)
     EXPECT_EQ(rows(*v), 1u);
     EXPECT_EQ(cols(*v), 3u);
     const double ref = 64.0 * 65.0 / 12.0;
-    for (size_t c = 0; c < 3; ++c)
-        EXPECT_NEAR(v->doubleData()[c], ref, 1e-9 * std::abs(ref))
+    for (keel::usize c = 0; c < 3; ++c)
+        EXPECT_NEAR(v->doubleData()[c], ref, 1e-9 * keel::abs(ref))
             << "at col " << c;
 }
 
@@ -470,8 +472,8 @@ TEST_P(StatsTest, StdMatrixDim1LargeRows)
     eval("M = repmat((1:64)', 1, 3); s = std(M);");
     auto *s = getVarPtr("s");
     const double ref = std::sqrt(64.0 * 65.0 / 12.0);
-    for (size_t c = 0; c < 3; ++c)
-        EXPECT_NEAR(s->doubleData()[c], ref, 1e-9 * std::abs(ref));
+    for (keel::usize c = 0; c < 3; ++c)
+        EXPECT_NEAR(s->doubleData()[c], ref, 1e-9 * keel::abs(ref));
 }
 
 TEST_P(StatsTest, Var3DDim1LargeRowsPerColumnPerPage)
@@ -487,9 +489,9 @@ TEST_P(StatsTest, Var3DDim1LargeRowsPerColumnPerPage)
     EXPECT_EQ(cols(*v), 3u);
     EXPECT_EQ(v->dims().pages(), 2u);
     const double ref = 64.0 * 65.0 / 12.0;
-    for (size_t p = 0; p < 2; ++p)
-        for (size_t c = 0; c < 3; ++c)
-            EXPECT_NEAR((*v)(0, c, p), ref, 1e-9 * std::abs(ref))
+    for (keel::usize p = 0; p < 2; ++p)
+        for (keel::usize c = 0; c < 3; ++c)
+            EXPECT_NEAR((*v)(0, c, p), ref, 1e-9 * keel::abs(ref))
                 << "at p=" << p << " c=" << c;
 }
 
@@ -502,7 +504,7 @@ TEST_P(StatsTest, VarOddSizesAroundSimdLanes)
         auto *v = getVarPtr("v");
         const double N = static_cast<double>(n);
         const double ref = N * (N + 1.0) / 12.0;
-        EXPECT_NEAR(v->toScalar(), ref, 1e-9 * std::abs(ref))
+        EXPECT_NEAR(v->toScalar(), ref, 1e-9 * keel::abs(ref))
             << "at n=" << n;
     }
 }
@@ -869,7 +871,7 @@ TEST_P(ReductionDimTest, SumMatrixDim2LargeColumnPass)
     auto *v = getVarPtr("v");
     EXPECT_EQ(rows(*v), 64u);
     EXPECT_EQ(cols(*v), 1u);
-    for (size_t r = 0; r < 64; ++r) {
+    for (keel::usize r = 0; r < 64; ++r) {
         const double expected = 4.0 * static_cast<double>(r + 1) + 600.0;
         EXPECT_DOUBLE_EQ(v->doubleData()[r], expected) << "at row " << r;
     }
@@ -885,8 +887,8 @@ TEST_P(ReductionDimTest, SumMatrixDim2OddSizesAroundSimdLanes)
              "M = repmat((1:R)', 1, C); "
              "v = sum(M, 2);");
         auto *v = getVarPtr("v");
-        ASSERT_EQ(rows(*v), static_cast<size_t>(r));
-        for (size_t i = 0; i < static_cast<size_t>(r); ++i) {
+        ASSERT_EQ(rows(*v), static_cast<keel::usize>(r));
+        for (keel::usize i = 0; i < static_cast<keel::usize>(r); ++i) {
             const double expected = 5.0 * static_cast<double>(i + 1);
             EXPECT_DOUBLE_EQ(v->doubleData()[i], expected)
                 << "at R=" << r << " row=" << i;
@@ -2552,7 +2554,7 @@ TEST_P(NanReductionTest, NansumMatrixDim1LargeRowsScatteredNaN)
     auto *got = getVarPtr("got");
     auto *ref = getVarPtr("ref");
     EXPECT_EQ(cols(*got), 3u);
-    for (size_t c = 0; c < 3; ++c)
+    for (keel::usize c = 0; c < 3; ++c)
         EXPECT_DOUBLE_EQ(got->doubleData()[c], ref->doubleData()[c])
             << "at col " << c;
 }
@@ -2588,9 +2590,9 @@ TEST_P(NanReductionTest, NanvarMatrixDim1LargeRowsCountNonNaN)
          "end;");
     auto *got = getVarPtr("got");
     auto *ref = getVarPtr("ref");
-    for (size_t c = 0; c < 2; ++c)
+    for (keel::usize c = 0; c < 2; ++c)
         EXPECT_NEAR(got->doubleData()[c], ref->doubleData()[c],
-                    1e-10 * std::abs(ref->doubleData()[c]))
+                    1e-10 * keel::abs(ref->doubleData()[c]))
             << "at col " << c;
 }
 
@@ -2830,7 +2832,7 @@ TEST_P(CumLogicalTest, CumsumLargeNMatchesArithmeticSequence)
     eval("x = 1:100; c = cumsum(x);");
     auto *c = getVarPtr("c");
     EXPECT_EQ(c->numel(), 100u);
-    for (size_t k = 0; k < 100; ++k) {
+    for (keel::usize k = 0; k < 100; ++k) {
         const double k1 = static_cast<double>(k + 1);
         const double expected = k1 * (k1 + 1.0) / 2.0;
         EXPECT_DOUBLE_EQ(c->doubleData()[k], expected) << "at k=" << k;
@@ -2845,9 +2847,9 @@ TEST_P(CumLogicalTest, CumprodLargeNMatchesScalarReference)
     auto *c = getVarPtr("c");
     EXPECT_EQ(c->numel(), 64u);
     double acc = 1.0;
-    for (size_t k = 0; k < 64; ++k) {
+    for (keel::usize k = 0; k < 64; ++k) {
         acc *= std::pow(1.01, static_cast<double>(k));
-        EXPECT_NEAR(c->doubleData()[k], acc, 1e-10 * std::abs(acc))
+        EXPECT_NEAR(c->doubleData()[k], acc, 1e-10 * keel::abs(acc))
             << "at k=" << k;
     }
 }
@@ -2858,7 +2860,7 @@ TEST_P(CumLogicalTest, CummaxLargeNMonotonicData)
     eval("x = (100:-1:1); c = cummax(x);");
     auto *c = getVarPtr("c");
     EXPECT_EQ(c->numel(), 100u);
-    for (size_t k = 0; k < 100; ++k)
+    for (keel::usize k = 0; k < 100; ++k)
         EXPECT_DOUBLE_EQ(c->doubleData()[k], 100.0) << "at k=" << k;
 }
 
@@ -2904,8 +2906,8 @@ TEST_P(CumLogicalTest, CumOdSizesAroundSimdLanes)
         // Reference cumsum of 1..n: triangular numbers.
         eval("x = 1:" + ns + "; c = cumsum(x);");
         auto *c = getVarPtr("c");
-        ASSERT_EQ(c->numel(), static_cast<size_t>(n));
-        for (size_t k = 0; k < static_cast<size_t>(n); ++k) {
+        ASSERT_EQ(c->numel(), static_cast<keel::usize>(n));
+        for (keel::usize k = 0; k < static_cast<keel::usize>(n); ++k) {
             const double k1 = static_cast<double>(k + 1);
             const double expected = k1 * (k1 + 1.0) / 2.0;
             EXPECT_DOUBLE_EQ(c->doubleData()[k], expected)
@@ -2926,8 +2928,8 @@ TEST_P(CumLogicalTest, CumsumMatrixDim1LargeRowsPerColumn)
     EXPECT_EQ(cols(*C), 3u);
     // For column k: M(:,k) = (1..64) + 100*k; cumsum at row r is
     //   sum_{i=1..r+1} (i + 100*k) = (r+1)*(r+2)/2 + 100*k*(r+1).
-    for (size_t r = 0; r < 64; ++r)
-        for (size_t c = 0; c < 3; ++c) {
+    for (keel::usize r = 0; r < 64; ++r)
+        for (keel::usize c = 0; c < 3; ++c) {
             const double r1 = static_cast<double>(r + 1);
             const double expected = r1 * (r1 + 1.0) / 2.0
                                   + 100.0 * static_cast<double>(c) * r1;
@@ -2940,8 +2942,8 @@ TEST_P(CumLogicalTest, CummaxMatrixDim1LargeRowsPerColumn)
     // Increasing-then-flat per-column: column k = (1..64). cummax = column itself.
     eval("R = 64; M = repmat((1:R)', 1, 3); C = cummax(M, 1);");
     auto *C = getVarPtr("C");
-    for (size_t r = 0; r < 64; ++r)
-        for (size_t c = 0; c < 3; ++c)
+    for (keel::usize r = 0; r < 64; ++r)
+        for (keel::usize c = 0; c < 3; ++c)
             EXPECT_DOUBLE_EQ((*C)(r, c), static_cast<double>(r + 1))
                 << "at r=" << r << " c=" << c;
 }
@@ -2958,12 +2960,12 @@ TEST_P(CumLogicalTest, Cumprod3DDim1LargePerPagePerColumn)
     EXPECT_EQ(rows(*C), 16u);
     EXPECT_EQ(C->dims().pages(), 2u);
     // cumprod of constant 1.05 is 1.05^(r+1).
-    for (size_t p = 0; p < 2; ++p)
-        for (size_t c = 0; c < 2; ++c)
-            for (size_t r = 0; r < 16; ++r) {
+    for (keel::usize p = 0; p < 2; ++p)
+        for (keel::usize c = 0; c < 2; ++c)
+            for (keel::usize r = 0; r < 16; ++r) {
                 const double expected = std::pow(1.05, static_cast<double>(r + 1));
                 EXPECT_NEAR((*C)(r, c, p), expected,
-                            1e-12 * std::abs(expected))
+                            1e-12 * keel::abs(expected))
                     << "at r=" << r << " c=" << c << " p=" << p;
             }
 }
@@ -3186,7 +3188,7 @@ TEST_P(CumLogicalTest, DiffNDDim2)
     // For column-major reshape(1:32), the values along dim=2 increase
     // by 2 per step (rows=2 stride). diff along dim=2 → all entries 2.
     auto *d = getVarPtr("d");
-    for (size_t i = 0; i < d->numel(); ++i)
+    for (keel::usize i = 0; i < d->numel(); ++i)
         EXPECT_DOUBLE_EQ(d->doubleData()[i], 2.0);
 }
 
@@ -3199,7 +3201,7 @@ TEST_P(CumLogicalTest, DiffPreservesIntegerClass)
     auto *d = getVarPtr("d");
     EXPECT_EQ(d->type(), ValueType::INT32);
     EXPECT_EQ(d->numel(), 3u);
-    const int32_t *p = d->int32Data();
+    const keel::i32 *p = d->int32Data();
     EXPECT_EQ(p[0], 15);
     EXPECT_EQ(p[1], 35);
     EXPECT_EQ(p[2], 40);

@@ -36,11 +36,11 @@ TEST(LillietestPublicApi, Basic)
     // clearly bimodal sample -> reject (h = 1); explicit alpha + mr
     auto [h2, p2, ks2, cv2] = stats::lillietest(
         lv(e, "[-3 -3 -3 -3 -3 -3 -3 -3 -3 -3 3 3 3 3 3 3 3 3 3 3]", "xb"), 0.05,
-        e.resource());
+        e.allocator());
     EXPECT_DOUBLE_EQ(h2.toScalar(), 1.0);
     EXPECT_GT(ks2.toScalar(), ks1.toScalar()); // bimodal deviates more
     // errors: N < 4, alpha out of range
     EXPECT_ANY_THROW(stats::lillietest(lv(e, "[1 2 3]", "xs")));
     EXPECT_ANY_THROW(
-        stats::lillietest(lv(e, "[1 2 3 4 5]", "xa"), 1.5, e.resource()));
+        stats::lillietest(lv(e, "[1 2 3 4 5]", "xa"), 1.5, e.allocator()));
 }

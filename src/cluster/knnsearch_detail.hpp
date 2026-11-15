@@ -3,9 +3,10 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
+#include <keel/core.h>
+#include <keel/ref.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -13,7 +14,6 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
-#include <memory_resource>
 #include <numeric>
 #include <string>
 #include <tuple>
@@ -35,7 +35,7 @@ namespace {
 //   knnsearch(X, Y, 'Distance', metric, ...)
 struct KnnOpts { int K = 1; std::string metric = "euclidean"; double p = 2.0; };
 
-KnnOpts parse_knn_args(Span<const Value> args, const char *fn)
+KnnOpts parse_knn_args(keel::ArrayRef<Value> args, const char *fn)
 {
     KnnOpts o;
     if (args.size() == 3 && args[2].isNumeric() && args[2].isScalar()) {
@@ -44,7 +44,7 @@ KnnOpts parse_knn_args(Span<const Value> args, const char *fn)
         return o;
     }
     // name-value pairs
-    size_t i = 2;
+    keel::usize i = 2;
     while (i < args.size()) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error(std::string(fn) + ": expected name-value pair",

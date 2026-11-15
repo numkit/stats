@@ -1,6 +1,7 @@
 // toolboxes/stats/tests/ecdfhist_test.cpp
 // ecdfhist.
 
+#include <keel/core.h>
 #include <numkit/core/standard_engine.hpp>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
@@ -19,7 +20,7 @@ public:
 TEST_F(EcdfhistTest, DefaultM10)
 {
     eval("[f, x] = ecdf(1:10); [n, c] = ecdfhist(f, x);");
-    EXPECT_EQ(static_cast<size_t>(evalScalar("numel(n)")), 10u);
+    EXPECT_EQ(static_cast<keel::usize>(evalScalar("numel(n)")), 10u);
     // Uniform 1..10 -> uniform density 0.1111 in each of 10 bins.
     EXPECT_NEAR(evalScalar("n(1)"),  0.1111111, 1e-7);
     EXPECT_NEAR(evalScalar("n(10)"), 0.1111111, 1e-7);
@@ -30,7 +31,7 @@ TEST_F(EcdfhistTest, DefaultM10)
 TEST_F(EcdfhistTest, M5)
 {
     eval("[f, x] = ecdf(1:10); [n, c] = ecdfhist(f, x, 5);");
-    EXPECT_EQ(static_cast<size_t>(evalScalar("numel(n)")), 5u);
+    EXPECT_EQ(static_cast<keel::usize>(evalScalar("numel(n)")), 5u);
     EXPECT_NEAR(evalScalar("c(1)"), 1.9, 1e-9);
     EXPECT_NEAR(evalScalar("c(5)"), 9.1, 1e-9);
 }
@@ -55,7 +56,7 @@ TEST_F(EcdfhistTest, NonUniformInput)
 {
     // [1 2 2 3 3 3 5 8] — repeated values produce non-uniform jumps.
     eval("[f, x] = ecdf([1 2 2 3 3 3 5 8]); [n, c] = ecdfhist(f, x);");
-    EXPECT_EQ(static_cast<size_t>(evalScalar("numel(n)")), 10u);
+    EXPECT_EQ(static_cast<keel::usize>(evalScalar("numel(n)")), 10u);
     EXPECT_NEAR(evalScalar("n(1)"),  0.1785714, 1e-7);
     EXPECT_NEAR(evalScalar("n(10)"), 0.1785714, 1e-7);
 }

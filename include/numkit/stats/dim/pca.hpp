@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <memory_resource>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
 #include <tuple>
@@ -34,7 +34,7 @@ namespace numkit::stats {
 ///            - `mu`        : `1 × D` column means that were subtracted.
 /// @see pcacov, pcares
 std::tuple<Value, Value, Value, Value, Value, Value>
-pca(const Value &X, std::pmr::memory_resource *mr = nullptr);
+pca(const Value &X, keel::Allocator *mr = nullptr);
 
 /// @brief PCA from a precomputed covariance matrix
 /// (`[coeff, latent, explained] = pcacov(C)`).
@@ -46,7 +46,7 @@ pca(const Value &X, std::pmr::memory_resource *mr = nullptr);
 /// @return    Tuple `(coeff, latent, explained)`.
 /// @see pca
 std::tuple<Value, Value, Value>
-pcacov(const Value &C, std::pmr::memory_resource *mr = nullptr);
+pcacov(const Value &C, keel::Allocator *mr = nullptr);
 
 /// @brief PCA residuals (`res = pcares(X, ndim)`).
 ///
@@ -59,7 +59,7 @@ pcacov(const Value &C, std::pmr::memory_resource *mr = nullptr);
 /// @return      `N × D` residual matrix.
 /// @see pca
 Value pcares(const Value &X, int ndim,
-             std::pmr::memory_resource *mr = nullptr);
+             keel::Allocator *mr = nullptr);
 
 
 /// @}

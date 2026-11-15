@@ -4,12 +4,13 @@
 //   glmfit — IRLS GLM fitting (normal / binomial / poisson / gamma)
 //   glmval — predict from fitted coefficients
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/regress/regress.hpp>
 
 #include <numkit/stats/distributions/normal.hpp>     // for probit via norminv/normcdf
 
 #include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
@@ -27,7 +28,7 @@
 namespace numkit::stats {
 
 namespace {
-void glmfit_argcheck(const Value &X, const Value &y, std::size_t n, std::size_t p)
+void glmfit_argcheck(const Value &X, const Value &y, keel::usize n, keel::usize p)
 {
     if (X.dims().rows() != n)
         throw Error("glmfit: rows(X) must equal length(y)",
@@ -40,11 +41,11 @@ void glmfit_argcheck(const Value &X, const Value &y, std::size_t n, std::size_t 
 
 GlmfitResult glmfit(const Value &X, const Value &y,
                      GlmDistribution distr, GlmLink link,
-                     std::pmr::memory_resource *mr)
+                     keel::Allocator *mr)
 {
-    const std::size_t n = y.numel();
-    const std::size_t p_in = X.dims().cols();
-    const std::size_t p = p_in + 1;   // +1 for auto intercept
+    const keel::usize n = y.numel();
+    const keel::usize p_in = X.dims().cols();
+    const keel::usize p = p_in + 1;   // +1 for auto intercept
     glmfit_argcheck(X, y, n, p);
 
     // If user passed Identity AND it's not Normal, treat that as
@@ -56,17 +57,17 @@ GlmfitResult glmfit(const Value &X, const Value &y,
 
     // Build design matrix Xb = [1, X] column-major.
     std::vector<double> Xb(n * p, 0.0);
-    for (std::size_t i = 0; i < n; ++i) Xb[0 * n + i] = 1.0;
-    for (std::size_t j = 0; j < p_in; ++j)
-        for (std::size_t i = 0; i < n; ++i)
+    for (keel::usize i = 0; i < n; ++i) Xb[0 * n + i] = 1.0;
+    for (keel::usize j = 0; j < p_in; ++j)
+        for (keel::usize i = 0; i < n; ++i)
             Xb[(j + 1) * n + i] = X.elemAsDouble(j * n + i);
 
     std::vector<double> yv(n);
-    for (std::size_t i = 0; i < n; ++i) yv[i] = y.elemAsDouble(i);
+    for (keel::usize i = 0; i < n; ++i) yv[i] = y.elemAsDouble(i);
 
     // Initial mu and eta.
     std::vector<double> mu(n), eta(n);
-    for (std::size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         mu[i] = initialMu(yv[i], distr);
         // eta = g(mu) — compute via numerical inverse:
         // We don't have direct g(mu) symbolic, but we can use the
@@ -93,7 +94,7 @@ GlmfitResult glmfit(const Value &X, const Value &y,
     for (int it = 0; it < maxIter; ++it) {
         // Working response z = eta + (y - mu) * dEta/dMu, weight = 1 / (V(mu) * (dEta/dMu)²).
         std::vector<double> z(n), w(n);
-        for (std::size_t i = 0; i < n; ++i) {
+        for (keel::usize i = 0; i < n; ++i) {
             const double dE = fn.deta_dmu(mu[i]);
             const double V = varianceFn(mu[i], distr);
             w[i] = 1.0 / (V * dE * dE + 1e-30);
@@ -102,15 +103,15 @@ GlmfitResult glmfit(const Value &X, const Value &y,
 
         // Solve weighted least squares: (X' W X) β = X' W z.
         std::vector<double> M(p * p, 0.0), b(p, 0.0);
-        for (std::size_t i = 0; i < p; ++i) {
-            for (std::size_t j = 0; j < p; ++j) {
+        for (keel::usize i = 0; i < p; ++i) {
+            for (keel::usize j = 0; j < p; ++j) {
                 double s = 0.0;
-                for (std::size_t k = 0; k < n; ++k)
+                for (keel::usize k = 0; k < n; ++k)
                     s += Xb[i * n + k] * w[k] * Xb[j * n + k];
                 M[i * p + j] = s;
             }
             double s = 0.0;
-            for (std::size_t k = 0; k < n; ++k)
+            for (keel::usize k = 0; k < n; ++k)
                 s += Xb[i * n + k] * w[k] * z[k];
             b[i] = s;
         }
@@ -123,9 +124,9 @@ GlmfitResult glmfit(const Value &X, const Value &y,
         beta = b;
 
         // Update eta = X·β, then mu.
-        for (std::size_t i = 0; i < n; ++i) {
+        for (keel::usize i = 0; i < n; ++i) {
             double e = 0.0;
-            for (std::size_t j = 0; j < p; ++j)
+            for (keel::usize j = 0; j < p; ++j)
                 e += Xb[j * n + i] * beta[j];
             eta[i] = e;
             mu[i] = fn.invLink(e);
@@ -133,7 +134,7 @@ GlmfitResult glmfit(const Value &X, const Value &y,
 
         // Convergence on coefficient change.
         double maxStep = 0.0, maxBeta = 0.0;
-        for (std::size_t j = 0; j < p; ++j) {
+        for (keel::usize j = 0; j < p; ++j) {
             maxStep = std::max(maxStep, std::fabs(beta[j] - beta_prev[j]));
             maxBeta = std::max(maxBeta, std::fabs(beta[j]));
         }
@@ -144,7 +145,7 @@ GlmfitResult glmfit(const Value &X, const Value &y,
     dev = 0.0;
     double pearsonChi2 = 0.0;
     std::vector<double> wFinal(n, 0.0);
-    for (std::size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         dev += devTerm(yv[i], mu[i], distr);
         const double dE = fn.deta_dmu(mu[i]);
         const double V = std::max(varianceFn(mu[i], distr), 1e-30);
@@ -165,34 +166,34 @@ GlmfitResult glmfit(const Value &X, const Value &y,
 
     // Invert J = Xb' * W * Xb to obtain covb = s^2 * J^{-1}.
     std::vector<double> J(p * p, 0.0);
-    for (std::size_t i = 0; i < p; ++i)
-        for (std::size_t j = 0; j < p; ++j) {
+    for (keel::usize i = 0; i < p; ++i)
+        for (keel::usize j = 0; j < p; ++j) {
             double acc = 0.0;
-            for (std::size_t k = 0; k < n; ++k)
+            for (keel::usize k = 0; k < n; ++k)
                 acc += Xb[i * n + k] * wFinal[k] * Xb[j * n + k];
             J[i * p + j] = acc;
         }
     Value covb = Value::matrix(p, p, ValueType::DOUBLE, mr);
     double *covbD = covb.doubleDataMut();
-    for (std::size_t col = 0; col < p; ++col) {
+    for (keel::usize col = 0; col < p; ++col) {
         std::vector<double> M = J;
         std::vector<double> rhs(p, 0.0);
         rhs[col] = 1.0;
         if (gaussSolve(M.data(), rhs.data(), p)) {
-            for (std::size_t row = 0; row < p; ++row)
+            for (keel::usize row = 0; row < p; ++row)
                 covbD[row + col * p] = (sDisp * sDisp) * rhs[row];
         }
     }
     Value se = Value::matrix(p, 1, ValueType::DOUBLE, mr);
     Value tStat = Value::matrix(p, 1, ValueType::DOUBLE, mr);
-    for (std::size_t j = 0; j < p; ++j) {
+    for (keel::usize j = 0; j < p; ++j) {
         const double sej = std::sqrt(std::max(0.0, covbD[j + j * p]));
         se.doubleDataMut()[j] = sej;
         tStat.doubleDataMut()[j] = (sej > 0.0) ? (beta[j] / sej) : 0.0;
     }
     Value coeffcorr = Value::matrix(p, p, ValueType::DOUBLE, mr);
-    for (std::size_t j = 0; j < p; ++j)
-        for (std::size_t k = 0; k < p; ++k) {
+    for (keel::usize j = 0; j < p; ++j)
+        for (keel::usize k = 0; k < p; ++k) {
             const double sej = se.doubleData()[j];
             const double sek = se.doubleData()[k];
             coeffcorr.doubleDataMut()[j + k * p] =
@@ -202,7 +203,7 @@ GlmfitResult glmfit(const Value &X, const Value &y,
         }
     Value resid = Value::matrix(n, 1, ValueType::DOUBLE, mr);
     Value wts = Value::matrix(n, 1, ValueType::DOUBLE, mr);
-    for (std::size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         resid.doubleDataMut()[i] = yv[i] - mu[i];
         wts.doubleDataMut()[i] = wFinal[i];
     }
@@ -227,24 +228,24 @@ GlmfitResult glmfit(const Value &X, const Value &y,
 }
 
 Value glmval(const Value &b, const Value &X, GlmLink link,
-              std::pmr::memory_resource *mr)
+              keel::Allocator *mr)
 {
-    const std::size_t p = b.numel();
-    const std::size_t m = X.dims().rows();
-    const std::size_t p_in = X.dims().cols();
+    const keel::usize p = b.numel();
+    const keel::usize m = X.dims().rows();
+    const keel::usize p_in = X.dims().cols();
     if (p != p_in + 1)
         throw Error("glmval: length(b) must equal cols(X) + 1",
                     0, 0, "glmval", "", "numkit:glmval:shapeMismatch");
 
     const LinkFn fn = makeLink(link);
     std::vector<double> bv(p);
-    for (std::size_t i = 0; i < p; ++i) bv[i] = b.elemAsDouble(i);
+    for (keel::usize i = 0; i < p; ++i) bv[i] = b.elemAsDouble(i);
 
     auto out = Value::matrix(m, 1, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
-    for (std::size_t i = 0; i < m; ++i) {
+    for (keel::usize i = 0; i < m; ++i) {
         double eta = bv[0];      // intercept
-        for (std::size_t j = 0; j < p_in; ++j)
+        for (keel::usize j = 0; j < p_in; ++j)
             eta += X.elemAsDouble(j * m + i) * bv[j + 1];
         od[i] = fn.invLink(eta);
     }

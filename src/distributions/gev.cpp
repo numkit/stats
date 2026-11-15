@@ -1,5 +1,7 @@
 // toolboxes/stats/src/distributions/gev.cpp
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/distributions/gev.hpp>
 
 #include <numkit/builtin/datafun.hpp>
@@ -25,7 +27,7 @@ inline bool gev_argcheck(double sigma) noexcept
 }
 } // namespace
 
-Value gevpdf(const Value &x, double k, double sigma, double mu, std::pmr::memory_resource *mr)
+Value gevpdf(const Value &x, double k, double sigma, double mu, keel::Allocator *mr)
 {
     if (!gev_argcheck(sigma))
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -40,7 +42,7 @@ Value gevpdf(const Value &x, double k, double sigma, double mu, std::pmr::memory
     }, mr);
 }
 
-Value gevcdf(const Value &x, double k, double sigma, double mu, std::pmr::memory_resource *mr)
+Value gevcdf(const Value &x, double k, double sigma, double mu, keel::Allocator *mr)
 {
     if (sigma <= 0.0)
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -58,7 +60,7 @@ Value gevcdf(const Value &x, double k, double sigma, double mu, std::pmr::memory
     }, mr);
 }
 
-Value gevinv(const Value &p, double k, double sigma, double mu, std::pmr::memory_resource *mr)
+Value gevinv(const Value &p, double k, double sigma, double mu, keel::Allocator *mr)
 {
     if (sigma <= 0.0)
         return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -67,14 +69,14 @@ Value gevinv(const Value &p, double k, double sigma, double mu, std::pmr::memory
     }, mr);
 }
 
-Value gevrnd(::numkit::ops::RngContext &rng, double k, double sigma, double mu, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value gevrnd(::numkit::ops::RngContext &rng, double k, double sigma, double mu, keel::usize rows, keel::usize cols, keel::Allocator *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (sigma <= 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
-    const size_t n = rows * cols;
-    for (size_t i = 0; i < n; ++i) {
+    const keel::usize n = rows * cols;
+    for (keel::usize i = 0; i < n; ++i) {
         // genRes53 -- MATLAB-canonical 53-bit uniform; bypasses
         // std::uniform_real_distribution to preserve bit-parity.
         double u = gen.genRes53();

@@ -1,5 +1,9 @@
 // toolboxes/stats/src/test/hypothesis.cpp
 
+#include <keel/core.h>
+#include <keel/memory.h>
+#include <keel/arena.h>
+#include <keel/array.h>
 #include <numkit/stats/test/hypothesis.hpp>
 
 #include <numkit/stats/distributions/students_t.hpp>
@@ -9,14 +13,12 @@
 #include <numkit/stats/distributions/binomial.hpp>
 
 #include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <limits>
-#include <memory_resource>
 #include <numeric>
 #include <random>
 #include <vector>
@@ -70,34 +72,34 @@ void kstest_argcheck(const Value &x)
                     "numkit:kstest:nsamples");
 }
 
-Value extractCol(const Value &x, size_t c, std::pmr::memory_resource *mr)
+Value extractCol(const Value &x, keel::usize c, keel::Allocator *mr)
 {
-    const size_t R = x.dims().rows();
+    const keel::usize R = x.dims().rows();
     Value out = Value::matrix(R, 1, ValueType::DOUBLE, mr);
     double *d = out.doubleDataMut();
-    for (size_t r = 0; r < R; ++r)
+    for (keel::usize r = 0; r < R; ++r)
         d[r] = x.elemAsDouble(r + c * R);
     return out;
 }
 
-Value extractRow(const Value &x, size_t r, std::pmr::memory_resource *mr)
+Value extractRow(const Value &x, keel::usize r, keel::Allocator *mr)
 {
-    const size_t R = x.dims().rows();
-    const size_t C = x.dims().cols();
+    const keel::usize R = x.dims().rows();
+    const keel::usize C = x.dims().cols();
     Value out = Value::matrix(1, C, ValueType::DOUBLE, mr);
     double *d = out.doubleDataMut();
-    for (size_t c = 0; c < C; ++c)
+    for (keel::usize c = 0; c < C; ++c)
         d[c] = x.elemAsDouble(r + c * R);
     return out;
 }
 
 std::tuple<Value, Value, Value, Value>
-ttest_1d(const Value &x, double m, double alpha, TestTail tail, std::pmr::memory_resource *mr)
+ttest_1d(const Value &x, double m, double alpha, TestTail tail, keel::Allocator *mr)
 {
     ttest_argcheck(x);
     if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
 
-    double mu_hat, var_hat; size_t n;
+    double mu_hat, var_hat; keel::usize n;
     mean_var(x, mu_hat, var_hat, n);
     if (n < 2)
         throw Error("ttest: need at least 2 samples", 0, 0, "ttest", "",
@@ -146,12 +148,12 @@ ttest_1d(const Value &x, double m, double alpha, TestTail tail, std::pmr::memory
 }
 
 std::tuple<Value, Value, Value, Value>
-ttest2_1d(const Value &x, const Value &y, double alpha, TestTail tail, const std::string &vartype, std::pmr::memory_resource *mr)
+ttest2_1d(const Value &x, const Value &y, double alpha, TestTail tail, const std::string &vartype, keel::Allocator *mr)
 {
     ttest2_argcheck(x, y);
     if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
 
-    double mx, vx, my, vy; size_t nx, ny;
+    double mx, vx, my, vy; keel::usize nx, ny;
     mean_var(x, mx, vx, nx);
     mean_var(y, my, vy, ny);
     if (nx < 2 || ny < 2)
@@ -198,12 +200,12 @@ ttest2_1d(const Value &x, const Value &y, double alpha, TestTail tail, const std
 }
 
 std::tuple<Value, Value, Value, Value>
-ztest_1d(const Value &x, double m, double sigma, double alpha, TestTail tail, std::pmr::memory_resource *mr)
+ztest_1d(const Value &x, double m, double sigma, double alpha, TestTail tail, keel::Allocator *mr)
 {
     ztest_argcheck(sigma);
     if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
 
-    double mu_hat, var_hat; size_t n;
+    double mu_hat, var_hat; keel::usize n;
     mean_var(x, mu_hat, var_hat, n);
     if (n < 1)
         throw Error("ztest: need at least 1 sample", 0, 0, "ztest", "",
@@ -227,12 +229,12 @@ ztest_1d(const Value &x, double m, double sigma, double alpha, TestTail tail, st
 }
 
 std::tuple<Value, Value, Value, Value>
-vartest_1d(const Value &x, double v, double alpha, TestTail tail, std::pmr::memory_resource *mr)
+vartest_1d(const Value &x, double v, double alpha, TestTail tail, keel::Allocator *mr)
 {
     vartest_argcheck(v);
     if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
 
-    double mu_hat, var_hat; size_t n;
+    double mu_hat, var_hat; keel::usize n;
     mean_var(x, mu_hat, var_hat, n);
     if (n < 2)
         throw Error("vartest: need at least 2 samples", 0, 0, "vartest", "",
@@ -272,12 +274,12 @@ vartest_1d(const Value &x, double v, double alpha, TestTail tail, std::pmr::memo
 }
 
 std::tuple<Value, Value, Value, Value>
-vartest2_1d(const Value &x, const Value &y, double alpha, TestTail tail, std::pmr::memory_resource *mr)
+vartest2_1d(const Value &x, const Value &y, double alpha, TestTail tail, keel::Allocator *mr)
 {
     vartest2_argcheck(x, y);
     if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
 
-    double mx, vx, my, vy; size_t nx, ny;
+    double mx, vx, my, vy; keel::usize nx, ny;
     mean_var(x, mx, vx, nx);
     mean_var(y, my, vy, ny);
     if (nx < 2 || ny < 2 || vy == 0.0)
@@ -326,11 +328,11 @@ vartest2_1d(const Value &x, const Value &y, double alpha, TestTail tail, std::pm
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value, Value>
-ttest_dim(const Value &x, double m, double alpha, TestTail tail, int dim, std::pmr::memory_resource *mr)
+ttest_dim(const Value &x, double m, double alpha, TestTail tail, int dim, keel::Allocator *mr)
 {
     ttest_argcheck(x);
-    const size_t R = x.dims().rows();
-    const size_t C = x.dims().cols();
+    const keel::usize R = x.dims().rows();
+    const keel::usize C = x.dims().cols();
     const bool isVec = (R <= 1 || C <= 1);
     if (isVec) {
         const int nsDim = (R == 1 && C > 1) ? 2 : 1;
@@ -345,7 +347,7 @@ ttest_dim(const Value &x, double m, double alpha, TestTail tail, int dim, std::p
         Value tstatOut = Value::matrix(1, C, ValueType::DOUBLE, mr);
         Value dfOut    = Value::matrix(1, C, ValueType::DOUBLE, mr);
         Value sdOut    = Value::matrix(1, C, ValueType::DOUBLE, mr);
-        for (size_t c = 0; c < C; ++c) {
+        for (keel::usize c = 0; c < C; ++c) {
             auto [hc, pc, cic, stc] = ttest_1d(extractCol(x, c, mr), m, alpha, tail, mr);
             hOut.doubleDataMut()[c]         = hc.toScalar();
             pOut.doubleDataMut()[c]         = pc.toScalar();
@@ -368,7 +370,7 @@ ttest_dim(const Value &x, double m, double alpha, TestTail tail, int dim, std::p
         Value tstatOut = Value::matrix(R, 1, ValueType::DOUBLE, mr);
         Value dfOut    = Value::matrix(R, 1, ValueType::DOUBLE, mr);
         Value sdOut    = Value::matrix(R, 1, ValueType::DOUBLE, mr);
-        for (size_t r = 0; r < R; ++r) {
+        for (keel::usize r = 0; r < R; ++r) {
             auto [hr, pr, cir, str] = ttest_1d(extractRow(x, r, mr), m, alpha, tail, mr);
             hOut.doubleDataMut()[r]         = hr.toScalar();
             pOut.doubleDataMut()[r]         = pr.toScalar();
@@ -389,7 +391,7 @@ ttest_dim(const Value &x, double m, double alpha, TestTail tail, int dim, std::p
 }
 
 std::tuple<Value, Value, Value, Value>
-ttest(const Value &x, double m, double alpha, TestTail tail, std::pmr::memory_resource *mr)
+ttest(const Value &x, double m, double alpha, TestTail tail, keel::Allocator *mr)
 {
     ttest_argcheck(x);
     return ttest_dim(x, m, alpha, tail, 0, mr);
@@ -400,11 +402,11 @@ ttest(const Value &x, double m, double alpha, TestTail tail, std::pmr::memory_re
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value, Value>
-ttest2_dim(const Value &x, const Value &y, double alpha, TestTail tail, const std::string &vartype, int dim, std::pmr::memory_resource *mr)
+ttest2_dim(const Value &x, const Value &y, double alpha, TestTail tail, const std::string &vartype, int dim, keel::Allocator *mr)
 {
     ttest2_argcheck(x, y);
-    const size_t Rx = x.dims().rows(), Cx = x.dims().cols();
-    const size_t Ry = y.dims().rows(), Cy = y.dims().cols();
+    const keel::usize Rx = x.dims().rows(), Cx = x.dims().cols();
+    const keel::usize Ry = y.dims().rows(), Cy = y.dims().cols();
     const bool isVec = (Rx <= 1 || Cx <= 1) && (Ry <= 1 || Cy <= 1);
     if (isVec) {
         const int nsDim = (Rx == 1 && Cx > 1) ? 2 : 1;
@@ -423,7 +425,7 @@ ttest2_dim(const Value &x, const Value &y, double alpha, TestTail tail, const st
         Value tstatOut = Value::matrix(1, Cx, ValueType::DOUBLE, mr);
         Value dfOut    = Value::matrix(1, Cx, ValueType::DOUBLE, mr);
         Value sdOut    = Value::matrix(equalVar ? 1 : 2, Cx, ValueType::DOUBLE, mr);
-        for (size_t c = 0; c < Cx; ++c) {
+        for (keel::usize c = 0; c < Cx; ++c) {
             auto [hc, pc, cic, stc] = ttest2_1d(extractCol(x, c, mr), extractCol(y, c, mr), alpha, tail, vartype, mr);
             hOut.doubleDataMut()[c]        = hc.toScalar();
             pOut.doubleDataMut()[c]        = pc.toScalar();
@@ -455,7 +457,7 @@ ttest2_dim(const Value &x, const Value &y, double alpha, TestTail tail, const st
         Value tstatOut = Value::matrix(Rx, 1, ValueType::DOUBLE, mr);
         Value dfOut    = Value::matrix(Rx, 1, ValueType::DOUBLE, mr);
         Value sdOut    = Value::matrix(Rx, equalVar ? 1 : 2, ValueType::DOUBLE, mr);
-        for (size_t r = 0; r < Rx; ++r) {
+        for (keel::usize r = 0; r < Rx; ++r) {
             auto [hr, pr, cir, str] = ttest2_1d(extractRow(x, r, mr), extractRow(y, r, mr), alpha, tail, vartype, mr);
             hOut.doubleDataMut()[r]       = hr.toScalar();
             pOut.doubleDataMut()[r]       = pr.toScalar();
@@ -482,7 +484,7 @@ ttest2_dim(const Value &x, const Value &y, double alpha, TestTail tail, const st
 }
 
 std::tuple<Value, Value, Value, Value>
-ttest2(const Value &x, const Value &y, double alpha, TestTail tail, const std::string &vartype, std::pmr::memory_resource *mr)
+ttest2(const Value &x, const Value &y, double alpha, TestTail tail, const std::string &vartype, keel::Allocator *mr)
 {
     ttest2_argcheck(x, y);
     return ttest2_dim(x, y, alpha, tail, vartype, 0, mr);
@@ -493,11 +495,11 @@ ttest2(const Value &x, const Value &y, double alpha, TestTail tail, const std::s
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value, Value>
-ztest_dim(const Value &x, double m, double sigma, double alpha, TestTail tail, int dim, std::pmr::memory_resource *mr)
+ztest_dim(const Value &x, double m, double sigma, double alpha, TestTail tail, int dim, keel::Allocator *mr)
 {
     ztest_argcheck(sigma);
-    const size_t R = x.dims().rows();
-    const size_t C = x.dims().cols();
+    const keel::usize R = x.dims().rows();
+    const keel::usize C = x.dims().cols();
     const bool isVec = (R <= 1 || C <= 1);
     if (isVec) {
         const int nsDim = (R == 1 && C > 1) ? 2 : 1;
@@ -510,7 +512,7 @@ ztest_dim(const Value &x, double m, double sigma, double alpha, TestTail tail, i
         Value pOut  = Value::matrix(1, C, ValueType::DOUBLE, mr);
         Value ciOut = Value::matrix(2, C, ValueType::DOUBLE, mr);
         Value zOut  = Value::matrix(1, C, ValueType::DOUBLE, mr);
-        for (size_t c = 0; c < C; ++c) {
+        for (keel::usize c = 0; c < C; ++c) {
             auto [hc, pc, cic, zc] = ztest_1d(extractCol(x, c, mr), m, sigma, alpha, tail, mr);
             hOut.doubleDataMut()[c]        = hc.toScalar();
             pOut.doubleDataMut()[c]        = pc.toScalar();
@@ -525,7 +527,7 @@ ztest_dim(const Value &x, double m, double sigma, double alpha, TestTail tail, i
         Value pOut  = Value::matrix(R, 1, ValueType::DOUBLE, mr);
         Value ciOut = Value::matrix(R, 2, ValueType::DOUBLE, mr);
         Value zOut  = Value::matrix(R, 1, ValueType::DOUBLE, mr);
-        for (size_t r = 0; r < R; ++r) {
+        for (keel::usize r = 0; r < R; ++r) {
             auto [hr, pr, cir, zr] = ztest_1d(extractRow(x, r, mr), m, sigma, alpha, tail, mr);
             hOut.doubleDataMut()[r]       = hr.toScalar();
             pOut.doubleDataMut()[r]       = pr.toScalar();
@@ -540,7 +542,7 @@ ztest_dim(const Value &x, double m, double sigma, double alpha, TestTail tail, i
 }
 
 std::tuple<Value, Value, Value, Value>
-ztest(const Value &x, double m, double sigma, double alpha, TestTail tail, std::pmr::memory_resource *mr)
+ztest(const Value &x, double m, double sigma, double alpha, TestTail tail, keel::Allocator *mr)
 {
     ztest_argcheck(sigma);
     return ztest_dim(x, m, sigma, alpha, tail, 0, mr);
@@ -551,11 +553,11 @@ ztest(const Value &x, double m, double sigma, double alpha, TestTail tail, std::
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value, Value>
-vartest_dim(const Value &x, double v, double alpha, TestTail tail, int dim, std::pmr::memory_resource *mr)
+vartest_dim(const Value &x, double v, double alpha, TestTail tail, int dim, keel::Allocator *mr)
 {
     vartest_argcheck(v);
-    const size_t R = x.dims().rows();
-    const size_t C = x.dims().cols();
+    const keel::usize R = x.dims().rows();
+    const keel::usize C = x.dims().cols();
     const bool isVec = (R <= 1 || C <= 1);
     if (isVec) {
         const int nsDim = (R == 1 && C > 1) ? 2 : 1;
@@ -569,7 +571,7 @@ vartest_dim(const Value &x, double v, double alpha, TestTail tail, int dim, std:
         Value ciOut    = Value::matrix(2, C, ValueType::DOUBLE, mr);
         Value chisqOut = Value::matrix(1, C, ValueType::DOUBLE, mr);
         Value dfOut    = Value::matrix(1, C, ValueType::DOUBLE, mr);
-        for (size_t c = 0; c < C; ++c) {
+        for (keel::usize c = 0; c < C; ++c) {
             auto [hc, pc, cic, stc] = vartest_1d(extractCol(x, c, mr), v, alpha, tail, mr);
             hOut.doubleDataMut()[c]        = hc.toScalar();
             pOut.doubleDataMut()[c]        = pc.toScalar();
@@ -589,7 +591,7 @@ vartest_dim(const Value &x, double v, double alpha, TestTail tail, int dim, std:
         Value ciOut    = Value::matrix(R, 2, ValueType::DOUBLE, mr);
         Value chisqOut = Value::matrix(R, 1, ValueType::DOUBLE, mr);
         Value dfOut    = Value::matrix(R, 1, ValueType::DOUBLE, mr);
-        for (size_t r = 0; r < R; ++r) {
+        for (keel::usize r = 0; r < R; ++r) {
             auto [hr, pr, cir, str] = vartest_1d(extractRow(x, r, mr), v, alpha, tail, mr);
             hOut.doubleDataMut()[r]       = hr.toScalar();
             pOut.doubleDataMut()[r]       = pr.toScalar();
@@ -608,7 +610,7 @@ vartest_dim(const Value &x, double v, double alpha, TestTail tail, int dim, std:
 }
 
 std::tuple<Value, Value, Value, Value>
-vartest(const Value &x, double v, double alpha, TestTail tail, std::pmr::memory_resource *mr)
+vartest(const Value &x, double v, double alpha, TestTail tail, keel::Allocator *mr)
 {
     vartest_argcheck(v);
     return vartest_dim(x, v, alpha, tail, 0, mr);
@@ -619,11 +621,11 @@ vartest(const Value &x, double v, double alpha, TestTail tail, std::pmr::memory_
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value, Value>
-vartest2_dim(const Value &x, const Value &y, double alpha, TestTail tail, int dim, std::pmr::memory_resource *mr)
+vartest2_dim(const Value &x, const Value &y, double alpha, TestTail tail, int dim, keel::Allocator *mr)
 {
     vartest2_argcheck(x, y);
-    const size_t Rx = x.dims().rows(), Cx = x.dims().cols();
-    const size_t Ry = y.dims().rows(), Cy = y.dims().cols();
+    const keel::usize Rx = x.dims().rows(), Cx = x.dims().cols();
+    const keel::usize Ry = y.dims().rows(), Cy = y.dims().cols();
     const bool isVec = (Rx <= 1 || Cx <= 1) && (Ry <= 1 || Cy <= 1);
     if (isVec) {
         const int nsDim = (Rx == 1 && Cx > 1) ? 2 : 1;
@@ -641,7 +643,7 @@ vartest2_dim(const Value &x, const Value &y, double alpha, TestTail tail, int di
         Value fOut   = Value::matrix(1, Cx, ValueType::DOUBLE, mr);
         Value df1Out = Value::matrix(1, Cx, ValueType::DOUBLE, mr);
         Value df2Out = Value::matrix(1, Cx, ValueType::DOUBLE, mr);
-        for (size_t c = 0; c < Cx; ++c) {
+        for (keel::usize c = 0; c < Cx; ++c) {
             auto [hc, pc, cic, stc] = vartest2_1d(extractCol(x, c, mr), extractCol(y, c, mr), alpha, tail, mr);
             hOut.doubleDataMut()[c]        = hc.toScalar();
             pOut.doubleDataMut()[c]        = pc.toScalar();
@@ -667,7 +669,7 @@ vartest2_dim(const Value &x, const Value &y, double alpha, TestTail tail, int di
         Value fOut   = Value::matrix(Rx, 1, ValueType::DOUBLE, mr);
         Value df1Out = Value::matrix(Rx, 1, ValueType::DOUBLE, mr);
         Value df2Out = Value::matrix(Rx, 1, ValueType::DOUBLE, mr);
-        for (size_t r = 0; r < Rx; ++r) {
+        for (keel::usize r = 0; r < Rx; ++r) {
             auto [hr, pr, cir, str] = vartest2_1d(extractRow(x, r, mr), extractRow(y, r, mr), alpha, tail, mr);
             hOut.doubleDataMut()[r]       = hr.toScalar();
             pOut.doubleDataMut()[r]       = pr.toScalar();
@@ -688,7 +690,7 @@ vartest2_dim(const Value &x, const Value &y, double alpha, TestTail tail, int di
 }
 
 std::tuple<Value, Value, Value, Value>
-vartest2(const Value &x, const Value &y, double alpha, TestTail tail, std::pmr::memory_resource *mr)
+vartest2(const Value &x, const Value &y, double alpha, TestTail tail, keel::Allocator *mr)
 {
     vartest2_argcheck(x, y);
     return vartest2_dim(x, y, alpha, tail, 0, mr);
@@ -700,33 +702,33 @@ vartest2(const Value &x, const Value &y, double alpha, TestTail tail, std::pmr::
 
 
 std::tuple<Value, Value, Value, Value>
-kstest(const Value &x, const Value &cdf, double alpha, TestTail tail, std::pmr::memory_resource *mr)
+kstest(const Value &x, const Value &cdf, double alpha, TestTail tail, keel::Allocator *mr)
 {
     kstest_argcheck(x);
     if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
-    const size_t N = x.numel();
+    const keel::usize N = x.numel();
 
     std::vector<double> xs(N);
-    for (size_t i = 0; i < N; ++i) xs[i] = x.elemAsDouble(i);
+    for (keel::usize i = 0; i < N; ++i) xs[i] = x.elemAsDouble(i);
     std::sort(xs.begin(), xs.end());
 
     // Reference CDF.
     auto refF = [&](double v) {
         if (cdf.numel() >= 2) {
-            const size_t rows = cdf.dims().rows();
+            const keel::usize rows = cdf.dims().rows();
             std::vector<double> xg(rows), Fg(rows);
-            for (size_t i = 0; i < rows; ++i) {
+            for (keel::usize i = 0; i < rows; ++i) {
                 xg[i] = cdf.elemAsDouble(0 * rows + i);
                 Fg[i] = cdf.elemAsDouble(1 * rows + i);
             }
             // xg should already be sorted; if not, do a quick sort.
             if (!std::is_sorted(xg.begin(), xg.end())) {
-                std::vector<size_t> ord(rows);
-                std::iota(ord.begin(), ord.end(), (size_t)0);
+                std::vector<keel::usize> ord(rows);
+                std::iota(ord.begin(), ord.end(), (keel::usize)0);
                 std::sort(ord.begin(), ord.end(),
-                          [&](size_t a, size_t b){ return xg[a] < xg[b]; });
+                          [&](keel::usize a, keel::usize b){ return xg[a] < xg[b]; });
                 std::vector<double> xs2(rows), Fs2(rows);
-                for (size_t i = 0; i < rows; ++i) { xs2[i] = xg[ord[i]]; Fs2[i] = Fg[ord[i]]; }
+                for (keel::usize i = 0; i < rows; ++i) { xs2[i] = xg[ord[i]]; Fs2[i] = Fg[ord[i]]; }
                 xg = std::move(xs2); Fg = std::move(Fs2);
             }
             return interp_cdf(xg, Fg, v);
@@ -738,7 +740,7 @@ kstest(const Value &x, const Value &cdf, double alpha, TestTail tail, std::pmr::
 
     // Compute D⁺ and D⁻ relative to reference; combine per tail.
     double Dplus = 0.0, Dminus = 0.0;
-    for (size_t i = 0; i < N; ++i) {
+    for (keel::usize i = 0; i < N; ++i) {
         const double F = refF(xs[i]);
         const double up = double(i + 1) / double(N) - F;
         const double dn = F - double(i) / double(N);
@@ -771,23 +773,23 @@ kstest(const Value &x, const Value &cdf, double alpha, TestTail tail, std::pmr::
 }
 
 std::tuple<Value, Value, Value, Value>
-kstest2(const Value &x, const Value &y, double alpha, TestTail tail, std::pmr::memory_resource *mr)
+kstest2(const Value &x, const Value &y, double alpha, TestTail tail, keel::Allocator *mr)
 {
     if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
-    const size_t Nx = x.numel(), Ny = y.numel();
+    const keel::usize Nx = x.numel(), Ny = y.numel();
     if (Nx < 1 || Ny < 1)
         throw Error("kstest2: empty sample", 0, 0, "kstest2", "",
                     "numkit:kstest2:nsamples");
 
     std::vector<double> xs(Nx), ys(Ny);
-    for (size_t i = 0; i < Nx; ++i) xs[i] = x.elemAsDouble(i);
-    for (size_t i = 0; i < Ny; ++i) ys[i] = y.elemAsDouble(i);
+    for (keel::usize i = 0; i < Nx; ++i) xs[i] = x.elemAsDouble(i);
+    for (keel::usize i = 0; i < Ny; ++i) ys[i] = y.elemAsDouble(i);
     std::sort(xs.begin(), xs.end());
     std::sort(ys.begin(), ys.end());
 
     // Walk the merged sorted axis to compute D⁺ and D⁻.
     double Dplus = 0.0, Dminus = 0.0;
-    size_t i = 0, j = 0;
+    keel::usize i = 0, j = 0;
     while (i < Nx && j < Ny) {
         const double a = xs[i], b = ys[j];
         if (a <= b) ++i;
@@ -824,18 +826,18 @@ kstest2(const Value &x, const Value &y, double alpha, TestTail tail, std::pmr::m
 
 
 std::tuple<Value, Value, Value, Value>
-jbtest(const Value &x, double alpha, double mctol, std::pmr::memory_resource *mr)
+jbtest(const Value &x, double alpha, double mctol, keel::Allocator *mr)
 {
     if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
-    const size_t N = x.numel();
+    const keel::usize N = x.numel();
     if (N < 4)
         throw Error("jbtest: need at least 4 samples", 0, 0, "jbtest", "",
                     "numkit:jbtest:nsamples");
 
     // Read sample into a flat scratch buffer.
-    ScratchArena scratch(mr);
-    ScratchVec<double> xv(N, &scratch);
-    for (size_t i = 0; i < N; ++i) xv[i] = x.elemAsDouble(i);
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    keel::Array<double> xv(N, scratch.allocator());
+    for (keel::usize i = 0; i < N; ++i) xv[i] = x.elemAsDouble(i);
 
     const double JB = jb_stat(xv.data(), N);
 
@@ -866,7 +868,7 @@ jbtest(const Value &x, double alpha, double mctol, std::pmr::memory_resource *mr
 
 // Backward-compat 2-arg form — uses MC for small N (n < 2000).
 std::tuple<Value, Value, Value, Value>
-jbtest(const Value &x, double alpha, std::pmr::memory_resource *mr)
+jbtest(const Value &x, double alpha, keel::Allocator *mr)
 {
     return jbtest(x, alpha, std::numeric_limits<double>::quiet_NaN(), mr);
 }
@@ -876,9 +878,9 @@ jbtest(const Value &x, double alpha, std::pmr::memory_resource *mr)
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value>
-signtest(const Value &x, const Value &y_or_m, double alpha, TestTail tail, std::pmr::memory_resource *mr)
+signtest(const Value &x, const Value &y_or_m, double alpha, TestTail tail, keel::Allocator *mr)
 {
-    const size_t Nx = x.numel();
+    const keel::usize Nx = x.numel();
     const bool paired = (!y_or_m.isEmpty() && !y_or_m.isScalar());
     if (paired && y_or_m.numel() != Nx)
         throw Error("signtest: X and Y must have the same length",
@@ -888,7 +890,7 @@ signtest(const Value &x, const Value &y_or_m, double alpha, TestTail tail, std::
     // Count positive and non-zero diffs.
     long long n_pos = 0;
     long long n_eff = 0;
-    for (size_t i = 0; i < Nx; ++i) {
+    for (keel::usize i = 0; i < Nx; ++i) {
         const double xi = x.elemAsDouble(i);
         const double yi = paired ? y_or_m.elemAsDouble(i) : m0;
         if (std::isnan(xi) || std::isnan(yi)) continue;
@@ -927,7 +929,7 @@ signtest(const Value &x, const Value &y_or_m, double alpha, TestTail tail, std::
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value, Value, Value>
-fishertest(const Value &T, double alpha, TestTail tail, std::pmr::memory_resource *mr)
+fishertest(const Value &T, double alpha, TestTail tail, keel::Allocator *mr)
 {
     if (T.dims().rows() != 2 || T.dims().cols() != 2)
         throw Error("fishertest: T must be a 2×2 matrix",
@@ -950,30 +952,30 @@ fishertest(const Value &T, double alpha, TestTail tail, std::pmr::memory_resourc
     const long long kobs = static_cast<long long>(a);
     const double logC_den = lb(Ntot, col1);
     const long long K = kmax - kmin + 1;
-    std::vector<double> pmf(static_cast<size_t>(K));
+    std::vector<double> pmf(static_cast<keel::usize>(K));
     for (long long k = kmin; k <= kmax; ++k) {
         const double lp = lb(row1, double(k))
                         + lb(Ntot - row1, col1 - double(k))
                         - logC_den;
-        pmf[static_cast<size_t>(k - kmin)] = std::exp(lp);
+        pmf[static_cast<keel::usize>(k - kmin)] = std::exp(lp);
     }
-    const double pObs = pmf[static_cast<size_t>(kobs - kmin)];
+    const double pObs = pmf[static_cast<keel::usize>(kobs - kmin)];
 
     double p = 0.0;
     switch (tail) {
         case TestTail::Both: {
             const double tol = pObs * (1.0 + 1e-9);
-            for (size_t i = 0; i < pmf.size(); ++i)
+            for (keel::usize i = 0; i < pmf.size(); ++i)
                 if (pmf[i] <= tol) p += pmf[i];
             break;
         }
         case TestTail::Right:
             for (long long k = kobs; k <= kmax; ++k)
-                p += pmf[static_cast<size_t>(k - kmin)];
+                p += pmf[static_cast<keel::usize>(k - kmin)];
             break;
         case TestTail::Left:
             for (long long k = kmin; k <= kobs; ++k)
-                p += pmf[static_cast<size_t>(k - kmin)];
+                p += pmf[static_cast<keel::usize>(k - kmin)];
             break;
     }
     if (p > 1.0) p = 1.0;
@@ -1004,9 +1006,9 @@ fishertest(const Value &T, double alpha, TestTail tail, std::pmr::memory_resourc
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value, Value>
-chi2gof(const Value &observed, const Value &expected, int nparams, double alpha, std::pmr::memory_resource *mr)
+chi2gof(const Value &observed, const Value &expected, int nparams, double alpha, keel::Allocator *mr)
 {
-    const size_t K = observed.numel();
+    const keel::usize K = observed.numel();
     if (expected.numel() != K)
         throw Error("chi2gof: observed and expected must have same length",
                     0, 0, "chi2gof", "", "numkit:chi2gof:size");
@@ -1018,7 +1020,7 @@ chi2gof(const Value &observed, const Value &expected, int nparams, double alpha,
                                Value::scalar(0.0, mr));
 
     double chi2 = 0.0;
-    for (size_t i = 0; i < K; ++i) {
+    for (keel::usize i = 0; i < K; ++i) {
         const double O = observed.elemAsDouble(i);
         const double E = expected.elemAsDouble(i);
         if (E <= 0.0) continue;
@@ -1050,65 +1052,65 @@ chi2gof(const Value &observed, const Value &expected, int nparams, double alpha,
 // Public API. test = 0 Bartlett, 1 LeveneQuadratic, 2 LeveneAbsolute,
 // 3 BrownForsythe, 4 OBrien.
 std::tuple<Value, Value, Value, Value>
-vartestn_full(const Value &x, const Value &group, int test, std::pmr::memory_resource *mr)
+vartestn_full(const Value &x, const Value &group, int test, keel::Allocator *mr)
 {
-    const size_t Nx = x.numel();
+    const keel::usize Nx = x.numel();
     const double nan = std::numeric_limits<double>::quiet_NaN();
     if (Nx == 0 || group.numel() != Nx)
         throw Error("vartestn: x and group must be same length",
                     0, 0, "vartestn", "", "numkit:vartestn:size");
 
-    ScratchArena scratch(mr);
-    Groups G = bucket_by_group(x, group, &scratch);
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    Groups G = bucket_by_group(x, group, scratch.allocator());
     // Drop groups with <2 observations (no sample variance / can't ANOVA).
-    ScratchVec<size_t> ns(&scratch);   ns.reserve(G.ns.size());
-    ScratchVec<size_t> offsets(&scratch); offsets.push_back(0);
-    ScratchVec<double> data(&scratch); data.reserve(G.data.size());
-    for (size_t g = 0; g < G.ns.size(); ++g) {
+    keel::Array<keel::usize> ns(scratch.allocator());   ns.reserve(G.ns.size());
+    keel::Array<keel::usize> offsets(scratch.allocator()); offsets.push_back(0);
+    keel::Array<double> data(scratch.allocator()); data.reserve(G.data.size());
+    for (keel::usize g = 0; g < G.ns.size(); ++g) {
         if (G.ns[g] < 2) continue;
         ns.push_back(G.ns[g]);
-        for (size_t j = G.offsets[g]; j < G.offsets[g + 1]; ++j)
+        for (keel::usize j = G.offsets[g]; j < G.offsets[g + 1]; ++j)
             data.push_back(G.data[j]);
         offsets.push_back(data.size());
     }
-    const size_t k = ns.size();
+    const keel::usize k = ns.size();
     if (k < 2) {
         return std::make_tuple(Value::scalar(nan, mr),
                                Value::scalar(0.0, mr),
                                Value::scalar(double(k > 0 ? k - 1 : 0), mr),
                                Value::scalar(nan, mr));
     }
-    size_t N = 0;
+    keel::usize N = 0;
     for (auto n_i : ns) N += n_i;
 
     // Per-group mean / median / variance.
-    ScratchVec<double> means(k, 0.0, &scratch);
-    ScratchVec<double> meds(k,  0.0, &scratch);
-    ScratchVec<double> vars(k,  0.0, &scratch);
-    for (size_t g = 0; g < k; ++g) {
-        const size_t lo = offsets[g], hi = offsets[g + 1];
+    keel::Array<double> means(k, 0.0, scratch.allocator());
+    keel::Array<double> meds(k,  0.0, scratch.allocator());
+    keel::Array<double> vars(k,  0.0, scratch.allocator());
+    for (keel::usize g = 0; g < k; ++g) {
+        const keel::usize lo = offsets[g], hi = offsets[g + 1];
         double s = 0.0;
-        for (size_t j = lo; j < hi; ++j) s += data[j];
+        for (keel::usize j = lo; j < hi; ++j) s += data[j];
         means[g] = s / double(ns[g]);
         double s2 = 0.0;
-        for (size_t j = lo; j < hi; ++j) {
+        for (keel::usize j = lo; j < hi; ++j) {
             const double d = data[j] - means[g]; s2 += d * d;
         }
         vars[g] = s2 / double(ns[g] - 1);
         // Median: copy + nth_element. Use scratch sort.
-        ScratchVec<double> tmp(data.begin() + lo, data.begin() + hi, &scratch);
+        keel::Array<double> tmp(data.slice(lo, hi - lo), scratch.allocator());
         meds[g] = median_sorted(tmp.data(), tmp.size());
     }
 
     if (test == 0) {
         // Bartlett.
         double Sp2_num = 0.0;
-        for (size_t i = 0; i < k; ++i) Sp2_num += double(ns[i] - 1) * vars[i];
+        for (keel::usize i = 0; i < k; ++i) Sp2_num += double(ns[i] - 1) * vars[i];
         const double Sp2 = Sp2_num / double(N - k);
         double Q = double(N - k) * std::log(Sp2);
-        for (size_t i = 0; i < k; ++i) Q -= double(ns[i] - 1) * std::log(vars[i]);
+        for (keel::usize i = 0; i < k; ++i) Q -= double(ns[i] - 1) * std::log(vars[i]);
         double inv_sum = 0.0;
-        for (size_t i = 0; i < k; ++i) inv_sum += 1.0 / double(ns[i] - 1);
+        for (keel::usize i = 0; i < k; ++i) inv_sum += 1.0 / double(ns[i] - 1);
         inv_sum -= 1.0 / double(N - k);
         const double C = 1.0 + inv_sum / (3.0 * double(k - 1));
         const double chisq = Q / C;
@@ -1123,10 +1125,10 @@ vartestn_full(const Value &x, const Value &group, int test, std::pmr::memory_res
     }
 
     // F-based tests: build Z values per observation.
-    ScratchVec<double> Z(data.size(), &scratch);
-    for (size_t g = 0; g < k; ++g) {
-        const size_t lo = offsets[g], hi = offsets[g + 1];
-        for (size_t j = lo; j < hi; ++j) {
+    keel::Array<double> Z(data.size(), scratch.allocator());
+    for (keel::usize g = 0; g < k; ++g) {
+        const keel::usize lo = offsets[g], hi = offsets[g + 1];
+        for (keel::usize j = lo; j < hi; ++j) {
             const double v = data[j];
             switch (test) {
                 case 1: { // LeveneQuadratic
@@ -1158,7 +1160,7 @@ vartestn_full(const Value &x, const Value &group, int test, std::pmr::memory_res
 }
 
 std::tuple<Value, Value, Value>
-vartestn(const Value &x, const Value &group, double /*alpha*/, std::pmr::memory_resource *mr)
+vartestn(const Value &x, const Value &group, double /*alpha*/, keel::Allocator *mr)
 {
     auto [p, stat, df1, df2] = vartestn_full(x, group, /*Bartlett*/ 0, mr);
     (void)df2;
@@ -1171,21 +1173,21 @@ vartestn(const Value &x, const Value &group, double /*alpha*/, std::pmr::memory_
 
 
 std::tuple<Value, Value, Value, Value, Value, Value>
-runstest(const Value &x, double v_in, double alpha, TestTail tail, const std::string &method_in, std::pmr::memory_resource *mr)
+runstest(const Value &x, double v_in, double alpha, TestTail tail, const std::string &method_in, keel::Allocator *mr)
 {
-    const size_t Nx = x.numel();
+    const keel::usize Nx = x.numel();
 
     // Default v = median(x).
     double v = v_in;
     if (std::isnan(v_in)) {
         std::vector<double> sorted;
         sorted.reserve(Nx);
-        for (size_t i = 0; i < Nx; ++i) {
+        for (keel::usize i = 0; i < Nx; ++i) {
             const double xi = x.elemAsDouble(i);
             if (!std::isnan(xi)) sorted.push_back(xi);
         }
         std::sort(sorted.begin(), sorted.end());
-        const size_t M = sorted.size();
+        const keel::usize M = sorted.size();
         if (M == 0) v = 0.0;
         else if (M % 2 == 1) v = sorted[M / 2];
         else                 v = 0.5 * (sorted[M / 2 - 1] + sorted[M / 2]);
@@ -1194,7 +1196,7 @@ runstest(const Value &x, double v_in, double alpha, TestTail tail, const std::st
     // Build binary sequence; drop values equal to v.
     std::vector<int> bin;
     bin.reserve(Nx);
-    for (size_t i = 0; i < Nx; ++i) {
+    for (keel::usize i = 0; i < Nx; ++i) {
         const double xi = x.elemAsDouble(i);
         if (std::isnan(xi)) continue;
         if (xi > v)      bin.push_back(1);
@@ -1272,11 +1274,11 @@ runstest(const Value &x, double v_in, double alpha, TestTail tail, const std::st
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value, Value>
-ranksum(const Value &x, const Value &y, double alpha, TestTail tail, const std::string &method_in, std::pmr::memory_resource *mr)
+ranksum(const Value &x, const Value &y, double alpha, TestTail tail, const std::string &method_in, keel::Allocator *mr)
 {
-    const size_t nx = x.numel();
-    const size_t ny = y.numel();
-    const size_t N = nx + ny;
+    const keel::usize nx = x.numel();
+    const keel::usize ny = y.numel();
+    const keel::usize N = nx + ny;
     if (N == 0) {
         return std::make_tuple(Value::scalar(1.0, mr),
                                Value::scalar(0.0, mr),
@@ -1288,16 +1290,16 @@ ranksum(const Value &x, const Value &y, double alpha, TestTail tail, const std::
     struct Item { double v; bool is_x; };
     std::vector<Item> items;
     items.reserve(N);
-    for (size_t i = 0; i < nx; ++i) {
+    for (keel::usize i = 0; i < nx; ++i) {
         const double v = x.elemAsDouble(i);
         if (!std::isnan(v)) items.push_back({v, true});
     }
-    for (size_t i = 0; i < ny; ++i) {
+    for (keel::usize i = 0; i < ny; ++i) {
         const double v = y.elemAsDouble(i);
         if (!std::isnan(v)) items.push_back({v, false});
     }
-    const size_t Neff = items.size();
-    size_t nx_eff = 0, ny_eff = 0;
+    const keel::usize Neff = items.size();
+    keel::usize nx_eff = 0, ny_eff = 0;
     for (auto &it : items) (it.is_x ? nx_eff : ny_eff) += 1;
     if (Neff == 0 || nx_eff == 0 || ny_eff == 0) {
         // Degenerate: no comparison possible.
@@ -1308,26 +1310,26 @@ ranksum(const Value &x, const Value &y, double alpha, TestTail tail, const std::
     }
 
     // Sort + assign mid-ranks.
-    std::vector<size_t> ord(Neff);
-    for (size_t i = 0; i < Neff; ++i) ord[i] = i;
+    std::vector<keel::usize> ord(Neff);
+    for (keel::usize i = 0; i < Neff; ++i) ord[i] = i;
     std::sort(ord.begin(), ord.end(),
-              [&](size_t a, size_t b) { return items[a].v < items[b].v; });
+              [&](keel::usize a, keel::usize b) { return items[a].v < items[b].v; });
 
     std::vector<double> ranks(Neff);
-    std::vector<size_t> tieGroupSizes;
-    size_t i = 0;
+    std::vector<keel::usize> tieGroupSizes;
+    keel::usize i = 0;
     while (i < Neff) {
-        size_t j = i + 1;
+        keel::usize j = i + 1;
         while (j < Neff && items[ord[j]].v == items[ord[i]].v) ++j;
         const double avg = static_cast<double>(i + j + 1) / 2.0;  // mean of (i+1)..j
-        for (size_t k = i; k < j; ++k) ranks[ord[k]] = avg;
+        for (keel::usize k = i; k < j; ++k) ranks[ord[k]] = avg;
         if (j - i > 1) tieGroupSizes.push_back(j - i);
         i = j;
     }
 
     // W_x = sum of x's ranks.
     double Wx = 0.0;
-    for (size_t k = 0; k < Neff; ++k)
+    for (keel::usize k = 0; k < Neff; ++k)
         if (items[k].is_x) Wx += ranks[k];
 
     // Choose method.
@@ -1345,14 +1347,14 @@ ranksum(const Value &x, const Value &y, double alpha, TestTail tail, const std::
         // 2D DP: dp[k][s] = # size-k subsets of (2·ranks) summing to s.
         std::vector<long long> rk2(Neff);
         long long total2 = 0;
-        for (size_t k = 0; k < Neff; ++k) {
+        for (keel::usize k = 0; k < Neff; ++k) {
             rk2[k] = static_cast<long long>(std::llround(ranks[k] * 2.0));
             total2 += rk2[k];
         }
-        const size_t S = static_cast<size_t>(total2 + 1);
+        const keel::usize S = static_cast<keel::usize>(total2 + 1);
         std::vector<std::vector<double>> dp(nx_eff + 1, std::vector<double>(S, 0.0));
         dp[0][0] = 1.0;
-        for (size_t k = 0; k < Neff; ++k) {
+        for (keel::usize k = 0; k < Neff; ++k) {
             const long long r = rk2[k];
             for (long long kk = static_cast<long long>(nx_eff) - 1; kk >= 0; --kk) {
                 for (long long s = static_cast<long long>(S) - 1; s >= r; --s)
@@ -1361,7 +1363,7 @@ ranksum(const Value &x, const Value &y, double alpha, TestTail tail, const std::
         }
         const long long Wx2 = static_cast<long long>(std::llround(Wx * 2.0));
         double total = 0.0;
-        for (size_t s = 0; s < S; ++s) total += dp[nx_eff][s];
+        for (keel::usize s = 0; s < S; ++s) total += dp[nx_eff][s];
         double cdfLE = 0.0, cdfGE = 0.0;
         for (long long s = 0; s <= Wx2 && s < static_cast<long long>(S); ++s)
             cdfLE += dp[nx_eff][s];
@@ -1381,7 +1383,7 @@ ranksum(const Value &x, const Value &y, double alpha, TestTail tail, const std::
                      * (Nd + 1) / 12.0;
         if (Nd > 1.0) {
             double tieSum = 0.0;
-            for (size_t t : tieGroupSizes) {
+            for (keel::usize t : tieGroupSizes) {
                 const double td = static_cast<double>(t);
                 tieSum += td * td * td - td;
             }
@@ -1415,9 +1417,9 @@ ranksum(const Value &x, const Value &y, double alpha, TestTail tail, const std::
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value, Value>
-signrank(const Value &x, const Value &y_or_m, double alpha, TestTail tail, const std::string &method_in, std::pmr::memory_resource *mr)
+signrank(const Value &x, const Value &y_or_m, double alpha, TestTail tail, const std::string &method_in, keel::Allocator *mr)
 {
-    const size_t Nx = x.numel();
+    const keel::usize Nx = x.numel();
     const bool paired = (!y_or_m.isEmpty() && !y_or_m.isScalar());
     if (paired && y_or_m.numel() != Nx)
         throw Error("signrank: X and Y must have the same length",
@@ -1428,7 +1430,7 @@ signrank(const Value &x, const Value &y_or_m, double alpha, TestTail tail, const
     struct DSign { double absd; int sign; };
     std::vector<DSign> ds;
     ds.reserve(Nx);
-    for (size_t i = 0; i < Nx; ++i) {
+    for (keel::usize i = 0; i < Nx; ++i) {
         const double xi = x.elemAsDouble(i);
         const double yi = paired ? y_or_m.elemAsDouble(i) : m0;
         if (std::isnan(xi) || std::isnan(yi)) continue;
@@ -1436,7 +1438,7 @@ signrank(const Value &x, const Value &y_or_m, double alpha, TestTail tail, const
         if (d == 0.0) continue;
         ds.push_back({std::fabs(d), d > 0 ? +1 : -1});
     }
-    const size_t n = ds.size();
+    const keel::usize n = ds.size();
 
     // Edge case: nothing to rank.
     if (n == 0) {
@@ -1447,26 +1449,26 @@ signrank(const Value &x, const Value &y_or_m, double alpha, TestTail tail, const
     }
 
     // Sort by |d| ascending; assign mid-ranks for ties.
-    std::vector<size_t> ord(n);
-    for (size_t i = 0; i < n; ++i) ord[i] = i;
+    std::vector<keel::usize> ord(n);
+    for (keel::usize i = 0; i < n; ++i) ord[i] = i;
     std::sort(ord.begin(), ord.end(),
-              [&](size_t a, size_t b) { return ds[a].absd < ds[b].absd; });
+              [&](keel::usize a, keel::usize b) { return ds[a].absd < ds[b].absd; });
 
     std::vector<double> ranks(n);
-    std::vector<size_t> tieGroupSizes;
-    size_t i = 0;
+    std::vector<keel::usize> tieGroupSizes;
+    keel::usize i = 0;
     while (i < n) {
-        size_t j = i + 1;
+        keel::usize j = i + 1;
         while (j < n && ds[ord[j]].absd == ds[ord[i]].absd) ++j;
         const double avg = (static_cast<double>(i + j + 1)) / 2.0;  // mean of (i+1)..j
-        for (size_t k = i; k < j; ++k) ranks[ord[k]] = avg;
+        for (keel::usize k = i; k < j; ++k) ranks[ord[k]] = avg;
         if (j - i > 1) tieGroupSizes.push_back(j - i);
         i = j;
     }
 
     // W+ = sum of ranks where d > 0.
     double Wplus = 0.0;
-    for (size_t k = 0; k < n; ++k)
+    for (keel::usize k = 0; k < n; ++k)
         if (ds[k].sign > 0) Wplus += ranks[k];
 
     // Choose method.
@@ -1485,14 +1487,14 @@ signrank(const Value &x, const Value &y_or_m, double alpha, TestTail tail, const
         // (mid-rank averaged) values are integers.
         std::vector<long long> rk2(n);
         long long total2 = 0;
-        for (size_t k = 0; k < n; ++k) {
+        for (keel::usize k = 0; k < n; ++k) {
             rk2[k] = static_cast<long long>(std::llround(ranks[k] * 2.0));
             total2 += rk2[k];
         }
-        std::vector<double> P(static_cast<size_t>(total2 + 1), 0.0);
+        std::vector<double> P(static_cast<keel::usize>(total2 + 1), 0.0);
         P[0] = 1.0;
         long long cur = 0;
-        for (size_t k = 0; k < n; ++k) {
+        for (keel::usize k = 0; k < n; ++k) {
             const long long r = rk2[k];
             for (long long s = cur + r; s >= r; --s) P[s] += P[s - r];
             cur += r;
@@ -1515,7 +1517,7 @@ signrank(const Value &x, const Value &y_or_m, double alpha, TestTail tail, const
         // Normal approximation with tie correction.
         const double mean = static_cast<double>(n) * (n + 1) / 4.0;
         double var = static_cast<double>(n) * (n + 1) * (2 * n + 1) / 24.0;
-        for (size_t t : tieGroupSizes)
+        for (keel::usize t : tieGroupSizes)
             var -= static_cast<double>(t * t * t - t) / 48.0;
         const double sd = std::sqrt(var);
         zval = (sd > 0.0) ? (Wplus - mean) / sd : 0.0;
@@ -1541,10 +1543,10 @@ signrank(const Value &x, const Value &y_or_m, double alpha, TestTail tail, const
 
 std::tuple<Value, Value, Value, Value>
 ansaribradley(const Value &x, const Value &y, double alpha, TestTail tail,
-              std::pmr::memory_resource *mr)
+              keel::Allocator *mr)
 {
-    const size_t nx = x.numel();
-    const size_t ny = y.numel();
+    const keel::usize nx = x.numel();
+    const keel::usize ny = y.numel();
     if (nx == 0 || ny == 0) {
         return std::make_tuple(
             Value::scalar(0.0, mr),
@@ -1557,16 +1559,16 @@ ansaribradley(const Value &x, const Value &y, double alpha, TestTail tail,
     struct Item { double v; bool is_x; };
     std::vector<Item> items;
     items.reserve(nx + ny);
-    for (size_t i = 0; i < nx; ++i) {
+    for (keel::usize i = 0; i < nx; ++i) {
         const double v = x.elemAsDouble(i);
         if (!std::isnan(v)) items.push_back({v, true});
     }
-    for (size_t i = 0; i < ny; ++i) {
+    for (keel::usize i = 0; i < ny; ++i) {
         const double v = y.elemAsDouble(i);
         if (!std::isnan(v)) items.push_back({v, false});
     }
-    const size_t N = items.size();
-    size_t m = 0, n = 0;
+    const keel::usize N = items.size();
+    keel::usize m = 0, n = 0;
     for (auto &it : items) (it.is_x ? m : n) += 1;
     if (m == 0 || n == 0) {
         return std::make_tuple(
@@ -1577,41 +1579,41 @@ ansaribradley(const Value &x, const Value &y, double alpha, TestTail tail,
     }
 
     // Sort pooled by value (ascending).
-    std::vector<size_t> ord(N);
-    for (size_t i = 0; i < N; ++i) ord[i] = i;
+    std::vector<keel::usize> ord(N);
+    for (keel::usize i = 0; i < N; ++i) ord[i] = i;
     std::sort(ord.begin(), ord.end(),
-              [&](size_t a, size_t b) { return items[a].v < items[b].v; });
+              [&](keel::usize a, keel::usize b) { return items[a].v < items[b].v; });
 
     // Assign V-shaped Ansari rank to each sorted POSITION, then average
     // (mid-rank) across tied groups.
     // Raw position-rank: pos i (1..N) → min(i, N+1-i).
     std::vector<double> rraw(N);
-    for (size_t i = 0; i < N; ++i) {
-        const size_t pos = i + 1;             // 1-based
-        const size_t alt = N + 1 - pos;
+    for (keel::usize i = 0; i < N; ++i) {
+        const keel::usize pos = i + 1;             // 1-based
+        const keel::usize alt = N + 1 - pos;
         rraw[i] = static_cast<double>(std::min(pos, alt));
     }
     // Walk in sorted order, distribute mean rank within each tie group.
     std::vector<double> rsorted(N);
     {
-        size_t i = 0;
+        keel::usize i = 0;
         while (i < N) {
-            size_t j = i + 1;
+            keel::usize j = i + 1;
             while (j < N && items[ord[j]].v == items[ord[i]].v) ++j;
             // Group [i, j). Mean of raw V-ranks in this group.
             double s = 0.0;
-            for (size_t k = i; k < j; ++k) s += rraw[k];
+            for (keel::usize k = i; k < j; ++k) s += rraw[k];
             const double mr_avg = s / static_cast<double>(j - i);
-            for (size_t k = i; k < j; ++k) rsorted[k] = mr_avg;
+            for (keel::usize k = i; k < j; ++k) rsorted[k] = mr_avg;
             i = j;
         }
     }
 
     // W = sum of ranks for x (in original-pool order via ord^-1).
     std::vector<double> ranks(N);
-    for (size_t k = 0; k < N; ++k) ranks[ord[k]] = rsorted[k];
+    for (keel::usize k = 0; k < N; ++k) ranks[ord[k]] = rsorted[k];
     double W = 0.0;
-    for (size_t k = 0; k < N; ++k)
+    for (keel::usize k = 0; k < N; ++k)
         if (items[k].is_x) W += ranks[k];
 
     // ── Choose exact vs asymptotic ─────────────────────────────────
@@ -1625,9 +1627,9 @@ ansaribradley(const Value &x, const Value &y, double alpha, TestTail tail,
     if (exact_path) {
         // Build set of unique tie-group sizes by walking sorted order.
         std::vector<long long> grp_sizes;
-        size_t ii = 0;
+        keel::usize ii = 0;
         while (ii < N) {
-            size_t jj = ii + 1;
+            keel::usize jj = ii + 1;
             while (jj < N && items[ord[jj]].v == items[ord[ii]].v) ++jj;
             grp_sizes.push_back(static_cast<long long>(jj - ii));
             ii = jj;
@@ -1673,15 +1675,15 @@ ansaribradley(const Value &x, const Value &y, double alpha, TestTail tail,
         // integer DP.
         std::vector<long long> rk2(N);
         long long total2 = 0;
-        for (size_t k = 0; k < N; ++k) {
+        for (keel::usize k = 0; k < N; ++k) {
             rk2[k] = static_cast<long long>(
                 std::llround(rsorted[k] * static_cast<double>(scale)));
             total2 += rk2[k];
         }
-        const size_t S = static_cast<size_t>(total2 + 1);
+        const keel::usize S = static_cast<keel::usize>(total2 + 1);
         std::vector<std::vector<double>> dp(m + 1, std::vector<double>(S, 0.0));
         dp[0][0] = 1.0;
-        for (size_t k = 0; k < N; ++k) {
+        for (keel::usize k = 0; k < N; ++k) {
             const long long r = rk2[k];
             for (long long kk = static_cast<long long>(m) - 1; kk >= 0; --kk) {
                 for (long long s = static_cast<long long>(S) - 1; s >= r; --s)
@@ -1691,7 +1693,7 @@ ansaribradley(const Value &x, const Value &y, double alpha, TestTail tail,
         const long long W_scaled = static_cast<long long>(
             std::llround(W * static_cast<double>(scale)));
         double total = 0.0;
-        for (size_t s = 0; s < S; ++s) total += dp[m][s];
+        for (keel::usize s = 0; s < S; ++s) total += dp[m][s];
         double cdfLE = 0.0, cdfGE = 0.0;
         for (long long s = 0; s <= W_scaled && s < static_cast<long long>(S); ++s)
             cdfLE += dp[m][s];
@@ -1730,9 +1732,9 @@ ansaribradley(const Value &x, const Value &y, double alpha, TestTail tail,
 // test: KS statistic vs a fitted normal + Stephens (1974) modified
 // statistic / critical-value table. See test/hypothesis.hpp.
 std::tuple<Value, Value, Value, Value>
-lillietest(const Value &X, double alpha, std::pmr::memory_resource *mr)
+lillietest(const Value &X, double alpha, keel::Allocator *mr)
 {
-    const std::size_t N = X.numel();
+    const keel::usize N = X.numel();
     if (N < 4)
         throw Error("lillietest: sample size must be >= 4",
                     0, 0, "lillietest", "", "numkit:lillietest:nsamples");
@@ -1741,9 +1743,9 @@ lillietest(const Value &X, double alpha, std::pmr::memory_resource *mr)
                     0, 0, "lillietest", "", "numkit:lillietest:alpha");
 
     // Sort sample. PMR HARD RULE: scratch via per-call ScratchArena.
-    ScratchArena scratch(mr);
-    ScratchVec<double> xs(N, &scratch);
-    for (std::size_t i = 0; i < N; ++i) xs[i] = X.elemAsDouble(i);
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    keel::Array<double> xs(N, scratch.allocator());
+    for (keel::usize i = 0; i < N; ++i) xs[i] = X.elemAsDouble(i);
     std::sort(xs.begin(), xs.end());
 
     double sum = 0.0;
@@ -1759,7 +1761,7 @@ lillietest(const Value &X, double alpha, std::pmr::memory_resource *mr)
     // KS statistic against the fitted normal CDF.
     double D = 0.0;
     const double inv_sqrt2 = 0.7071067811865476;
-    for (std::size_t i = 0; i < N; ++i) {
+    for (keel::usize i = 0; i < N; ++i) {
         const double z = (xs[i] - mean) / sd;
         const double F = 0.5 * (1.0 + std::erf(z * inv_sqrt2));
         const double F_emp_lo = static_cast<double>(i)     / static_cast<double>(N);
@@ -1785,7 +1787,7 @@ lillietest(const Value &X, double alpha, std::pmr::memory_resource *mr)
             {1.50,  1e-4},
             {2.00,  1e-7}
         };
-        for (std::size_t k = 1; k < sizeof(tbl)/sizeof(tbl[0]); ++k) {
+        for (keel::usize k = 1; k < sizeof(tbl)/sizeof(tbl[0]); ++k) {
             if (Ds <= tbl[k].Ds) {
                 const double frac = (Ds - tbl[k-1].Ds) / (tbl[k].Ds - tbl[k-1].Ds);
                 const double lp = std::log(tbl[k-1].p)
@@ -1804,7 +1806,7 @@ lillietest(const Value &X, double alpha, std::pmr::memory_resource *mr)
             {0.05, 0.895},
             {0.01, 1.035}
         };
-        for (std::size_t k = 1; k < sizeof(tbl)/sizeof(tbl[0]); ++k) {
+        for (keel::usize k = 1; k < sizeof(tbl)/sizeof(tbl[0]); ++k) {
             if (a >= tbl[k].a) {
                 const double frac = (a - tbl[k-1].a) / (tbl[k].a - tbl[k-1].a);
                 return tbl[k-1].Ds + frac * (tbl[k].Ds - tbl[k-1].Ds);

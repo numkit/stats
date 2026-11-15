@@ -4,7 +4,8 @@
 
 #pragma once
 
-#include <memory_resource>
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
 #include <string>
@@ -36,7 +37,7 @@ namespace numkit::stats {
 std::tuple<Value, Value, Value>
 kmedoids(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates,
          const std::string &metric,
-         std::pmr::memory_resource *mr = nullptr);
+         keel::Allocator *mr = nullptr);
 
 /// DBSCAN density-based clustering (`[idx, corepts] = dbscan(X, eps, minpts, metric)`).
 ///
@@ -58,16 +59,16 @@ kmedoids(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter, in
 ///
 /// @see kmedoids, kmeans
 std::tuple<Value, Value>
-dbscan(const Value &X, double eps, int minpts, const std::string &metric,
-       std::pmr::memory_resource *mr = nullptr);
+dbscan(const Value &X, keel::f64 eps, int minpts, const std::string &metric,
+       keel::Allocator *mr = nullptr);
 
 /// DBSCAN with explicit Minkowski exponent `p` (for `metric = "minkowski"`).
 ///
 /// @see dbscan(X, eps, minpts, metric, mr)
 std::tuple<Value, Value>
-dbscan(const Value &X, double eps, int minpts, const std::string &metric,
-       double p,
-       std::pmr::memory_resource *mr = nullptr);
+dbscan(const Value &X, keel::f64 eps, int minpts, const std::string &metric,
+       keel::f64 p,
+       keel::Allocator *mr = nullptr);
 
 
 /// @}

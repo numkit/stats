@@ -2,6 +2,8 @@
 //
 // Latin Hypercube sampling (lhsdesign / lhsnorm).
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/sampling/lhs.hpp>
 #include <numkit/stats/distributions/multivariate.hpp>
 #include <numkit/stats/distributions/normal.hpp>
@@ -26,37 +28,37 @@ namespace {
 // the RNG mutex. Template'd over RNG type to accept the project's
 // MATLAB-compatible MT19937 stream.
 template <typename Rng>
-void buildOneLhs(double *od, std::size_t n, std::size_t p, bool smooth,
+void buildOneLhs(double *od, keel::usize n, keel::usize p, bool smooth,
                  Rng &gen)
 {
     std::uniform_real_distribution<double> U(0.0, 1.0);
-    std::vector<std::size_t> perm(n);
+    std::vector<keel::usize> perm(n);
     const double inv_n = 1.0 / static_cast<double>(n);
-    for (std::size_t j = 0; j < p; ++j) {
-        std::iota(perm.begin(), perm.end(), std::size_t(1));
-        for (std::size_t i = n - 1; i > 0; --i) {
-            std::uniform_int_distribution<std::size_t> dist(0, i);
+    for (keel::usize j = 0; j < p; ++j) {
+        std::iota(perm.begin(), perm.end(), keel::usize(1));
+        for (keel::usize i = n - 1; i > 0; --i) {
+            std::uniform_int_distribution<keel::usize> dist(0, i);
             std::swap(perm[i], perm[dist(gen)]);
         }
         if (smooth) {
-            for (std::size_t i = 0; i < n; ++i)
+            for (keel::usize i = 0; i < n; ++i)
                 od[j * n + i] = (static_cast<double>(perm[i]) - U(gen)) * inv_n;
         } else {
-            for (std::size_t i = 0; i < n; ++i)
+            for (keel::usize i = 0; i < n; ++i)
                 od[j * n + i] = (static_cast<double>(perm[i]) - 0.5) * inv_n;
         }
     }
 }
 
 // Min pairwise squared Euclidean distance (rows of X, col-major n × p).
-double minPairwiseDistSquared(const double *X, std::size_t n, std::size_t p)
+double minPairwiseDistSquared(const double *X, keel::usize n, keel::usize p)
 {
     if (n < 2) return 0.0;
     double best = std::numeric_limits<double>::infinity();
-    for (std::size_t i = 0; i < n; ++i) {
-        for (std::size_t k = i + 1; k < n; ++k) {
+    for (keel::usize i = 0; i < n; ++i) {
+        for (keel::usize k = i + 1; k < n; ++k) {
             double s = 0.0;
-            for (std::size_t j = 0; j < p; ++j) {
+            for (keel::usize j = 0; j < p; ++j) {
                 const double d = X[j * n + i] - X[j * n + k];
                 s += d * d;
             }
@@ -67,19 +69,19 @@ double minPairwiseDistSquared(const double *X, std::size_t n, std::size_t p)
 }
 
 // Max absolute off-diagonal Pearson correlation between columns of X.
-double maxAbsColCorrelation(const double *X, std::size_t n, std::size_t p)
+double maxAbsColCorrelation(const double *X, keel::usize n, keel::usize p)
 {
     if (p < 2 || n < 2) return 0.0;
     // Compute column means and SDs.
     std::vector<double> mu(p), sd(p);
-    for (std::size_t j = 0; j < p; ++j) {
+    for (keel::usize j = 0; j < p; ++j) {
         double s = 0.0;
-        for (std::size_t i = 0; i < n; ++i) s += X[j * n + i];
+        for (keel::usize i = 0; i < n; ++i) s += X[j * n + i];
         mu[j] = s / static_cast<double>(n);
     }
-    for (std::size_t j = 0; j < p; ++j) {
+    for (keel::usize j = 0; j < p; ++j) {
         double v = 0.0;
-        for (std::size_t i = 0; i < n; ++i) {
+        for (keel::usize i = 0; i < n; ++i) {
             const double d = X[j * n + i] - mu[j];
             v += d * d;
         }
@@ -87,10 +89,10 @@ double maxAbsColCorrelation(const double *X, std::size_t n, std::size_t p)
         if (sd[j] < 1e-300) sd[j] = 1e-300;
     }
     double best = 0.0;
-    for (std::size_t a = 0; a < p; ++a) {
-        for (std::size_t b = a + 1; b < p; ++b) {
+    for (keel::usize a = 0; a < p; ++a) {
+        for (keel::usize b = a + 1; b < p; ++b) {
             double s = 0.0;
-            for (std::size_t i = 0; i < n; ++i)
+            for (keel::usize i = 0; i < n; ++i)
                 s += (X[a * n + i] - mu[a]) * (X[b * n + i] - mu[b]);
             const double r = s / (static_cast<double>(n - 1) * sd[a] * sd[b]);
             const double abr = std::fabs(r);
@@ -102,9 +104,9 @@ double maxAbsColCorrelation(const double *X, std::size_t n, std::size_t p)
 
 } // anonymous
 
-Value lhsdesign(::numkit::ops::RngContext &rng, std::size_t n, std::size_t p,
-                bool smooth, LhsCriterion criterion, std::size_t iterations,
-                std::pmr::memory_resource *mr)
+Value lhsdesign(::numkit::ops::RngContext &rng, keel::usize n, keel::usize p,
+                bool smooth, LhsCriterion criterion, keel::usize iterations,
+                keel::Allocator *mr)
 {
     auto out = Value::matrix(n, p, ValueType::DOUBLE, mr);
     if (n == 0 || p == 0) return out;
@@ -129,7 +131,7 @@ Value lhsdesign(::numkit::ops::RngContext &rng, std::size_t n, std::size_t p,
     best_score = score_of(od);
 
     std::vector<double> trial(n * p);
-    for (std::size_t it = 1; it < iterations; ++it) {
+    for (keel::usize it = 1; it < iterations; ++it) {
         buildOneLhs(trial.data(), n, p, smooth, gen);
         const double s = score_of(trial.data());
         if (s < best_score) {
@@ -140,15 +142,15 @@ Value lhsdesign(::numkit::ops::RngContext &rng, std::size_t n, std::size_t p,
     return out;
 }
 
-Value lhsdesign(::numkit::ops::RngContext &rng, std::size_t n, std::size_t p,
-                std::pmr::memory_resource *mr)
+Value lhsdesign(::numkit::ops::RngContext &rng, keel::usize n, keel::usize p,
+                keel::Allocator *mr)
 {
     // MATLAB defaults: smooth=on, criterion=maximin, iterations=5.
     return lhsdesign(rng, n, p, /*smooth=*/true, LhsCriterion::Maximin, 5, mr);
 }
 
 namespace {
-void lhsnorm_argcheck(const Value &Sigma, std::size_t d)
+void lhsnorm_argcheck(const Value &Sigma, keel::usize d)
 {
     if (Sigma.dims().rows() != d || Sigma.dims().cols() != d)
         throw Error("lhsnorm: Sigma must be d × d where d = length(mu)",
@@ -156,11 +158,11 @@ void lhsnorm_argcheck(const Value &Sigma, std::size_t d)
 }
 } // namespace
 
-Value lhsnorm(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigma, std::size_t n,
-              bool smooth, std::pmr::memory_resource *mr)
+Value lhsnorm(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigma, keel::usize n,
+              bool smooth, keel::Allocator *mr)
 {
     // Resolve d from mu's length, validate against Sigma's shape.
-    const std::size_t d = mu.numel();
+    const keel::usize d = mu.numel();
     if (d == 0)
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     lhsnorm_argcheck(Sigma, d);
@@ -178,25 +180,25 @@ Value lhsnorm(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigm
     //    This preserves both exact 1-D Latin hypercube stratification in
     //    every marginal and the rank correlation structure of Sigma.
     Value muRow = Value::matrix(1, d, ValueType::DOUBLE, mr);
-    for (std::size_t j = 0; j < d; ++j)
+    for (keel::usize j = 0; j < d; ++j)
         muRow.doubleDataMut()[j] = mu.elemAsDouble(j);
     Value casesVal = Value::scalar(static_cast<double>(n), mr);
     MvnrndOut mv = mvnrnd_full(rng, muRow, Sigma, casesVal, /*wantT=*/false, mr);
 
     std::uniform_real_distribution<double> U(0.0, 1.0);
     const double invN = 1.0 / static_cast<double>(n);
-    std::vector<std::size_t> ord(n), rank(n);
+    std::vector<keel::usize> ord(n), rank(n);
     Value uCol = Value::matrix(n, 1, ValueType::DOUBLE, mr);
     double *ud = uCol.doubleDataMut();
 
-    for (std::size_t j = 0; j < d; ++j) {
-        std::iota(ord.begin(), ord.end(), std::size_t(0));
-        std::sort(ord.begin(), ord.end(), [&](std::size_t a, std::size_t b) {
+    for (keel::usize j = 0; j < d; ++j) {
+        std::iota(ord.begin(), ord.end(), keel::usize(0));
+        std::sort(ord.begin(), ord.end(), [&](keel::usize a, keel::usize b) {
             return mv.r.elemAsDouble(a + j * n) < mv.r.elemAsDouble(b + j * n);
         });
-        for (std::size_t r = 0; r < n; ++r)
+        for (keel::usize r = 0; r < n; ++r)
             rank[ord[r]] = r + 1;
-        for (std::size_t i = 0; i < n; ++i) {
+        for (keel::usize i = 0; i < n; ++i) {
             const double xi = smooth ? U(rng) : 0.5;
             ud[i] = (static_cast<double>(rank[i]) - xi) * invN;
         }
@@ -204,10 +206,10 @@ Value lhsnorm(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigm
         const double sdj = std::sqrt(std::max(0.0, Sigma.elemAsDouble(j + j * d)));
         if (sdj > 0.0) {
             Value zCol = norminv(uCol, muj, sdj, mr);
-            for (std::size_t i = 0; i < n; ++i)
+            for (keel::usize i = 0; i < n; ++i)
                 od[j * n + i] = zCol.elemAsDouble(i);
         } else {
-            for (std::size_t i = 0; i < n; ++i)
+            for (keel::usize i = 0; i < n; ++i)
                 od[j * n + i] = muj;
         }
     }

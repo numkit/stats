@@ -3,10 +3,11 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
+#include <keel/core.h>
+#include <keel/memory.h>
+#include <keel/array.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
 #include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
 
 #include <algorithm>
@@ -15,7 +16,6 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
-#include <memory_resource>
 #include <numeric>
 #include <random>
 #include <string>
@@ -31,16 +31,16 @@ namespace numkit::stats {
 
 namespace {
 
-void mean_var(const Value &x, double &mean_out, double &var_out, size_t &n_out) {
-    const size_t N = x.numel();
+void mean_var(const Value &x, double &mean_out, double &var_out, keel::usize &n_out) {
+    const keel::usize N = x.numel();
     n_out = N;
     if (N == 0) { mean_out = 0.0; var_out = 0.0; return; }
     double s = 0.0;
-    for (size_t i = 0; i < N; ++i) s += x.elemAsDouble(i);
+    for (keel::usize i = 0; i < N; ++i) s += x.elemAsDouble(i);
     mean_out = s / double(N);
     if (N < 2) { var_out = 0.0; return; }
     double sq = 0.0;
-    for (size_t i = 0; i < N; ++i) {
+    for (keel::usize i = 0; i < N; ++i) {
         const double d = x.elemAsDouble(i) - mean_out;
         sq += d * d;
     }
@@ -59,7 +59,7 @@ inline TestTail parse_tail(const std::string &s, TestTail def) {
 }
 
 // Compute two-sided / one-sided p-value from a t-statistic and df.
-double tpvalue(double tstat, double df, TestTail tail, std::pmr::memory_resource *mr) {
+double tpvalue(double tstat, double df, TestTail tail, keel::Allocator *mr) {
     Value tv = Value::scalar(tstat, mr);
     Value cdf_v = tcdf(tv, df, mr);
     const double cdf = cdf_v.toScalar();
@@ -71,7 +71,7 @@ double tpvalue(double tstat, double df, TestTail tail, std::pmr::memory_resource
     return 1.0;
 }
 
-double zpvalue(double z, TestTail tail, std::pmr::memory_resource *mr) {
+double zpvalue(double z, TestTail tail, keel::Allocator *mr) {
     Value zv = Value::scalar(z, mr);
     Value cdf_v = normcdf(zv, 0.0, 1.0, mr);
     const double cdf = cdf_v.toScalar();
@@ -216,7 +216,7 @@ double interp_cdf(const std::vector<double> &xg,
     if (x <= xg.front()) return Fg.front();
     if (x >= xg.back())  return Fg.back();
     auto it = std::upper_bound(xg.begin(), xg.end(), x);
-    const size_t k = (size_t)(it - xg.begin()) - 1;
+    const keel::usize k = (keel::usize)(it - xg.begin()) - 1;
     const double t = (x - xg[k]) / (xg[k + 1] - xg[k]);
     return Fg[k] + t * (Fg[k + 1] - Fg[k]);
 }
@@ -226,12 +226,12 @@ namespace {
 
 // Compute the JB statistic for a sample (used by both the main entry
 // point and the Monte-Carlo H₀ simulator).
-inline double jb_stat(const double *x, size_t N) {
+inline double jb_stat(const double *x, keel::usize N) {
     double mean = 0.0;
-    for (size_t i = 0; i < N; ++i) mean += x[i];
+    for (keel::usize i = 0; i < N; ++i) mean += x[i];
     mean /= double(N);
     double m2 = 0.0, m3 = 0.0, m4 = 0.0;
-    for (size_t i = 0; i < N; ++i) {
+    for (keel::usize i = 0; i < N; ++i) {
         const double d = x[i] - mean;
         const double d2 = d * d;
         m2 += d2;
@@ -249,11 +249,11 @@ inline double jb_stat(const double *x, size_t N) {
 // (so spec output is reproducible). Returns (p, critval) where p is
 // MATLAB-capped at 0.5.
 struct JBMCResult { double p; double cv; };
-JBMCResult jb_montecarlo(size_t N, double JB_obs, double alpha, double mctol)
+JBMCResult jb_montecarlo(keel::usize N, double JB_obs, double alpha, double mctol)
 {
     // Hard caps: at most 1e6 reps, at least 1000 batch.
-    const size_t batch     = 1000;
-    const size_t max_reps  = 1'000'000;
+    const keel::usize batch     = 1000;
+    const keel::usize max_reps  = 1'000'000;
     const double cap_p     = 0.5;  // MATLAB caps p at 0.5
 
     std::mt19937_64 gen(12345ULL);  // deterministic
@@ -262,11 +262,11 @@ JBMCResult jb_montecarlo(size_t N, double JB_obs, double alpha, double mctol)
     std::vector<double> JB_h0;
     JB_h0.reserve(batch);
 
-    size_t total = 0, exceeds = 0;
+    keel::usize total = 0, exceeds = 0;
     while (total < max_reps) {
-        const size_t this_batch = std::min(batch, max_reps - total);
-        for (size_t i = 0; i < this_batch; ++i) {
-            for (size_t k = 0; k < N; ++k) buf[k] = nd(gen);
+        const keel::usize this_batch = std::min(batch, max_reps - total);
+        for (keel::usize i = 0; i < this_batch; ++i) {
+            for (keel::usize k = 0; k < N; ++k) buf[k] = nd(gen);
             const double j = jb_stat(buf.data(), N);
             JB_h0.push_back(j);
             if (j >= JB_obs) ++exceeds;
@@ -280,8 +280,8 @@ JBMCResult jb_montecarlo(size_t N, double JB_obs, double alpha, double mctol)
     // Critical value: (1-alpha) quantile of the empirical H₀ distribution.
     std::sort(JB_h0.begin(), JB_h0.end());
     const double rank = (1.0 - alpha) * (double(JB_h0.size()) - 1.0);
-    const size_t lo = (size_t)std::floor(rank);
-    const size_t hi = std::min(lo + 1, JB_h0.size() - 1);
+    const keel::usize lo = (keel::usize)std::floor(rank);
+    const keel::usize hi = std::min(lo + 1, JB_h0.size() - 1);
     const double frac = rank - double(lo);
     const double cv = JB_h0[lo] * (1.0 - frac) + JB_h0[hi] * frac;
 
@@ -296,30 +296,30 @@ namespace {
 // Group buckets: parallel `ns` (per-group sample size) and `data`
 // (concatenated values, with `offsets[i]..offsets[i+1]`).
 struct Groups {
-    ScratchVec<size_t>  ns;        // size k
-    ScratchVec<size_t>  offsets;   // size k+1
-    ScratchVec<double>  data;      // total N
-    explicit Groups(std::pmr::memory_resource *mr)
+    keel::Array<keel::usize>  ns;        // size k
+    keel::Array<keel::usize>  offsets;   // size k+1
+    keel::Array<double>  data;      // total N
+    explicit Groups(keel::Allocator *mr)
         : ns(mr), offsets(mr), data(mr) {}
 };
 
-Groups bucket_by_group(const Value &x, const Value &group, std::pmr::memory_resource *scratch_mr)
+Groups bucket_by_group(const Value &x, const Value &group, keel::Allocator *scratch_mr)
 {
-    const size_t Nx = x.numel();
+    const keel::usize Nx = x.numel();
     Groups G(scratch_mr);
     // First pass: collect distinct labels (preserving first-encounter
     // order) + per-label counts; ignore NaN values/labels.
-    ScratchVec<double> labels(scratch_mr);  // distinct group labels
+    keel::Array<double> labels(scratch_mr);  // distinct group labels
     labels.reserve(8);
-    ScratchVec<size_t> counts(scratch_mr);
+    keel::Array<keel::usize> counts(scratch_mr);
     counts.reserve(8);
-    ScratchVec<int> bucket_for(Nx, -1, scratch_mr);
-    for (size_t i = 0; i < Nx; ++i) {
+    keel::Array<int> bucket_for(Nx, -1, scratch_mr);
+    for (keel::usize i = 0; i < Nx; ++i) {
         const double xi = x.elemAsDouble(i);
         const double gi = group.elemAsDouble(i);
         if (std::isnan(xi) || std::isnan(gi)) continue;
         int b = -1;
-        for (size_t j = 0; j < labels.size(); ++j)
+        for (keel::usize j = 0; j < labels.size(); ++j)
             if (labels[j] == gi) { b = (int)j; break; }
         if (b < 0) {
             b = (int)labels.size();
@@ -327,16 +327,16 @@ Groups bucket_by_group(const Value &x, const Value &group, std::pmr::memory_reso
             counts.push_back(0);
         }
         bucket_for[i] = b;
-        ++counts[(size_t)b];
+        ++counts[(keel::usize)b];
     }
-    const size_t k = labels.size();
-    G.ns.assign(counts.begin(), counts.end());
+    const keel::usize k = labels.size();
+    G.ns.assign(counts);
     G.offsets.resize(k + 1);
     G.offsets[0] = 0;
-    for (size_t i = 0; i < k; ++i) G.offsets[i + 1] = G.offsets[i] + counts[i];
+    for (keel::usize i = 0; i < k; ++i) G.offsets[i + 1] = G.offsets[i] + counts[i];
     G.data.resize(G.offsets[k]);
-    ScratchVec<size_t> cursor(k, 0, scratch_mr);
-    for (size_t i = 0; i < Nx; ++i) {
+    keel::Array<keel::usize> cursor(k, 0, scratch_mr);
+    for (keel::usize i = 0; i < Nx; ++i) {
         const int b = bucket_for[i];
         if (b < 0) continue;
         G.data[G.offsets[b] + cursor[b]++] = x.elemAsDouble(i);
@@ -347,28 +347,28 @@ Groups bucket_by_group(const Value &x, const Value &group, std::pmr::memory_reso
 // One-way ANOVA on Z values stored in groups buckets. Returns
 // (F, df1, df2, p).
 struct AnovaOut { double F, df1, df2, p; };
-AnovaOut anova1_on_groups(const ScratchVec<double> &Z, const ScratchVec<size_t> &offsets, const ScratchVec<size_t> &ns, std::pmr::memory_resource *mr)
+AnovaOut anova1_on_groups(const keel::Array<double> &Z, const keel::Array<keel::usize> &offsets, const keel::Array<keel::usize> &ns, keel::Allocator *mr)
 {
-    const size_t k = ns.size();
-    size_t N = 0;
-    for (size_t i = 0; i < k; ++i) N += ns[i];
+    const keel::usize k = ns.size();
+    keel::usize N = 0;
+    for (keel::usize i = 0; i < k; ++i) N += ns[i];
 
     // Group means.
-    ScratchVec<double> Zbar(k, 0.0, Z.get_allocator().resource());
+    keel::Array<double> Zbar(k, 0.0, Z.allocator());
     double grand = 0.0;
-    for (size_t g = 0; g < k; ++g) {
+    for (keel::usize g = 0; g < k; ++g) {
         double s = 0.0;
-        for (size_t j = offsets[g]; j < offsets[g + 1]; ++j) s += Z[j];
+        for (keel::usize j = offsets[g]; j < offsets[g + 1]; ++j) s += Z[j];
         Zbar[g] = (ns[g] > 0) ? s / double(ns[g]) : 0.0;
         grand += s;
     }
     grand /= double(N);
 
     double SSB = 0.0, SSW = 0.0;
-    for (size_t g = 0; g < k; ++g) {
+    for (keel::usize g = 0; g < k; ++g) {
         const double db = Zbar[g] - grand;
         SSB += double(ns[g]) * db * db;
-        for (size_t j = offsets[g]; j < offsets[g + 1]; ++j) {
+        for (keel::usize j = offsets[g]; j < offsets[g + 1]; ++j) {
             const double dw = Z[j] - Zbar[g];
             SSW += dw * dw;
         }
@@ -383,7 +383,7 @@ AnovaOut anova1_on_groups(const ScratchVec<double> &Z, const ScratchVec<size_t> 
     return {F, df1, df2, std::max(0.0, 1.0 - cdf)};
 }
 
-inline double median_sorted(double *a, size_t n) {
+inline double median_sorted(double *a, keel::usize n) {
     std::sort(a, a + n);
     if (n & 1u) return a[n / 2];
     return 0.5 * (a[n / 2 - 1] + a[n / 2]);
@@ -434,27 +434,27 @@ double exact_runs_pmf(int r, int n1, int n0)
 // vartestn_full: vartestn worker -> [p, stat, df1, df2]. Def in hypothesis.cpp.
 std::tuple<Value, Value, Value, Value>
 vartestn_full(const Value &x, const Value &group, int test,
-              std::pmr::memory_resource *mr);
+              keel::Allocator *mr);
 
 std::tuple<Value, Value, Value, Value>
 ttest_dim(const Value &x, double m, double alpha, TestTail tail, int dim,
-          std::pmr::memory_resource *mr);
+          keel::Allocator *mr);
 
 std::tuple<Value, Value, Value, Value>
 ttest2_dim(const Value &x, const Value &y, double alpha, TestTail tail,
            const std::string &vartype, int dim,
-           std::pmr::memory_resource *mr);
+           keel::Allocator *mr);
 
 std::tuple<Value, Value, Value, Value>
 ztest_dim(const Value &x, double m, double sigma, double alpha, TestTail tail,
-          int dim, std::pmr::memory_resource *mr);
+          int dim, keel::Allocator *mr);
 
 std::tuple<Value, Value, Value, Value>
 vartest_dim(const Value &x, double v, double alpha, TestTail tail, int dim,
-            std::pmr::memory_resource *mr);
+            keel::Allocator *mr);
 
 std::tuple<Value, Value, Value, Value>
 vartest2_dim(const Value &x, const Value &y, double alpha, TestTail tail,
-             int dim, std::pmr::memory_resource *mr);
+             int dim, keel::Allocator *mr);
 
 } // namespace numkit::stats

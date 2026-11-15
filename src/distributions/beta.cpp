@@ -3,6 +3,8 @@
 // Beta distribution. pdf via log-form using lbeta = lgamma(a)+lgamma(b)-lgamma(a+b);
 // cdf is betainc(x, a, b); icdf is betaincinv(p, a, b); rnd via two Gamma draws.
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/distributions/beta.hpp>
 
 #include <numkit/builtin/datafun.hpp>
@@ -29,7 +31,7 @@ inline bool beta_argcheck(double a, double b) noexcept
 }
 } // namespace
 
-Value betapdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
+Value betapdf(const Value &x, double a, double b, keel::Allocator *mr)
 {
     if (!beta_argcheck(a, b))
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -48,7 +50,7 @@ Value betapdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
     }, mr);
 }
 
-Value betacdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
+Value betacdf(const Value &x, double a, double b, keel::Allocator *mr)
 {
     if (a <= 0.0 || b <= 0.0)
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -63,7 +65,7 @@ Value betacdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
     return ::numkit::builtin::betainc(xc, av, bv, mr);
 }
 
-Value betainv(const Value &p, double a, double b, std::pmr::memory_resource *mr)
+Value betainv(const Value &p, double a, double b, keel::Allocator *mr)
 {
     if (a <= 0.0 || b <= 0.0)
         return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -72,16 +74,16 @@ Value betainv(const Value &p, double a, double b, std::pmr::memory_resource *mr)
     return ::numkit::builtin::betaincinv(p, av, bv, mr);
 }
 
-Value betarnd(::numkit::ops::RngContext &rng, double a, double b, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value betarnd(::numkit::ops::RngContext &rng, double a, double b, keel::usize rows, keel::usize cols, keel::Allocator *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (a <= 0.0 || b <= 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
-    const size_t n = rows * cols;
+    const keel::usize n = rows * cols;
     std::gamma_distribution<double> ga(a, 1.0);
     std::gamma_distribution<double> gb(b, 1.0);
-    for (size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const double u = ga(gen);
         const double v = gb(gen);
         const double s = u + v;

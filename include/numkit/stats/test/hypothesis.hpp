@@ -4,7 +4,8 @@
 
 #pragma once
 
-#include <memory_resource>
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
 #include <string>
@@ -43,8 +44,8 @@ enum class TestTail {
 /// @return       `(h, p, ci, tstat)`.
 /// @see ttest2, ztest
 std::tuple<Value, Value, Value, Value>
-ttest(const Value &x, double m, double alpha, TestTail tail,
-      std::pmr::memory_resource *mr = nullptr);
+ttest(const Value &x, keel::f64 m, keel::f64 alpha, TestTail tail,
+      keel::Allocator *mr = nullptr);
 
 /// @brief Two-sample t-test (`[h, p, ci, t] = ttest2(x, y, alpha, tail, vartype)`).
 ///
@@ -59,8 +60,8 @@ ttest(const Value &x, double m, double alpha, TestTail tail,
 /// @return         `(h, p, ci, tstat)`.
 /// @see ttest, vartest2
 std::tuple<Value, Value, Value, Value>
-ttest2(const Value &x, const Value &y, double alpha, TestTail tail,
-       const std::string &vartype, std::pmr::memory_resource *mr = nullptr);
+ttest2(const Value &x, const Value &y, keel::f64 alpha, TestTail tail,
+       const std::string &vartype, keel::Allocator *mr = nullptr);
 
 /// @brief Z-test with known σ (`[h, p, ci, z] = ztest(x, m, sigma, alpha, tail)`).
 ///
@@ -75,8 +76,8 @@ ttest2(const Value &x, const Value &y, double alpha, TestTail tail,
 /// @return       `(h, p, ci, zstat)`.
 /// @see ttest
 std::tuple<Value, Value, Value, Value>
-ztest(const Value &x, double m, double sigma, double alpha, TestTail tail,
-      std::pmr::memory_resource *mr = nullptr);
+ztest(const Value &x, keel::f64 m, keel::f64 sigma, keel::f64 alpha, TestTail tail,
+      keel::Allocator *mr = nullptr);
 
 /// @brief Chi-squared one-sample variance test
 /// (`[h, p, ci, chi2] = vartest(x, v, alpha, tail)`).
@@ -91,8 +92,8 @@ ztest(const Value &x, double m, double sigma, double alpha, TestTail tail,
 /// @return       `(h, p, ci, chisqstat)`.
 /// @see vartest2
 std::tuple<Value, Value, Value, Value>
-vartest(const Value &x, double v, double alpha, TestTail tail,
-        std::pmr::memory_resource *mr = nullptr);
+vartest(const Value &x, keel::f64 v, keel::f64 alpha, TestTail tail,
+        keel::Allocator *mr = nullptr);
 
 /// @brief F-test for equality of two variances
 /// (`[h, p, ci, F] = vartest2(x, y, alpha, tail)`).
@@ -107,8 +108,8 @@ vartest(const Value &x, double v, double alpha, TestTail tail,
 /// @return       `(h, p, ci, Fstat)`.
 /// @see vartest
 std::tuple<Value, Value, Value, Value>
-vartest2(const Value &x, const Value &y, double alpha, TestTail tail,
-         std::pmr::memory_resource *mr = nullptr);
+vartest2(const Value &x, const Value &y, keel::f64 alpha, TestTail tail,
+         keel::Allocator *mr = nullptr);
 
 /// @brief One-sample Kolmogorov-Smirnov test
 /// (`[h, p, ksstat, cv] = kstest(x, cdf, alpha, tail)`).
@@ -124,8 +125,8 @@ vartest2(const Value &x, const Value &y, double alpha, TestTail tail,
 /// @return       `(h, p, ksstat, cv)` — h, p-value, KS statistic, critical value.
 /// @see kstest2
 std::tuple<Value, Value, Value, Value>
-kstest(const Value &x, const Value &cdf, double alpha, TestTail tail,
-       std::pmr::memory_resource *mr = nullptr);
+kstest(const Value &x, const Value &cdf, keel::f64 alpha, TestTail tail,
+       keel::Allocator *mr = nullptr);
 
 /// @brief Two-sample Kolmogorov-Smirnov test
 /// (`[h, p, ksstat, cv] = kstest2(x, y, alpha, tail)`).
@@ -140,8 +141,8 @@ kstest(const Value &x, const Value &cdf, double alpha, TestTail tail,
 /// @return       `(h, p, ksstat, cv)`.
 /// @see kstest
 std::tuple<Value, Value, Value, Value>
-kstest2(const Value &x, const Value &y, double alpha, TestTail tail,
-        std::pmr::memory_resource *mr = nullptr);
+kstest2(const Value &x, const Value &y, keel::f64 alpha, TestTail tail,
+        keel::Allocator *mr = nullptr);
 
 /// @brief Jarque-Bera normality test
 /// (`[h, p, jbstat, cv] = jbtest(x, alpha)`).
@@ -156,7 +157,7 @@ kstest2(const Value &x, const Value &y, double alpha, TestTail tail,
 /// @return       `(h, p, jbstat, cv)`.
 /// @see jbtest(x, alpha, mctol, mr)
 std::tuple<Value, Value, Value, Value>
-jbtest(const Value &x, double alpha, std::pmr::memory_resource *mr = nullptr);
+jbtest(const Value &x, keel::f64 alpha, keel::Allocator *mr = nullptr);
 
 /// @brief Anderson-Darling test for normality
 /// (`[h, p, adstat, cv] = adtest(x, alpha)`).
@@ -176,8 +177,8 @@ jbtest(const Value &x, double alpha, std::pmr::memory_resource *mr = nullptr);
 /// @return       `(h, p, adstat, cv)` — decision, p-value, A²*, 5%
 ///               critical value (0.752 for estimated parameters).
 std::tuple<Value, Value, Value, Value>
-adtest(const Value &x, double alpha = 0.05,
-       std::pmr::memory_resource *mr = nullptr);
+adtest(const Value &x, keel::f64 alpha = 0.05,
+       keel::Allocator *mr = nullptr);
 
 /// @brief Durbin-Watson test for first-order autocorrelation in
 /// regression residuals (`[p, dw] = dwtest(r, X)`).
@@ -199,7 +200,7 @@ adtest(const Value &x, double alpha = 0.05,
 /// @return        `(p, dw)` — two-sided p-value, DW statistic.
 std::tuple<Value, Value>
 dwtest(const Value &r, const Value &X,
-       std::pmr::memory_resource *mr = nullptr);
+       keel::Allocator *mr = nullptr);
 
 /// @brief Jarque-Bera with explicit Monte-Carlo tolerance
 /// (`[h, p, jbstat, cv] = jbtest(x, alpha, mctol)`).
@@ -212,8 +213,8 @@ dwtest(const Value &r, const Value &X,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(h, p, jbstat, cv)`.
 std::tuple<Value, Value, Value, Value>
-jbtest(const Value &x, double alpha, double mctol,
-       std::pmr::memory_resource *mr = nullptr);
+jbtest(const Value &x, keel::f64 alpha, keel::f64 mctol,
+       keel::Allocator *mr = nullptr);
 
 /// @brief Non-parametric sign test
 /// (`[p, h, sign] = signtest(x, y_or_m, alpha, tail)`).
@@ -229,8 +230,8 @@ jbtest(const Value &x, double alpha, double mctol,
 /// @return         `(p, h, sign)` — p-value, decision, # positive differences.
 /// @see signrank
 std::tuple<Value, Value, Value>
-signtest(const Value &x, const Value &y_or_m, double alpha, TestTail tail,
-         std::pmr::memory_resource *mr = nullptr);
+signtest(const Value &x, const Value &y_or_m, keel::f64 alpha, TestTail tail,
+         keel::Allocator *mr = nullptr);
 
 /// @brief Bartlett's k-sample variance test (`[p, chi2, df] = vartestn(x, group, alpha)`).
 ///
@@ -243,8 +244,8 @@ signtest(const Value &x, const Value &y_or_m, double alpha, TestTail tail,
 /// @return       `(p, chisqstat, df)`.
 /// @see vartestn_full
 std::tuple<Value, Value, Value>
-vartestn(const Value &x, const Value &group, double alpha,
-         std::pmr::memory_resource *mr = nullptr);
+vartestn(const Value &x, const Value &group, keel::f64 alpha,
+         keel::Allocator *mr = nullptr);
 
 /// @brief Full k-sample variance test with method selection
 /// (`vartestn_full(x, group, test)`).
@@ -265,7 +266,7 @@ vartestn(const Value &x, const Value &group, double alpha,
 /// @return       `(p, stat, df1, df2)`.
 std::tuple<Value, Value, Value, Value>
 vartestn_full(const Value &x, const Value &group, int test,
-              std::pmr::memory_resource *mr = nullptr);
+              keel::Allocator *mr = nullptr);
 
 /// @brief Fisher's exact test for a 2×2 table
 /// (`[h, p, OR, ci_lo, ci_hi] = fishertest(T, alpha, tail)`).
@@ -279,8 +280,8 @@ vartestn_full(const Value &x, const Value &group, int test,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(h, p, OR, ci_lo, ci_hi)`.
 std::tuple<Value, Value, Value, Value, Value>
-fishertest(const Value &T, double alpha, TestTail tail,
-           std::pmr::memory_resource *mr = nullptr);
+fishertest(const Value &T, keel::f64 alpha, TestTail tail,
+           keel::Allocator *mr = nullptr);
 
 /// @brief Chi-squared goodness-of-fit (frequency form)
 /// (`[h, p, chi2, df] = chi2gof(observed, expected, nparams, alpha)`).
@@ -297,7 +298,7 @@ fishertest(const Value &T, double alpha, TestTail tail,
 /// @return          `(h, p, chi2stat, df)`.
 std::tuple<Value, Value, Value, Value>
 chi2gof(const Value &observed, const Value &expected, int nparams,
-        double alpha, std::pmr::memory_resource *mr = nullptr);
+        keel::f64 alpha, keel::Allocator *mr = nullptr);
 
 /// @brief Wald-Wolfowitz runs test for randomness
 /// (`[p, h, nruns, n1, n0, zval] = runstest(x, v, alpha, tail, method)`).
@@ -313,8 +314,8 @@ chi2gof(const Value &observed, const Value &expected, int nparams,
 /// @param mr      Memory resource (nullptr → process default).
 /// @return        `(p, h, nruns, n1, n0, zval)`.
 std::tuple<Value, Value, Value, Value, Value, Value>
-runstest(const Value &x, double v, double alpha, TestTail tail,
-         const std::string &method, std::pmr::memory_resource *mr = nullptr);
+runstest(const Value &x, keel::f64 v, keel::f64 alpha, TestTail tail,
+         const std::string &method, keel::Allocator *mr = nullptr);
 
 /// @brief Wilcoxon rank-sum (Mann-Whitney U) test
 /// (`[p, h, ranksum_x, zval] = ranksum(x, y, alpha, tail, method)`).
@@ -332,8 +333,8 @@ runstest(const Value &x, double v, double alpha, TestTail tail,
 /// @return        `(p, h, ranksum_x, zval)`.
 /// @see signrank
 std::tuple<Value, Value, Value, Value>
-ranksum(const Value &x, const Value &y, double alpha, TestTail tail,
-        const std::string &method, std::pmr::memory_resource *mr = nullptr);
+ranksum(const Value &x, const Value &y, keel::f64 alpha, TestTail tail,
+        const std::string &method, keel::Allocator *mr = nullptr);
 
 /// @brief Wilcoxon signed-rank test
 /// (`[p, h, signedrank, zval] = signrank(x, y_or_m, alpha, tail, method)`).
@@ -351,8 +352,8 @@ ranksum(const Value &x, const Value &y, double alpha, TestTail tail,
 /// @return         `(p, h, signedrank, zval)`.
 /// @see ranksum, signtest
 std::tuple<Value, Value, Value, Value>
-signrank(const Value &x, const Value &y_or_m, double alpha, TestTail tail,
-         const std::string &method, std::pmr::memory_resource *mr = nullptr);
+signrank(const Value &x, const Value &y_or_m, keel::f64 alpha, TestTail tail,
+         const std::string &method, keel::Allocator *mr = nullptr);
 
 /// @brief Ansari-Bradley two-sample scale (dispersion) test
 /// (`[h, p, W, Wstar] = ansaribradley(x, y, alpha, tail)`).
@@ -380,8 +381,8 @@ signrank(const Value &x, const Value &y_or_m, double alpha, TestTail tail,
 /// @return       `(h, p, W, Wstar)`.
 /// @see vartest2, ranksum
 std::tuple<Value, Value, Value, Value>
-ansaribradley(const Value &x, const Value &y, double alpha, TestTail tail,
-              std::pmr::memory_resource *mr = nullptr);
+ansaribradley(const Value &x, const Value &y, keel::f64 alpha, TestTail tail,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Lilliefors normality test
 /// (`[h, p, kstat, critval] = lillietest(x, alpha)`).
@@ -400,8 +401,8 @@ ansaribradley(const Value &x, const Value &y, double alpha, TestTail tail,
 /// @throws Error if `numel(x) < 4`, `alpha` is not in `(0, 1)`, or the
 ///         sample has zero variance.
 std::tuple<Value, Value, Value, Value>
-lillietest(const Value &x, double alpha = 0.05,
-           std::pmr::memory_resource *mr = nullptr);
+lillietest(const Value &x, keel::f64 alpha = 0.05,
+           keel::Allocator *mr = nullptr);
 
 
 /// @}

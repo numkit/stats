@@ -2,6 +2,7 @@
 //
 // Regression guards for robustfit + robustcov.
 
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -117,9 +118,9 @@ TEST_F(RobustTest, RobustcovRecoversCleanGaussianCov)
          "[sig, mu] = robustcov(X);");
     EXPECT_NEAR(evalScalar("sig(1, 1)"), 1.0, 0.3);
     EXPECT_NEAR(evalScalar("sig(2, 2)"), 1.0, 0.3);
-    EXPECT_LT(std::abs(evalScalar("sig(1, 2)")), 0.3);
-    EXPECT_LT(std::abs(evalScalar("mu(1)")), 0.3);
-    EXPECT_LT(std::abs(evalScalar("mu(2)")), 0.3);
+    EXPECT_LT(keel::abs(evalScalar("sig(1, 2)")), 0.3);
+    EXPECT_LT(keel::abs(evalScalar("mu(1)")), 0.3);
+    EXPECT_LT(keel::abs(evalScalar("mu(2)")), 0.3);
 }
 
 TEST_F(RobustTest, RobustcovDownweightsOutliers)

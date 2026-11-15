@@ -3,6 +3,8 @@
 // CallContext register half of cluster/knnsearch.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
+#include <keel/core.h>
+#include <keel/ref.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/cluster/distance.hpp>
 #include <numkit/stats/cluster/knnsearch.hpp>
@@ -10,14 +12,11 @@
 #include <numkit/value/value.hpp>
 #include "cluster/knnsearch_detail.hpp"
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <complex>
 #include <cstddef>
 #include <string>
 #include <tuple>
@@ -28,16 +27,16 @@ namespace numkit::stats {
 
 namespace detail {
 
-void knnsearch_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+void knnsearch_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "knnsearch");  // no max: name-value tail in the reference
     KnnOpts o = parse_knn_args(args, "knnsearch");
-    auto [Idx, D] = knnsearch(args[0], args[1], o.K, o.metric, o.p, ctx.engine->resource());
+    auto [Idx, D] = knnsearch(args[0], args[1], o.K, o.metric, o.p, ctx.engine->allocator());
     outs[0] = std::move(Idx);
     if (nargout > 1) outs[1] = std::move(D);
 }
 
-void rangesearch_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+void rangesearch_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 3, "rangesearch");  // no max: name-value tail in the reference
     const double r = args[2].toScalar();
@@ -47,7 +46,7 @@ void rangesearch_reg(Span<const Value> args, size_t nargout, Span<Value> outs, C
         // shift args >= 3 into a temp slice for parser by reusing logic
         // (pdist2 args 0/1 are the X,Y placeholders for parse_knn_args).
         // Simpler: hand-parse here.
-        size_t i = 3;
+        keel::usize i = 3;
         while (i < args.size()) {
             if (!args[i].isChar() && !args[i].isString())
                 throw Error("rangesearch: expected name-value pair",
@@ -69,7 +68,7 @@ void rangesearch_reg(Span<const Value> args, size_t nargout, Span<Value> outs, C
             i += 2;
         }
     }
-    auto [Idx, D] = rangesearch(args[0], args[1], r, o.metric, o.p, ctx.engine->resource());
+    auto [Idx, D] = rangesearch(args[0], args[1], r, o.metric, o.p, ctx.engine->allocator());
     outs[0] = std::move(Idx);
     if (nargout > 1) outs[1] = std::move(D);
 }

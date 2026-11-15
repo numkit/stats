@@ -3,24 +3,22 @@
 // CallContext register half of nan_aware/nan_aware.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
+#include <keel/core.h>
+#include <keel/ref.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/nan_aware/nan_aware.hpp>
 #include <numkit/value/argcheck.hpp>
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
 #include <numkit/value/value.hpp>
 #include <numkit/ops/nan_reductions.hpp>
 #include <numkit/ops/helpers.hpp>
 #include "nan_aware/nan_aware_detail.hpp"
 #include <numkit/ops/reductions.hpp>
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <complex>
 #include <cstddef>
 #include <string>
 #include <tuple>
@@ -34,15 +32,15 @@ namespace numkit::stats {
 namespace detail {
 
 #define NUMKIT_NAN_REDUCTION_ADAPTER(name, fn)                                      \
-    void name##_reg(Span<const Value> args, size_t /*nargout*/,                \
-                    Span<Value> outs, CallContext &ctx)                        \
+    void name##_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,                \
+                    keel::MutArrayRef<Value> outs, CallContext &ctx)                        \
     {                                                                            \
         argcheck::checkNargin(args.size(), 1, 2, #name);                         \
         int dim = 0;                                                             \
         std::vector<int> vecdimSet;                                              \
         if (args.size() >= 2)                                                    \
             vecdim::parseDimSlot(args[0], args[1], #name, dim, vecdimSet);       \
-        auto *mr = ctx.engine->resource();                                       \
+        auto *mr = ctx.engine->allocator();                                       \
         if (!vecdimSet.empty()) {                                                \
             Value c = vecdim::collapseDims(args[0], vecdimSet, mr);              \
             outs[0] = vecdim::expandReduced(                                     \
@@ -56,7 +54,7 @@ namespace detail {
             Value sg = Value::matrix(outs[0].dims().rows(),                      \
                                     outs[0].dims().cols(),                       \
                                     ValueType::SINGLE, mr);                      \
-            for (std::size_t i = 0; i < outs[0].numel(); ++i)                    \
+            for (keel::usize i = 0; i < outs[0].numel(); ++i)                    \
                 sg.singleDataMut()[i] =                                          \
                     static_cast<float>(outs[0].elemAsDouble(i));                 \
             outs[0] = std::move(sg);                                             \
@@ -74,8 +72,8 @@ NUMKIT_NAN_REDUCTION_ADAPTER(nanmedian, nanmedian)
 //   nanmax(A, dim)    — legacy/nk form (dim in arg 1)
 //   nanmax(A, [], d)  — MATLAB-style 3-arg form (dim in arg 2; arg 1 = [])
 #define NUMKIT_NAN_MAXMIN_ADAPTER(name, fn)                                          \
-    void name##_reg(Span<const Value> args, size_t /*nargout*/,                 \
-                    Span<Value> outs, CallContext &ctx)                         \
+    void name##_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,                 \
+                    keel::MutArrayRef<Value> outs, CallContext &ctx)                         \
     {                                                                             \
         argcheck::checkNargin(args.size(), 1, #name);  /* no max: flag/option tail in the reference */ \
         int dim = 0;                                                              \
@@ -84,7 +82,7 @@ NUMKIT_NAN_REDUCTION_ADAPTER(nanmedian, nanmedian)
             vecdim::parseDimSlot(args[0], args[1], #name, dim, vecdimSet);        \
         else if (args.size() >= 3 && !args[2].isEmpty())                          \
             vecdim::parseDimSlot(args[0], args[2], #name, dim, vecdimSet);        \
-        auto *mr = ctx.engine->resource();                                        \
+        auto *mr = ctx.engine->allocator();                                        \
         if (!vecdimSet.empty()) {                                                 \
             Value c = vecdim::collapseDims(args[0], vecdimSet, mr);               \
             outs[0] = vecdim::expandReduced(                                      \
@@ -100,7 +98,7 @@ NUMKIT_NAN_MAXMIN_ADAPTER(nanmin, nanmin)
 
 #undef NUMKIT_NAN_MAXMIN_ADAPTER
 
-void nanvar_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+void nanvar_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs,
                 CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 3, "nanvar");
@@ -113,7 +111,7 @@ void nanvar_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     }
     if (args.size() >= 3)
         vecdim::parseDimSlot(args[0], args[2], "nanvar", dim, vecdimSet);
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     if (!vecdimSet.empty()) {
         Value c = vecdim::collapseDims(args[0], vecdimSet, mr);
         outs[0] = vecdim::expandReduced(
@@ -124,7 +122,7 @@ void nanvar_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     outs[0] = nanvar(args[0], w, dim, mr);
 }
 
-void nanstd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+void nanstd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs,
                 CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 3, "nanstd");
@@ -137,7 +135,7 @@ void nanstd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     }
     if (args.size() >= 3)
         vecdim::parseDimSlot(args[0], args[2], "nanstd", dim, vecdimSet);
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     if (!vecdimSet.empty()) {
         Value c = vecdim::collapseDims(args[0], vecdimSet, mr);
         outs[0] = vecdim::expandReduced(
@@ -154,11 +152,11 @@ void nanstd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 //   nancov(X, Y)                — between two vectors → 2×2
 //   nancov(X, Y, normFlag)      — same + normalization
 // We disambiguate by arg-2 type: scalar → normFlag; non-scalar → Y.
-void nancov_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+void nancov_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs,
                 CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 2, "nancov");
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     if (args.size() == 1) {
         outs[0] = nancov(args[0], 0, mr);
         return;

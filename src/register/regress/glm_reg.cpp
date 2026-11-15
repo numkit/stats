@@ -3,22 +3,21 @@
 // CallContext register half of regress/glm.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
+#include <keel/core.h>
+#include <keel/memory.h>
+#include <keel/ref.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/distributions/normal.hpp>     // for probit via norminv/normcdf
 #include <numkit/stats/regress/regress.hpp>
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
 #include <numkit/value/value.hpp>
 #include "regress/glm_detail.hpp"
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <complex>
 #include <cstddef>
 #include <string>
 #include <tuple>
@@ -53,8 +52,8 @@ static GlmLink parseLink(const std::string &s, const char *fn)
                 0, 0, fn, "", std::string("numkit:") + fn + ":badLink");
 }
 
-void glmfit_reg(Span<const Value> args, size_t nargout,
-                Span<Value> outs, CallContext &ctx)
+void glmfit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 3, "glmfit");  // no max: name-value tail in the reference
     if (!args[2].isChar() && !args[2].isString())
@@ -64,14 +63,14 @@ void glmfit_reg(Span<const Value> args, size_t nargout,
     GlmLink link = GlmLink::Identity;
     if (args.size() >= 4 && (args[3].isChar() || args[3].isString()))
         link = parseLink(args[3].toString(), "glmfit");
-    auto r = glmfit(args[0], args[1], d, link, ctx.engine->resource());
+    auto r = glmfit(args[0], args[1], d, link, ctx.engine->allocator());
     outs[0] = std::move(r.b);
     if (nargout > 1) outs[1] = std::move(r.dev);
     if (nargout > 2) outs[2] = std::move(r.stats);
 }
 
-void glmval_reg(Span<const Value> args, size_t nargout,
-                Span<Value> outs, CallContext &ctx)
+void glmval_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 3, "glmval");  // no max: name-value tail in the reference
     Value invHandle;
@@ -81,8 +80,8 @@ void glmval_reg(Span<const Value> args, size_t nargout,
     } else if (args[2].isCell() && args[2].numel() >= 3) {
         invHandle = args[2].cellAt(2);
     }
-    auto customInvCb = [&ctx, &invHandle](Span<const Value> a, Span<Value> o,
-                                          std::pmr::memory_resource * /*mr*/) {
+    auto customInvCb = [&ctx, &invHandle](keel::ArrayRef<Value> a, keel::MutArrayRef<Value> o,
+                                          keel::Allocator * /*mr*/) {
         Value r = ctx.engine->callFunctionHandle(invHandle, a);
         if (!o.empty()) o[0] = std::move(r);
     };
@@ -91,8 +90,8 @@ void glmval_reg(Span<const Value> args, size_t nargout,
         customInvLink = customInvCb;
     auto res = glmval_full_bounds(
         args[0], args[1], args[2],
-        Span<const Value>(args.data() + 3, args.size() - 3),
-        nargout >= 2, customInvLink, ctx.engine->resource());
+        keel::ArrayRef<Value>(args.data() + 3, args.size() - 3),
+        nargout >= 2, customInvLink, ctx.engine->allocator());
     outs[0] = std::move(res.yhat);
     if (nargout > 1) outs[1] = std::move(res.dylo);
     if (nargout > 2) outs[2] = std::move(res.dyhi);

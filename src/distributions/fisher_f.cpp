@@ -4,6 +4,8 @@
 // (v1·x/(v1·x + v2), v1/2, v2/2) for cdf / icdf; rnd from two
 // independent χ²-distributed samples.
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/distributions/fisher_f.hpp>
 
 #include <numkit/builtin/datafun.hpp>
@@ -31,7 +33,7 @@ inline bool fisher_f_argcheck(double v1, double v2) noexcept
 }
 } // namespace
 
-Value fpdf(const Value &x, double v1, double v2, std::pmr::memory_resource *mr)
+Value fpdf(const Value &x, double v1, double v2, keel::Allocator *mr)
 {
     if (!fisher_f_argcheck(v1, v2))
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -69,7 +71,7 @@ Value fpdf(const Value &x, double v1, double v2, std::pmr::memory_resource *mr)
     }, mr);
 }
 
-Value fcdf(const Value &x, double v1, double v2, std::pmr::memory_resource *mr)
+Value fcdf(const Value &x, double v1, double v2, keel::Allocator *mr)
 {
     if (v1 <= 0.0 || v2 <= 0.0)
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -82,7 +84,7 @@ Value fcdf(const Value &x, double v1, double v2, std::pmr::memory_resource *mr)
     return ::numkit::builtin::betainc(z, a, b, mr);
 }
 
-Value finv(const Value &p, double v1, double v2, std::pmr::memory_resource *mr)
+Value finv(const Value &p, double v1, double v2, keel::Allocator *mr)
 {
     if (v1 <= 0.0 || v2 <= 0.0)
         return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -97,16 +99,16 @@ Value finv(const Value &p, double v1, double v2, std::pmr::memory_resource *mr)
     }, mr);
 }
 
-Value frnd(::numkit::ops::RngContext &rng, double v1, double v2, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value frnd(::numkit::ops::RngContext &rng, double v1, double v2, keel::usize rows, keel::usize cols, keel::Allocator *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (v1 <= 0.0 || v2 <= 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
-    const size_t n = rows * cols;
+    const keel::usize n = rows * cols;
     std::gamma_distribution<double> g1(0.5 * v1, 2.0); // χ²(v1)
     std::gamma_distribution<double> g2(0.5 * v2, 2.0); // χ²(v2)
-    for (size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const double x1 = g1(gen);
         const double x2 = g2(gen);
         od[i] = (x1 / v1) / (x2 / v2);
@@ -133,14 +135,14 @@ std::tuple<double, double> fstat(double v1, double v2)
 
 
 Value ncfpdf(const Value &x, double nu1, double nu2, double delta,
-             std::pmr::memory_resource *mr)
+             keel::Allocator *mr)
 {
     return elementwise(x, [&](double xi) { return ncfpdf_one(xi, nu1, nu2, delta); }, mr);
 }
 
 
 Value ncfcdf(const Value &x, double nu1, double nu2, double delta,
-             bool upper, std::pmr::memory_resource *mr)
+             bool upper, keel::Allocator *mr)
 {
     return elementwise(x, [&](double xi) {
         const double F = ncfcdf_one(xi, nu1, nu2, delta, mr);
@@ -149,7 +151,7 @@ Value ncfcdf(const Value &x, double nu1, double nu2, double delta,
 }
 
 Value ncfinv(const Value &p, double nu1, double nu2, double delta,
-             std::pmr::memory_resource *mr)
+             keel::Allocator *mr)
 {
     return elementwise(p, [&](double pi) { return ncfinv_one(pi, nu1, nu2, delta, mr); }, mr);
 }
@@ -174,22 +176,22 @@ std::tuple<double, double> ncfstat(double nu1, double nu2, double delta)
 }
 
 Value ncfrnd(::numkit::ops::RngContext &rng, double nu1, double nu2, double delta,
-             std::size_t rows, std::size_t cols,
-             std::pmr::memory_resource *mr)
+             keel::usize rows, keel::usize cols,
+             keel::Allocator *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (!(nu1 > 0.0) || !(nu2 > 0.0) || delta < 0.0 || rows * cols == 0)
         return out;
     double *od = out.doubleDataMut();
-    const std::size_t n = rows * cols;
+    const keel::usize n = rows * cols;
     // delta == 0 is the CENTRAL F: the Poisson mixing mean is 0 and
     // std::poisson_distribution REQUIRES a positive mean (MSVC asserts
     // in Debug). Skip the mixing draw — J = 0 always.
     const bool central = (delta == 0.0);
     std::poisson_distribution<int>   pd(central ? 1.0 : 0.5 * delta);
     std::gamma_distribution<double>  g2(0.5 * nu2, 2.0);   // χ²(ν₂)
-    for (std::size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const int J = central ? 0 : pd(gen);
         std::gamma_distribution<double> g1(0.5 * nu1 + static_cast<double>(J), 2.0);
         const double X1 = g1(gen);   // χ²(ν₁ + 2J) — noncentral χ² draw

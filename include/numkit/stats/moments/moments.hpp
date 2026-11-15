@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <memory_resource>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
 namespace numkit::stats {
@@ -28,7 +28,7 @@ namespace numkit::stats {
 /// @return          Skewness reduced along `dim`.
 /// @see kurtosis
 Value skewness(const Value &x, int normFlag = 1, int dim = 0,
-               std::pmr::memory_resource *mr = nullptr);
+               keel::Allocator *mr = nullptr);
 
 /// @brief Sample kurtosis along `dim` (`y = kurtosis(X, normFlag, dim)`).
 ///
@@ -45,7 +45,7 @@ Value skewness(const Value &x, int normFlag = 1, int dim = 0,
 /// @return          Kurtosis reduced along `dim`.
 /// @see skewness
 Value kurtosis(const Value &x, int normFlag = 1, int dim = 0,
-               std::pmr::memory_resource *mr = nullptr);
+               keel::Allocator *mr = nullptr);
 
 
 /// @}

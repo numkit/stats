@@ -6,6 +6,9 @@
 // the numeric kernels (ridge's normal equations, nlparci's covariance,
 // glmval's inverse link) live in their existing TUs and are reused.
 
+#include <keel/core.h>
+#include <keel/memory.h>
+#include <keel/ref.h>
 #include <numkit/stats/regress/regress.hpp>   // ridge / nlparci / glmval + full entries
 
 #include <numkit/stats/distributions/chi2.hpp>         // chi2inv (glmval simultaneous)
@@ -14,7 +17,6 @@
 #include <numkit/stats/distributions/students_t.hpp>   // tinv (nlparci, glmval bounds)
 #include <numkit/value/argcheck.hpp>
 #include <numkit/value/error.hpp>
-#include <numkit/value/span.hpp>
 #include <numkit/value/value.hpp>
 
 #include <algorithm>
@@ -66,8 +68,8 @@ void ridge_full_argcheck(const Value &y, const Value &X, const Value &flag, bool
     if (X.dims().ndim() != 2)
         throw Error("ridge: X must be a matrix.",
                     0, 0, "ridge", "", "numkit:ridge:invalidData");
-    const std::size_t n = static_cast<std::size_t>(X.dims().dim(0));
-    if (static_cast<std::size_t>(y.dims().dim(0)) != n
+    const keel::usize n = static_cast<keel::usize>(X.dims().dim(0));
+    if (static_cast<keel::usize>(y.dims().dim(0)) != n
         || y.dims().ndim() != 2)
         throw Error("ridge: the number of rows in Y must equal the number "
                     "of rows in X (Y has "
@@ -83,33 +85,33 @@ void ridge_full_argcheck(const Value &y, const Value &X, const Value &flag, bool
 } // namespace
 
 Value ridge_full(const Value &y, const Value &X, const Value &kVec,
-                 const Value &flag, std::pmr::memory_resource *mr)
+                 const Value &flag, keel::Allocator *mr)
 {
     bool scaled = true;
     ridge_full_argcheck(y, X, flag, scaled);
-    const std::size_t n = static_cast<std::size_t>(X.dims().dim(0));
+    const keel::usize n = static_cast<keel::usize>(X.dims().dim(0));
 
     // Missing-value removal: any row with a NaN in y or X (probe76 R07).
-    const std::size_t p = static_cast<std::size_t>(X.dims().dim(1));
-    std::vector<std::size_t> keep;
+    const keel::usize p = static_cast<keel::usize>(X.dims().dim(1));
+    std::vector<keel::usize> keep;
     keep.reserve(n);
-    for (std::size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         if (std::isnan(y.elemAsDouble(i))) continue;
         bool ok = true;
-        for (std::size_t j = 0; j < p && ok; ++j)
+        for (keel::usize j = 0; j < p && ok; ++j)
             if (std::isnan(X.elemAsDouble(i + j * n))) ok = false;
         if (ok) keep.push_back(i);
     }
-    const std::size_t m = keep.size();
+    const keel::usize m = keep.size();
     if (m == 0)
         throw Error("ridge: no observations remain after removing rows "
                     "with missing values.",
                     0, 0, "ridge", "", "numkit:ridge:invalidData");
     Value yc = Value::matrix(m, 1, ValueType::DOUBLE, mr);
     Value Xc = Value::matrix(m, p, ValueType::DOUBLE, mr);
-    for (std::size_t k = 0; k < m; ++k) {
+    for (keel::usize k = 0; k < m; ++k) {
         yc.doubleDataMut()[k] = y.elemAsDouble(keep[k]);
-        for (std::size_t j = 0; j < p; ++j)
+        for (keel::usize j = 0; j < p; ++j)
             Xc.doubleDataMut()[k + j * m] =
                 X.elemAsDouble(keep[k] + j * n);
     }
@@ -119,7 +121,7 @@ Value ridge_full(const Value &y, const Value &X, const Value &kVec,
 // ── nlparci ───────────────────────────────────────────────────────────
 
 Value nlparci_full(const Value &beta, const Value &resid,
-                   Span<const Value> tail, std::pmr::memory_resource *mr)
+                   keel::ArrayRef<Value> tail, keel::Allocator *mr)
 {
     // Tail forms (reference): (beta, resid, J[, alpha]) or the NV form
     // (beta, resid, 'covar', Sigma[, 'alpha', a]) — the named-argument
@@ -127,7 +129,7 @@ Value nlparci_full(const Value &beta, const Value &resid,
     Value J, Sigma;
     double alpha = 0.05;
     if (!tail.empty() && (tail[0].isChar() || tail[0].isString())) {
-        for (std::size_t i = 0; i + 1 < tail.size(); i += 2) {
+        for (keel::usize i = 0; i + 1 < tail.size(); i += 2) {
             std::string name = tail[i].toString();
             for (char &c : name)
                 c = static_cast<char>(std::tolower(
@@ -136,7 +138,7 @@ Value nlparci_full(const Value &beta, const Value &resid,
                                                         "covariance",
                                                         "alpha" };
             const int hit = argcheck::matchStringChoice(
-                tail[i], Span<const std::string_view>(kNv));
+                tail[i], keel::ArrayRef<std::string_view>(kNv));
             if (hit == 0) J = tail[i + 1];
             else if (hit == 1) Sigma = tail[i + 1];
             else if (hit == 2) alpha = tail[i + 1].elemAsDouble(0);
@@ -165,13 +167,13 @@ Value nlparci_full(const Value &beta, const Value &resid,
                     0, 0, "nlparci", "", "numkit:nlparci:badAlpha");
 
     // Drop NaN residuals (and their Jacobian rows).
-    const std::size_t nAll = static_cast<std::size_t>(resid.numel());
-    std::vector<std::size_t> keep;
+    const keel::usize nAll = static_cast<keel::usize>(resid.numel());
+    std::vector<keel::usize> keep;
     keep.reserve(nAll);
-    for (std::size_t i = 0; i < nAll; ++i)
+    for (keel::usize i = 0; i < nAll; ++i)
         if (!std::isnan(resid.elemAsDouble(i))) keep.push_back(i);
-    const std::size_t n = keep.size();
-    const std::size_t pp = static_cast<std::size_t>(beta.numel());
+    const keel::usize n = keep.size();
+    const keel::usize pp = static_cast<keel::usize>(beta.numel());
     if (n <= pp)
         throw Error("nlparci: the degrees of freedom v = n - p must be "
                     "positive (n = " + std::to_string(n) + ", p = "
@@ -181,11 +183,11 @@ Value nlparci_full(const Value &beta, const Value &resid,
     std::vector<double> se(pp, 0.0);
     if (!Sigma.isEmpty()) {
         // se = sqrt(diag(Sigma)) (probe76 N03).
-        for (std::size_t j = 0; j < pp; ++j)
+        for (keel::usize j = 0; j < pp; ++j)
             se[j] = std::sqrt(Sigma.elemAsDouble(j + j * pp));
     } else {
-        if (static_cast<std::size_t>(J.dims().dim(0)) != nAll
-            || static_cast<std::size_t>(J.dims().dim(1)) != pp)
+        if (static_cast<keel::usize>(J.dims().dim(0)) != nAll
+            || static_cast<keel::usize>(J.dims().dim(1)) != pp)
             throw Error("nlparci: the size of J does not match the sizes "
                         "of BETA and RESID (J is "
                         + std::to_string(J.dims().dim(0)) + "x"
@@ -194,12 +196,12 @@ Value nlparci_full(const Value &beta, const Value &resid,
                         + ").",
                         0, 0, "nlparci", "", "numkit:nlparci:inputSizeMismatch");
         Value Jc = Value::matrix(n, pp, ValueType::DOUBLE, mr);
-        for (std::size_t k = 0; k < n; ++k)
-            for (std::size_t j = 0; j < pp; ++j)
+        for (keel::usize k = 0; k < n; ++k)
+            for (keel::usize j = 0; j < pp; ++j)
                 Jc.doubleDataMut()[k + j * n] =
                     J.elemAsDouble(keep[k] + j * nAll);
         Value residC = Value::matrix(n, 1, ValueType::DOUBLE, mr);
-        for (std::size_t k = 0; k < n; ++k)
+        for (keel::usize k = 0; k < n; ++k)
             residC.doubleDataMut()[k] = resid.elemAsDouble(keep[k]);
         // Reuse the kernel: se_j = sqrt(mse · [(J'J)^{-1}]_jj).
         Value ci = nlparci(beta, residC, Jc, alpha, mr);
@@ -209,7 +211,7 @@ Value nlparci_full(const Value &beta, const Value &resid,
                                   static_cast<double>(n - pp), mr).toScalar();
         Value out = Value::matrix(pp, 2, ValueType::DOUBLE, mr);
         double *od = out.doubleDataMut();
-        for (std::size_t j = 0; j < pp; ++j) {
+        for (keel::usize j = 0; j < pp; ++j) {
             const double half = (ci.elemAsDouble(j + pp) - ci.elemAsDouble(j)) / 2.0;
             const double sej = tcrit != 0.0 ? half / tcrit : 0.0;
             se[j] = sej;
@@ -223,7 +225,7 @@ Value nlparci_full(const Value &beta, const Value &resid,
                               static_cast<double>(n - pp), mr).toScalar();
     Value out = Value::matrix(pp, 2, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
-    for (std::size_t j = 0; j < pp; ++j) {
+    for (keel::usize j = 0; j < pp; ++j) {
         const double d = se[j] * tcrit;
         od[j] = beta.elemAsDouble(j) - d;
         od[j + pp] = beta.elemAsDouble(j) + d;
@@ -234,9 +236,9 @@ Value nlparci_full(const Value &beta, const Value &resid,
 // ── glmval ────────────────────────────────────────────────────────────
 
 GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &link,
-                                Span<const Value> tail, bool wantBounds,
+                                keel::ArrayRef<Value> tail, bool wantBounds,
                                 FnHandle customInvLink,
-                                std::pmr::memory_resource *mr)
+                                keel::Allocator *mr)
 {
     GlmLink lk = GlmLink::Identity;
     bool useCustomCallback = false;
@@ -277,7 +279,7 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
     // STATS: a non-string 4th argument is the stats struct (used by the bounds output).
     bool haveStats = false;
     Value statsVal;
-    std::size_t i = 0;
+    keel::usize i = 0;
     if (!tail.empty() && !tail[0].isChar() && !tail[0].isString()) {
         haveStats = !tail[0].isEmpty();
         statsVal = tail[0];
@@ -353,23 +355,23 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
     Value Xw = X;
     if (X.dims().dim(0) == 1 && X.dims().dim(1) > 1
         && ((b.numel() == 2 && isconst) || (b.numel() == 1 && !isconst))) {
-        Xw = Value::matrix(static_cast<std::size_t>(X.numel()), 1,
+        Xw = Value::matrix(static_cast<keel::usize>(X.numel()), 1,
                            ValueType::DOUBLE, mr);
-        for (std::size_t k = 0; k < static_cast<std::size_t>(X.numel()); ++k)
+        for (keel::usize k = 0; k < static_cast<keel::usize>(X.numel()); ++k)
             Xw.doubleDataMut()[k] = X.elemAsDouble(k);
     }
 
     // BinomialSize / Offset shape gates (probe76: WrongArgSize classes).
-    const std::size_t m = static_cast<std::size_t>(Xw.dims().dim(0));
+    const keel::usize m = static_cast<keel::usize>(Xw.dims().dim(0));
     if (!Nv.isScalar()
         && (Nv.dims().dim(1) != 1
-            || static_cast<std::size_t>(Nv.numel()) != m))
+            || static_cast<keel::usize>(Nv.numel()) != m))
         throw Error("glmval: BinomialSize must be a scalar or a column "
                     "vector with one entry per row of X.",
                     0, 0, "glmval", "", "numkit:glmval:wrongArgSizeBinomialSize");
     if (!offset.isScalar()
         && (offset.dims().dim(1) != 1
-            || static_cast<std::size_t>(offset.numel()) != m))
+            || static_cast<keel::usize>(offset.numel()) != m))
         throw Error("glmval: Offset must be a scalar or a column vector "
                     "with one entry per row of X.",
                     0, 0, "glmval", "", "numkit:glmval:wrongArgSizeOffset");
@@ -378,7 +380,7 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
         if (useCustomCallback) {
             Value arg = Value::scalar(eta, mr);
             Value res;
-            customInvLink(Span<const Value>(&arg, 1), Span<Value>(&res, 1), mr);
+            customInvLink(keel::ArrayRef<Value>(&arg, 1), keel::MutArrayRef<Value>(&res, 1), mr);
             return res.elemAsDouble(0);
         }
         switch (lk) {
@@ -391,12 +393,12 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
         return eta;
     };
 
-    const std::size_t rows = static_cast<std::size_t>(Xw.dims().dim(0));
-    const std::size_t cols = static_cast<std::size_t>(Xw.dims().dim(1));
+    const keel::usize rows = static_cast<keel::usize>(Xw.dims().dim(0));
+    const keel::usize cols = static_cast<keel::usize>(Xw.dims().dim(1));
     const bool scalarBeta = b.numel() == 1;
-    const std::size_t wantCoef = isconst ? cols + 1 : cols;
+    const keel::usize wantCoef = isconst ? cols + 1 : cols;
     if (!scalarBeta
-        && static_cast<std::size_t>(b.numel()) != wantCoef)
+        && static_cast<keel::usize>(b.numel()) != wantCoef)
         throw Error("glmval: length(beta) must equal the number of "
                     "columns of X plus one when the constant is on (got "
                     + std::to_string(b.numel()) + " coefficients for "
@@ -404,10 +406,10 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
                     0, 0, "glmval", "", "numkit:glmval:shapeMismatch");
 
     if (scalarBeta && !wantBounds) {
-        const std::size_t width = isconst ? cols + 1 : cols;
+        const keel::usize width = isconst ? cols + 1 : cols;
         Value out = Value::matrix(rows, width, ValueType::DOUBLE, mr);
-        for (std::size_t r = 0; r < rows; ++r)
-            for (std::size_t j = 0; j < width; ++j) {
+        for (keel::usize r = 0; r < rows; ++r)
+            for (keel::usize j = 0; j < width; ++j) {
                 const double xj = isconst && j == 0 ? 1.0
                     : Xw.elemAsDouble(r + (isconst ? j - 1 : j) * rows);
                 const double eta = b.elemAsDouble(0) * xj
@@ -422,9 +424,9 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
 
     Value yhat = Value::matrix(rows, 1, ValueType::DOUBLE, mr);
     std::vector<double> etaVec(rows, 0.0);
-    for (std::size_t r = 0; r < rows; ++r) {
+    for (keel::usize r = 0; r < rows; ++r) {
         double eta = isconst ? b.elemAsDouble(0) : 0.0;
-        for (std::size_t j = 0; j < cols; ++j)
+        for (keel::usize j = 0; j < cols; ++j)
             eta += Xw.elemAsDouble(r + j * rows)
                  * b.elemAsDouble(j + (isconst ? 1 : 0));
         eta += offset.isScalar() ? offset.elemAsDouble(0)
@@ -441,17 +443,17 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
     // Extract covariance matrix C (wantCoef x wantCoef) from statsVal.
     std::vector<double> covMat(wantCoef * wantCoef, 0.0);
     if (statsVal.hasField("covb")
-        && static_cast<std::size_t>(statsVal.field("covb").numel()) == wantCoef * wantCoef) {
+        && static_cast<keel::usize>(statsVal.field("covb").numel()) == wantCoef * wantCoef) {
         const Value &cb = statsVal.field("covb");
-        for (std::size_t idx = 0; idx < wantCoef * wantCoef; ++idx)
+        for (keel::usize idx = 0; idx < wantCoef * wantCoef; ++idx)
             covMat[idx] = cb.elemAsDouble(idx);
     } else if (statsVal.hasField("se")
-               && static_cast<std::size_t>(statsVal.field("se").numel()) == wantCoef) {
+               && static_cast<keel::usize>(statsVal.field("se").numel()) == wantCoef) {
         const Value &se = statsVal.field("se");
         const bool hasCorr = statsVal.hasField("coeffcorr")
-            && static_cast<std::size_t>(statsVal.field("coeffcorr").numel()) == wantCoef * wantCoef;
-        for (std::size_t j = 0; j < wantCoef; ++j)
-            for (std::size_t k = 0; k < wantCoef; ++k) {
+            && static_cast<keel::usize>(statsVal.field("coeffcorr").numel()) == wantCoef * wantCoef;
+        for (keel::usize j = 0; j < wantCoef; ++j)
+            for (keel::usize k = 0; k < wantCoef; ++k) {
                 const double corr_jk = hasCorr
                     ? statsVal.field("coeffcorr").elemAsDouble(j + k * wantCoef)
                     : (j == k ? 1.0 : 0.0);
@@ -484,18 +486,18 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
     Value dylo = Value::matrix(rows, 1, ValueType::DOUBLE, mr);
     Value dyhi = Value::matrix(rows, 1, ValueType::DOUBLE, mr);
     std::vector<double> xr(wantCoef, 0.0);
-    for (std::size_t r = 0; r < rows; ++r) {
+    for (keel::usize r = 0; r < rows; ++r) {
         if (isconst) {
             xr[0] = 1.0;
-            for (std::size_t j = 0; j < cols; ++j)
+            for (keel::usize j = 0; j < cols; ++j)
                 xr[j + 1] = Xw.elemAsDouble(r + j * rows);
         } else {
-            for (std::size_t j = 0; j < cols; ++j)
+            for (keel::usize j = 0; j < cols; ++j)
                 xr[j] = Xw.elemAsDouble(r + j * rows);
         }
         double varEta = 0.0;
-        for (std::size_t j = 0; j < wantCoef; ++j)
-            for (std::size_t k = 0; k < wantCoef; ++k)
+        for (keel::usize j = 0; j < wantCoef; ++j)
+            for (keel::usize k = 0; k < wantCoef; ++k)
                 varEta += xr[j] * covMat[j + k * wantCoef] * xr[k];
         const double seEta = std::sqrt(std::max(0.0, varEta));
         const double nr = Nv.isScalar() ? Nv.elemAsDouble(0) : Nv.elemAsDouble(r);
@@ -512,8 +514,8 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
 }
 
 Value glmval_full(const Value &b, const Value &X, const Value &link,
-                  Span<const Value> tail, bool wantBounds,
-                  std::pmr::memory_resource *mr)
+                  keel::ArrayRef<Value> tail, bool wantBounds,
+                  keel::Allocator *mr)
 {
     return glmval_full_bounds(b, X, link, tail, wantBounds, FnHandle{}, mr).yhat;
 }

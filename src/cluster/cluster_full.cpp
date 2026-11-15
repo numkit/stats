@@ -13,6 +13,9 @@
 // unknown pdist2 DISTANCE argument is UnrecognizedDistance, an unknown
 // linkage METHOD / cluster Criterion is the value-list class.
 
+#include <keel/core.h>
+#include <keel/memory.h>
+#include <keel/ref.h>
 #include <numkit/stats/cluster/distance.hpp>
 #include <numkit/stats/cluster/linkage.hpp>
 #include <numkit/stats/cluster/silhouette.hpp>
@@ -20,7 +23,6 @@
 
 #include <numkit/value/argcheck.hpp>
 #include <numkit/value/error.hpp>
-#include <numkit/value/span.hpp>
 #include <numkit/value/value.hpp>
 
 #include <algorithm>
@@ -64,22 +66,22 @@ struct ClusterOpts {
 // Positional metric tail: a string names the metric, a scalar is the
 // Minkowski exponent, a larger numeric array is the Mahalanobis
 // covariance (the same shape the reference's positional forms take).
-ClusterOpts pdist_argcheck(Span<const Value> tail, const char *fn,
+ClusterOpts pdist_argcheck(keel::ArrayRef<Value> tail, const char *fn,
                            const char *badMetricTag)
 {
     ClusterOpts o{"euclidean", 2.0, nullptr};
-    for (std::size_t i = 0; i < tail.size(); ++i) {
+    for (keel::usize i = 0; i < tail.size(); ++i) {
         const Value &v = tail[i];
         if (v.isChar() || v.isString()) {
             const std::string m = lowerCopy(v.toString());
             const int hit = argcheck::matchStringChoice(
-                v, Span<const std::string_view>(kMetrics));
+                v, keel::ArrayRef<std::string_view>(kMetrics));
             if (hit < 0)
                 throw Error(std::string(fn) + ": the distance function '"
                             + v.toString() + "' was not found.",
                             0, 0, fn, "", badMetricTag);
             o.metric = std::string(
-                kMetrics[static_cast<std::size_t>(hit)]);
+                kMetrics[static_cast<keel::usize>(hit)]);
         } else if (v.numel() == 1) {
             o.p = v.elemAsDouble(0);
         } else {
@@ -93,20 +95,20 @@ ClusterOpts pdist_argcheck(Span<const Value> tail, const char *fn,
 
 // ── pdist / pdist2 / mahal ────────────────────────────────────────────
 
-Value pdist_full(const Value &X, Span<const Value> tail,
-                 std::pmr::memory_resource *mr)
+Value pdist_full(const Value &X, keel::ArrayRef<Value> tail,
+                 keel::Allocator *mr)
 {
     const ClusterOpts o = pdist_argcheck(tail, "pdist",
                                          "numkit:pdist:distanceFunctionNotFound");
     Value d = pdist(X, o.metric, o.p, o.C, mr);
     // Single inputs produce single distances (probe P07).
     if (X.type() == ValueType::SINGLE && d.type() == ValueType::DOUBLE) {
-        const std::size_t n = static_cast<std::size_t>(d.numel());
+        const keel::usize n = static_cast<keel::usize>(d.numel());
         Value out = Value::matrix(
-            static_cast<std::size_t>(d.dims().dim(0)),
-            static_cast<std::size_t>(d.dims().dim(1)),
+            static_cast<keel::usize>(d.dims().dim(0)),
+            static_cast<keel::usize>(d.dims().dim(1)),
             ValueType::SINGLE, mr);
-        for (std::size_t k = 0; k < n; ++k)
+        for (keel::usize k = 0; k < n; ++k)
             out.singleDataMut()[k] =
                 static_cast<float>(d.elemAsDouble(k));
         return out;
@@ -114,17 +116,17 @@ Value pdist_full(const Value &X, Span<const Value> tail,
     return d;
 }
 
-Pdist2Out pdist2_full(const Value &X, const Value &Y, Span<const Value> tail,
-                      std::pmr::memory_resource *mr)
+Pdist2Out pdist2_full(const Value &X, const Value &Y, keel::ArrayRef<Value> tail,
+                      keel::Allocator *mr)
 {
     // Smallest/Largest top-k selection follows the positional Distance
     // argument (tail index >= 1): pdist2(X, Y, Distance, 'Smallest', K).
     // Passing 'Smallest'/'Largest' in the Distance slot (tail[0]) falls
     // through to pdist_argcheck and raises unrecognizedDistance (probe P09).
     bool topk = false, largest = false;
-    std::size_t k = 0;
+    keel::usize k = 0;
     std::vector<Value> rest;
-    for (std::size_t i = 0; i < tail.size(); ++i) {
+    for (keel::usize i = 0; i < tail.size(); ++i) {
         if (i >= 1 && (tail[i].isChar() || tail[i].isString())
             && i + 1 < tail.size()) {
             const std::string s = lowerCopy(tail[i].toString());
@@ -138,7 +140,7 @@ Pdist2Out pdist2_full(const Value &X, const Value &Y, Span<const Value> tail,
                                 0, 0, "pdist2", "", "numkit:pdist2:badK");
                 topk = true;
                 largest = (s == "largest");
-                k = static_cast<std::size_t>(kv);
+                k = static_cast<keel::usize>(kv);
                 ++i;   // consume the count
                 continue;
             }
@@ -146,7 +148,7 @@ Pdist2Out pdist2_full(const Value &X, const Value &Y, Span<const Value> tail,
         rest.push_back(tail[i]);
     }
     const ClusterOpts o = pdist_argcheck(
-        Span<const Value>(rest.data(), rest.size()), "pdist2",
+        keel::ArrayRef<Value>(rest.data(), rest.size()), "pdist2",
         "numkit:pdist2:unrecognizedDistance");
     if (topk) {
         Pdist2Out r;
@@ -160,8 +162,8 @@ Pdist2Out pdist2_full(const Value &X, const Value &Y, Span<const Value> tail,
 
 // ── linkage ───────────────────────────────────────────────────────────
 
-Value linkage_full(const Value &Y, Span<const Value> tail,
-                   std::pmr::memory_resource *mr)
+Value linkage_full(const Value &Y, keel::ArrayRef<Value> tail,
+                   keel::Allocator *mr)
 {
     std::string method = "single";
     std::string metric = "euclidean";
@@ -170,13 +172,13 @@ Value linkage_full(const Value &Y, Span<const Value> tail,
     // linkage methods — the reference's getParamVal class).
     if (!tail.empty() && (tail[0].isChar() || tail[0].isString())) {
         const int hit = argcheck::matchStringChoice(
-            tail[0], Span<const std::string_view>(kLinkMethods));
+            tail[0], keel::ArrayRef<std::string_view>(kLinkMethods));
         if (hit < 0)
             throw Error("linkage: '" + tail[0].toString()
                         + "' is not a valid value for the METHOD argument.",
                         0, 0, "linkage", "", "numkit:linkage:badMethod");
         method = std::string(
-            kLinkMethods[static_cast<std::size_t>(hit)]);
+            kLinkMethods[static_cast<keel::usize>(hit)]);
     } else if (!tail.empty()) {
         throw Error("linkage: METHOD must be one of: single, complete, "
                     "average, weighted, centroid, median, ward (got a "
@@ -185,23 +187,23 @@ Value linkage_full(const Value &Y, Span<const Value> tail,
     }
     // Metric (implicit pdist) + Minkowski exponent.
     bool haveMetric = false;
-    for (std::size_t i = 1; i < tail.size(); ++i) {
+    for (keel::usize i = 1; i < tail.size(); ++i) {
         const Value &v = tail[i];
         if (v.isChar() || v.isString()) {
             if (haveMetric)
                 throw Error("linkage: unexpected extra argument.",
                             0, 0, "linkage", "", "numkit:linkage:nargin");
             const int hit = argcheck::matchStringChoice(
-                v, Span<const std::string_view>(kMetrics));
+                v, keel::ArrayRef<std::string_view>(kMetrics));
             if (hit < 0)
                 throw Error("linkage: the distance function '"
                             + v.toString() + "' was not found.",
                             0, 0, "linkage", "",
                             "numkit:linkage:distanceFunctionNotFound");
             metric = std::string(
-                kMetrics[static_cast<std::size_t>(
+                kMetrics[static_cast<keel::usize>(
                     argcheck::matchStringChoice(
-                        v, Span<const std::string_view>(kMetrics)))]);
+                        v, keel::ArrayRef<std::string_view>(kMetrics)))]);
             haveMetric = true;
         } else if (v.numel() == 1) {
             p = v.elemAsDouble(0);
@@ -215,14 +217,14 @@ Value linkage_full(const Value &Y, Span<const Value> tail,
 
 // ── cluster ───────────────────────────────────────────────────────────
 
-Value cluster_full(const Value &Z, Span<const Value> tail,
-                   std::pmr::memory_resource *mr)
+Value cluster_full(const Value &Z, keel::ArrayRef<Value> tail,
+                   keel::Allocator *mr)
 {
     int maxclust = -1;
     double cutoff = -1.0;
     int depth = 2;
     std::string criterion = "inconsistent";
-    for (std::size_t i = 0; i < tail.size(); ++i) {
+    for (keel::usize i = 0; i < tail.size(); ++i) {
         if (!(tail[i].isChar() || tail[i].isString())) {
             if (i == 0) {
                 // Legacy positional cutoff scalar.
@@ -242,7 +244,7 @@ Value cluster_full(const Value &Z, Span<const Value> tail,
         else if (name == "depth")     depth = static_cast<int>(v.elemAsDouble(0));
         else if (name == "criterion") {
             const int hit = argcheck::matchStringChoice(
-                v, Span<const std::string_view>(kCriteria));
+                v, keel::ArrayRef<std::string_view>(kCriteria));
             if (hit < 0)
                 throw Error("cluster: '" + v.toString() + "' is not a "
                             "valid value for the Criterion argument. "
@@ -251,7 +253,7 @@ Value cluster_full(const Value &Z, Span<const Value> tail,
                             0, 0, "cluster", "",
                             "numkit:cluster:badCriterion");
             criterion = std::string(
-                kCriteria[static_cast<std::size_t>(hit)]);
+                kCriteria[static_cast<keel::usize>(hit)]);
         } else {
             throw Error("cluster: unrecognized parameter name '"
                         + tail[i].toString() + "'.",
@@ -267,8 +269,8 @@ Value cluster_full(const Value &Z, Span<const Value> tail,
 
 // ── inconsistent ──────────────────────────────────────────────────────
 
-Value inconsistent_full(const Value &Z, Span<const Value> tail,
-                        std::pmr::memory_resource *mr)
+Value inconsistent_full(const Value &Z, keel::ArrayRef<Value> tail,
+                        keel::Allocator *mr)
 {
     int depth = 2;
     if (!tail.empty()) {
@@ -285,14 +287,14 @@ Value inconsistent_full(const Value &Z, Span<const Value> tail,
 // ── silhouette ────────────────────────────────────────────────────────
 
 Value silhouette_full(const Value &X, const Value &clust,
-                      Span<const Value> tail, std::pmr::memory_resource *mr)
+                      keel::ArrayRef<Value> tail, keel::Allocator *mr)
 {
     ClusterOpts o{"sqeuclidean", 2.0, nullptr};   // silhouette default
-    for (std::size_t i = 0; i < tail.size(); ++i) {
+    for (keel::usize i = 0; i < tail.size(); ++i) {
         const Value &v = tail[i];
         if (v.isChar() || v.isString()) {
             const int hit = argcheck::matchStringChoice(
-                v, Span<const std::string_view>(kMetrics));
+                v, keel::ArrayRef<std::string_view>(kMetrics));
             if (hit < 0)
                 throw Error("silhouette: the distance function '"
                             + v.toString() + "' was not found.",

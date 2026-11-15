@@ -4,6 +4,8 @@
 // during the MATLAB-taxonomy refactor — they're Statistics Toolbox
 // content (var/std/median stay in toolboxes/builtin as base MATLAB).
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/moments/moments.hpp>
 
 #include <numkit/value/value.hpp>
@@ -25,27 +27,27 @@ namespace {
 
 // Cast a DOUBLE result to SINGLE in place. Used to preserve SINGLE
 // input type — arithmetic happens at double precision then narrows.
-Value narrowToSingle(Value d, std::pmr::memory_resource *mr)
+Value narrowToSingle(Value d, keel::Allocator *mr)
 {
     if (d.type() != ValueType::DOUBLE) return d;
     Value r = createForDims(d.dims(), ValueType::SINGLE, mr);
     const double *src = d.doubleData();
     float *dst = r.singleDataMut();
-    for (size_t i = 0; i < d.numel(); ++i)
+    for (keel::usize i = 0; i < d.numel(); ++i)
         dst[i] = static_cast<float>(src[i]);
     return r;
 }
 
 // Per-slice skewness. n < 2: NaN (m2 == 0 by definition). normFlag=0
 // requires n >= 3 for the bias correction; otherwise NaN.
-double skewnessFromSlice(const double *data, size_t n, int normFlag)
+double skewnessFromSlice(const double *data, keel::usize n, int normFlag)
 {
     if (n < 2) return std::nan("");
     double mean = 0.0;
-    for (size_t i = 0; i < n; ++i) mean += data[i];
+    for (keel::usize i = 0; i < n; ++i) mean += data[i];
     mean /= static_cast<double>(n);
     double m2 = 0.0, m3 = 0.0;
-    for (size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const double d = data[i] - mean;
         const double d2 = d * d;
         m2 += d2;
@@ -65,14 +67,14 @@ double skewnessFromSlice(const double *data, size_t n, int normFlag)
 
 // Per-slice kurtosis (NON-excess; equals 3 for normal). normFlag=0
 // requires n >= 4 for the bias correction; otherwise NaN.
-double kurtosisFromSlice(const double *data, size_t n, int normFlag)
+double kurtosisFromSlice(const double *data, keel::usize n, int normFlag)
 {
     if (n < 2) return std::nan("");
     double mean = 0.0;
-    for (size_t i = 0; i < n; ++i) mean += data[i];
+    for (keel::usize i = 0; i < n; ++i) mean += data[i];
     mean /= static_cast<double>(n);
     double m2 = 0.0, m4 = 0.0;
-    for (size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const double d = data[i] - mean;
         const double d2 = d * d;
         m2 += d2;
@@ -102,19 +104,19 @@ void moments_argcheck(const Value &x, int normFlag, const char *fn)
                      0, 0, fn, "", std::string("numkit:") + fn + ":complex");
 }
 
-Value dispatchMomentReduction(const Value &x, int dim, int normFlag, const char *fn, double (*fromSlice)(const double *, size_t, int), std::pmr::memory_resource *mr)
+Value dispatchMomentReduction(const Value &x, int dim, int normFlag, const char *fn, double (*fromSlice)(const double *, keel::usize, int), keel::Allocator *mr)
 {
     moments_argcheck(x, normFlag, fn);
     if (x.isEmpty())
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     const int d = resolveDim(x, dim, fn);
     Value r = applyAlongDim(x, d,
-        [normFlag, fromSlice](size_t, double *slice, size_t n) {
+        [normFlag, fromSlice](keel::usize, double *slice, keel::usize n) {
             // MATLAB skewness/kurtosis treat NaN as missing and remove it.
             // Compact the non-NaN values to the front of the (mutable)
             // slice and reduce the count before the moment kernel runs.
-            size_t k = 0;
-            for (size_t i = 0; i < n; ++i)
+            keel::usize k = 0;
+            for (keel::usize i = 0; i < n; ++i)
                 if (!std::isnan(slice[i])) slice[k++] = slice[i];
             return fromSlice(slice, k, normFlag);
         }, mr);
@@ -125,12 +127,12 @@ Value dispatchMomentReduction(const Value &x, int dim, int normFlag, const char 
 
 } // namespace
 
-Value skewness(const Value &x, int normFlag, int dim, std::pmr::memory_resource *mr)
+Value skewness(const Value &x, int normFlag, int dim, keel::Allocator *mr)
 {
     return dispatchMomentReduction(x, dim, normFlag, "skewness", skewnessFromSlice, mr);
 }
 
-Value kurtosis(const Value &x, int normFlag, int dim, std::pmr::memory_resource *mr)
+Value kurtosis(const Value &x, int normFlag, int dim, keel::Allocator *mr)
 {
     return dispatchMomentReduction(x, dim, normFlag, "kurtosis", kurtosisFromSlice, mr);
 }

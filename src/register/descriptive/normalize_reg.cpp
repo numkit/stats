@@ -3,6 +3,8 @@
 // CallContext register half of descriptive/normalize.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
+#include <keel/core.h>
+#include <keel/ref.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/descriptive/descriptive.hpp>
 #include <numkit/value/argcheck.hpp>
@@ -11,13 +13,10 @@
 #include "descriptive/normalize_detail.hpp"
 #include "support/reduce_vecdim.hpp"
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <complex>
 #include <cstddef>
 #include <string>
 #include <tuple>
@@ -28,8 +27,8 @@ namespace numkit::stats {
 
 namespace detail {
 
-void normalize_reg(Span<const Value> args, size_t nargout,
-                   Span<Value> outs, CallContext &ctx)
+void normalize_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                   keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "normalize");  // no max: name-value tail in the reference
     std::string method = "zscore";
@@ -48,14 +47,14 @@ void normalize_reg(Span<const Value> args, size_t nargout,
     // with N == (A - C) ./ S. Compute returns all three; discard per nargout.
     NormalizeResult r = normalize(args[0], method,
                                   param ? *param : Value::Empty,
-                                  ctx.engine->resource());
+                                  ctx.engine->allocator());
     outs[0] = std::move(r.n);
     if (nargout >= 2 && outs.size() >= 2) outs[1] = std::move(r.c);
     if (nargout >= 3 && outs.size() >= 3) outs[2] = std::move(r.s);
 }
 
-void rescale_reg(Span<const Value> args, size_t /*nargout*/,
-                 Span<Value> outs, CallContext &ctx)
+void rescale_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
+                 keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "rescale");  // no max: name-value tail in the reference
     double lo = 0.0, hi = 1.0;
@@ -63,7 +62,7 @@ void rescale_reg(Span<const Value> args, size_t /*nargout*/,
     double inputMax = std::numeric_limits<double>::quiet_NaN();
 
     // Positional lo/hi come first (only when arg[1] is not a NV-name).
-    size_t i = 1;
+    keel::usize i = 1;
     if (args.size() >= 2 && !args[1].isChar() && !args[1].isString()) {
         if (!args[1].isEmpty()) lo = args[1].toScalar();
         i = 2;
@@ -85,11 +84,11 @@ void rescale_reg(Span<const Value> args, size_t /*nargout*/,
             throw Error("rescale: name must be 'InputMin' or 'InputMax'",
                         0, 0, "rescale", "", "numkit:rescale:badOpt");
     }
-    outs[0] = rescale(args[0], lo, hi, inputMin, inputMax, ctx.engine->resource());
+    outs[0] = rescale(args[0], lo, hi, inputMin, inputMax, ctx.engine->allocator());
 }
 
-void zscore_reg(Span<const Value> args, size_t nargout,
-                Span<Value> outs, CallContext &ctx)
+void zscore_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 3, "zscore");
     int flag = 0, dim = 0;
@@ -101,7 +100,7 @@ void zscore_reg(Span<const Value> args, size_t nargout,
     }
     if (args.size() >= 3)
         vecdim::parseDimSlot(args[0], args[2], "zscore", dim, vecdimSet);
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     // [Z, MU, SIGMA] = zscore(...): expose the centring mean and scaling std.
     Value mu, sigma;
     if (!vecdimSet.empty()) {

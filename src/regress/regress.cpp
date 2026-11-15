@@ -1,5 +1,7 @@
 // toolboxes/stats/src/regress/regress.cpp
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/regress/regress.hpp>
 
 #include <numkit/stats/distributions/students_t.hpp>
@@ -20,8 +22,8 @@ namespace {
 
 void regress_full_argcheck(const Value &y, const Value &X)
 {
-    const size_t N = y.numel();
-    const size_t p = X.dims().cols();
+    const keel::usize N = y.numel();
+    const keel::usize p = X.dims().cols();
     if (X.dims().rows() != N || N == 0 || p == 0)
         throw Error("regress: X must be N×p with same N as y",
                     0, 0, "regress", "", "numkit:regress:size");
@@ -29,8 +31,8 @@ void regress_full_argcheck(const Value &y, const Value &X)
 
 void lscov_argcheck(const Value &A, const Value &b, const Value &w)
 {
-    const size_t N = b.numel();
-    const size_t p = A.dims().cols();
+    const keel::usize N = b.numel();
+    const keel::usize p = A.dims().cols();
     if (A.dims().rows() != N || N == 0 || p == 0)
         throw Error("lscov: A must be N×p with same N as b",
                     0, 0, "lscov", "", "numkit:lscov:size");
@@ -45,8 +47,8 @@ void lscov_argcheck(const Value &A, const Value &b, const Value &w)
 
 void ridge_argcheck(const Value &y, const Value &X, const Value &kVec)
 {
-    const size_t N = y.numel();
-    const size_t p = X.dims().cols();
+    const keel::usize N = y.numel();
+    const keel::usize p = X.dims().cols();
     if (X.dims().rows() != N || N == 0 || p == 0)
         throw Error("ridge: X must be N×p with same N as y",
                     0, 0, "ridge", "", "numkit:ridge:size");
@@ -60,28 +62,28 @@ void ridge_argcheck(const Value &y, const Value &X, const Value &kVec)
 // 5-output form: [b, bint, r, rint, stats]. rint = residual CI for
 // outlier detection — added 2026-05-08.
 std::tuple<Value, Value, Value, Value, Value>
-regress_full(const Value &y, const Value &X, double alpha, std::pmr::memory_resource *mr)
+regress_full(const Value &y, const Value &X, double alpha, keel::Allocator *mr)
 {
     regress_full_argcheck(y, X);
-    const size_t N = y.numel();
-    const size_t p = X.dims().cols();
+    const keel::usize N = y.numel();
+    const keel::usize p = X.dims().cols();
 
     // Build XtX (p×p) and Xty (p×1) using column-major X.
     std::vector<double> XtX(p * p, 0.0);
     std::vector<double> Xty(p, 0.0);
-    for (size_t j = 0; j < p; ++j) {
-        for (size_t i = 0; i < N; ++i) {
+    for (keel::usize j = 0; j < p; ++j) {
+        for (keel::usize i = 0; i < N; ++i) {
             const double xij = X.elemAsDouble(i + j * N);
             Xty[j] += xij * y.elemAsDouble(i);
-            for (size_t k = j; k < p; ++k) {
+            for (keel::usize k = j; k < p; ++k) {
                 const double xik = X.elemAsDouble(i + k * N);
                 XtX[k + j * p] += xij * xik;
             }
         }
     }
     // Mirror upper triangle.
-    for (size_t j = 0; j < p; ++j)
-        for (size_t k = 0; k < j; ++k)
+    for (keel::usize j = 0; j < p; ++j)
+        for (keel::usize k = 0; k < j; ++k)
             XtX[k + j * p] = XtX[j + k * p];
 
     // Cholesky factor.
@@ -98,9 +100,9 @@ regress_full(const Value &y, const Value &X, double alpha, std::pmr::memory_reso
     // Residuals r = y - X β.
     std::vector<double> r(N);
     double SSR = 0.0;
-    for (size_t i = 0; i < N; ++i) {
+    for (keel::usize i = 0; i < N; ++i) {
         double pred = 0.0;
-        for (size_t j = 0; j < p; ++j) pred += X.elemAsDouble(i + j * N) * beta[j];
+        for (keel::usize j = 0; j < p; ++j) pred += X.elemAsDouble(i + j * N) * beta[j];
         const double ri = y.elemAsDouble(i) - pred;
         r[i] = ri;
         SSR += ri * ri;
@@ -116,12 +118,12 @@ regress_full(const Value &y, const Value &X, double alpha, std::pmr::memory_reso
     std::vector<double> invDiag(p, 0.0);
     {
         std::vector<double> ej(p), zj(p), mj(p);
-        for (size_t j = 0; j < p; ++j) {
+        for (keel::usize j = 0; j < p; ++j) {
             std::fill(ej.begin(), ej.end(), 0.0);
             ej[j] = 1.0;
             fwd_solve(L.data(), zj.data(), ej.data(), p);
             back_solve(L.data(), mj.data(), zj.data(), p);
-            for (size_t i = 0; i < p; ++i) invMat[i + j * p] = mj[i];
+            for (keel::usize i = 0; i < p; ++i) invMat[i + j * p] = mj[i];
             invDiag[j] = mj[j];
         }
     }
@@ -138,7 +140,7 @@ regress_full(const Value &y, const Value &X, double alpha, std::pmr::memory_reso
         Value pV = Value::scalar(1.0 - alpha / 2.0, mr);
         tcrit = tinv(pV, dfErr, mr).toScalar();
     }
-    for (size_t j = 0; j < p; ++j) {
+    for (keel::usize j = 0; j < p; ++j) {
         bd[j] = beta[j];
         const double se = (sigma2 == sigma2 && invDiag[j] > 0)
                           ? std::sqrt(sigma2 * invDiag[j])
@@ -146,14 +148,14 @@ regress_full(const Value &y, const Value &X, double alpha, std::pmr::memory_reso
         bid[j]     = beta[j] - tcrit * se;
         bid[j + p] = beta[j] + tcrit * se;
     }
-    for (size_t i = 0; i < N; ++i) rd[i] = r[i];
+    for (keel::usize i = 0; i < N; ++i) rd[i] = r[i];
 
     // stats = [R², F, p_F, sigma²]
     double yMean = 0.0;
-    for (size_t i = 0; i < N; ++i) yMean += y.elemAsDouble(i);
+    for (keel::usize i = 0; i < N; ++i) yMean += y.elemAsDouble(i);
     yMean /= double(N);
     double SStot = 0.0;
-    for (size_t i = 0; i < N; ++i) {
+    for (keel::usize i = 0; i < N; ++i) {
         const double d = y.elemAsDouble(i) - yMean;
         SStot += d * d;
     }
@@ -193,12 +195,12 @@ regress_full(const Value &y, const Value &X, double alpha, std::pmr::memory_reso
         tcritR = tinv(pV, nu - 1.0, mr).toScalar();
     }
     const double epsThresh = 1.4901161193847656e-08;   // sqrt(eps)
-    for (size_t i = 0; i < N; ++i) {
+    for (keel::usize i = 0; i < N; ++i) {
         // h_ii = sum_{j,k} X[i,j] · invMat[j,k] · X[i,k].
         double hii = 0.0;
-        for (size_t j = 0; j < p; ++j) {
+        for (keel::usize j = 0; j < p; ++j) {
             double row = 0.0;
-            for (size_t k = 0; k < p; ++k)
+            for (keel::usize k = 0; k < p; ++k)
                 row += invMat[j + k * p] * X.elemAsDouble(i + k * N);
             hii += X.elemAsDouble(i + j * N) * row;
         }
@@ -224,7 +226,7 @@ regress_full(const Value &y, const Value &X, double alpha, std::pmr::memory_reso
 
 // Backward-compat 4-tuple wrapper (for legacy callers; rint dropped).
 std::tuple<Value, Value, Value, Value>
-regress(const Value &y, const Value &X, double alpha, std::pmr::memory_resource *mr)
+regress(const Value &y, const Value &X, double alpha, keel::Allocator *mr)
 {
     auto [b, bint, r, rint, stats] = regress_full(y, X, alpha, mr);
     (void)rint;
@@ -232,11 +234,11 @@ regress(const Value &y, const Value &X, double alpha, std::pmr::memory_resource 
 }
 
 std::tuple<Value, Value, Value, Value>
-lscov(const Value &A, const Value &b, const Value &w, std::pmr::memory_resource *mr)
+lscov(const Value &A, const Value &b, const Value &w, keel::Allocator *mr)
 {
     lscov_argcheck(A, b, w);
-    const size_t N = b.numel();
-    const size_t p = A.dims().cols();
+    const keel::usize N = b.numel();
+    const keel::usize p = A.dims().cols();
 
     const bool weighted = !w.isEmpty();
     const bool fullCov = weighted && (w.dims().rows() == N && w.dims().cols() == N && N > 1);
@@ -248,8 +250,8 @@ lscov(const Value &A, const Value &b, const Value &w, std::pmr::memory_resource 
 
     if (fullCov) {
         std::vector<double> V(N * N, 0.0);
-        for (size_t j = 0; j < N; ++j) {
-            for (size_t i = 0; i < N; ++i) {
+        for (keel::usize j = 0; j < N; ++j) {
+            for (keel::usize i = 0; i < N; ++i) {
                 const double vij = w.elemAsDouble(i + j * N);
                 const double vji = w.elemAsDouble(j + i * N);
                 if (!std::isfinite(vij) || std::fabs(vij - vji) > 1e-10 * (1.0 + std::fabs(vij)))
@@ -267,45 +269,45 @@ lscov(const Value &A, const Value &b, const Value &w, std::pmr::memory_resource 
         Atilde.resize(N * p, 0.0);
         btilde.resize(N, 0.0);
         std::vector<double> colIn(N);
-        for (size_t j = 0; j < p; ++j) {
-            for (size_t i = 0; i < N; ++i) colIn[i] = A.elemAsDouble(i + j * N);
+        for (keel::usize j = 0; j < p; ++j) {
+            for (keel::usize i = 0; i < N; ++i) colIn[i] = A.elemAsDouble(i + j * N);
             fwd_solve(LV.data(), Atilde.data() + j * N, colIn.data(), N);
         }
-        for (size_t i = 0; i < N; ++i) colIn[i] = b.elemAsDouble(i);
+        for (keel::usize i = 0; i < N; ++i) colIn[i] = b.elemAsDouble(i);
         fwd_solve(LV.data(), btilde.data(), colIn.data(), N);
 
-        for (size_t i = 0; i < N; ++i) {
+        for (keel::usize i = 0; i < N; ++i) {
             const double bi = btilde[i];
-            for (size_t j = 0; j < p; ++j) {
+            for (keel::usize j = 0; j < p; ++j) {
                 const double xij = Atilde[i + j * N];
                 XtWy[j] += xij * bi;
-                for (size_t k = j; k < p; ++k) {
+                for (keel::usize k = j; k < p; ++k) {
                     const double xik = Atilde[i + k * N];
                     XtWX[k + j * p] += xij * xik;
                 }
             }
         }
     } else {
-        auto wi = [&](size_t i) {
+        auto wi = [&](keel::usize i) {
             return weighted ? w.elemAsDouble(i) : 1.0;
         };
 
         // Build XtWX and XtWy with weights baked in (W = diag(w)).
-        for (size_t i = 0; i < N; ++i) {
+        for (keel::usize i = 0; i < N; ++i) {
             const double wii = wi(i);
             const double bi  = b.elemAsDouble(i);
-            for (size_t j = 0; j < p; ++j) {
+            for (keel::usize j = 0; j < p; ++j) {
                 const double xij = A.elemAsDouble(i + j * N);
                 XtWy[j] += wii * xij * bi;
-                for (size_t k = j; k < p; ++k) {
+                for (keel::usize k = j; k < p; ++k) {
                     const double xik = A.elemAsDouble(i + k * N);
                     XtWX[k + j * p] += wii * xij * xik;
                 }
             }
         }
     }
-    for (size_t j = 0; j < p; ++j)
-        for (size_t k = 0; k < j; ++k)
+    for (keel::usize j = 0; j < p; ++j)
+        for (keel::usize k = 0; k < j; ++k)
             XtWX[k + j * p] = XtWX[j + k * p];
 
     std::vector<double> L(p * p, 0.0);
@@ -320,16 +322,16 @@ lscov(const Value &A, const Value &b, const Value &w, std::pmr::memory_resource 
     // weighted residuals + SSR
     double SSRw = 0.0;
     if (fullCov) {
-        for (size_t i = 0; i < N; ++i) {
+        for (keel::usize i = 0; i < N; ++i) {
             double pred = 0.0;
-            for (size_t j = 0; j < p; ++j) pred += Atilde[i + j * N] * beta[j];
+            for (keel::usize j = 0; j < p; ++j) pred += Atilde[i + j * N] * beta[j];
             const double ri = btilde[i] - pred;
             SSRw += ri * ri;
         }
     } else {
-        for (size_t i = 0; i < N; ++i) {
+        for (keel::usize i = 0; i < N; ++i) {
             double pred = 0.0;
-            for (size_t j = 0; j < p; ++j) pred += A.elemAsDouble(i + j * N) * beta[j];
+            for (keel::usize j = 0; j < p; ++j) pred += A.elemAsDouble(i + j * N) * beta[j];
             const double ri = b.elemAsDouble(i) - pred;
             const double wii = weighted ? w.elemAsDouble(i) : 1.0;
             SSRw += wii * ri * ri;
@@ -343,12 +345,12 @@ lscov(const Value &A, const Value &b, const Value &w, std::pmr::memory_resource 
     std::vector<double> Sm(p * p, 0.0);
     {
         std::vector<double> ej(p), zj(p), mj(p);
-        for (size_t j = 0; j < p; ++j) {
+        for (keel::usize j = 0; j < p; ++j) {
             std::fill(ej.begin(), ej.end(), 0.0);
             ej[j] = 1.0;
             fwd_solve(L.data(), zj.data(), ej.data(), p);
             back_solve(L.data(), mj.data(), zj.data(), p);
-            for (size_t i = 0; i < p; ++i)
+            for (keel::usize i = 0; i < p; ++i)
                 Sm[i + j * p] = mse * mj[i];
         }
     }
@@ -360,38 +362,38 @@ lscov(const Value &A, const Value &b, const Value &w, std::pmr::memory_resource 
     double *xd  = xV.doubleDataMut();
     double *sxd = stdxV.doubleDataMut();
     double *Sd  = SV.doubleDataMut();
-    for (size_t j = 0; j < p; ++j) {
+    for (keel::usize j = 0; j < p; ++j) {
         xd[j]  = beta[j];
         sxd[j] = std::sqrt(std::max(Sm[j + j * p], 0.0));
     }
-    for (size_t i = 0; i < p * p; ++i) Sd[i] = Sm[i];
+    for (keel::usize i = 0; i < p * p; ++i) Sd[i] = Sm[i];
 
     return {std::move(xV), std::move(stdxV), std::move(mseV), std::move(SV)};
 }
 
-Value ridge(const Value &y, const Value &X, const Value &kVec, bool scaled, std::pmr::memory_resource *mr)
+Value ridge(const Value &y, const Value &X, const Value &kVec, bool scaled, keel::Allocator *mr)
 {
     ridge_argcheck(y, X, kVec);
-    const size_t N = y.numel();
-    const size_t p = X.dims().cols();
-    const size_t Nk = kVec.numel();
+    const keel::usize N = y.numel();
+    const keel::usize p = X.dims().cols();
+    const keel::usize Nk = kVec.numel();
 
     // Center y, X by column mean.
     double yMean = 0.0;
-    for (size_t i = 0; i < N; ++i) yMean += y.elemAsDouble(i);
+    for (keel::usize i = 0; i < N; ++i) yMean += y.elemAsDouble(i);
     yMean /= double(N);
     std::vector<double> yc(N);
-    for (size_t i = 0; i < N; ++i) yc[i] = y.elemAsDouble(i) - yMean;
+    for (keel::usize i = 0; i < N; ++i) yc[i] = y.elemAsDouble(i) - yMean;
 
     std::vector<double> xMean(p, 0.0), xStd(p, 0.0);
-    for (size_t j = 0; j < p; ++j) {
-        for (size_t i = 0; i < N; ++i) xMean[j] += X.elemAsDouble(i + j * N);
+    for (keel::usize j = 0; j < p; ++j) {
+        for (keel::usize i = 0; i < N; ++i) xMean[j] += X.elemAsDouble(i + j * N);
         xMean[j] /= double(N);
     }
     std::vector<double> Xs(N * p);
-    for (size_t j = 0; j < p; ++j) {
+    for (keel::usize j = 0; j < p; ++j) {
         double sq = 0.0;
-        for (size_t i = 0; i < N; ++i) {
+        for (keel::usize i = 0; i < N; ++i) {
             const double d = X.elemAsDouble(i + j * N) - xMean[j];
             Xs[i + j * N] = d;
             sq += d * d;
@@ -400,49 +402,49 @@ Value ridge(const Value &y, const Value &X, const Value &kVec, bool scaled, std:
         const double s = (N > 1) ? std::sqrt(sq / double(N - 1)) : 1.0;
         xStd[j] = s;
         if (s > 0.0)
-            for (size_t i = 0; i < N; ++i) Xs[i + j * N] /= s;
+            for (keel::usize i = 0; i < N; ++i) Xs[i + j * N] /= s;
     }
 
     // X_s' X_s and X_s' y_c.
     std::vector<double> XtX(p * p, 0.0);
     std::vector<double> Xty(p, 0.0);
-    for (size_t i = 0; i < N; ++i) {
+    for (keel::usize i = 0; i < N; ++i) {
         const double yi = yc[i];
-        for (size_t j = 0; j < p; ++j) {
+        for (keel::usize j = 0; j < p; ++j) {
             const double xij = Xs[i + j * N];
             Xty[j] += xij * yi;
-            for (size_t kk = j; kk < p; ++kk) {
+            for (keel::usize kk = j; kk < p; ++kk) {
                 const double xik = Xs[i + kk * N];
                 XtX[kk + j * p] += xij * xik;
             }
         }
     }
-    for (size_t j = 0; j < p; ++j)
-        for (size_t kk = 0; kk < j; ++kk)
+    for (keel::usize j = 0; j < p; ++j)
+        for (keel::usize kk = 0; kk < j; ++kk)
             XtX[kk + j * p] = XtX[j + kk * p];
 
     // Allocate output
-    const size_t outRows = scaled ? p : (p + 1);
+    const keel::usize outRows = scaled ? p : (p + 1);
     Value B = Value::matrix(outRows, Nk, ValueType::DOUBLE, mr);
     double *Bd = B.doubleDataMut();
 
     std::vector<double> M(p * p), L(p * p), beta(p), z(p);
-    for (size_t kIdx = 0; kIdx < Nk; ++kIdx) {
+    for (keel::usize kIdx = 0; kIdx < Nk; ++kIdx) {
         const double k = kVec.elemAsDouble(kIdx);
         // M = XtX + k*I
-        for (size_t j = 0; j < p * p; ++j) M[j] = XtX[j];
-        for (size_t j = 0; j < p; ++j) M[j + j * p] += k;
+        for (keel::usize j = 0; j < p * p; ++j) M[j] = XtX[j];
+        for (keel::usize j = 0; j < p; ++j) M[j + j * p] += k;
         if (!cholesky(M.data(), L.data(), p))
             throw Error("ridge: regularised normal equations not PD",
                         0, 0, "ridge", "", "numkit:ridge:psd");
         fwd_solve(L.data(), z.data(), Xty.data(), p);
         back_solve(L.data(), beta.data(), z.data(), p);
         if (scaled) {
-            for (size_t j = 0; j < p; ++j) Bd[j + kIdx * outRows] = beta[j];
+            for (keel::usize j = 0; j < p; ++j) Bd[j + kIdx * outRows] = beta[j];
         } else {
             // Rescale to original units; prepend intercept = mean(y) - Σ β_j·mean(X_j).
             double intercept = yMean;
-            for (size_t j = 0; j < p; ++j) {
+            for (keel::usize j = 0; j < p; ++j) {
                 const double bj = (xStd[j] > 0.0) ? beta[j] / xStd[j] : 0.0;
                 Bd[(j + 1) + kIdx * outRows] = bj;
                 intercept -= bj * xMean[j];

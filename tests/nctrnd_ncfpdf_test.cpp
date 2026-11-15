@@ -2,6 +2,7 @@
 //
 // Regression guard for nctrnd + ncfpdf.
 
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -43,7 +44,7 @@ TEST_F(NctRndNcfPdfTest, NctrndDeltaZeroIsCentralT)
 {
     // δ = 0 should give central-t distribution; mean ≈ 0.
     eval("S = nctrnd(10, 0, 5000, 1); m = mean(S);");
-    EXPECT_LT(std::abs(evalScalar("m")), 0.2);
+    EXPECT_LT(keel::abs(evalScalar("m")), 0.2);
 }
 
 // ── ncfpdf ──────────────────────────────────────────────────────────

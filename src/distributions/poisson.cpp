@@ -1,5 +1,7 @@
 // toolboxes/stats/src/distributions/poisson.cpp
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/distributions/poisson.hpp>
 #include <numkit/stats/distributions/gamma_dist.hpp>
 #include <numkit/stats/distributions/binomial.hpp>
@@ -23,7 +25,7 @@ namespace numkit::stats {
 
 namespace {
 
-double samplePoisson1(::numkit::ops::RngContext &rng, double lam, std::pmr::memory_resource *mr)
+double samplePoisson1(::numkit::ops::RngContext &rng, double lam, keel::Allocator *mr)
 {
     if (!(lam > 0.0))
         return (lam == 0.0) ? 0.0 : std::numeric_limits<double>::quiet_NaN();
@@ -60,14 +62,14 @@ inline bool poiss_argcheck(double lambda) noexcept
 }
 } // namespace
 
-Value poisspdf(const Value &k, double lambda, std::pmr::memory_resource *mr)
+Value poisspdf(const Value &k, double lambda, keel::Allocator *mr)
 {
     if (!poiss_argcheck(lambda))
         return elementwise(k, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     return elementwise(k, [=](double ki){ return poiss_pmf(ki, lambda); }, mr);
 }
 
-Value poisscdf(const Value &k, double lambda, std::pmr::memory_resource *mr)
+Value poisscdf(const Value &k, double lambda, keel::Allocator *mr)
 {
     if (lambda < 0.0)
         return elementwise(k, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -89,10 +91,10 @@ Value poisscdf(const Value &k, double lambda, std::pmr::memory_resource *mr)
     }
     if (d.is3D()) out = Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr);
     else          out = Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
-    const size_t n = k.numel();
+    const keel::usize n = k.numel();
     if (n == 0) return out;
     double *od = out.doubleDataMut();
-    for (size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const double ki = k.elemAsDouble(i);
         if (ki < 0.0) { od[i] = 0.0; continue; }
         od[i] = 1.0 - lower.elemAsDouble(i);
@@ -101,29 +103,29 @@ Value poisscdf(const Value &k, double lambda, std::pmr::memory_resource *mr)
 }
 
 
-Value poissinv(const Value &p, double lambda, std::pmr::memory_resource *mr)
+Value poissinv(const Value &p, double lambda, keel::Allocator *mr)
 {
     if (lambda < 0.0)
         return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     return elementwise(p, [=](double pi){ return poiss_inv_scalar(pi, lambda); }, mr);
 }
 
-Value poissrnd(::numkit::ops::RngContext &rng, double lambda, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value poissrnd(::numkit::ops::RngContext &rng, double lambda, keel::usize rows, keel::usize cols, keel::Allocator *mr)
 {
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (rows * cols == 0) return out;
     double *od = out.doubleDataMut();
-    const size_t n = rows * cols;
+    const keel::usize n = rows * cols;
     if (lambda < 0.0 || std::isnan(lambda)) {
         const double nan = std::numeric_limits<double>::quiet_NaN();
-        for (size_t i = 0; i < n; ++i) od[i] = nan;
+        for (keel::usize i = 0; i < n; ++i) od[i] = nan;
         return out;
     }
     if (lambda == 0.0) {
-        for (size_t i = 0; i < n; ++i) od[i] = 0.0;
+        for (keel::usize i = 0; i < n; ++i) od[i] = 0.0;
         return out;
     }
-    for (size_t i = 0; i < n; ++i) od[i] = samplePoisson1(rng, lambda, mr);
+    for (keel::usize i = 0; i < n; ++i) od[i] = samplePoisson1(rng, lambda, mr);
     return out;
 }
 

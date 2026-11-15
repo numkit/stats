@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <memory_resource>
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
 #include <tuple>
@@ -30,7 +31,7 @@ namespace numkit::stats {
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Array of pdf values, same shape as `x`.
 /// @see gamcdf, gaminv, gamrnd, gamstat
-Value gampdf(const Value &x, double a, double b, std::pmr::memory_resource *mr = nullptr);
+Value gampdf(const Value &x, keel::f64 a, keel::f64 b, keel::Allocator *mr = nullptr);
 
 /// @brief Gamma cdf (`F = gamcdf(x, a, b)`).
 ///
@@ -43,7 +44,7 @@ Value gampdf(const Value &x, double a, double b, std::pmr::memory_resource *mr =
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Array of cdf values in `[0, 1]`.
 /// @see gampdf, gaminv
-Value gamcdf(const Value &x, double a, double b, std::pmr::memory_resource *mr = nullptr);
+Value gamcdf(const Value &x, keel::f64 a, keel::f64 b, keel::Allocator *mr = nullptr);
 
 /// @brief Gamma inverse cdf (`x = gaminv(p, a, b)`).
 ///
@@ -55,7 +56,7 @@ Value gamcdf(const Value &x, double a, double b, std::pmr::memory_resource *mr =
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Quantile array, same shape as `p`.
 /// @see gamcdf
-Value gaminv(const Value &p, double a, double b, std::pmr::memory_resource *mr = nullptr);
+Value gaminv(const Value &p, keel::f64 a, keel::f64 b, keel::Allocator *mr = nullptr);
 
 /// @brief Gamma random samples (`r = gamrnd(a, b, rows, cols)`).
 ///
@@ -68,7 +69,7 @@ Value gaminv(const Value &p, double a, double b, std::pmr::memory_resource *mr =
 /// @param mr    Memory resource (nullptr → process default).
 /// @return      `rows × cols` matrix of Gamma samples.
 /// @see gampdf
-Value gamrnd(::numkit::ops::RngContext &rng, double a, double b, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
+Value gamrnd(::numkit::ops::RngContext &rng, keel::f64 a, keel::f64 b, keel::usize rows = 1, keel::usize cols = 1, keel::Allocator *mr = nullptr);
 
 /// @brief Gamma mean and variance (`[m, v] = gamstat(a, b)`).
 ///
@@ -78,7 +79,7 @@ Value gamrnd(::numkit::ops::RngContext &rng, double a, double b, size_t rows = 1
 /// @param b  Scale parameter.
 /// @return   `{mean, variance}` pair.
 /// @see gampdf
-std::tuple<double, double> gamstat(double a, double b);
+std::tuple<keel::f64, keel::f64> gamstat(keel::f64 a, keel::f64 b);
 
 /// @brief Raw gamma(shape, 1) RNG (`r = randg(shape [, rows, cols])`).
 ///
@@ -93,8 +94,8 @@ std::tuple<double, double> gamstat(double a, double b);
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `rows × cols` matrix of Gamma(shape, 1) samples.
 /// @see gamrnd
-Value randg(::numkit::ops::RngContext &rng, double shape, size_t rows = 1, size_t cols = 1,
-            std::pmr::memory_resource *mr = nullptr);
+Value randg(::numkit::ops::RngContext &rng, keel::f64 shape, keel::usize rows = 1, keel::usize cols = 1,
+            keel::Allocator *mr = nullptr);
 
 /// @brief Per-element gamma RNG (`r = randg(shapeArray)`).
 ///
@@ -108,7 +109,7 @@ Value randg(::numkit::ops::RngContext &rng, double shape, size_t rows = 1, size_
 ///                    draw per entry.
 /// @see randg
 Value randg(::numkit::ops::RngContext &rng, const Value &shapeArray,
-            std::pmr::memory_resource *mr = nullptr);
+            keel::Allocator *mr = nullptr);
 
 /// @brief Gamma distribution MLE fit (`[ahat, bhat] = gamfit(x)`).
 ///
@@ -124,7 +125,7 @@ Value randg(::numkit::ops::RngContext &rng, const Value &shapeArray,
 /// @param x   Positive sample data (1-D vector or matrix; flattened).
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    `[ahat, bhat]` as a `1 × 2` row.
-Value gamfit(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value gamfit(const Value &x, keel::Allocator *mr = nullptr);
 
 /// @brief Gamma MLE fit with right-censoring and frequency weights
 /// (`[parmhat, parmci] = gamfit(x, alpha, cens, freq)`).
@@ -136,21 +137,21 @@ Value gamfit(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// runs 2-D Newton on (a, b) with FD gradient/Hessian on the
 /// censored-weighted NLL, with backtracking line search.
 Value gamfit(const Value &x, const Value &censoring, const Value &freq,
-             std::pmr::memory_resource *mr = nullptr);
+             keel::Allocator *mr = nullptr);
 
 /// @brief 95% Wald CI for gamfit (`pci = gamfit_ci(x, alpha)`).
 ///
 /// Returns the 2 × 2 confidence matrix `[lo; hi]` for `[a, b]` from
 /// the observed Fisher information at the MLE (central-FD Hessian).
 /// Both parameters use a log-scale Wald CI (MATLAB convention).
-Value gamfit_ci(const Value &x, double alpha = 0.05,
-                std::pmr::memory_resource *mr = nullptr);
+Value gamfit_ci(const Value &x, keel::f64 alpha = 0.05,
+                keel::Allocator *mr = nullptr);
 
 /// @brief Wald CI for censored/weighted gamfit
 /// (`pci = gamfit_ci(x, alpha, cens, freq)`).
-Value gamfit_ci(const Value &x, double alpha,
+Value gamfit_ci(const Value &x, keel::f64 alpha,
                 const Value &censoring, const Value &freq,
-                std::pmr::memory_resource *mr = nullptr);
+                keel::Allocator *mr = nullptr);
 
 
 /// @}

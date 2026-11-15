@@ -3,9 +3,10 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -13,7 +14,6 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
-#include <memory_resource>
 #include <numeric>
 #include <string>
 #include <tuple>
@@ -38,12 +38,12 @@ struct Group {
 
 std::vector<Group> bucket(const Value &y, const Value &group)
 {
-    const size_t N = y.numel();
+    const keel::usize N = y.numel();
     if (group.numel() != N)
         throw Error("anova1: y and group must be the same length",
                     0, 0, "anova1", "", "numkit:anova1:size");
     std::vector<Group> g;
-    for (size_t i = 0; i < N; ++i) {
+    for (keel::usize i = 0; i < N; ++i) {
         const double yi = y.elemAsDouble(i);
         const double li = group.elemAsDouble(i);
         if (std::isnan(yi) || std::isnan(li)) continue;
@@ -63,6 +63,6 @@ std::vector<Group> bucket(const Value &y, const Value &group)
 // dfE,ssC,ssR,ssE). Def in anova.cpp (external).
 std::tuple<double, double, double, double, double,
            double, double, double, double, double>
-anova2(const Value &Y, std::pmr::memory_resource *mr);
+anova2(const Value &Y, keel::Allocator *mr);
 
 } // namespace numkit::stats

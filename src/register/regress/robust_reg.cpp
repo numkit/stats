@@ -3,22 +3,20 @@
 // CallContext register half of regress/robust.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
+#include <keel/core.h>
+#include <keel/ref.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/distributions/chi2.hpp>      // chi2inv
 #include <numkit/stats/regress/regress.hpp>
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
 #include <numkit/value/value.hpp>
 #include "regress/robust_detail.hpp"
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <complex>
 #include <cstddef>
 #include <string>
 #include <tuple>
@@ -29,8 +27,8 @@ namespace numkit::stats {
 
 namespace detail {
 
-void robustfit_reg(Span<const Value> args, size_t nargout,
-                   Span<Value> outs, CallContext &ctx)
+void robustfit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                   keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 7, "robustfit");
     RobustWeight w = RobustWeight::Bisquare;
@@ -72,28 +70,28 @@ void robustfit_reg(Span<const Value> args, size_t nargout,
 
     Value Xin = args[0];
     if (addConst) {
-        const std::size_t n = Xin.dims().rows();
-        const std::size_t p = Xin.dims().cols();
+        const keel::usize n = Xin.dims().rows();
+        const keel::usize p = Xin.dims().cols();
         Value Xaug = Value::matrix(n, p + 1, ValueType::DOUBLE,
-                                   ctx.engine->resource());
+                                   ctx.engine->allocator());
         double *xa = Xaug.doubleDataMut();
-        for (std::size_t i = 0; i < n; ++i) xa[i] = 1.0;        // intercept col
-        for (std::size_t j = 0; j < p; ++j)
-            for (std::size_t i = 0; i < n; ++i)
+        for (keel::usize i = 0; i < n; ++i) xa[i] = 1.0;        // intercept col
+        for (keel::usize j = 0; j < p; ++j)
+            for (keel::usize i = 0; i < n; ++i)
                 xa[(j + 1) * n + i] = Xin.elemAsDouble(j * n + i);
         Xin = std::move(Xaug);
     }
 
-    auto r = robustfit(Xin, args[1], w, tune, ctx.engine->resource());
+    auto r = robustfit(Xin, args[1], w, tune, ctx.engine->allocator());
     outs[0] = std::move(r.b);
     if (nargout > 1) outs[1] = std::move(r.s);
 }
 
-void robustcov_reg(Span<const Value> args, size_t nargout,
-                   Span<Value> outs, CallContext &ctx)
+void robustcov_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                   keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "robustcov");  // no max: name-value tail in the reference
-    auto r = robustcov(args[0], ctx.engine->resource());
+    auto r = robustcov(args[0], ctx.engine->allocator());
     outs[0] = std::move(r.sigma);
     if (nargout > 1) outs[1] = std::move(r.mu);
 }

@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <memory_resource>
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
 #include <string>
@@ -28,7 +29,7 @@ namespace numkit::stats {
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Row vector of length `length(t) - k`.
 /// @see augknt
-Value aveknt(const Value &t, int k, std::pmr::memory_resource *mr = nullptr);
+Value aveknt(const Value &t, int k, keel::Allocator *mr = nullptr);
 
 /// @brief Augment knot sequence (`aug = augknt(knots, k)`).
 ///
@@ -41,7 +42,7 @@ Value aveknt(const Value &t, int k, std::pmr::memory_resource *mr = nullptr);
 /// @return       Augmented knot vector.
 /// @see aveknt, brk2knt
 Value augknt(const Value &knots, int k,
-             std::pmr::memory_resource *mr = nullptr);
+             keel::Allocator *mr = nullptr);
 
 /// @brief Replicate breaks by multiplicities (`t = brk2knt(breaks, mults)`).
 ///
@@ -54,7 +55,7 @@ Value augknt(const Value &knots, int k,
 /// @return        Expanded knot vector.
 /// @see knt2brk
 Value brk2knt(const Value &breaks, const Value &mults,
-              std::pmr::memory_resource *mr = nullptr);
+              keel::Allocator *mr = nullptr);
 
 /// @brief Decompose knot vector (`[breaks, mults] = knt2brk(knots)`).
 ///
@@ -66,7 +67,7 @@ Value brk2knt(const Value &breaks, const Value &mults,
 /// @return       `(breaks, mults)` pair.
 /// @see brk2knt
 std::tuple<Value, Value>
-knt2brk(const Value &knots, std::pmr::memory_resource *mr = nullptr);
+knt2brk(const Value &knots, keel::Allocator *mr = nullptr);
 
 /// @brief Piecewise-polynomial constructor (`pp = ppmak(breaks, coefs, d)`).
 ///
@@ -81,7 +82,7 @@ knt2brk(const Value &knots, std::pmr::memory_resource *mr = nullptr);
 /// @return        pp-form spline struct.
 /// @see fnval, fnbrk
 Value ppmak(const Value &breaks, const Value &coefs, int d,
-            std::pmr::memory_resource *mr = nullptr);
+            keel::Allocator *mr = nullptr);
 
 /// @brief Evaluate a pp-form spline (`y = fnval(pp, x)`).
 ///
@@ -94,7 +95,7 @@ Value ppmak(const Value &breaks, const Value &coefs, int d,
 /// @return    Spline values, same shape as `x`.
 /// @see ppmak, fnder, fnint
 Value fnval(const Value &pp, const Value &x,
-            std::pmr::memory_resource *mr = nullptr);
+            keel::Allocator *mr = nullptr);
 
 /// @brief Differentiate a pp-form spline (`dpp = fnder(pp, order)`).
 ///
@@ -107,7 +108,7 @@ Value fnval(const Value &pp, const Value &x,
 /// @return       Derivative spline (pp form).
 /// @see fnval, fnint
 Value fnder(const Value &pp, int order,
-            std::pmr::memory_resource *mr = nullptr);
+            keel::Allocator *mr = nullptr);
 
 /// @brief Antiderivative of a pp-form spline (`ipp = fnint(pp)`).
 ///
@@ -118,7 +119,7 @@ Value fnder(const Value &pp, int order,
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Antiderivative spline (pp form).
 /// @see fnder, fnval
-Value fnint(const Value &pp, std::pmr::memory_resource *mr = nullptr);
+Value fnint(const Value &pp, keel::Allocator *mr = nullptr);
 
 /// @brief Not-a-knot cubic spline interpolation (`pp = csapi(x, y)`).
 ///
@@ -131,7 +132,7 @@ Value fnint(const Value &pp, std::pmr::memory_resource *mr = nullptr);
 /// @return    pp-form spline.
 /// @see ppmak, fnval
 Value csapi(const Value &x, const Value &y,
-            std::pmr::memory_resource *mr = nullptr);
+            keel::Allocator *mr = nullptr);
 
 /// @brief Extract a named field from a pp-form spline (`v = fnbrk(pp, part)`).
 ///
@@ -144,7 +145,7 @@ Value csapi(const Value &x, const Value &y,
 /// @return      Requested field as a Value.
 /// @throws Error  Unknown field name (`m:fnbrk:badPart`).
 Value fnbrk(const Value &pp, const std::string &part,
-            std::pmr::memory_resource *mr = nullptr);
+            keel::Allocator *mr = nullptr);
 
 /// @brief Combine pp-form splines linearly
 /// (`pp = fncmb(pp1, c1, pp2, c2)`).
@@ -162,9 +163,9 @@ Value fnbrk(const Value &pp, const std::string &part,
 /// @return     Combined pp-form spline.
 /// @throws Error  Mismatched breaks / order / dim
 ///                (`m:fncmb:incompatible`).
-Value fncmb(const Value &pp1, double c1,
-            const Value &pp2 = Value::Empty, double c2 = 0.0,
-            std::pmr::memory_resource *mr = nullptr);
+Value fncmb(const Value &pp1, keel::f64 c1,
+            const Value &pp2 = Value::Empty, keel::f64 c2 = 0.0,
+            keel::Allocator *mr = nullptr);
 
 
 /// @}

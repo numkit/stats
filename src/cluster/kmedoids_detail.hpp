@@ -3,9 +3,9 @@
 // kmedoids.cpp, external). Phase 2b compute/register split.
 #pragma once
 
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
-#include <memory_resource>
 #include <string>
 
 namespace numkit { namespace ops { class RngContext; } }
@@ -24,6 +24,6 @@ struct KmedoidsResult {
 
 KmedoidsResult kmedoids_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates,
                              const std::string &metric_name,
-                             std::pmr::memory_resource *mr);
+                             keel::Allocator *mr);
 
 } // namespace numkit::stats

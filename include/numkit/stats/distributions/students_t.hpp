@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <memory_resource>
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
 #include <tuple>
@@ -30,7 +31,7 @@ namespace numkit::stats {
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Array of pdf values, same shape as `x`.
 /// @see tcdf, tinv, trnd, tstat
-Value tpdf(const Value &x, double nu, std::pmr::memory_resource *mr = nullptr);
+Value tpdf(const Value &x, keel::f64 nu, keel::Allocator *mr = nullptr);
 
 /// @brief Student's t cdf (`F = tcdf(x, nu)`).
 ///
@@ -43,7 +44,7 @@ Value tpdf(const Value &x, double nu, std::pmr::memory_resource *mr = nullptr);
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Array of cdf values in `[0, 1]`.
 /// @see tpdf, tinv
-Value tcdf(const Value &x, double nu, std::pmr::memory_resource *mr = nullptr);
+Value tcdf(const Value &x, keel::f64 nu, keel::Allocator *mr = nullptr);
 
 /// @brief Student's t inverse cdf (`x = tinv(p, nu)`).
 ///
@@ -54,7 +55,7 @@ Value tcdf(const Value &x, double nu, std::pmr::memory_resource *mr = nullptr);
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Quantile array, same shape as `p`.
 /// @see tcdf
-Value tinv(const Value &p, double nu, std::pmr::memory_resource *mr = nullptr);
+Value tinv(const Value &p, keel::f64 nu, keel::Allocator *mr = nullptr);
 
 /// @brief Student's t random samples (`r = trnd(nu, rows, cols)`).
 ///
@@ -66,7 +67,7 @@ Value tinv(const Value &p, double nu, std::pmr::memory_resource *mr = nullptr);
 /// @param mr    Memory resource (nullptr → process default).
 /// @return      `rows × cols` matrix of t-samples.
 /// @see tpdf
-Value trnd(::numkit::ops::RngContext &rng, double nu, size_t rows = 1, size_t cols = 1, std::pmr::memory_resource *mr = nullptr);
+Value trnd(::numkit::ops::RngContext &rng, keel::f64 nu, keel::usize rows = 1, keel::usize cols = 1, keel::Allocator *mr = nullptr);
 
 /// @brief Student's t mean and variance (`[m, v] = tstat(nu)`).
 ///
@@ -76,7 +77,7 @@ Value trnd(::numkit::ops::RngContext &rng, double nu, size_t rows = 1, size_t co
 /// @param nu  Degrees of freedom.
 /// @return    `{mean, variance}` pair (returns NaN for variance when `nu <= 2`).
 /// @see tpdf
-std::tuple<double, double> tstat(double nu);
+std::tuple<keel::f64, keel::f64> tstat(keel::f64 nu);
 
 /// @brief Noncentral Student's t pdf (`y = nctpdf(x, nu, delta)`).
 ///
@@ -95,8 +96,8 @@ std::tuple<double, double> tstat(double nu);
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Array of pdf values, same shape as `x`.
 /// @see nctcdf, nctinv, nctrnd, nctstat
-Value nctpdf(const Value &x, double nu, double delta,
-             std::pmr::memory_resource *mr = nullptr);
+Value nctpdf(const Value &x, keel::f64 nu, keel::f64 delta,
+             keel::Allocator *mr = nullptr);
 
 /// @brief Noncentral Student's t cdf (`p = nctcdf(x, nu, delta)`).
 ///
@@ -116,8 +117,8 @@ Value nctpdf(const Value &x, double nu, double delta,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Array of cdf values in `[0, 1]`.
 /// @see nctpdf, nctinv
-Value nctcdf(const Value &x, double nu, double delta, bool upper = false,
-             std::pmr::memory_resource *mr = nullptr);
+Value nctcdf(const Value &x, keel::f64 nu, keel::f64 delta, bool upper = false,
+             keel::Allocator *mr = nullptr);
 
 /// @brief Noncentral t inverse cdf (`x = nctinv(p, nu, delta)`).
 ///
@@ -132,8 +133,8 @@ Value nctcdf(const Value &x, double nu, double delta, bool upper = false,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Quantile array, same shape as `p`.
 /// @see nctcdf
-Value nctinv(const Value &p, double nu, double delta,
-             std::pmr::memory_resource *mr = nullptr);
+Value nctinv(const Value &p, keel::f64 nu, keel::f64 delta,
+             keel::Allocator *mr = nullptr);
 
 /// @brief Noncentral t mean and variance (`[m, v] = nctstat(nu, delta)`).
 ///
@@ -145,7 +146,7 @@ Value nctinv(const Value &p, double nu, double delta,
 /// @param delta  Noncentrality parameter.
 /// @return       `{mean, variance}` (NaN where undefined).
 /// @see nctpdf
-std::tuple<double, double> nctstat(double nu, double delta);
+std::tuple<keel::f64, keel::f64> nctstat(keel::f64 nu, keel::f64 delta);
 
 /// @brief Noncentral Student's t random samples
 /// (`r = nctrnd(nu, delta, rows, cols)`).
@@ -161,8 +162,8 @@ std::tuple<double, double> nctstat(double nu, double delta);
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `rows × cols` matrix of nct-samples.
 /// @see nctpdf
-Value nctrnd(::numkit::ops::RngContext &rng, double nu, double delta, std::size_t rows = 1, std::size_t cols = 1,
-             std::pmr::memory_resource *mr = nullptr);
+Value nctrnd(::numkit::ops::RngContext &rng, keel::f64 nu, keel::f64 delta, keel::usize rows = 1, keel::usize cols = 1,
+             keel::Allocator *mr = nullptr);
 
 
 /// @}

@@ -7,6 +7,8 @@
 // Scripts call them flat via the bare-name resolver (the retired
 // compat.* alias layer used to duplicate every registration).
 
+#include <keel/core.h>
+#include <keel/ref.h>
 #include <numkit/stats/library.hpp>
 
 #include <numkit/sys/plugin.hpp>
@@ -14,422 +16,422 @@
 
 namespace numkit::stats::detail {
 // descriptive/descriptive.cpp (Phase 7b — moved from toolboxes/builtin)
-void var_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
-void std_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
-void median_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void quantile_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void prctile_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void mode_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
-void cov_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
-void corrcoef_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void var_reg      (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void std_reg      (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void median_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void quantile_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void prctile_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void mode_reg     (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void cov_reg      (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void corrcoef_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 // descriptive/descriptive_extras.cpp (B2)
-void bounds_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void iqr_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
-void maxk_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
-void mink_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
-void rmse_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
-void mape_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
-void range_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
-void mad_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
-void geomean_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void harmmean_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void moment_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void trimmean_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void isoutlier_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
-void rmoutliers_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
-void filloutliers_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
-void fillmissing_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
-void rmmissing_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
-void standardizeMissing_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
-void corr_reg              (Span<const Value>, size_t, Span<Value>, CallContext &);
-void detrend_reg           (Span<const Value>, size_t, Span<Value>, CallContext &);
-void partialcorr_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
-void partialcorri_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
-void canoncorr_reg         (Span<const Value>, size_t, Span<Value>, CallContext &);
-void ecdf_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
-void datastats_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
-void ksdensity_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
-void prepareCurveData_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void prepareSurfaceData_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
-void ecdfhist_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void normalize_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
-void rescale_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void zscore_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void bounds_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void iqr_reg      (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void maxk_reg     (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void mink_reg     (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void rmse_reg     (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void mape_reg     (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void range_reg    (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void mad_reg      (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void geomean_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void harmmean_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void moment_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void trimmean_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void isoutlier_reg(keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void rmoutliers_reg(keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void filloutliers_reg(keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void fillmissing_reg(keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void rmmissing_reg(keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void standardizeMissing_reg(keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void corr_reg              (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void detrend_reg           (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void partialcorr_reg       (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void partialcorri_reg      (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void canoncorr_reg         (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void ecdf_reg     (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void datastats_reg(keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void ksdensity_reg(keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void prepareCurveData_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void prepareSurfaceData_reg(keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void ecdfhist_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void normalize_reg(keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void rescale_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void zscore_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 // descriptive/tiedrank.cpp
-void tiedrank_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void tiedrank_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 // descriptive/sample_corr.cpp
-void autocorr_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void crosscorr_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
-void parcorr_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void autocorr_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void crosscorr_reg(keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void parcorr_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 // descriptive/corrcov.cpp
-void corrcov_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void corrcov_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 // descriptive/tabulate.cpp
-void tabulate_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void tabulate_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 // descriptive/grp2idx.cpp
-void grp2idx_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void grp2idx_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 // descriptive/cholcov.cpp
-void cholcov_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void cholcov_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 // descriptive/crosstab.cpp
-void crosstab_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void crosstab_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 // descriptive/grpstats.cpp
-void grpstats_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void grpstats_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 // descriptive/nearcorr.cpp
-void nearcorr_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void nearcorr_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 // moments/moments.cpp
-void skewness_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void kurtosis_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void skewness_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void kurtosis_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 // nan_aware/nan_aware.cpp
-void nansum_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void nanmean_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void nanmedian_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
-void nanmax_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void nanmin_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void nanvar_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void nanstd_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void nancov_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void nansum_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void nanmean_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void nanmedian_reg(keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void nanmax_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void nanmin_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void nanvar_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void nanstd_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void nancov_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 // distributions/dist_dispatch.cpp — generic name-dispatching wrappers
-void makedist_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void truncate_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void cdf_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
-void pdf_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
-void icdf_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
-void random_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void makedist_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void truncate_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void cdf_reg      (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void pdf_reg      (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void icdf_reg     (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void random_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 // distributions/normal.cpp
-void normpdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void normcdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void norminv_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void normrnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void normstat_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void normpdf_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void normcdf_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void norminv_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void normrnd_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void normstat_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // distributions/chi2.cpp
-void chi2pdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void chi2cdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void chi2inv_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void chi2rnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void chi2stat_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void chi2pdf_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void chi2cdf_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void chi2inv_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void chi2rnd_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void chi2stat_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // distributions/students_t.cpp
-void tpdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void tcdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void tinv_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void trnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void tstat_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void nctpdf_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
-void nctcdf_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
-void nctinv_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
-void nctstat_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
-void nctrnd_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void ncfpdf_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void ncfcdf_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void ncfinv_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void ncfstat_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
-void ncfrnd_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void tpdf_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void tcdf_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void tinv_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void trnd_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void tstat_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void nctpdf_reg(keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void nctcdf_reg(keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void nctinv_reg(keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void nctstat_reg(keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void nctrnd_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void ncfpdf_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void ncfcdf_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void ncfinv_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void ncfstat_reg(keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void ncfrnd_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // distributions/fisher_f.cpp
-void fpdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void fcdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void finv_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void frnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void fstat_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void fpdf_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void fcdf_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void finv_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void frnd_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void fstat_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // distributions/beta.cpp
-void betapdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void betacdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void betainv_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void betarnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void betastat_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void betapdf_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void betacdf_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void betainv_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void betarnd_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void betastat_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // distributions/gamma_dist.cpp
-void gampdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void gamcdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void gaminv_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void gamrnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void randg_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void mvnrnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void mvncdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void gamstat_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void gamfit_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void wblfit_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void mvtrnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void mnrnd_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void wishrnd_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void iwishrnd_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
-void mvtcdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void betafit_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void nbinfit_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void evfit_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void gpfit_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void gevfit_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void gampdf_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void gamcdf_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void gaminv_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void gamrnd_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void randg_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void mvnrnd_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void mvncdf_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void gamstat_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void gamfit_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void wblfit_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void mvtrnd_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void mnrnd_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void wishrnd_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void iwishrnd_reg(keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void mvtcdf_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void betafit_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void nbinfit_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void evfit_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void gpfit_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void gevfit_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // distributions/exponential.cpp
-void exppdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void expcdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void expinv_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void exprnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void expstat_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void exppdf_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void expcdf_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void expinv_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void exprnd_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void expstat_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // distributions/extreme_value.cpp
-void evpdf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void evcdf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void evinv_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void evrnd_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void evstat_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void evpdf_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void evcdf_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void evinv_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void evrnd_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void evstat_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // distributions/gev.cpp
-void gevpdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void gevcdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void gevinv_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void gevrnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void gevstat_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void gevpdf_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void gevcdf_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void gevinv_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void gevrnd_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void gevstat_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // distributions/gp.cpp
-void gppdf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void gpcdf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void gpinv_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void gprnd_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void gpstat_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void gppdf_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void gpcdf_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void gpinv_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void gprnd_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void gpstat_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // distributions/nakagami.cpp
-void nakapdf_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void nakacdf_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void nakainv_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void nakarnd_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void nakastat_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void nakapdf_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void nakacdf_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void nakainv_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void nakarnd_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void nakastat_reg(keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // distributions/rician.cpp
-void ricepdf_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void ricecdf_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void riceinv_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void ricernd_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void ricestat_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void ricepdf_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void ricecdf_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void riceinv_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void ricernd_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void ricestat_reg(keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // distributions/ncx2.cpp
-void ncx2pdf_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void ncx2cdf_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void ncx2inv_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void ncx2rnd_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void ncx2stat_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void ncx2pdf_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void ncx2cdf_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void ncx2inv_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void ncx2rnd_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void ncx2stat_reg(keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // distributions/uniform.cpp
-void unifpdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void unifcdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void unifinv_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void unifrnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void unifstat_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void unifpdf_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void unifcdf_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void unifinv_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void unifrnd_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void unifstat_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // distributions/lognormal.cpp
-void lognpdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void logncdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void logninv_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void lognrnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void lognstat_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void lognpdf_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void logncdf_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void logninv_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void lognrnd_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void lognstat_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // distributions/weibull.cpp
-void wblpdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void wblcdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void wblinv_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void wblrnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void wblstat_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void wblpdf_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void wblcdf_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void wblinv_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void wblrnd_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void wblstat_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // distributions/rayleigh.cpp
-void raylpdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void raylcdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void raylinv_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void raylrnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void raylstat_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void raylpdf_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void raylcdf_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void raylinv_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void raylrnd_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void raylstat_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // distributions/poisson.cpp
-void poisspdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void poisscdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void poissinv_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void poissrnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void poisstat_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void poisspdf_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void poisscdf_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void poissinv_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void poissrnd_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void poisstat_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // distributions/binomial.cpp
-void binopdf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void binocdf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void binoinv_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void binornd_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void binostat_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void binopdf_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void binocdf_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void binoinv_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void binornd_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void binostat_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // distributions/unid.cpp
-void unidpdf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void unidcdf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void unidinv_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void unidrnd_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void unidstat_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void unidpdf_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void unidcdf_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void unidinv_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void unidrnd_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void unidstat_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // distributions/geometric.cpp
-void geopdf_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
-void geocdf_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
-void geoinv_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
-void geornd_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
-void geostat_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void geopdf_reg    (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void geocdf_reg    (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void geoinv_reg    (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void geornd_reg    (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void geostat_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // distributions/negbin.cpp
-void nbinpdf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void nbincdf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void nbininv_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void nbinrnd_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void nbinstat_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void nbinpdf_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void nbincdf_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void nbininv_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void nbinrnd_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void nbinstat_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // distributions/hypergeom.cpp
-void hygepdf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void hygecdf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void hygeinv_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void hygernd_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void hygestat_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void hygepdf_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void hygecdf_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void hygeinv_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void hygernd_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void hygestat_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // moving/moving.cpp
-void movmean_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void movsum_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
-void movmin_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
-void movmax_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
-void movprod_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void movmedian_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void movvar_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
-void movstd_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
-void movmad_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
-void smoothdata_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
-void hampel_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void movmean_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void movsum_reg    (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void movmin_reg    (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void movmax_reg    (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void movprod_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void movmedian_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void movvar_reg    (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void movstd_reg    (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void movmad_reg    (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void smoothdata_reg(keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void hampel_reg    (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // cluster/distance.cpp
-void pdist_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
-void pdist2_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
-void squareform_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void mahal_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void pdist_reg      (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void pdist2_reg     (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void squareform_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void mahal_reg      (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // cluster/kmeans.cpp
-void kmeans_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void kmeans_reg     (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // cluster/kmedoids.cpp
-void kmedoids_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void dbscan_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void kmedoids_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void dbscan_reg     (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // cluster/linkage.cpp
-void linkage_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
-void cluster_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
-void clusterdata_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void cophenet_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void linkage_reg     (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void cluster_reg     (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void clusterdata_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void cophenet_reg    (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // cluster/silhouette.cpp
-void silhouette_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void silhouette_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // cluster/knnsearch.cpp
-void knnsearch_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void rangesearch_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void inconsistent_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void knnsearch_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void rangesearch_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void inconsistent_reg(keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // dim/pca.cpp
-void pca_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
-void pcacov_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void pcares_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void pca_reg     (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void pcacov_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void pcares_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // test/hypothesis.cpp
-void ttest_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
-void ttest2_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void ztest_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
-void vartest_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void vartest2_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void kstest_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
-void kstest2_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
-void lillietest_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void jbtest_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void adtest_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void dwtest_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void signtest_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void signrank_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void ranksum_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void ansaribradley_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
-void runstest_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void vartestn_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void chi2gof_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void fishertest_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void ttest_reg    (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void ttest2_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void ztest_reg    (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void vartest_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void vartest2_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void kstest_reg     (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void kstest2_reg    (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void lillietest_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void jbtest_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void adtest_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void dwtest_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void signtest_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void signrank_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void ranksum_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void ansaribradley_reg(keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void runstest_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void vartestn_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void chi2gof_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void fishertest_reg(keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // resample/resample.cpp
-void randsample_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void datasample_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void bootstrp_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void bootci_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
-void crossval_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void jackknife_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void combnk_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void randsample_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void datasample_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void bootstrp_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void bootci_reg     (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void crossval_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void jackknife_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void combnk_reg     (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // fit/fit.cpp
-void normfit_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void poissfit_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void expfit_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void unifit_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void normlike_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void explike_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void lognlike_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void gamlike_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void betalike_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void wbllike_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void evlike_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void lognfit_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void binofit_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void raylfit_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void gevlike_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void gplike_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void mle_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
-void fitdist_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void normfit_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void poissfit_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void expfit_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void unifit_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void normlike_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void explike_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void lognlike_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void gamlike_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void betalike_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void wbllike_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void evlike_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void lognfit_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void binofit_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void raylfit_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void gevlike_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void gplike_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void mle_reg      (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void fitdist_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // mvdist/mvdist.cpp
-void mvnpdf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void mnpdf_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
-void mvtpdf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void mvnpdf_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void mnpdf_reg    (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void mvtpdf_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // anova/anova.cpp
-void anova1_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
-void multcompare_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void anova2_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
-void kruskalwallis_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void friedman_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
-void dummyvar_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void anova1_reg        (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void multcompare_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void anova2_reg        (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void kruskalwallis_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void friedman_reg      (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void dummyvar_reg      (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // regress/regress.cpp
-void regress_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void nlinfit_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void nlparci_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void nlpredci_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void robustfit_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
-void robustcov_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
-void glmfit_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void glmval_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void lasso_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
-void lassoglm_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
-void lscov_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
-void ridge_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void regress_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void nlinfit_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void nlparci_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void nlpredci_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void robustfit_reg(keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void robustcov_reg(keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void glmfit_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void glmval_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void lasso_reg    (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void lassoglm_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void lscov_reg    (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void ridge_reg    (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // lda/lda.cpp
-void classify_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void classify_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // spline/spline.cpp
-void aveknt_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void augknt_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
-void brk2knt_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void knt2brk_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void ppmak_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
-void fnval_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
-void fnder_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
-void fnint_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
-void csapi_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
-void fnbrk_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
-void fncmb_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void aveknt_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void augknt_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void brk2knt_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void knt2brk_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void ppmak_reg    (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void fnval_reg    (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void fnder_reg    (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void fnint_reg    (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void csapi_reg    (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void fnbrk_reg    (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void fncmb_reg    (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // qmc/qmc.cpp
-void haltonset_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
-void net_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
-void scramble_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void haltonset_reg(keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void net_reg      (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void scramble_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // sampling/lhs.cpp
-void lhsdesign_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
-void lhsnorm_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void lhsdesign_reg(keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void lhsnorm_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // copulas/copulas.cpp
-void copulapdf_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
-void copulacdf_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void copulapdf_reg(keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void copulacdf_reg(keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 } // namespace numkit::stats::detail
 
 namespace numkit {

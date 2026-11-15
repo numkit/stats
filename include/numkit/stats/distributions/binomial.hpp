@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <memory_resource>
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
 #include <tuple>
@@ -32,8 +33,8 @@ namespace numkit::stats {
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Array of pmf values, same shape as `k`.
 /// @see binocdf, binoinv, binornd, binostat
-Value binopdf(const Value &k, double n, double p,
-              std::pmr::memory_resource *mr = nullptr);
+Value binopdf(const Value &k, keel::f64 n, keel::f64 p,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Binomial cumulative distribution (`F = binocdf(k, n, p)`).
 ///
@@ -47,8 +48,8 @@ Value binopdf(const Value &k, double n, double p,
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Array of cdf values in `[0, 1]`, same shape as `k`.
 /// @see binopdf, binoinv
-Value binocdf(const Value &k, double n, double p,
-              std::pmr::memory_resource *mr = nullptr);
+Value binocdf(const Value &k, keel::f64 n, keel::f64 p,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Binomial inverse cdf (`k = binoinv(p_in, n, p)`).
 ///
@@ -60,8 +61,8 @@ Value binocdf(const Value &k, double n, double p,
 /// @param mr    Memory resource (nullptr → process default).
 /// @return      Quantile array, same shape as `p_in`.
 /// @see binocdf, binopdf
-Value binoinv(const Value &p_in, double n, double p,
-              std::pmr::memory_resource *mr = nullptr);
+Value binoinv(const Value &p_in, keel::f64 n, keel::f64 p,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Binomial random samples (`r = binornd(n, p, rows, cols)`).
 ///
@@ -72,8 +73,8 @@ Value binoinv(const Value &p_in, double n, double p,
 /// @param mr    Memory resource (nullptr → process default).
 /// @return      `rows × cols` matrix of binomial samples.
 /// @see binopdf
-Value binornd(::numkit::ops::RngContext &rng, double n, double p, size_t rows = 1, size_t cols = 1,
-              std::pmr::memory_resource *mr = nullptr);
+Value binornd(::numkit::ops::RngContext &rng, keel::f64 n, keel::f64 p, keel::usize rows = 1, keel::usize cols = 1,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Binomial mean and variance (`[m, v] = binostat(n, p)`).
 ///
@@ -83,7 +84,7 @@ Value binornd(::numkit::ops::RngContext &rng, double n, double p, size_t rows = 
 /// @param p  Success probability per trial.
 /// @return   `{mean, variance}` pair.
 /// @see binopdf
-std::tuple<double, double> binostat(double n, double p);
+std::tuple<keel::f64, keel::f64> binostat(keel::f64 n, keel::f64 p);
 
 
 /// @}

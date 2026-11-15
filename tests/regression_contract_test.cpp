@@ -2,6 +2,7 @@
 // reference engine R2025b (build/probe76.m R/N/G batteries):
 // ridge / nlparci / glmval. One TEST_F per probed contract branch.
 
+#include <keel/core.h>
 #include <numkit/core/standard_engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <numkit/stats/regress/regress.hpp>
@@ -20,7 +21,7 @@ public:
     {
         return eval(c).elemAsDouble(0);
     }
-    double at(const std::string &c, std::size_t i)
+    double at(const std::string &c, keel::usize i)
     {
         return eval(c).elemAsDouble(i);
     }

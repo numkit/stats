@@ -13,6 +13,8 @@
 // Off-diagonal divisions where the denominator is zero produce
 // NaN, matching MATLAB R2025b.
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/descriptive/descriptive.hpp>
 
 #include <numkit/value/value.hpp>
@@ -39,14 +41,14 @@ void corrcov_argcheck(const Value &C)
 } // namespace
 
 std::pair<Value, Value>
-corrcov(const Value &C, std::pmr::memory_resource *mr)
+corrcov(const Value &C, keel::Allocator *mr)
 {
     corrcov_argcheck(C);
-    const size_t R = C.dims().rows();
+    const keel::usize R = C.dims().rows();
 
     // sigma(i) = sqrt(C(i, i)).
     std::vector<double> sigma(R);
-    for (size_t i = 0; i < R; ++i) {
+    for (keel::usize i = 0; i < R; ++i) {
         const double v = C.elemAsDouble(i + i * R);   // column-major
         if (v < 0.0)
             throw Error("corrcov: negative variance on diagonal",
@@ -57,8 +59,8 @@ corrcov(const Value &C, std::pmr::memory_resource *mr)
 
     Value Rv = Value::matrix(R, R, ValueType::DOUBLE, mr);
     double *o = Rv.doubleDataMut();
-    for (size_t j = 0; j < R; ++j) {
-        for (size_t i = 0; i < R; ++i) {
+    for (keel::usize j = 0; j < R; ++j) {
+        for (keel::usize i = 0; i < R; ++i) {
             const double cij = C.elemAsDouble(i + j * R);
             const double denom = sigma[i] * sigma[j];
             o[i + j * R] = (denom == 0.0)
@@ -69,7 +71,7 @@ corrcov(const Value &C, std::pmr::memory_resource *mr)
     // Sigma as row vector (MATLAB convention).
     Value Sv = Value::matrix(1, R, ValueType::DOUBLE, mr);
     double *s = Sv.doubleDataMut();
-    for (size_t i = 0; i < R; ++i) s[i] = sigma[i];
+    for (keel::usize i = 0; i < R; ++i) s[i] = sigma[i];
 
     return {std::move(Rv), std::move(Sv)};
 }

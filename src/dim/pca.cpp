@@ -4,6 +4,8 @@
 // covariance matrix. Self-contained — no dependence on a linalg
 // SVD/eig infrastructure (which is still deferred at the runtime level).
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/dim/pca.hpp>
 
 #include <numkit/value/value.hpp>
@@ -22,11 +24,11 @@ namespace {
 
 // Read X (N×D, column-major) into a flat row-major buffer.
 std::vector<double> read_rows(const Value &X) {
-    const size_t N = X.dims().rows();
-    const size_t D = X.dims().cols();
+    const keel::usize N = X.dims().rows();
+    const keel::usize D = X.dims().cols();
     std::vector<double> out(N * D);
-    for (size_t r = 0; r < N; ++r)
-        for (size_t c = 0; c < D; ++c)
+    for (keel::usize r = 0; r < N; ++r)
+        for (keel::usize c = 0; c < D; ++c)
             out[r * D + c] = X.elemAsDouble(c * N + r);
     return out;
 }
@@ -35,9 +37,9 @@ std::vector<double> read_rows(const Value &X) {
 //   A holds the eigenvalues on its diagonal (off-diagonals near zero)
 //   V is D×D orthogonal whose columns are the eigenvectors.
 // Both stored row-major.
-void jacobi(std::vector<double> &A, std::vector<double> &V, size_t D) {
+void jacobi(std::vector<double> &A, std::vector<double> &V, keel::usize D) {
     V.assign(D * D, 0.0);
-    for (size_t i = 0; i < D; ++i) V[i * D + i] = 1.0;
+    for (keel::usize i = 0; i < D; ++i) V[i * D + i] = 1.0;
 
     const int max_sweeps = 50;
     const double tol = 1e-12;
@@ -45,13 +47,13 @@ void jacobi(std::vector<double> &A, std::vector<double> &V, size_t D) {
     for (int sweep = 0; sweep < max_sweeps; ++sweep) {
         // Sum of squared off-diagonals.
         double off = 0.0;
-        for (size_t p = 0; p < D; ++p)
-            for (size_t q = p + 1; q < D; ++q)
+        for (keel::usize p = 0; p < D; ++p)
+            for (keel::usize q = p + 1; q < D; ++q)
                 off += A[p * D + q] * A[p * D + q];
         if (off < tol) break;
 
-        for (size_t p = 0; p < D - 1; ++p) {
-            for (size_t q = p + 1; q < D; ++q) {
+        for (keel::usize p = 0; p < D - 1; ++p) {
+            for (keel::usize q = p + 1; q < D; ++q) {
                 const double app = A[p * D + p];
                 const double aqq = A[q * D + q];
                 const double apq = A[p * D + q];
@@ -73,7 +75,7 @@ void jacobi(std::vector<double> &A, std::vector<double> &V, size_t D) {
                 A[q * D + q] = aqq + t * apq;
                 A[p * D + q] = 0.0;
                 A[q * D + p] = 0.0;
-                for (size_t r = 0; r < D; ++r) {
+                for (keel::usize r = 0; r < D; ++r) {
                     if (r == p || r == q) continue;
                     const double arp = A[r * D + p], arq = A[r * D + q];
                     A[r * D + p] = c * arp - s * arq;
@@ -82,7 +84,7 @@ void jacobi(std::vector<double> &A, std::vector<double> &V, size_t D) {
                     A[q * D + r] = A[r * D + q];
                 }
                 // Accumulate rotation into V.
-                for (size_t r = 0; r < D; ++r) {
+                for (keel::usize r = 0; r < D; ++r) {
                     const double vrp = V[r * D + p], vrq = V[r * D + q];
                     V[r * D + p] = c * vrp - s * vrq;
                     V[r * D + q] = c * vrq + s * vrp;
@@ -97,8 +99,8 @@ void jacobi(std::vector<double> &A, std::vector<double> &V, size_t D) {
 namespace {
 void pca_argcheck(const Value &X)
 {
-    const size_t N = X.dims().rows();
-    const size_t D = X.dims().cols();
+    const keel::usize N = X.dims().rows();
+    const keel::usize D = X.dims().cols();
     if (N < 2 || D < 1)
         throw Error("pca: need at least 2 rows and 1 column",
                     0, 0, "pca", "", "numkit:pca:size");
@@ -106,30 +108,30 @@ void pca_argcheck(const Value &X)
 } // namespace
 
 std::tuple<Value, Value, Value, Value, Value, Value>
-pca(const Value &X, std::pmr::memory_resource *mr)
+pca(const Value &X, keel::Allocator *mr)
 {
     pca_argcheck(X);
-    const size_t N = X.dims().rows();
-    const size_t D = X.dims().cols();
+    const keel::usize N = X.dims().rows();
+    const keel::usize D = X.dims().cols();
 
     std::vector<double> Xv = read_rows(X);
 
     // Mean of each column.
     std::vector<double> mu(D, 0.0);
-    for (size_t r = 0; r < N; ++r)
-        for (size_t c = 0; c < D; ++c) mu[c] += Xv[r * D + c];
+    for (keel::usize r = 0; r < N; ++r)
+        for (keel::usize c = 0; c < D; ++c) mu[c] += Xv[r * D + c];
     for (auto &m : mu) m /= double(N);
 
     // Centred X.
     std::vector<double> Xc(N * D);
-    for (size_t r = 0; r < N; ++r)
-        for (size_t c = 0; c < D; ++c) Xc[r * D + c] = Xv[r * D + c] - mu[c];
+    for (keel::usize r = 0; r < N; ++r)
+        for (keel::usize c = 0; c < D; ++c) Xc[r * D + c] = Xv[r * D + c] - mu[c];
 
     // Sample covariance (D×D, divisor n-1).
     std::vector<double> C(D * D, 0.0);
-    for (size_t r = 0; r < N; ++r) {
-        for (size_t a = 0; a < D; ++a)
-            for (size_t b = 0; b < D; ++b)
+    for (keel::usize r = 0; r < N; ++r) {
+        for (keel::usize a = 0; a < D; ++a)
+            for (keel::usize b = 0; b < D; ++b)
                 C[a * D + b] += Xc[r * D + a] * Xc[r * D + b];
     }
     const double inv_n = 1.0 / double(N - 1);
@@ -142,25 +144,25 @@ pca(const Value &X, std::pmr::memory_resource *mr)
     // Extract eigenvalues from C diagonal; sort descending.
     std::vector<double> latent(D);
     std::vector<int> order(D);
-    for (size_t i = 0; i < D; ++i) { latent[i] = C[i * D + i]; order[i] = (int)i; }
+    for (keel::usize i = 0; i < D; ++i) { latent[i] = C[i * D + i]; order[i] = (int)i; }
     std::sort(order.begin(), order.end(),
               [&](int a, int b) { return latent[a] > latent[b]; });
 
     // Reorder eigenvalues + eigenvectors.
     std::vector<double> latent_s(D);
     std::vector<double> coeff(D * D, 0.0);  // D×D row-major; cols = eigenvectors
-    for (size_t i = 0; i < D; ++i) {
+    for (keel::usize i = 0; i < D; ++i) {
         const int src = order[i];
         latent_s[i] = latent[src];
-        for (size_t r = 0; r < D; ++r) coeff[r * D + i] = Vmat[r * D + src];
+        for (keel::usize r = 0; r < D; ++r) coeff[r * D + i] = Vmat[r * D + src];
     }
 
     // score = Xc · coeff (N×D × D×D = N×D)
     std::vector<double> score(N * D, 0.0);
-    for (size_t r = 0; r < N; ++r)
-        for (size_t k = 0; k < D; ++k) {
+    for (keel::usize r = 0; r < N; ++r)
+        for (keel::usize k = 0; k < D; ++k) {
             double s = 0.0;
-            for (size_t j = 0; j < D; ++j) s += Xc[r * D + j] * coeff[j * D + k];
+            for (keel::usize j = 0; j < D; ++j) s += Xc[r * D + j] * coeff[j * D + k];
             score[r * D + k] = s;
         }
 
@@ -168,37 +170,37 @@ pca(const Value &X, std::pmr::memory_resource *mr)
     double total = 0.0; for (double v : latent_s) total += v;
     std::vector<double> explained(D, 0.0);
     if (total > 0.0)
-        for (size_t i = 0; i < D; ++i) explained[i] = 100.0 * latent_s[i] / total;
+        for (keel::usize i = 0; i < D; ++i) explained[i] = 100.0 * latent_s[i] / total;
 
     // tsquared: Hotelling's T² = Σ_k (score_ik² / latent_k) per row.
     std::vector<double> tsq(N, 0.0);
-    for (size_t r = 0; r < N; ++r) {
+    for (keel::usize r = 0; r < N; ++r) {
         double s = 0.0;
-        for (size_t k = 0; k < D; ++k)
+        for (keel::usize k = 0; k < D; ++k)
             if (latent_s[k] > 1e-15)
                 s += score[r * D + k] * score[r * D + k] / latent_s[k];
         tsq[r] = s;
     }
 
     // Pack outputs (column-major).
-    auto pack_NxM = [&](const std::vector<double> &src, size_t rows, size_t cols) {
+    auto pack_NxM = [&](const std::vector<double> &src, keel::usize rows, keel::usize cols) {
         Value v = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
         double *p = v.doubleDataMut();
-        for (size_t r = 0; r < rows; ++r)
-            for (size_t c = 0; c < cols; ++c) p[c * rows + r] = src[r * cols + c];
+        for (keel::usize r = 0; r < rows; ++r)
+            for (keel::usize c = 0; c < cols; ++c) p[c * rows + r] = src[r * cols + c];
         return v;
     };
 
     Value coeff_v = pack_NxM(coeff, D, D);
     Value score_v = pack_NxM(score, N, D);
     Value latent_v = Value::matrix(D, 1, ValueType::DOUBLE, mr);
-    for (size_t i = 0; i < D; ++i) latent_v.doubleDataMut()[i] = latent_s[i];
+    for (keel::usize i = 0; i < D; ++i) latent_v.doubleDataMut()[i] = latent_s[i];
     Value tsq_v = Value::matrix(N, 1, ValueType::DOUBLE, mr);
-    for (size_t i = 0; i < N; ++i) tsq_v.doubleDataMut()[i] = tsq[i];
+    for (keel::usize i = 0; i < N; ++i) tsq_v.doubleDataMut()[i] = tsq[i];
     Value explained_v = Value::matrix(D, 1, ValueType::DOUBLE, mr);
-    for (size_t i = 0; i < D; ++i) explained_v.doubleDataMut()[i] = explained[i];
+    for (keel::usize i = 0; i < D; ++i) explained_v.doubleDataMut()[i] = explained[i];
     Value mu_v = Value::matrix(1, D, ValueType::DOUBLE, mr);
-    for (size_t i = 0; i < D; ++i) mu_v.doubleDataMut()[i] = mu[i];
+    for (keel::usize i = 0; i < D; ++i) mu_v.doubleDataMut()[i] = mu[i];
 
     return std::make_tuple(std::move(coeff_v), std::move(score_v),
                            std::move(latent_v), std::move(tsq_v),
@@ -206,48 +208,48 @@ pca(const Value &X, std::pmr::memory_resource *mr)
 }
 
 std::tuple<Value, Value, Value>
-pcacov(const Value &C, std::pmr::memory_resource *mr) {
-    const size_t D = C.dims().rows();
+pcacov(const Value &C, keel::Allocator *mr) {
+    const keel::usize D = C.dims().rows();
     if (C.dims().cols() != D)
         throw Error("pcacov: C must be square", 0, 0, "pcacov", "",
                     "numkit:pcacov:size");
 
     std::vector<double> A(D * D);
-    for (size_t r = 0; r < D; ++r)
-        for (size_t c = 0; c < D; ++c) A[r * D + c] = C.elemAsDouble(c * D + r);
+    for (keel::usize r = 0; r < D; ++r)
+        for (keel::usize c = 0; c < D; ++c) A[r * D + c] = C.elemAsDouble(c * D + r);
 
     std::vector<double> V;
     jacobi(A, V, D);
 
     std::vector<double> latent(D);
     std::vector<int> order(D);
-    for (size_t i = 0; i < D; ++i) { latent[i] = A[i * D + i]; order[i] = (int)i; }
+    for (keel::usize i = 0; i < D; ++i) { latent[i] = A[i * D + i]; order[i] = (int)i; }
     std::sort(order.begin(), order.end(),
               [&](int a, int b) { return latent[a] > latent[b]; });
 
     std::vector<double> latent_s(D);
     std::vector<double> coeff(D * D, 0.0);
-    for (size_t i = 0; i < D; ++i) {
+    for (keel::usize i = 0; i < D; ++i) {
         const int src = order[i];
         latent_s[i] = latent[src];
-        for (size_t r = 0; r < D; ++r) coeff[r * D + i] = V[r * D + src];
+        for (keel::usize r = 0; r < D; ++r) coeff[r * D + i] = V[r * D + src];
     }
 
     double total = 0.0; for (double v : latent_s) total += v;
     std::vector<double> explained(D, 0.0);
     if (total > 0.0)
-        for (size_t i = 0; i < D; ++i) explained[i] = 100.0 * latent_s[i] / total;
+        for (keel::usize i = 0; i < D; ++i) explained[i] = 100.0 * latent_s[i] / total;
 
     Value coeff_v = Value::matrix(D, D, ValueType::DOUBLE, mr);
-    for (size_t r = 0; r < D; ++r)
-        for (size_t c = 0; c < D; ++c)
+    for (keel::usize r = 0; r < D; ++r)
+        for (keel::usize c = 0; c < D; ++c)
             coeff_v.doubleDataMut()[c * D + r] = coeff[r * D + c];
 
     Value latent_v = Value::matrix(D, 1, ValueType::DOUBLE, mr);
-    for (size_t i = 0; i < D; ++i) latent_v.doubleDataMut()[i] = latent_s[i];
+    for (keel::usize i = 0; i < D; ++i) latent_v.doubleDataMut()[i] = latent_s[i];
 
     Value explained_v = Value::matrix(D, 1, ValueType::DOUBLE, mr);
-    for (size_t i = 0; i < D; ++i) explained_v.doubleDataMut()[i] = explained[i];
+    for (keel::usize i = 0; i < D; ++i) explained_v.doubleDataMut()[i] = explained[i];
 
     return std::make_tuple(std::move(coeff_v), std::move(latent_v),
                            std::move(explained_v));
@@ -255,11 +257,11 @@ pcacov(const Value &C, std::pmr::memory_resource *mr) {
 
 // Internal: returns both residuals and reconstruction (MATLAB form).
 std::tuple<Value, Value>
-pcares_full(const Value &X, int ndim, std::pmr::memory_resource *mr) {
+pcares_full(const Value &X, int ndim, keel::Allocator *mr) {
     auto [coeff, score, latent, tsq, explained, mu] = pca(X, mr);
-    const size_t N = X.dims().rows();
-    const size_t D = X.dims().cols();
-    if (ndim < 0 || (size_t)ndim > D)
+    const keel::usize N = X.dims().rows();
+    const keel::usize D = X.dims().cols();
+    if (ndim < 0 || (keel::usize)ndim > D)
         throw Error("pcares: ndim must be in 0..D", 0, 0, "pcares", "",
                     "numkit:pcares:badndim");
 
@@ -268,12 +270,12 @@ pcares_full(const Value &X, int ndim, std::pmr::memory_resource *mr) {
     double *rd = res.doubleDataMut();
     double *cd = recon.doubleDataMut();
 
-    for (size_t i = 0; i < N; ++i)
-        for (size_t j = 0; j < D; ++j) {
+    for (keel::usize i = 0; i < N; ++i)
+        for (keel::usize j = 0; j < D; ++j) {
             double r = mu.elemAsDouble(j);
             for (int k = 0; k < ndim; ++k) {
-                r += score.elemAsDouble((size_t)k * N + i)
-                   * coeff.elemAsDouble((size_t)k * D + j);
+                r += score.elemAsDouble((keel::usize)k * N + i)
+                   * coeff.elemAsDouble((keel::usize)k * D + j);
             }
             cd[j * N + i] = r;
             rd[j * N + i] = X.elemAsDouble(j * N + i) - r;
@@ -281,7 +283,7 @@ pcares_full(const Value &X, int ndim, std::pmr::memory_resource *mr) {
     return {std::move(res), std::move(recon)};
 }
 
-Value pcares(const Value &X, int ndim, std::pmr::memory_resource *mr) {
+Value pcares(const Value &X, int ndim, keel::Allocator *mr) {
     auto [res, recon] = pcares_full(X, ndim, mr);
     (void)recon;
     return res;

@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <memory_resource>
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
 #include <tuple>
@@ -28,8 +29,8 @@ namespace numkit::stats {
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Array of pdf values, same shape as `x`.
 /// @see raylcdf, raylinv, raylrnd, raylstat
-Value raylpdf(const Value &x, double b,
-              std::pmr::memory_resource *mr = nullptr);
+Value raylpdf(const Value &x, keel::f64 b,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Rayleigh cdf (`p = raylcdf(x, b)`).
 ///
@@ -40,8 +41,8 @@ Value raylpdf(const Value &x, double b,
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Array of cdf values in `[0, 1]`.
 /// @see raylpdf, raylinv
-Value raylcdf(const Value &x, double b,
-              std::pmr::memory_resource *mr = nullptr);
+Value raylcdf(const Value &x, keel::f64 b,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Rayleigh inverse cdf (`x = raylinv(p, b)`).
 ///
@@ -52,8 +53,8 @@ Value raylcdf(const Value &x, double b,
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Quantile array, same shape as `p`.
 /// @see raylcdf
-Value raylinv(const Value &p, double b,
-              std::pmr::memory_resource *mr = nullptr);
+Value raylinv(const Value &p, keel::f64 b,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Rayleigh random samples (`r = raylrnd(b, rows, cols)`).
 ///
@@ -65,8 +66,8 @@ Value raylinv(const Value &p, double b,
 /// @param mr    Memory resource (nullptr → process default).
 /// @return      `rows × cols` matrix of Rayleigh samples.
 /// @see raylpdf
-Value raylrnd(::numkit::ops::RngContext &rng, double b, size_t rows = 1, size_t cols = 1,
-              std::pmr::memory_resource *mr = nullptr);
+Value raylrnd(::numkit::ops::RngContext &rng, keel::f64 b, keel::usize rows = 1, keel::usize cols = 1,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Rayleigh mean and variance (`[m, v] = raylstat(b)`).
 ///
@@ -75,7 +76,7 @@ Value raylrnd(::numkit::ops::RngContext &rng, double b, size_t rows = 1, size_t 
 /// @param b  Scale parameter.
 /// @return   `{mean, variance}` pair.
 /// @see raylpdf
-std::tuple<double, double> raylstat(double b);
+std::tuple<keel::f64, keel::f64> raylstat(keel::f64 b);
 
 
 /// @}

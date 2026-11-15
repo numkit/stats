@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <memory_resource>
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
 #include <tuple>
@@ -30,9 +31,9 @@ namespace numkit::stats {
 /// @return       `(p, F, df_between, df_within, ss_between, ss_within)`.
 ///
 /// @see kruskalwallis
-std::tuple<double, double, double, double, double, double>
+std::tuple<keel::f64, keel::f64, keel::f64, keel::f64, keel::f64, keel::f64>
 anova1(const Value &y, const Value &group,
-       std::pmr::memory_resource *mr = nullptr);
+       keel::Allocator *mr = nullptr);
 
 /// Kruskal–Wallis non-parametric one-way ANOVA
 /// (`[p, H, df, ssRanks] = kruskalwallis(y, group)`).
@@ -48,7 +49,7 @@ anova1(const Value &y, const Value &group,
 /// @see anova1
 std::tuple<Value, Value, Value, Value>
 kruskalwallis(const Value &y, const Value &group,
-              std::pmr::memory_resource *mr = nullptr);
+              keel::Allocator *mr = nullptr);
 
 /// Friedman non-parametric two-way ANOVA by ranks
 /// (`[p, Q, df] = friedman(x, reps)`).
@@ -70,7 +71,7 @@ kruskalwallis(const Value &y, const Value &group,
 ///
 /// @see kruskalwallis, anova1
 std::tuple<Value, Value, Value>
-friedman(const Value &x, int reps = 1, std::pmr::memory_resource *mr = nullptr);
+friedman(const Value &x, int reps = 1, keel::Allocator *mr = nullptr);
 
 /// @brief Convert categorical labels to indicator columns
 /// (`X = dummyvar(group)`).
@@ -85,7 +86,7 @@ friedman(const Value &x, int reps = 1, std::pmr::memory_resource *mr = nullptr);
 /// @return       N×K indicator matrix.
 /// @see anova1
 Value dummyvar(const Value &group,
-               std::pmr::memory_resource *mr = nullptr);
+               keel::Allocator *mr = nullptr);
 
 /// @brief Multiple-comparison correction methods for `multcompare`.
 enum class McCorrection { Bonferroni, LSD, TukeyKramer };
@@ -117,9 +118,9 @@ enum class McCorrection { Bonferroni, LSD, TukeyKramer };
 /// @param ctype  Correction method.
 /// @param mr     Memory resource.
 /// @return       `K × 6` matrix of pairwise comparisons.
-Value multcompare(const Value &stats, double alpha = 0.05,
+Value multcompare(const Value &stats, keel::f64 alpha = 0.05,
                    McCorrection ctype = McCorrection::Bonferroni,
-                   std::pmr::memory_resource *mr = nullptr);
+                   keel::Allocator *mr = nullptr);
 
 
 /// @}

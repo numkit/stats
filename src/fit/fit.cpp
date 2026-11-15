@@ -1,6 +1,10 @@
 // toolboxes/stats/src/fit/fit.cpp
 // Distribution MLE fitters with confidence intervals.
 
+#include <keel/core.h>
+#include <keel/memory.h>
+#include <keel/arena.h>
+#include <keel/array.h>
 #include <numkit/stats/fit/fit.hpp>
 
 #include <numkit/stats/distributions/chi2.hpp>
@@ -8,13 +12,11 @@
 #include <numkit/stats/distributions/beta.hpp>
 
 #include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
-#include <memory_resource>
 
 #include "fit_detail.hpp"
 
@@ -22,9 +24,9 @@ namespace numkit::stats {
 
 
 std::tuple<Value, Value, Value, Value>
-normfit(const Value &x, double alpha, const Value &cens, const Value &freq, std::pmr::memory_resource *mr)
+normfit(const Value &x, double alpha, const Value &cens, const Value &freq, keel::Allocator *mr)
 {
-    const size_t N = x.numel();
+    const keel::usize N = x.numel();
     const double nan = std::numeric_limits<double>::quiet_NaN();
 
     // CI Values are MATLAB-style 2x1 column vectors (rowCI is misnamed
@@ -48,11 +50,11 @@ normfit(const Value &x, double alpha, const Value &cens, const Value &freq, std:
     const bool has_cens = !cens.isEmpty();
     const bool has_freq = !freq.isEmpty();
 
-    ScratchArena scratch(mr);
-    ScratchVec<double>  y(N, &scratch);
-    ScratchVec<double>  fr(N, 1.0, &scratch);
-    ScratchVec<uint8_t> cn(N, 0, &scratch);
-    for (size_t i = 0; i < N; ++i) {
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    keel::Array<double>  y(N, scratch.allocator());
+    keel::Array<double>  fr(N, 1.0, scratch.allocator());
+    keel::Array<keel::u8> cn(N, 0, scratch.allocator());
+    for (keel::usize i = 0; i < N; ++i) {
         y[i] = x.elemAsDouble(i);
         if (has_freq) fr[i] = freq.elemAsDouble(i);
         if (has_cens) cn[i] = cens.elemAsDouble(i) > 0.5 ? 1 : 0;
@@ -67,19 +69,19 @@ normfit(const Value &x, double alpha, const Value &cens, const Value &freq, std:
 
 // Backward-compat 2-arg form.
 std::tuple<Value, Value, Value, Value>
-normfit(const Value &x, double alpha, std::pmr::memory_resource *mr)
+normfit(const Value &x, double alpha, keel::Allocator *mr)
 {
     return normfit(x, alpha, Value::Empty, Value::Empty, mr);
 }
 
 std::tuple<Value, Value>
-poissfit(const Value &x, double alpha, std::pmr::memory_resource *mr)
+poissfit(const Value &x, double alpha, keel::Allocator *mr)
 {
-    const size_t N = x.numel();
+    const keel::usize N = x.numel();
     const double nan = std::numeric_limits<double>::quiet_NaN();
     if (N == 0) return {Value::scalar(nan, mr), rowCI(nan, nan, mr)};
     double S = 0.0;
-    for (size_t i = 0; i < N; ++i) S += x.elemAsDouble(i);
+    for (keel::usize i = 0; i < N; ++i) S += x.elemAsDouble(i);
     const double lambda = S / double(N);
     // Exact CI via chi² inversion (Garwood).
     const double lo = (S == 0.0) ? 0.0
@@ -89,9 +91,9 @@ poissfit(const Value &x, double alpha, std::pmr::memory_resource *mr)
 }
 
 std::tuple<Value, Value>
-expfit(const Value &x, double alpha, const Value &cens, const Value &freq, std::pmr::memory_resource *mr)
+expfit(const Value &x, double alpha, const Value &cens, const Value &freq, keel::Allocator *mr)
 {
-    const size_t N = x.numel();
+    const keel::usize N = x.numel();
     const double nan = std::numeric_limits<double>::quiet_NaN();
     if (N == 0) return {Value::scalar(nan, mr), rowCI(nan, nan, mr)};
     // Validate optional vector lengths.
@@ -103,7 +105,7 @@ expfit(const Value &x, double alpha, const Value &cens, const Value &freq, std::
     const bool has_freq = !freq.isEmpty();
     // Total observation time T = Σ(freq · x); event count D = Σ(freq · (1-cens)).
     double T = 0.0, D = 0.0;
-    for (size_t i = 0; i < N; ++i) {
+    for (keel::usize i = 0; i < N; ++i) {
         const double xi = x.elemAsDouble(i);
         const double fi = has_freq ? freq.elemAsDouble(i) : 1.0;
         const double ci = has_cens ? cens.elemAsDouble(i) : 0.0;
@@ -123,16 +125,16 @@ expfit(const Value &x, double alpha, const Value &cens, const Value &freq, std::
 }
 
 std::tuple<Value, Value, Value, Value>
-unifit(const Value &x, double alpha, std::pmr::memory_resource *mr)
+unifit(const Value &x, double alpha, keel::Allocator *mr)
 {
-    const size_t N = x.numel();
+    const keel::usize N = x.numel();
     const double nan = std::numeric_limits<double>::quiet_NaN();
     if (N == 0) {
         return {Value::scalar(nan, mr), Value::scalar(nan, mr),
                 rowCI(nan, nan, mr), rowCI(nan, nan, mr)};
     }
     double mn = x.elemAsDouble(0), mx = mn;
-    for (size_t i = 1; i < N; ++i) {
+    for (keel::usize i = 1; i < N; ++i) {
         const double v = x.elemAsDouble(i);
         if (v < mn) mn = v;
         if (v > mx) mx = v;
@@ -148,9 +150,9 @@ unifit(const Value &x, double alpha, std::pmr::memory_resource *mr)
 // ── lognfit ───────────────────────────────────────────────────────────
 
 std::tuple<Value, Value>
-lognfit(const Value &x, double alpha, const Value &cens, const Value &freq, std::pmr::memory_resource *mr)
+lognfit(const Value &x, double alpha, const Value &cens, const Value &freq, keel::Allocator *mr)
 {
-    const size_t N = x.numel();
+    const keel::usize N = x.numel();
     const double nan = std::numeric_limits<double>::quiet_NaN();
     Value parm = Value::matrix(1, 2, ValueType::DOUBLE, mr);
     Value pci  = Value::matrix(2, 2, ValueType::DOUBLE, mr);
@@ -168,11 +170,11 @@ lognfit(const Value &x, double alpha, const Value &cens, const Value &freq, std:
     const bool has_freq = !freq.isEmpty();
 
     // Build y = log(x); reject non-positive x.
-    ScratchArena scratch(mr);
-    ScratchVec<double>  y(N, &scratch);
-    ScratchVec<double>  fr(N, 1.0, &scratch);
-    ScratchVec<uint8_t> cn(N, 0, &scratch);
-    for (size_t i = 0; i < N; ++i) {
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    keel::Array<double>  y(N, scratch.allocator());
+    keel::Array<double>  fr(N, 1.0, scratch.allocator());
+    keel::Array<keel::u8> cn(N, 0, scratch.allocator());
+    for (keel::usize i = 0; i < N; ++i) {
         const double xi = x.elemAsDouble(i);
         if (!(xi > 0.0)) return fail();
         y[i] = std::log(xi);
@@ -189,7 +191,7 @@ lognfit(const Value &x, double alpha, const Value &cens, const Value &freq, std:
 
 // Backward-compat 2-arg form.
 std::tuple<Value, Value>
-lognfit(const Value &x, double alpha, std::pmr::memory_resource *mr)
+lognfit(const Value &x, double alpha, keel::Allocator *mr)
 {
     return lognfit(x, alpha, Value::Empty, Value::Empty, mr);
 }
@@ -198,7 +200,7 @@ lognfit(const Value &x, double alpha, std::pmr::memory_resource *mr)
 
 
 namespace {
-void binofit_argcheck(size_t Nx, size_t Nn, bool scalarN)
+void binofit_argcheck(keel::usize Nx, keel::usize Nn, bool scalarN)
 {
     if (!scalarN && Nn != Nx)
         throw Error("binofit: x and n must be the same length",
@@ -207,10 +209,10 @@ void binofit_argcheck(size_t Nx, size_t Nn, bool scalarN)
 } // namespace
 
 std::tuple<Value, Value>
-binofit(const Value &x, const Value &n, double alpha, std::pmr::memory_resource *mr)
+binofit(const Value &x, const Value &n, double alpha, keel::Allocator *mr)
 {
-    const size_t Nx = x.numel();
-    const size_t Nn = n.numel();
+    const keel::usize Nx = x.numel();
+    const keel::usize Nn = n.numel();
     const bool scalarN = (Nn == 1);
     binofit_argcheck(Nx, Nn, scalarN);
 
@@ -219,7 +221,7 @@ binofit(const Value &x, const Value &n, double alpha, std::pmr::memory_resource 
     double *pd = phat.doubleDataMut();
     double *cd = pci.doubleDataMut();
 
-    for (size_t i = 0; i < Nx; ++i) {
+    for (keel::usize i = 0; i < Nx; ++i) {
         const double k = x.elemAsDouble(i);
         const double N = scalarN ? n.elemAsDouble(0) : n.elemAsDouble(i);
         if (!(N > 0.0)) {
@@ -250,14 +252,14 @@ binofit(const Value &x, const Value &n, double alpha, std::pmr::memory_resource 
 // ── raylfit ───────────────────────────────────────────────────────────
 
 std::tuple<Value, Value>
-raylfit(const Value &x, double alpha, std::pmr::memory_resource *mr)
+raylfit(const Value &x, double alpha, keel::Allocator *mr)
 {
-    const size_t N = x.numel();
+    const keel::usize N = x.numel();
     const double nan = std::numeric_limits<double>::quiet_NaN();
     if (N == 0)
         return {Value::scalar(nan, mr), rowCI(nan, nan, mr)};
     double s2 = 0.0;
-    for (size_t i = 0; i < N; ++i) {
+    for (keel::usize i = 0; i < N; ++i) {
         const double xi = x.elemAsDouble(i);
         s2 += xi * xi;
     }
@@ -272,9 +274,9 @@ raylfit(const Value &x, double alpha, std::pmr::memory_resource *mr)
 // ── Negative log-likelihoods ──────────────────────────────────────────
 
 
-double normlike(double mu, double sigma, const Value &x, const Value &cens, const Value &freq, std::pmr::memory_resource * /*mr*/)
+double normlike(double mu, double sigma, const Value &x, const Value &cens, const Value &freq, keel::Allocator * /*mr*/)
 {
-    const size_t N = x.numel();
+    const keel::usize N = x.numel();
     if (N == 0) return 0.0;
     if (!(sigma > 0.0)) return std::numeric_limits<double>::quiet_NaN();
     const bool useC = cens.numel() > 0;
@@ -292,7 +294,7 @@ double normlike(double mu, double sigma, const Value &x, const Value &cens, cons
     const double halfLog2pi = 0.5 * kLog2Pi;
     const double sqrt2_inv  = 1.0 / std::sqrt(2.0);
     double nL = 0.0;
-    for (size_t i = 0; i < N; ++i) {
+    for (keel::usize i = 0; i < N; ++i) {
         const double w = useF ? freq.elemAsDouble(i) : 1.0;
         if (w == 0.0) continue;                                  // MATLAB drops zero-freq rows
         const double xi = x.elemAsDouble(i);
@@ -312,15 +314,15 @@ double normlike(double mu, double sigma, const Value &x, const Value &cens, cons
     return nL;
 }
 
-double explike(double mu, const Value &x, std::pmr::memory_resource * /*mr*/)
+double explike(double mu, const Value &x, keel::Allocator * /*mr*/)
 {
     // Two-arg form: empty data ⇒ 0 (matches MATLAB R2025b),
     //               mu <= 0   ⇒ NaN.
-    const size_t N = x.numel();
+    const keel::usize N = x.numel();
     if (N == 0) return 0.0;
     if (mu <= 0.0) return std::numeric_limits<double>::quiet_NaN();
     double sx = 0.0;
-    for (size_t i = 0; i < N; ++i) sx += x.elemAsDouble(i);
+    for (keel::usize i = 0; i < N; ++i) sx += x.elemAsDouble(i);
     return double(N) * std::log(mu) + sx / mu;
 }
 
@@ -336,7 +338,7 @@ double explike_full(double mu, const Value &x,
                            const Value &cens, const Value &freq,
                            double *avarOut)
 {
-    const size_t N = x.numel();
+    const keel::usize N = x.numel();
     if (N == 0) {
         if (avarOut) *avarOut = std::numeric_limits<double>::quiet_NaN();
         return 0.0;
@@ -361,7 +363,7 @@ double explike_full(double mu, const Value &x,
 
     double nL = 0.0, I = 0.0;
     bool any = false;
-    for (size_t i = 0; i < N; ++i) {
+    for (keel::usize i = 0; i < N; ++i) {
         const double w = useF ? freq.elemAsDouble(i) : 1.0;
         if (w == 0.0) continue;
         any = true;
@@ -384,15 +386,15 @@ double explike_full(double mu, const Value &x,
     return any ? nL : 0.0;
 }
 
-double lognlike(double mu, double sigma, const Value &x, std::pmr::memory_resource * /*mr*/)
+double lognlike(double mu, double sigma, const Value &x, keel::Allocator * /*mr*/)
 {
     // Two-arg form. Edges (matching MATLAB R2025b):
     //   empty data ⇒ 0;  sigma <= 0 ⇒ NaN;  any x[i] <= 0 ⇒ NaN.
-    const size_t N = x.numel();
+    const keel::usize N = x.numel();
     if (N == 0) return 0.0;
     if (sigma <= 0.0) return std::numeric_limits<double>::quiet_NaN();
     double sumLogX = 0.0, ss = 0.0;
-    for (size_t i = 0; i < N; ++i) {
+    for (keel::usize i = 0; i < N; ++i) {
         const double xi = x.elemAsDouble(i);
         if (xi <= 0.0) return std::numeric_limits<double>::quiet_NaN();
         const double lx = std::log(xi);
@@ -417,7 +419,7 @@ double lognlike_full(double mu, double sigma, const Value &x,
     auto setAvarNaN = [&]() {
         if (avarOut) { for (int i = 0; i < 4; ++i) avarOut[i] = NaNd; }
     };
-    const size_t N = x.numel();
+    const keel::usize N = x.numel();
     if (N == 0) { setAvarNaN(); return 0.0; }
     if (sigma <= 0.0) { setAvarNaN(); return NaNd; }
     const bool useC = cens.numel() > 0;
@@ -442,7 +444,7 @@ double lognlike_full(double mu, double sigma, const Value &x,
     double nL = 0.0;
     double I00 = 0.0, I01 = 0.0, I11 = 0.0;
     bool any = false;
-    for (size_t i = 0; i < N; ++i) {
+    for (keel::usize i = 0; i < N; ++i) {
         const double w = useF ? freq.elemAsDouble(i) : 1.0;
         if (w == 0.0) continue;
         const double xi = x.elemAsDouble(i);
@@ -494,14 +496,14 @@ double lognlike_full(double mu, double sigma, const Value &x,
     return any ? nL : 0.0;
 }
 
-double gamlike(double a, double b, const Value &x, std::pmr::memory_resource * /*mr*/)
+double gamlike(double a, double b, const Value &x, keel::Allocator * /*mr*/)
 {
-    const size_t N = x.numel();
+    const keel::usize N = x.numel();
     if (N == 0) return std::numeric_limits<double>::infinity();
     if (a <= 0.0 || b <= 0.0)
         return std::numeric_limits<double>::quiet_NaN();
     double sumLogX = 0.0, sx = 0.0;
-    for (size_t i = 0; i < N; ++i) {
+    for (keel::usize i = 0; i < N; ++i) {
         const double xi = x.elemAsDouble(i);
         if (xi <= 0.0) return std::numeric_limits<double>::infinity();
         sumLogX += std::log(xi);
@@ -511,14 +513,14 @@ double gamlike(double a, double b, const Value &x, std::pmr::memory_resource * /
          + double(N) * a * std::log(b) + double(N) * std::lgamma(a);
 }
 
-double betalike(double a, double b, const Value &x, std::pmr::memory_resource * /*mr*/)
+double betalike(double a, double b, const Value &x, keel::Allocator * /*mr*/)
 {
-    const size_t N = x.numel();
+    const keel::usize N = x.numel();
     if (N == 0) return std::numeric_limits<double>::infinity();
     if (a <= 0.0 || b <= 0.0)
         return std::numeric_limits<double>::quiet_NaN();
     double sumLog = 0.0, sumLog1m = 0.0;
-    for (size_t i = 0; i < N; ++i) {
+    for (keel::usize i = 0; i < N; ++i) {
         const double xi = x.elemAsDouble(i);
         if (xi <= 0.0 || xi >= 1.0)
             return std::numeric_limits<double>::quiet_NaN();
@@ -529,14 +531,14 @@ double betalike(double a, double b, const Value &x, std::pmr::memory_resource * 
     return -(a - 1.0) * sumLog - (b - 1.0) * sumLog1m + double(N) * logBeta;
 }
 
-double wbllike(double scale, double shape, const Value &x, std::pmr::memory_resource * /*mr*/)
+double wbllike(double scale, double shape, const Value &x, keel::Allocator * /*mr*/)
 {
-    const size_t N = x.numel();
+    const keel::usize N = x.numel();
     if (N == 0) return 0.0;
     if (!(scale > 0.0) || !(shape > 0.0))
         return std::numeric_limits<double>::quiet_NaN();
     double sumLogX = 0.0, sumPow = 0.0;
-    for (size_t i = 0; i < N; ++i) {
+    for (keel::usize i = 0; i < N; ++i) {
         const double xi = x.elemAsDouble(i);
         if (xi <= 0.0) return std::numeric_limits<double>::quiet_NaN();
         sumLogX += std::log(xi);
@@ -551,9 +553,9 @@ double wbllike(double scale, double shape, const Value &x, std::pmr::memory_reso
 //   survival: S(x) = exp(-(x/scale)^shape)
 //   -log f:   -log(shape) + shape·log(scale) - (shape-1)·log(x) + (x/scale)^shape
 //   -log S:   (x/scale)^shape
-double wbllike_full(double scale, double shape, const Value &x, const Value &cens, const Value &freq, std::pmr::memory_resource * /*mr*/)
+double wbllike_full(double scale, double shape, const Value &x, const Value &cens, const Value &freq, keel::Allocator * /*mr*/)
 {
-    const size_t N = x.numel();
+    const keel::usize N = x.numel();
     if (N == 0) return 0.0;
     if (!(scale > 0.0) || !(shape > 0.0))
         return std::numeric_limits<double>::quiet_NaN();
@@ -568,7 +570,7 @@ double wbllike_full(double scale, double shape, const Value &x, const Value &cen
     const double logA = std::log(scale);
     const double logK = std::log(shape);
     double nL = 0.0;
-    for (size_t i = 0; i < N; ++i) {
+    for (keel::usize i = 0; i < N; ++i) {
         const double w = useF ? freq.elemAsDouble(i) : 1.0;
         if (w == 0.0) continue;
         const double xi = x.elemAsDouble(i);
@@ -581,13 +583,13 @@ double wbllike_full(double scale, double shape, const Value &x, const Value &cen
     return nL;
 }
 
-double evlike(double mu, double sigma, const Value &x, std::pmr::memory_resource * /*mr*/)
+double evlike(double mu, double sigma, const Value &x, keel::Allocator * /*mr*/)
 {
-    const size_t N = x.numel();
+    const keel::usize N = x.numel();
     if (N == 0) return 0.0;                                  // matches MATLAB convention
     if (!(sigma > 0.0)) return std::numeric_limits<double>::quiet_NaN();
     double sLin = 0.0, sExp = 0.0;
-    for (size_t i = 0; i < N; ++i) {
+    for (keel::usize i = 0; i < N; ++i) {
         const double t = (x.elemAsDouble(i) - mu) / sigma;
         sLin += t;
         sExp += std::exp(t);
@@ -599,9 +601,9 @@ double evlike(double mu, double sigma, const Value &x, std::pmr::memory_resource
 //   Gumbel-min (Type-I extreme value): density f(z) = (1/σ)·exp(z)·exp(-exp(z)).
 //   Uncensored contribution: log(σ) - z + exp(z), weight w.
 //   Right-censored contribution: -log S(z) = exp(z), weight w.
-double evlike_full(double mu, double sigma, const Value &x, const Value &cens, const Value &freq, std::pmr::memory_resource * /*mr*/)
+double evlike_full(double mu, double sigma, const Value &x, const Value &cens, const Value &freq, keel::Allocator * /*mr*/)
 {
-    const size_t N = x.numel();
+    const keel::usize N = x.numel();
     if (N == 0) return 0.0;
     if (!(sigma > 0.0)) return std::numeric_limits<double>::quiet_NaN();
     const bool useC = cens.numel() > 0;
@@ -615,7 +617,7 @@ double evlike_full(double mu, double sigma, const Value &x, const Value &cens, c
     const double inv_s = 1.0 / sigma;
     const double logS  = std::log(sigma);
     double nL = 0.0;
-    for (size_t i = 0; i < N; ++i) {
+    for (keel::usize i = 0; i < N; ++i) {
         const double w = useF ? freq.elemAsDouble(i) : 1.0;
         if (w == 0.0) continue;
         const double xi = x.elemAsDouble(i);
@@ -629,14 +631,14 @@ double evlike_full(double mu, double sigma, const Value &x, const Value &cens, c
     return nL;
 }
 
-double gevlike(double k, double sigma, double mu, const Value &x, std::pmr::memory_resource * /*mr*/)
+double gevlike(double k, double sigma, double mu, const Value &x, keel::Allocator * /*mr*/)
 {
-    const size_t N = x.numel();
+    const keel::usize N = x.numel();
     if (N == 0) return std::numeric_limits<double>::infinity();
     if (sigma <= 0.0) return std::numeric_limits<double>::quiet_NaN();
     if (k == 0.0) {
         double sZ = 0.0, sExp = 0.0;
-        for (size_t i = 0; i < N; ++i) {
+        for (keel::usize i = 0; i < N; ++i) {
             const double z = (x.elemAsDouble(i) - mu) / sigma;
             sZ += z;
             sExp += std::exp(-z);
@@ -644,7 +646,7 @@ double gevlike(double k, double sigma, double mu, const Value &x, std::pmr::memo
         return double(N) * std::log(sigma) + sZ + sExp;
     }
     double sLogT = 0.0, sTinvk = 0.0;
-    for (size_t i = 0; i < N; ++i) {
+    for (keel::usize i = 0; i < N; ++i) {
         const double z = (x.elemAsDouble(i) - mu) / sigma;
         const double t = 1.0 + k * z;
         if (t <= 0.0) return std::numeric_limits<double>::quiet_NaN();
@@ -654,7 +656,7 @@ double gevlike(double k, double sigma, double mu, const Value &x, std::pmr::memo
     return double(N) * std::log(sigma) + (1.0 / k + 1.0) * sLogT + sTinvk;
 }
 
-double gplike(double k, double sigma, const Value &x, std::pmr::memory_resource * /*mr*/)
+double gplike(double k, double sigma, const Value &x, keel::Allocator * /*mr*/)
 {
     // MATLAB's gplike does NOT enforce x >= 0 — it only requires the
     // per-point support condition `1 + k*x/sigma > 0`. With k>0 that
@@ -664,17 +666,17 @@ double gplike(double k, double sigma, const Value &x, std::pmr::memory_resource 
     //   sigma == 0 → NaN
     //   sigma  < 0 → -Inf
     //   per-point support violation → +Inf (not NaN)
-    const size_t N = x.numel();
+    const keel::usize N = x.numel();
     if (N == 0) return std::numeric_limits<double>::infinity();
     if (sigma == 0.0) return std::numeric_limits<double>::quiet_NaN();
     if (sigma  < 0.0) return -std::numeric_limits<double>::infinity();
     if (k == 0.0) {
         double sX = 0.0;
-        for (size_t i = 0; i < N; ++i) sX += x.elemAsDouble(i);
+        for (keel::usize i = 0; i < N; ++i) sX += x.elemAsDouble(i);
         return double(N) * std::log(sigma) + sX / sigma;
     }
     double sLogT = 0.0;
-    for (size_t i = 0; i < N; ++i) {
+    for (keel::usize i = 0; i < N; ++i) {
         const double xi = x.elemAsDouble(i);
         const double t = 1.0 + k * xi / sigma;
         if (t <= 0.0) return std::numeric_limits<double>::infinity();

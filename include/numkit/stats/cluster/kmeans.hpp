@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <memory_resource>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
 #include <tuple>
@@ -36,7 +36,7 @@ namespace numkit::stats {
 /// @see kmedoids, linkage
 std::tuple<Value, Value, Value>
 kmeans(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates,
-       std::pmr::memory_resource *mr = nullptr);
+       keel::Allocator *mr = nullptr);
 
 
 /// @}

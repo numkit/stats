@@ -5,6 +5,8 @@
 //   dwtest  — Durbin-Watson test for first-order autocorrelation in
 //             regression residuals
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/test/hypothesis.hpp>
 
 #include <numkit/stats/distributions/normal.hpp>
@@ -12,7 +14,6 @@
 #include <numkit/linalg/eig.hpp>   // eig_symmetric — exact DW p-value (Imhof)
 
 #include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
@@ -54,11 +55,11 @@ void adtest_argcheck(double alpha)
 
 void dwtest_argcheck(const Value &r, const Value &X)
 {
-    const std::size_t n = r.numel();
+    const keel::usize n = r.numel();
     if (n < 3)
         throw Error("dwtest: need at least 3 residuals",
                     0, 0, "dwtest", "", "numkit:dwtest:tooFewObs");
-    const std::size_t k = X.dims().cols();
+    const keel::usize k = X.dims().cols();
     if (X.dims().rows() != n)
         throw Error("dwtest: rows(X) must equal length(r)",
                     0, 0, "dwtest", "", "numkit:dwtest:shapeMismatch");
@@ -70,20 +71,20 @@ void dwtest_argcheck(const Value &r, const Value &X)
 } // namespace
 
 std::tuple<Value, Value, Value, Value>
-adtest(const Value &x, double alpha, std::pmr::memory_resource *mr)
+adtest(const Value &x, double alpha, keel::Allocator *mr)
 {
     adtest_argcheck(alpha);
 
     // Pull data as DOUBLE vector, drop NaNs.
-    const std::size_t N = x.numel();
+    const keel::usize N = x.numel();
     std::vector<double> v;
     v.reserve(N);
-    for (std::size_t i = 0; i < N; ++i) {
+    for (keel::usize i = 0; i < N; ++i) {
         const double xi = x.elemAsDouble(i);
         if (std::isnan(xi)) continue;
         v.push_back(xi);
     }
-    const std::size_t n = v.size();
+    const keel::usize n = v.size();
     if (n < 4)
         throw Error("adtest: need at least 4 non-NaN observations",
                     0, 0, "adtest", "", "numkit:adtest:tooFewObs");
@@ -114,7 +115,7 @@ adtest(const Value &x, double alpha, std::pmr::memory_resource *mr)
     // form is OK.
     double sum = 0.0;
     constexpr double SQRT2 = 1.41421356237309504880;
-    for (std::size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const double Phi_lo = 0.5 * std::erfc(-z[i] / SQRT2);
         const double Phi_hi = 0.5 * std::erfc(-z[n - 1 - i] / SQRT2);
         const double lnLo = std::log(std::max(Phi_lo, 1e-300));
@@ -151,16 +152,16 @@ constexpr double kPi = 3.141592653589793;
 
 // Invert a small D×D row-major matrix in place via Gauss-Jordan with partial
 // pivoting. Throws on (near-)singularity.
-void invertSmall(std::vector<double> &A, std::size_t D)
+void invertSmall(std::vector<double> &A, keel::usize D)
 {
     std::vector<double> aug(D * 2 * D, 0.0);
-    for (std::size_t r = 0; r < D; ++r) {
-        for (std::size_t c = 0; c < D; ++c) aug[r * 2 * D + c] = A[r * D + c];
+    for (keel::usize r = 0; r < D; ++r) {
+        for (keel::usize c = 0; c < D; ++c) aug[r * 2 * D + c] = A[r * D + c];
         aug[r * 2 * D + D + r] = 1.0;
     }
-    for (std::size_t kk = 0; kk < D; ++kk) {
-        std::size_t piv = kk; double pmax = std::fabs(aug[kk * 2 * D + kk]);
-        for (std::size_t r = kk + 1; r < D; ++r) {
+    for (keel::usize kk = 0; kk < D; ++kk) {
+        keel::usize piv = kk; double pmax = std::fabs(aug[kk * 2 * D + kk]);
+        for (keel::usize r = kk + 1; r < D; ++r) {
             const double v = std::fabs(aug[r * 2 * D + kk]);
             if (v > pmax) { pmax = v; piv = r; }
         }
@@ -168,20 +169,20 @@ void invertSmall(std::vector<double> &A, std::size_t D)
             throw Error("dwtest: design matrix X is rank-deficient (X''X singular)",
                         0, 0, "dwtest", "", "numkit:dwtest:singular");
         if (piv != kk)
-            for (std::size_t c = 0; c < 2 * D; ++c)
+            for (keel::usize c = 0; c < 2 * D; ++c)
                 std::swap(aug[kk * 2 * D + c], aug[piv * 2 * D + c]);
         const double inv = 1.0 / aug[kk * 2 * D + kk];
-        for (std::size_t c = 0; c < 2 * D; ++c) aug[kk * 2 * D + c] *= inv;
-        for (std::size_t r = 0; r < D; ++r) {
+        for (keel::usize c = 0; c < 2 * D; ++c) aug[kk * 2 * D + c] *= inv;
+        for (keel::usize r = 0; r < D; ++r) {
             if (r == kk) continue;
             const double f = aug[r * 2 * D + kk];
             if (f == 0.0) continue;
-            for (std::size_t c = 0; c < 2 * D; ++c)
+            for (keel::usize c = 0; c < 2 * D; ++c)
                 aug[r * 2 * D + c] -= f * aug[kk * 2 * D + c];
         }
     }
-    for (std::size_t r = 0; r < D; ++r)
-        for (std::size_t c = 0; c < D; ++c)
+    for (keel::usize r = 0; r < D; ++r)
+        for (keel::usize c = 0; c < D; ++c)
             A[r * D + c] = aug[r * 2 * D + D + c];
 }
 
@@ -210,7 +211,7 @@ double imhofIntegrand(double u, const std::vector<double> &h)
 // integrated with composite Simpson. Used as pLeft = P(DW < dw).
 double imhofPLeft(const std::vector<double> &h)
 {
-    const std::size_t m = h.size();
+    const keel::usize m = h.size();
     if (m == 0) return 0.5;
     if (m == 1) return (h[0] < 0.0) ? 1.0 : (h[0] > 0.0 ? 0.0 : 0.5);
 
@@ -239,15 +240,15 @@ double imhofPLeft(const std::vector<double> &h)
 // DW < dw ⟺ ε'M(A−dw·I)Mε < 0. The nonzero eigenvalues λ_j of MAM give
 // Q = Σ (λ_j − dw) Z_j²; Imhof inverts its CF. A is the first-difference
 // tridiagonal (diag 1,2,…,2,1; off-diag −1).
-double dwExactPLeft(const Value &X, std::size_t n, std::size_t k, double dw,
-                    std::pmr::memory_resource *mr)
+double dwExactPLeft(const Value &X, keel::usize n, keel::usize k, double dw,
+                    keel::Allocator *mr)
 {
     // X'X (k×k) and its inverse.
     std::vector<double> XtX(k * k, 0.0);
-    for (std::size_t a = 0; a < k; ++a)
-        for (std::size_t b = 0; b < k; ++b) {
+    for (keel::usize a = 0; a < k; ++a)
+        for (keel::usize b = 0; b < k; ++b) {
             double sab = 0.0;
-            for (std::size_t i = 0; i < n; ++i)
+            for (keel::usize i = 0; i < n; ++i)
                 sab += X.elemAsDouble(a * n + i) * X.elemAsDouble(b * n + i);
             XtX[a * k + b] = sab;
         }
@@ -255,26 +256,26 @@ double dwExactPLeft(const Value &X, std::size_t n, std::size_t k, double dw,
 
     // P = X · (X'X)⁻¹  (n×k, row-major): P[i,a] = Σ_b X[i,b] inv[b,a].
     std::vector<double> P(n * k, 0.0);
-    for (std::size_t i = 0; i < n; ++i)
-        for (std::size_t a = 0; a < k; ++a) {
+    for (keel::usize i = 0; i < n; ++i)
+        for (keel::usize a = 0; a < k; ++a) {
             double s = 0.0;
-            for (std::size_t b = 0; b < k; ++b)
+            for (keel::usize b = 0; b < k; ++b)
                 s += X.elemAsDouble(b * n + i) * XtX[b * k + a];
             P[i * k + a] = s;
         }
     // M = I − P·X'  (n×n symmetric, row-major): M[i,j] = δij − Σ_a P[i,a] X[j,a].
     std::vector<double> M(n * n, 0.0);
-    for (std::size_t i = 0; i < n; ++i)
-        for (std::size_t j = 0; j < n; ++j) {
+    for (keel::usize i = 0; i < n; ++i)
+        for (keel::usize j = 0; j < n; ++j) {
             double s = 0.0;
-            for (std::size_t a = 0; a < k; ++a)
+            for (keel::usize a = 0; a < k; ++a)
                 s += P[i * k + a] * X.elemAsDouble(a * n + j);
             M[i * n + j] = (i == j ? 1.0 : 0.0) - s;
         }
     // AM = A·M with A the DW tridiagonal applied row-wise (O(n²)).
     std::vector<double> AM(n * n, 0.0);
-    for (std::size_t i = 0; i < n; ++i)
-        for (std::size_t j = 0; j < n; ++j) {
+    for (keel::usize i = 0; i < n; ++i)
+        for (keel::usize j = 0; j < n; ++j) {
             double v = (i == 0 || i + 1 == n ? 1.0 : 2.0) * M[i * n + j];
             if (i > 0)     v -= M[(i - 1) * n + j];
             if (i + 1 < n) v -= M[(i + 1) * n + j];
@@ -283,29 +284,29 @@ double dwExactPLeft(const Value &X, std::size_t n, std::size_t k, double dw,
     // S = M·AM (n×n symmetric) as a Value for eig_symmetric (column-major).
     Value S = Value::matrix(n, n, ValueType::DOUBLE, mr);
     double *sd = S.doubleDataMut();
-    for (std::size_t i = 0; i < n; ++i)
-        for (std::size_t j = 0; j < n; ++j) {
+    for (keel::usize i = 0; i < n; ++i)
+        for (keel::usize j = 0; j < n; ++j) {
             double s = 0.0;
-            for (std::size_t l = 0; l < n; ++l) s += M[i * n + l] * AM[l * n + j];
+            for (keel::usize l = 0; l < n; ++l) s += M[i * n + l] * AM[l * n + j];
             sd[j * n + i] = s;   // column-major store
         }
     auto [V, D] = ::numkit::linalg::eig_symmetric(S, mr);
     (void)V;
     std::vector<double> eig(n);
     { const double *dd = D.doubleData();
-      for (std::size_t i = 0; i < n; ++i) eig[i] = dd[i + i * n]; }
+      for (keel::usize i = 0; i < n; ++i) eig[i] = dd[i + i * n]; }
     std::sort(eig.begin(), eig.end());
     // Drop the k structural zeros (col(X) directions); keep the n−k residual-
     // space eigenvalues, then h_j = λ_j − dw.
     std::vector<double> h;
     h.reserve(n - k);
-    for (std::size_t i = k; i < n; ++i) h.push_back(eig[i] - dw);
+    for (keel::usize i = k; i < n; ++i) h.push_back(eig[i] - dw);
     return imhofPLeft(h);
 }
 
 // Approximate left-tail p (Durbin & Watson 1971 beta-on-[0,4] moment fit) —
 // the 'approximate' method and large-n fallback.
-double dwApproxPLeft(double dw, std::size_t n, std::pmr::memory_resource *mr)
+double dwApproxPLeft(double dw, keel::usize n, keel::Allocator *mr)
 {
     const double a = 0.5 * (static_cast<double>(n) - 1.0);
     Value pv = betacdf(Value::scalar(dw / 4.0, mr), a, a, mr);
@@ -318,17 +319,17 @@ double dwApproxPLeft(double dw, std::size_t n, std::pmr::memory_resource *mr)
 // left-tail p (P(DW < dw)) by the requested method. `exact==true` uses Imhof's
 // exact distribution (MATLAB default); otherwise the beta approximation.
 double dwStatAndPLeft(const Value &r, const Value &X, bool exact,
-                             double &dwOut, std::pmr::memory_resource *mr)
+                             double &dwOut, keel::Allocator *mr)
 {
     dwtest_argcheck(r, X);
-    const std::size_t n = r.numel();
-    const std::size_t k = X.dims().cols();
+    const keel::usize n = r.numel();
+    const keel::usize k = X.dims().cols();
 
     std::vector<double> rv(n);
-    for (std::size_t i = 0; i < n; ++i) rv[i] = r.elemAsDouble(i);
+    for (keel::usize i = 0; i < n; ++i) rv[i] = r.elemAsDouble(i);
     double num = 0.0, den = 0.0;
-    for (std::size_t i = 0; i < n; ++i) den += rv[i] * rv[i];
-    for (std::size_t i = 1; i < n; ++i) { const double d = rv[i] - rv[i - 1]; num += d * d; }
+    for (keel::usize i = 0; i < n; ++i) den += rv[i] * rv[i];
+    for (keel::usize i = 1; i < n; ++i) { const double d = rv[i] - rv[i - 1]; num += d * d; }
     if (!(den > 0.0))
         throw Error("dwtest: residuals are all zero",
                     0, 0, "dwtest", "", "numkit:dwtest:zeroResid");
@@ -338,7 +339,7 @@ double dwStatAndPLeft(const Value &r, const Value &X, bool exact,
 }
 
 std::tuple<Value, Value>
-dwtest(const Value &r, const Value &X, std::pmr::memory_resource *mr)
+dwtest(const Value &r, const Value &X, keel::Allocator *mr)
 {
     // Default: exact (MATLAB) method, two-sided ('both') tail.
     double dw = 0.0;

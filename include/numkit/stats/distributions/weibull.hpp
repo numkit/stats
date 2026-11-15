@@ -8,7 +8,8 @@
 
 #pragma once
 
-#include <memory_resource>
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
 #include <tuple>
@@ -33,8 +34,8 @@ namespace numkit::stats {
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Array of pdf values, same shape as `x`.
 /// @see wblcdf, wblinv, wblrnd, wblstat
-Value wblpdf(const Value &x, double a, double b,
-             std::pmr::memory_resource *mr = nullptr);
+Value wblpdf(const Value &x, keel::f64 a, keel::f64 b,
+             keel::Allocator *mr = nullptr);
 
 /// @brief Weibull cdf (`p = wblcdf(x, a, b)`).
 ///
@@ -46,8 +47,8 @@ Value wblpdf(const Value &x, double a, double b,
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Array of cdf values in `[0, 1]`.
 /// @see wblpdf, wblinv
-Value wblcdf(const Value &x, double a, double b,
-             std::pmr::memory_resource *mr = nullptr);
+Value wblcdf(const Value &x, keel::f64 a, keel::f64 b,
+             keel::Allocator *mr = nullptr);
 
 /// @brief Weibull inverse cdf (`x = wblinv(p, a, b)`).
 ///
@@ -59,8 +60,8 @@ Value wblcdf(const Value &x, double a, double b,
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Quantile array, same shape as `p`.
 /// @see wblcdf
-Value wblinv(const Value &p, double a, double b,
-             std::pmr::memory_resource *mr = nullptr);
+Value wblinv(const Value &p, keel::f64 a, keel::f64 b,
+             keel::Allocator *mr = nullptr);
 
 /// @brief Weibull random samples (`r = wblrnd(a, b, rows, cols)`).
 ///
@@ -71,8 +72,8 @@ Value wblinv(const Value &p, double a, double b,
 /// @param mr    Memory resource (nullptr → process default).
 /// @return      `rows × cols` matrix of Weibull samples.
 /// @see wblpdf
-Value wblrnd(::numkit::ops::RngContext &rng, double a, double b, size_t rows = 1, size_t cols = 1,
-             std::pmr::memory_resource *mr = nullptr);
+Value wblrnd(::numkit::ops::RngContext &rng, keel::f64 a, keel::f64 b, keel::usize rows = 1, keel::usize cols = 1,
+             keel::Allocator *mr = nullptr);
 
 /// @brief Weibull mean and variance (`[m, v] = wblstat(a, b)`).
 ///
@@ -84,7 +85,7 @@ Value wblrnd(::numkit::ops::RngContext &rng, double a, double b, size_t rows = 1
 /// @param b  Shape parameter.
 /// @return   `{mean, variance}` pair.
 /// @see wblpdf
-std::tuple<double, double> wblstat(double a, double b);
+std::tuple<keel::f64, keel::f64> wblstat(keel::f64 a, keel::f64 b);
 
 /// @brief Weibull MLE fit (`[ahat, bhat] = wblfit(x)`).
 ///
@@ -99,7 +100,7 @@ std::tuple<double, double> wblstat(double a, double b);
 /// @param x   Positive sample data.
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    `[ahat, bhat]` as a `1 × 2` row (scale, shape).
-Value wblfit(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value wblfit(const Value &x, keel::Allocator *mr = nullptr);
 
 /// @brief Weibull MLE fit with right-censoring and frequency weights
 /// (`[parmhat, parmci] = wblfit(x, alpha, cens, freq)`).
@@ -110,21 +111,21 @@ Value wblfit(const Value &x, std::pmr::memory_resource *mr = nullptr);
 /// otherwise profiles `a(b) = (Σ f_i x_i^b / Σ f_i u_i)^{1/b}` and
 /// 1-D Newtons on `b`.
 Value wblfit(const Value &x, const Value &censoring, const Value &freq,
-             std::pmr::memory_resource *mr = nullptr);
+             keel::Allocator *mr = nullptr);
 
 /// @brief 95% Wald CI for wblfit (`pci = wblfit_ci(x, alpha)`).
 ///
 /// Returns the 2 × 2 confidence matrix `[lo; hi]` for `[a, b]` from
 /// the observed Fisher information (central-FD Hessian of NLL).
 /// Both parameters use a log-scale Wald CI (MATLAB convention).
-Value wblfit_ci(const Value &x, double alpha = 0.05,
-                std::pmr::memory_resource *mr = nullptr);
+Value wblfit_ci(const Value &x, keel::f64 alpha = 0.05,
+                keel::Allocator *mr = nullptr);
 
 /// @brief Wald CI for censored/weighted wblfit
 /// (`pci = wblfit_ci(x, alpha, cens, freq)`).
-Value wblfit_ci(const Value &x, double alpha,
+Value wblfit_ci(const Value &x, keel::f64 alpha,
                 const Value &censoring, const Value &freq,
-                std::pmr::memory_resource *mr = nullptr);
+                keel::Allocator *mr = nullptr);
 
 
 /// @}

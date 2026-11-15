@@ -9,6 +9,8 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
@@ -17,7 +19,6 @@
 #include <cstddef>
 #include <cstring>
 #include <limits>
-#include <memory_resource>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -65,7 +66,7 @@ double trigamma(double x)
 std::vector<double> toFlat(const Value &x)
 {
     std::vector<double> v(x.numel());
-    for (std::size_t i = 0; i < v.size(); ++i) v[i] = x.elemAsDouble(i);
+    for (keel::usize i = 0; i < v.size(); ++i) v[i] = x.elemAsDouble(i);
     return v;
 }
 
@@ -87,7 +88,7 @@ enum class CITransform { LINEAR, LOG, LOGIT };
 template <typename NllFn>
 Value wald_ci_2d(NllFn &&nll, double t1, double t2,
                  CITransform tr1, CITransform tr2,
-                 double alpha, std::pmr::memory_resource *mr)
+                 double alpha, keel::Allocator *mr)
 {
     // FD step: eps^{1/3} ≈ 6e-6 is theoretically optimal for 2nd-deriv
     // central FD; relax to 1e-4 for distributions with curved score
@@ -280,7 +281,7 @@ namespace {
 Value wald_ci_from_hessian(double t1, double t2,
                            double H11, double H22, double H12,
                            CITransform tr1, CITransform tr2,
-                           double alpha, std::pmr::memory_resource *mr)
+                           double alpha, keel::Allocator *mr)
 {
     Value out = Value::matrix(2, 2, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();

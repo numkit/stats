@@ -9,10 +9,12 @@
 
 #pragma once
 
+#include <keel/core.h>
+#include <keel/memory.h>
+#include <keel/ref.h>
 #include <numkit/builtin/elmat.hpp>
 #include <numkit/value/argcheck.hpp>
 #include <numkit/value/error.hpp>
-#include <numkit/value/span.hpp>
 #include <numkit/value/value.hpp>
 
 #include <algorithm>
@@ -28,7 +30,7 @@ namespace numkit::stats::detail {
 // strip it and set `upper = true`. Returns the effective trailing-arg
 // count. Adapters should consume args[0..count-1] for positional
 // parsing and ignore args[count..] (which is at most the 'upper' flag).
-inline size_t stripUpperFlag(Span<const Value> args, bool &upper)
+inline keel::usize stripUpperFlag(keel::ArrayRef<Value> args, bool &upper)
 {
     upper = false;
     if (args.empty()) return 0;
@@ -50,8 +52,8 @@ inline void applyUpperInPlace(Value &y)
 {
     if (y.type() != ValueType::DOUBLE) return;
     double *d = y.doubleDataMut();
-    const size_t n = y.numel();
-    for (size_t i = 0; i < n; ++i) {
+    const keel::usize n = y.numel();
+    for (keel::usize i = 0; i < n; ++i) {
         const double v = d[i];
         if (!std::isnan(v)) d[i] = 1.0 - v;
     }
@@ -67,8 +69,8 @@ inline void applyUpperInPlace(Value &y)
 // Edge: 0-dim scalar inputs use a fast path (no allocation).
 
 template <class Stat1>
-inline void emit_vec_stat_1arg(Span<const Value> args, size_t nargout,
-                                Span<Value> outs, std::pmr::memory_resource *mr,
+inline void emit_vec_stat_1arg(keel::ArrayRef<Value> args, keel::usize nargout,
+                                keel::MutArrayRef<Value> outs, keel::Allocator *mr,
                                 const char *fnName, Stat1 stat_impl)
 {
     if (args.empty())
@@ -90,8 +92,8 @@ inline void emit_vec_stat_1arg(Span<const Value> args, size_t nargout,
         : Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
     double *pm = out_m.doubleDataMut();
     double *pv = out_v.doubleDataMut();
-    const size_t n = p.numel();
-    for (size_t i = 0; i < n; ++i) {
+    const keel::usize n = p.numel();
+    for (keel::usize i = 0; i < n; ++i) {
         auto [m, v] = stat_impl(p.elemAsDouble(i));
         pm[i] = m;
         pv[i] = v;
@@ -101,8 +103,8 @@ inline void emit_vec_stat_1arg(Span<const Value> args, size_t nargout,
 }
 
 template <class Stat2>
-inline void emit_vec_stat_2arg(Span<const Value> args, size_t nargout,
-                                Span<Value> outs, std::pmr::memory_resource *mr,
+inline void emit_vec_stat_2arg(keel::ArrayRef<Value> args, keel::usize nargout,
+                                keel::MutArrayRef<Value> outs, keel::Allocator *mr,
                                 const char *fnName, Stat2 stat_impl)
 {
     if (args.size() < 2)
@@ -110,8 +112,8 @@ inline void emit_vec_stat_2arg(Span<const Value> args, size_t nargout,
                     0, 0, fnName, "", "numkit:nargin");
     const Value &av = args[0];
     const Value &bv = args[1];
-    const size_t na = av.numel();
-    const size_t nb = bv.numel();
+    const keel::usize na = av.numel();
+    const keel::usize nb = bv.numel();
     if (na == 1 && nb == 1) {
         auto [m, v] = stat_impl(av.toScalar(), bv.toScalar());
         outs[0] = Value::scalar(m, mr);
@@ -131,8 +133,8 @@ inline void emit_vec_stat_2arg(Span<const Value> args, size_t nargout,
         : Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
     double *pm = out_m.doubleDataMut();
     double *pv = out_v.doubleDataMut();
-    const size_t n = ref.numel();
-    for (size_t i = 0; i < n; ++i) {
+    const keel::usize n = ref.numel();
+    for (keel::usize i = 0; i < n; ++i) {
         const double a = av.elemAsDouble(na == 1 ? 0 : i);
         const double b = bv.elemAsDouble(nb == 1 ? 0 : i);
         auto [m, v] = stat_impl(a, b);
@@ -144,8 +146,8 @@ inline void emit_vec_stat_2arg(Span<const Value> args, size_t nargout,
 }
 
 template <class Stat3>
-inline void emit_vec_stat_3arg(Span<const Value> args, size_t nargout,
-                                Span<Value> outs, std::pmr::memory_resource *mr,
+inline void emit_vec_stat_3arg(keel::ArrayRef<Value> args, keel::usize nargout,
+                                keel::MutArrayRef<Value> outs, keel::Allocator *mr,
                                 const char *fnName, Stat3 stat_impl)
 {
     if (args.size() < 3)
@@ -154,15 +156,15 @@ inline void emit_vec_stat_3arg(Span<const Value> args, size_t nargout,
     const Value &av = args[0];
     const Value &bv = args[1];
     const Value &cv = args[2];
-    const size_t na = av.numel(), nb = bv.numel(), nc = cv.numel();
-    const size_t nmax = std::max({na, nb, nc});
+    const keel::usize na = av.numel(), nb = bv.numel(), nc = cv.numel();
+    const keel::usize nmax = std::max({na, nb, nc});
     if (nmax == 1) {
         auto [m, v] = stat_impl(av.toScalar(), bv.toScalar(), cv.toScalar());
         outs[0] = Value::scalar(m, mr);
         if (nargout > 1) outs[1] = Value::scalar(v, mr);
         return;
     }
-    auto sizeOK = [&](size_t n){ return n == 1 || n == nmax; };
+    auto sizeOK = [&](keel::usize n){ return n == 1 || n == nmax; };
     if (!sizeOK(na) || !sizeOK(nb) || !sizeOK(nc))
         throw Error(std::string(fnName) + ": args must be same size or scalar",
                     0, 0, fnName, "", "numkit:dim");
@@ -176,7 +178,7 @@ inline void emit_vec_stat_3arg(Span<const Value> args, size_t nargout,
         : Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
     double *pm = out_m.doubleDataMut();
     double *pv = out_v.doubleDataMut();
-    for (size_t i = 0; i < nmax; ++i) {
+    for (keel::usize i = 0; i < nmax; ++i) {
         const double a = av.elemAsDouble(na == 1 ? 0 : i);
         const double b = bv.elemAsDouble(nb == 1 ? 0 : i);
         const double c = cv.elemAsDouble(nc == 1 ? 0 : i);
@@ -205,8 +207,8 @@ inline void emit_vec_stat_3arg(Span<const Value> args, size_t nargout,
 // Resolve an optional parameter arg with a scalar default WITHOUT copying a
 // present argument: returns a const ref to args[idx] when supplied and
 // non-empty, else fills `holder` with the scalar default and refs that.
-inline const Value &dist_param(Span<const Value> args, size_t idx, double defv,
-                               std::pmr::memory_resource *mr, Value &holder)
+inline const Value &dist_param(keel::ArrayRef<Value> args, keel::usize idx, double defv,
+                               keel::Allocator *mr, Value &holder)
 {
     if (idx < args.size() && !args[idx].isEmpty()) return args[idx];
     holder = Value::scalar(defv, mr);
@@ -216,7 +218,7 @@ inline const Value &dist_param(Span<const Value> args, size_t idx, double defv,
 // Allocate (or, for a 0-element operand, produce an empty) DOUBLE Value with
 // the same shape as `x`. Used both for empty→empty and for sizing a
 // broadcast result buffer.
-inline Value dist_empty_like(const Value &x, std::pmr::memory_resource *mr)
+inline Value dist_empty_like(const Value &x, keel::Allocator *mr)
 {
     const auto &d = x.dims();
     if (d.is3D())
@@ -227,12 +229,12 @@ inline Value dist_empty_like(const Value &x, std::pmr::memory_resource *mr)
 // Validate MATLAB broadcasting across a set of element counts: every count
 // must be 1 or the common maximum N (0/empty is handled by the caller before
 // this). Throws MATLAB-style on a non-scalar size clash. Returns N.
-inline std::size_t dist_match_numel(std::initializer_list<std::size_t> sizes,
+inline keel::usize dist_match_numel(std::initializer_list<keel::usize> sizes,
                                     const char *fnName)
 {
-    std::size_t N = 0;
-    for (std::size_t s : sizes) N = std::max(N, s);
-    for (std::size_t s : sizes)
+    keel::usize N = 0;
+    for (keel::usize s : sizes) N = std::max(N, s);
+    for (keel::usize s : sizes)
         if (s != 1 && s != N)
             throw Error(std::string(fnName) + ": Non-scalar arguments must match in size.",
                         0, 0, fnName, "", "numkit:dist:size");
@@ -242,10 +244,10 @@ inline std::size_t dist_match_numel(std::initializer_list<std::size_t> sizes,
 // One data arg + one parameter: kernel(double x, double p) -> double.
 template <class K>
 inline Value broadcast_dist2(const Value &av, const Value &bv,
-                             std::pmr::memory_resource *mr,
+                             keel::Allocator *mr,
                              const char *fnName, K kernel)
 {
-    const size_t na = av.numel(), nb = bv.numel();
+    const keel::usize na = av.numel(), nb = bv.numel();
     if (na == 0) return dist_empty_like(av, mr);
     if (nb == 0) return dist_empty_like(bv, mr);
     if (na == 1 && nb == 1)
@@ -259,8 +261,8 @@ inline Value broadcast_dist2(const Value &av, const Value &bv,
         ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr)
         : Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
-    const size_t n = ref.numel();
-    for (size_t i = 0; i < n; ++i)
+    const keel::usize n = ref.numel();
+    for (keel::usize i = 0; i < n; ++i)
         od[i] = kernel(av.elemAsDouble(na == 1 ? 0 : i),
                        bv.elemAsDouble(nb == 1 ? 0 : i));
     return out;
@@ -269,17 +271,17 @@ inline Value broadcast_dist2(const Value &av, const Value &bv,
 // One data arg + two parameters: kernel(double x, double p1, double p2).
 template <class K>
 inline Value broadcast_dist3(const Value &av, const Value &bv, const Value &cv,
-                             std::pmr::memory_resource *mr,
+                             keel::Allocator *mr,
                              const char *fnName, K kernel)
 {
-    const size_t na = av.numel(), nb = bv.numel(), nc = cv.numel();
+    const keel::usize na = av.numel(), nb = bv.numel(), nc = cv.numel();
     if (na == 0) return dist_empty_like(av, mr);
     if (nb == 0) return dist_empty_like(bv, mr);
     if (nc == 0) return dist_empty_like(cv, mr);
-    const size_t nmax = std::max({na, nb, nc});
+    const keel::usize nmax = std::max({na, nb, nc});
     if (nmax == 1)
         return Value::scalar(kernel(av.toScalar(), bv.toScalar(), cv.toScalar()), mr);
-    auto ok = [&](size_t k) { return k == 1 || k == nmax; };
+    auto ok = [&](keel::usize k) { return k == 1 || k == nmax; };
     if (!ok(na) || !ok(nb) || !ok(nc))
         throw Error(std::string(fnName) + ": Non-scalar arguments must match in size.",
                     0, 0, fnName, "", "numkit:dist:size");
@@ -289,7 +291,7 @@ inline Value broadcast_dist3(const Value &av, const Value &bv, const Value &cv,
         ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr)
         : Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
-    for (size_t i = 0; i < nmax; ++i)
+    for (keel::usize i = 0; i < nmax; ++i)
         od[i] = kernel(av.elemAsDouble(na == 1 ? 0 : i),
                        bv.elemAsDouble(nb == 1 ? 0 : i),
                        cv.elemAsDouble(nc == 1 ? 0 : i));
@@ -299,19 +301,19 @@ inline Value broadcast_dist3(const Value &av, const Value &bv, const Value &cv,
 // One data arg + three parameters: kernel(double x, double p1, p2, p3).
 template <class K>
 inline Value broadcast_dist4(const Value &av, const Value &bv, const Value &cv,
-                             const Value &dv, std::pmr::memory_resource *mr,
+                             const Value &dv, keel::Allocator *mr,
                              const char *fnName, K kernel)
 {
-    const size_t na = av.numel(), nb = bv.numel(), nc = cv.numel(), nd = dv.numel();
+    const keel::usize na = av.numel(), nb = bv.numel(), nc = cv.numel(), nd = dv.numel();
     if (na == 0) return dist_empty_like(av, mr);
     if (nb == 0) return dist_empty_like(bv, mr);
     if (nc == 0) return dist_empty_like(cv, mr);
     if (nd == 0) return dist_empty_like(dv, mr);
-    const size_t nmax = std::max({na, nb, nc, nd});
+    const keel::usize nmax = std::max({na, nb, nc, nd});
     if (nmax == 1)
         return Value::scalar(
             kernel(av.toScalar(), bv.toScalar(), cv.toScalar(), dv.toScalar()), mr);
-    auto ok = [&](size_t k) { return k == 1 || k == nmax; };
+    auto ok = [&](keel::usize k) { return k == 1 || k == nmax; };
     if (!ok(na) || !ok(nb) || !ok(nc) || !ok(nd))
         throw Error(std::string(fnName) + ": Non-scalar arguments must match in size.",
                     0, 0, fnName, "", "numkit:dist:size");
@@ -321,7 +323,7 @@ inline Value broadcast_dist4(const Value &av, const Value &bv, const Value &cv,
         ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr)
         : Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
-    for (size_t i = 0; i < nmax; ++i)
+    for (keel::usize i = 0; i < nmax; ++i)
         od[i] = kernel(av.elemAsDouble(na == 1 ? 0 : i),
                        bv.elemAsDouble(nb == 1 ? 0 : i),
                        cv.elemAsDouble(nc == 1 ? 0 : i),
@@ -343,8 +345,8 @@ inline Value broadcast_dist4(const Value &av, const Value &bv, const Value &cv,
 // compute kernel generates the right number of draws), and
 // reshape_rng_nd() reshapes the 2-D result to the full N-D shape when
 // 3+ dimensions were requested.
-inline void parse_rng_size(Span<const Value> args, size_t start,
-                            size_t &rows, size_t &cols, const char *fn)
+inline void parse_rng_size(keel::ArrayRef<Value> args, keel::usize start,
+                            keel::usize &rows, keel::usize &cols, const char *fn)
 {
     rows = 1;
     cols = 1;
@@ -358,10 +360,10 @@ inline void parse_rng_size(Span<const Value> args, size_t start,
                         "vector cannot be followed by additional size inputs.",
                         0, 0, fn, "", "numkit:" + std::string(fn) + ":maxnargin");
         argcheck::arrayDimReal(a0, fn);
-        const size_t n = a0.numel();
+        const keel::usize n = a0.numel();
         rows = argcheck::arrayDim(a0.elemAsDouble(0), fn);
         cols = 1;
-        for (size_t i = 1; i < n; ++i)
+        for (keel::usize i = 1; i < n; ++i)
             cols *= argcheck::arrayDim(a0.elemAsDouble(i), fn);
         return;
     }
@@ -377,7 +379,7 @@ inline void parse_rng_size(Span<const Value> args, size_t start,
     }
     // 2 or more scalar (or empty) size args: validate every one and fold
     // dims[1..] into cols for the 2-D kernel.
-    for (size_t i = start; i < args.size(); ++i) {
+    for (keel::usize i = start; i < args.size(); ++i) {
         if (args[i].numel() > 1)
             throw Error(std::string(fn) + ": size inputs must be scalars when "
                         "more than one size argument is supplied.",
@@ -385,26 +387,26 @@ inline void parse_rng_size(Span<const Value> args, size_t start,
     }
     rows = a0.isEmpty() ? 0 : argcheck::arrayDim(a0, fn);
     cols = 1;
-    for (size_t i = start + 1; i < args.size(); ++i) {
-        const size_t d = args[i].isEmpty() ? 0 : argcheck::arrayDim(args[i], fn);
+    for (keel::usize i = start + 1; i < args.size(); ++i) {
+        const keel::usize d = args[i].isEmpty() ? 0 : argcheck::arrayDim(args[i], fn);
         cols *= d;
     }
 }
 
-inline Value reshape_rng_nd(Value v, Span<const Value> args, size_t start,
-                            std::pmr::memory_resource *mr, const char *fn)
+inline Value reshape_rng_nd(Value v, keel::ArrayRef<Value> args, keel::usize start,
+                            keel::Allocator *mr, const char *fn)
 {
     if (args.size() <= start)
         return v;
-    std::vector<size_t> shape;
+    std::vector<keel::usize> shape;
     if (args.size() == start + 1 && args[start].numel() > 1) {
-        const size_t n = args[start].numel();
+        const keel::usize n = args[start].numel();
         shape.reserve(n);
-        for (size_t i = 0; i < n; ++i)
+        for (keel::usize i = 0; i < n; ++i)
             shape.push_back(argcheck::arrayDim(args[start].elemAsDouble(i), fn));
     } else if (args.size() >= start + 3) {
         shape.reserve(args.size() - start);
-        for (size_t i = start; i < args.size(); ++i)
+        for (keel::usize i = start; i < args.size(); ++i)
             shape.push_back(args[i].isEmpty() ? 0 : argcheck::arrayDim(args[i], fn));
     } else {
         return v;
@@ -413,7 +415,7 @@ inline Value reshape_rng_nd(Value v, Span<const Value> args, size_t start,
         shape.pop_back();
     if (shape.size() <= 2)
         return v;
-    return builtin::reshape(std::move(v), Span<const size_t>(shape.data(), shape.size()), mr);
+    return builtin::reshape(std::move(v), keel::ArrayRef<keel::usize>(shape.data(), shape.size()), mr);
 }
 
 } // namespace numkit::stats::detail

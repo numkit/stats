@@ -6,8 +6,9 @@
 
 #pragma once
 
-#include <memory_resource>
-#include <numkit/value/span.hpp>
+#include <keel/core.h>
+#include <keel/memory.h>
+#include <keel/ref.h>
 #include <numkit/value/value.hpp>
 
 #include <string>
@@ -37,13 +38,13 @@ namespace numkit::stats {
 /// @return        Column vector of silhouette coefficients in `[-1, 1]`.
 /// @see pdist, kmeans
 Value silhouette(const Value &X, const Value &clust,
-                 const std::string &metric = "sqeuclidean", double p = 2.0,
-                 std::pmr::memory_resource *mr = nullptr);
+                 const std::string &metric = "sqeuclidean", keel::f64 p = 2.0,
+                 keel::Allocator *mr = nullptr);
 
 /// @brief Full `silhouette` entry — the metric tail (default
 /// 'sqeuclidean') with the probed unknown-metric class.
 Value silhouette_full(const Value &X, const Value &clust,
-                      Span<const Value> tail, std::pmr::memory_resource *mr = nullptr);
+                      keel::ArrayRef<Value> tail, keel::Allocator *mr = nullptr);
 
 
 /// @}

@@ -4,6 +4,7 @@
 // movprod,movmad,movstd,movvar}.md). Hardcoded expected values
 // captured from MATLAB R2025b probe runs.
 
+#include <keel/core.h>
 #include <numkit/core/standard_engine.hpp>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
@@ -64,7 +65,7 @@ TEST_F(MovExtrasTest, MovmeanIncludenanExplicitMatchesDefault)
 TEST_F(MovExtrasTest, EndpointsDiscardShortensOutput)
 {
     eval("y = movmean(A2, 3, 'Endpoints', 'discard');");
-    EXPECT_EQ(static_cast<size_t>(evalScalar("numel(y)")), 7u);
+    EXPECT_EQ(static_cast<keel::usize>(evalScalar("numel(y)")), 7u);
     EXPECT_NEAR(evalScalar("y(1)"), 2.0, 1e-12);
     EXPECT_NEAR(evalScalar("y(7)"), 8.0, 1e-12);
 }
@@ -92,8 +93,8 @@ TEST_F(MovExtrasTest, EndpointsScalarPadsWithValue)
 TEST_F(MovExtrasTest, MatrixDimOmitnanDiscard)
 {
     eval("M = [A2 A2*2]; y = movmean(M, 3, 1, 'omitnan', 'Endpoints', 'discard');");
-    EXPECT_EQ(static_cast<size_t>(evalScalar("size(y, 1)")), 7u);
-    EXPECT_EQ(static_cast<size_t>(evalScalar("size(y, 2)")), 2u);
+    EXPECT_EQ(static_cast<keel::usize>(evalScalar("size(y, 1)")), 7u);
+    EXPECT_EQ(static_cast<keel::usize>(evalScalar("size(y, 2)")), 2u);
     EXPECT_NEAR(evalScalar("y(1, 1)"), 2.0, 1e-12);
     EXPECT_NEAR(evalScalar("y(7, 2)"), 16.0, 1e-12);
 }

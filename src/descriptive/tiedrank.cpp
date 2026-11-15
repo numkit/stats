@@ -20,6 +20,8 @@
 // the ranking sequence (the non-NaN values are ranked among
 // themselves, then NaN slots are written back as NaN).
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/descriptive/descriptive.hpp>
 
 #include <numkit/value/value.hpp>
@@ -37,13 +39,13 @@ namespace {
 
 // Rank one column-vector worth of values.
 // Output: ranks vector (length N, NaN for NaN inputs); tieadj scalar.
-double rankOneColumn(const double *col, size_t N, double *ranks)
+double rankOneColumn(const double *col, keel::usize N, double *ranks)
 {
     // Build (value, original_index) pairs for non-NaN entries; NaN
     // gets NaN in the rank output and skipped in sorting.
-    std::vector<std::pair<double, size_t>> nz;
+    std::vector<std::pair<double, keel::usize>> nz;
     nz.reserve(N);
-    for (size_t i = 0; i < N; ++i) {
+    for (keel::usize i = 0; i < N; ++i) {
         if (std::isnan(col[i])) {
             ranks[i] = std::numeric_limits<double>::quiet_NaN();
         } else {
@@ -58,17 +60,17 @@ double rankOneColumn(const double *col, size_t N, double *ranks)
                      });
 
     double tieadj = 0.0;
-    const size_t M = nz.size();
-    size_t i = 0;
+    const keel::usize M = nz.size();
+    keel::usize i = 0;
     while (i < M) {
-        size_t j = i + 1;
+        keel::usize j = i + 1;
         while (j < M && nz[j].first == nz[i].first) ++j;
-        const size_t group_len = j - i;
+        const keel::usize group_len = j - i;
         // Average rank for positions i..j-1 (1-based ranks).
         const double avg_rank = (static_cast<double>(i + 1)
                                 + static_cast<double>(j))
                               * 0.5;
-        for (size_t k = i; k < j; ++k) {
+        for (keel::usize k = i; k < j; ++k) {
             ranks[nz[k].second] = avg_rank;
         }
         if (group_len > 1) {
@@ -95,18 +97,18 @@ void tiedrank_argcheck(const Value &x)
 } // namespace
 
 std::pair<Value, Value>
-tiedrank(const Value &x, std::pmr::memory_resource *mr)
+tiedrank(const Value &x, keel::Allocator *mr)
 {
     tiedrank_argcheck(x);
-    const size_t R = x.dims().rows();
-    const size_t C = x.dims().cols();
+    const keel::usize R = x.dims().rows();
+    const keel::usize C = x.dims().cols();
 
     if (isVector(x)) {
-        const size_t N = x.numel();
+        const keel::usize N = x.numel();
         // Output ranks: same shape as x.
         Value r = Value::matrix(R, C, ValueType::DOUBLE, mr);
         std::vector<double> col(N);
-        for (size_t i = 0; i < N; ++i) col[i] = x.elemAsDouble(i);
+        for (keel::usize i = 0; i < N; ++i) col[i] = x.elemAsDouble(i);
         const double tieadj = rankOneColumn(col.data(), N,
                                             r.doubleDataMut());
         Value ta = Value::scalar(tieadj, mr);
@@ -119,8 +121,8 @@ tiedrank(const Value &x, std::pmr::memory_resource *mr)
     double *ro = r.doubleDataMut();
     double *to = ta.doubleDataMut();
     std::vector<double> col(R);
-    for (size_t c = 0; c < C; ++c) {
-        for (size_t i = 0; i < R; ++i)
+    for (keel::usize c = 0; c < C; ++c) {
+        for (keel::usize i = 0; i < R; ++i)
             col[i] = x.elemAsDouble(c * R + i);
         to[c] = rankOneColumn(col.data(), R, ro + c * R);
     }

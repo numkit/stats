@@ -17,6 +17,8 @@
 // Cell-of-string fn argument deferred until our cell-string handling
 // is uniform across libs.
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/descriptive/descriptive.hpp>
 
 #include <numkit/value/value.hpp>
@@ -57,7 +59,7 @@ double aggregate(Agg fn, const std::vector<double> &vals)
     std::vector<double> v;
     v.reserve(vals.size());
     for (double x : vals) if (!std::isnan(x)) v.push_back(x);
-    const size_t n = v.size();
+    const keel::usize n = v.size();
 
     switch (fn) {
         case Agg::Numel:
@@ -70,13 +72,13 @@ double aggregate(Agg fn, const std::vector<double> &vals)
         case Agg::Min: {
             if (n == 0) return std::numeric_limits<double>::quiet_NaN();
             double m = v[0];
-            for (size_t i = 1; i < n; ++i) m = std::min(m, v[i]);
+            for (keel::usize i = 1; i < n; ++i) m = std::min(m, v[i]);
             return m;
         }
         case Agg::Max: {
             if (n == 0) return std::numeric_limits<double>::quiet_NaN();
             double m = v[0];
-            for (size_t i = 1; i < n; ++i) m = std::max(m, v[i]);
+            for (keel::usize i = 1; i < n; ++i) m = std::max(m, v[i]);
             return m;
         }
         case Agg::Mean: {
@@ -114,8 +116,8 @@ double aggregate(Agg fn, const std::vector<double> &vals)
 
 void grpstats_argcheck(const Value &X, const Value &group)
 {
-    const size_t Nrows = X.dims().rows();
-    const size_t Ncols = X.dims().cols();
+    const keel::usize Nrows = X.dims().rows();
+    const keel::usize Ncols = X.dims().cols();
     if (group.numel() != Nrows && !(Nrows == 1 && group.numel() == Ncols))
         throw Error("grpstats: group length must match number of rows of X",
                     0, 0, "grpstats", "", "numkit:grpstats:LenMismatch");
@@ -124,27 +126,27 @@ void grpstats_argcheck(const Value &X, const Value &group)
 } // namespace
 
 std::vector<Value>
-grpstats(const Value &X, const Value &group, const std::vector<std::string> &fn_names, std::pmr::memory_resource *mr)
+grpstats(const Value &X, const Value &group, const std::vector<std::string> &fn_names, keel::Allocator *mr)
 {
     grpstats_argcheck(X, group);
-    const size_t Nrows = X.dims().rows();
-    const size_t Ncols = X.dims().cols();
+    const keel::usize Nrows = X.dims().rows();
+    const keel::usize Ncols = X.dims().cols();
 
     // For row-vector input, MATLAB applies per-element groups (treating
     // X as length(X) observations of 1 column).
     bool row_vec = (Nrows == 1 && Ncols >= 1);
-    const size_t N = row_vec ? Ncols : Nrows;
-    const size_t C = row_vec ? 1     : Ncols;
+    const keel::usize N = row_vec ? Ncols : Nrows;
+    const keel::usize C = row_vec ? 1     : Ncols;
 
     // Find unique non-NaN groups (sorted ascending).
     std::vector<double> g(N);
-    for (size_t i = 0; i < N; ++i) g[i] = group.elemAsDouble(i);
+    for (keel::usize i = 0; i < N; ++i) g[i] = group.elemAsDouble(i);
     std::vector<double> u_g;
     u_g.reserve(N);
     for (double v : g) if (!std::isnan(v)) u_g.push_back(v);
     std::sort(u_g.begin(), u_g.end());
     u_g.erase(std::unique(u_g.begin(), u_g.end()), u_g.end());
-    const size_t Ng = u_g.size();
+    const keel::usize Ng = u_g.size();
 
     // Collect fns; default mean.
     std::vector<Agg> fns;
@@ -154,30 +156,30 @@ grpstats(const Value &X, const Value &group, const std::vector<std::string> &fn_
         fns.reserve(fn_names.size());
         for (const auto &n : fn_names) fns.push_back(parseFnName(n));
     }
-    const size_t F = fns.size();
+    const keel::usize F = fns.size();
 
     // Build outputs: F values, each (Ng × C).
     std::vector<Value> outs;
     outs.reserve(F);
-    for (size_t f = 0; f < F; ++f) {
+    for (keel::usize f = 0; f < F; ++f) {
         outs.push_back(Value::matrix(Ng, C, ValueType::DOUBLE, mr));
     }
 
     // Aggregate per (group, column).
     std::vector<double> bucket;
     bucket.reserve(N);
-    for (size_t k = 0; k < Ng; ++k) {
+    for (keel::usize k = 0; k < Ng; ++k) {
         const double gk = u_g[k];
-        for (size_t c = 0; c < C; ++c) {
+        for (keel::usize c = 0; c < C; ++c) {
             bucket.clear();
-            for (size_t i = 0; i < N; ++i) {
+            for (keel::usize i = 0; i < N; ++i) {
                 if (g[i] != gk) continue;
                 const double x = row_vec
                                      ? X.elemAsDouble(i)
                                      : X.elemAsDouble(i + c * Nrows);
                 bucket.push_back(x);
             }
-            for (size_t f = 0; f < F; ++f) {
+            for (keel::usize f = 0; f < F; ++f) {
                 const double v = aggregate(fns[f], bucket);
                 outs[f].doubleDataMut()[k + c * Ng] = v;
             }

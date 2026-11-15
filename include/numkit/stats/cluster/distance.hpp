@@ -7,8 +7,9 @@
 
 #pragma once
 
-#include <memory_resource>
-#include <numkit/value/span.hpp>
+#include <keel/core.h>
+#include <keel/memory.h>
+#include <keel/ref.h>
 #include <numkit/value/value.hpp>
 
 #include <string>
@@ -45,8 +46,8 @@ namespace numkit::stats {
 /// @return        Row of length M(M-1)/2.
 ///
 /// @see pdist2, squareform
-Value pdist(const Value &X, const std::string &metric, double p,
-            std::pmr::memory_resource *mr = nullptr);
+Value pdist(const Value &X, const std::string &metric, keel::f64 p,
+            keel::Allocator *mr = nullptr);
 
 /// @brief Cross-set pairwise distances
 /// (`D = pdist2(X, Y, metric, p)`).
@@ -61,21 +62,21 @@ Value pdist(const Value &X, const std::string &metric, double p,
 /// @param mr      Memory resource (nullptr → process default).
 /// @return        M×N distance matrix.
 /// @see pdist
-Value pdist2(const Value &X, const Value &Y, const std::string &metric, double p,
-             std::pmr::memory_resource *mr = nullptr);
+Value pdist2(const Value &X, const Value &Y, const std::string &metric, keel::f64 p,
+             keel::Allocator *mr = nullptr);
 
 /// @brief Full `pdist` entry — the probed metric/p/covariance tail
 /// contract (R2025b: an unknown metric is DistanceFunctionNotFound).
-Value pdist_full(const Value &X, Span<const Value> tail,
-                 std::pmr::memory_resource *mr = nullptr);
+Value pdist_full(const Value &X, keel::ArrayRef<Value> tail,
+                 keel::Allocator *mr = nullptr);
 /// @brief Result of the full `pdist2` entry — I is the top-k index
 /// matrix (empty for the plain form).
 struct Pdist2Out { Value D, I; };
 
 /// @brief Full `pdist2` entry — the metric tail plus the nk top-k
 /// extension ('Smallest'/'Largest', removed in the reference — filed).
-Pdist2Out pdist2_full(const Value &X, const Value &Y, Span<const Value> tail,
-                      std::pmr::memory_resource *mr = nullptr);
+Pdist2Out pdist2_full(const Value &X, const Value &Y, keel::ArrayRef<Value> tail,
+                      keel::Allocator *mr = nullptr);
 
 /// @brief Pack / unpack the pdist row form (`Y = squareform(d)`).
 ///
@@ -87,7 +88,7 @@ Pdist2Out pdist2_full(const Value &X, const Value &Y, Span<const Value> tail,
 /// @return    Square matrix or pdist row, the other shape.
 /// @see pdist
 Value squareform(const Value &d,
-                 std::pmr::memory_resource *mr = nullptr);
+                 keel::Allocator *mr = nullptr);
 
 /// @brief Mahalanobis distance squared (`d² = mahal(Y, X)`).
 ///
@@ -100,7 +101,7 @@ Value squareform(const Value &d,
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    N×1 column of squared Mahalanobis distances.
 Value mahal(const Value &Y, const Value &X,
-            std::pmr::memory_resource *mr = nullptr);
+            keel::Allocator *mr = nullptr);
 
 
 /// @}

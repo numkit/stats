@@ -1,5 +1,7 @@
 // toolboxes/stats/src/distributions/gp.cpp
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/distributions/gp.hpp>
 
 #include <numkit/builtin/datafun.hpp>
@@ -25,7 +27,7 @@ inline bool gp_argcheck(double sigma) noexcept
 }
 } // namespace
 
-Value gppdf(const Value &x, double k, double sigma, double theta, std::pmr::memory_resource *mr)
+Value gppdf(const Value &x, double k, double sigma, double theta, keel::Allocator *mr)
 {
     if (!gp_argcheck(sigma))
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -40,7 +42,7 @@ Value gppdf(const Value &x, double k, double sigma, double theta, std::pmr::memo
     }, mr);
 }
 
-Value gpcdf(const Value &x, double k, double sigma, double theta, std::pmr::memory_resource *mr)
+Value gpcdf(const Value &x, double k, double sigma, double theta, keel::Allocator *mr)
 {
     if (sigma <= 0.0)
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -55,7 +57,7 @@ Value gpcdf(const Value &x, double k, double sigma, double theta, std::pmr::memo
     }, mr);
 }
 
-Value gpinv(const Value &p, double k, double sigma, double theta, std::pmr::memory_resource *mr)
+Value gpinv(const Value &p, double k, double sigma, double theta, keel::Allocator *mr)
 {
     if (sigma <= 0.0)
         return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -64,14 +66,14 @@ Value gpinv(const Value &p, double k, double sigma, double theta, std::pmr::memo
     }, mr);
 }
 
-Value gprnd(::numkit::ops::RngContext &rng, double k, double sigma, double theta, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value gprnd(::numkit::ops::RngContext &rng, double k, double sigma, double theta, keel::usize rows, keel::usize cols, keel::Allocator *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (sigma <= 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
-    const size_t n = rows * cols;
-    for (size_t i = 0; i < n; ++i) {
+    const keel::usize n = rows * cols;
+    for (keel::usize i = 0; i < n; ++i) {
         // genRes53 -- MATLAB-canonical 53-bit uniform.
         // gprnd uses u DIRECTLY (not 1-u) per MATLAB convention:
         //   x = theta + sigma * (u^(-k) - 1) / k       for k != 0

@@ -1,5 +1,7 @@
 // toolboxes/stats/src/qmc/qmc.cpp
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/qmc/qmc.hpp>
 
 #include <numkit/value/value.hpp>
@@ -12,7 +14,7 @@ namespace numkit::stats {
 namespace {
 
 // First d primes via simple sieve / trial division.
-std::vector<int> first_primes(size_t d)
+std::vector<int> first_primes(keel::usize d)
 {
     std::vector<int> ps;
     ps.reserve(d);
@@ -38,7 +40,7 @@ std::vector<int> rr2_permutation(int p)
     while ((1 << k) < p) ++k;
     int m = (1 << k);
     std::vector<int> perm;
-    perm.reserve(static_cast<size_t>(p));
+    perm.reserve(static_cast<keel::usize>(p));
     for (int j = 0; j < m; ++j) {
         int rev = 0;
         for (int b = 0; b < k; ++b) {
@@ -55,7 +57,7 @@ double radical_inverse(long long i, int p, const std::vector<int> *perm = nullpt
     double f = 1.0 / static_cast<double>(p);
     while (i > 0) {
         int d = static_cast<int>(i % p);
-        if (perm) d = (*perm)[static_cast<size_t>(d)];
+        if (perm) d = (*perm)[static_cast<keel::usize>(d)];
         r += f * static_cast<double>(d);
         i /= p;
         f /= static_cast<double>(p);
@@ -74,7 +76,7 @@ void haltonset_argcheck(int d)
 }
 } // namespace
 
-Value haltonset(int d, long long skip, long long leap, std::pmr::memory_resource *mr)
+Value haltonset(int d, long long skip, long long leap, keel::Allocator *mr)
 {
     haltonset_argcheck(d);
     Value s = Value::structure(mr);
@@ -86,7 +88,7 @@ Value haltonset(int d, long long skip, long long leap, std::pmr::memory_resource
     return s;
 }
 
-Value scramble(const Value &stream, const std::string &type, std::pmr::memory_resource *mr)
+Value scramble(const Value &stream, const std::string &type, keel::Allocator *mr)
 {
     if (!stream.isStruct() || !stream.hasField("kind"))
         throw Error("scramble: input must be a quasi-random stream struct",
@@ -96,7 +98,7 @@ Value scramble(const Value &stream, const std::string &type, std::pmr::memory_re
     return out;
 }
 
-Value net(const Value &stream, long long n, std::pmr::memory_resource *mr)
+Value net(const Value &stream, long long n, keel::Allocator *mr)
 {
     if (!stream.isStruct() || !stream.hasField("kind"))
         throw Error("net: input must be a quasi-random stream struct",
@@ -108,7 +110,7 @@ Value net(const Value &stream, long long n, std::pmr::memory_resource *mr)
     if (n < 0)
         throw Error("net: n must be >= 0",
                     0, 0, "net", "", "numkit:net:n");
-    const size_t d    = static_cast<size_t>(stream.field("dim").toScalar());
+    const keel::usize d    = static_cast<keel::usize>(stream.field("dim").toScalar());
     const long long skip = static_cast<long long>(stream.field("skip").toScalar());
     const long long leap = static_cast<long long>(stream.field("leap").toScalar());
     std::string scram;
@@ -119,17 +121,17 @@ Value net(const Value &stream, long long n, std::pmr::memory_resource *mr)
     std::vector<std::vector<int>> perms;
     if (useRR2) {
         perms.resize(d);
-        for (size_t k = 0; k < d; ++k)
+        for (keel::usize k = 0; k < d; ++k)
             perms[k] = rr2_permutation(primes[k]);
     }
     const long long step = leap + 1;
-    Value X = Value::matrix(static_cast<size_t>(n), d, ValueType::DOUBLE, mr);
+    Value X = Value::matrix(static_cast<keel::usize>(n), d, ValueType::DOUBLE, mr);
     if (n == 0) return X;
     double *xd = X.doubleDataMut();
     for (long long row = 0; row < n; ++row) {
         const long long idx = skip + row * step;
-        for (size_t k = 0; k < d; ++k)
-            xd[static_cast<size_t>(row) + k * static_cast<size_t>(n)]
+        for (keel::usize k = 0; k < d; ++k)
+            xd[static_cast<keel::usize>(row) + k * static_cast<keel::usize>(n)]
                 = radical_inverse(idx, primes[k], useRR2 ? &perms[k] : nullptr);
     }
     return X;

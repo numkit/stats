@@ -1,5 +1,7 @@
 // toolboxes/stats/src/distributions/uniform.cpp
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/distributions/uniform.hpp>
 
 #include <numkit/builtin/datafun.hpp>
@@ -25,7 +27,7 @@ inline bool unif_argcheck(double a, double b) noexcept
 }
 } // namespace
 
-Value unifpdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
+Value unifpdf(const Value &x, double a, double b, keel::Allocator *mr)
 {
     const double NaN = std::numeric_limits<double>::quiet_NaN();
     if (!unif_argcheck(a, b))
@@ -37,7 +39,7 @@ Value unifpdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
     }, mr);
 }
 
-Value unifcdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
+Value unifcdf(const Value &x, double a, double b, keel::Allocator *mr)
 {
     if (b <= a)
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -49,7 +51,7 @@ Value unifcdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
     }, mr);
 }
 
-Value unifinv(const Value &p, double a, double b, std::pmr::memory_resource *mr)
+Value unifinv(const Value &p, double a, double b, keel::Allocator *mr)
 {
     if (b <= a)
         return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -60,14 +62,14 @@ Value unifinv(const Value &p, double a, double b, std::pmr::memory_resource *mr)
     }, mr);
 }
 
-Value unifrnd(::numkit::ops::RngContext &rng, double a, double b, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value unifrnd(::numkit::ops::RngContext &rng, double a, double b, keel::usize rows, keel::usize cols, keel::Allocator *mr)
 {
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (b <= a || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
-    const size_t n = rows * cols;
+    const keel::usize n = rows * cols;
     const double w = b - a;
-    for (size_t i = 0; i < n; ++i) od[i] = a + w * rng.nextUniform();
+    for (keel::usize i = 0; i < n; ++i) od[i] = a + w * rng.nextUniform();
     return out;
 }
 

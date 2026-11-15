@@ -1,5 +1,7 @@
 // toolboxes/stats/src/distributions/lognormal.cpp
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/distributions/lognormal.hpp>
 
 #include <numkit/builtin/datafun.hpp>
@@ -29,7 +31,7 @@ inline bool logn_argcheck(double sigma) noexcept
 }
 } // namespace
 
-Value lognpdf(const Value &x, double mu, double sigma, std::pmr::memory_resource *mr)
+Value lognpdf(const Value &x, double mu, double sigma, keel::Allocator *mr)
 {
     if (!logn_argcheck(sigma))
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -42,7 +44,7 @@ Value lognpdf(const Value &x, double mu, double sigma, std::pmr::memory_resource
     }, mr);
 }
 
-Value logncdf(const Value &x, double mu, double sigma, std::pmr::memory_resource *mr)
+Value logncdf(const Value &x, double mu, double sigma, keel::Allocator *mr)
 {
     if (sigma <= 0.0)
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -53,7 +55,7 @@ Value logncdf(const Value &x, double mu, double sigma, std::pmr::memory_resource
     }, mr);
 }
 
-Value logninv(const Value &p, double mu, double sigma, std::pmr::memory_resource *mr)
+Value logninv(const Value &p, double mu, double sigma, keel::Allocator *mr)
 {
     if (sigma <= 0.0)
         return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -66,15 +68,15 @@ Value logninv(const Value &p, double mu, double sigma, std::pmr::memory_resource
     }, mr);
 }
 
-Value lognrnd(::numkit::ops::RngContext &rng, double mu, double sigma, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value lognrnd(::numkit::ops::RngContext &rng, double mu, double sigma, keel::usize rows, keel::usize cols, keel::Allocator *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (sigma <= 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
-    const size_t n = rows * cols;
+    const keel::usize n = rows * cols;
     std::lognormal_distribution<double> ld(mu, sigma);
-    for (size_t i = 0; i < n; ++i) od[i] = ld(gen);
+    for (keel::usize i = 0; i < n; ++i) od[i] = ld(gen);
     return out;
 }
 

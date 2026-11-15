@@ -8,12 +8,13 @@
 //   cdf('Normal', x, mu, sigma)  ==  normcdf(x, mu, sigma)
 //   icdf(...)  -> <fam>inv ,  random(...) -> <fam>rnd .
 // bugs/stats/distribution-dispatchers.
+#include <keel/core.h>
+#include <keel/ref.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/builtin/datafun.hpp>
 #include "distributions/dist_helpers.hpp"
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
-#include <numkit/value/span.hpp>
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
@@ -77,7 +78,7 @@ bool isDistStruct(const Value &v)
 Value evalDistStructBase(const Value &pd, const char *suffix, const Value &xVal,
                          CallContext &ctx)
 {
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     const std::string dist = toLowerStr(pd.field("DistributionName").toString());
     const int nparams = static_cast<int>(pd.field("__nparams").toScalar());
     const double p1 = (nparams >= 1) ? pd.field("p1").toScalar() : 0.0;
@@ -91,13 +92,13 @@ Value evalDistStructBase(const Value &pd, const char *suffix, const Value &xVal,
             const ExternalFunc *fn = ctx.engine->findExternal("tpdf", ctx.env);
             if (!fn) throw Error("pdf: 'tpdf' is not available", 0, 0, "pdf", "", "numkit:pdf:missing");
             Value z = xVal.isEmpty() ? xVal : Value::matrix(xVal.dims().rows(), xVal.dims().cols(), ValueType::DOUBLE, mr);
-            const size_t n = xVal.numel();
-            for (size_t i = 0; i < n; ++i)
+            const keel::usize n = xVal.numel();
+            for (keel::usize i = 0; i < n; ++i)
                 z.doubleDataMut()[i] = (xVal.elemAsDouble(i) - p1) / p2;
             Value callArgs[2] = {z, Value::scalar(p3, mr)};
             Value out;
-            (*fn)(Span<const Value>(callArgs, 2), 1, Span<Value>(&out, 1), ctx);
-            for (size_t i = 0; i < out.numel(); ++i)
+            (*fn)(keel::ArrayRef<Value>(callArgs, 2), 1, keel::MutArrayRef<Value>(&out, 1), ctx);
+            for (keel::usize i = 0; i < out.numel(); ++i)
                 out.doubleDataMut()[i] /= p2;
             return out;
         }
@@ -105,12 +106,12 @@ Value evalDistStructBase(const Value &pd, const char *suffix, const Value &xVal,
             const ExternalFunc *fn = ctx.engine->findExternal("tcdf", ctx.env);
             if (!fn) throw Error("cdf: 'tcdf' is not available", 0, 0, "cdf", "", "numkit:cdf:missing");
             Value z = xVal.isEmpty() ? xVal : Value::matrix(xVal.dims().rows(), xVal.dims().cols(), ValueType::DOUBLE, mr);
-            const size_t n = xVal.numel();
-            for (size_t i = 0; i < n; ++i)
+            const keel::usize n = xVal.numel();
+            for (keel::usize i = 0; i < n; ++i)
                 z.doubleDataMut()[i] = (xVal.elemAsDouble(i) - p1) / p2;
             Value callArgs[2] = {z, Value::scalar(p3, mr)};
             Value out;
-            (*fn)(Span<const Value>(callArgs, 2), 1, Span<Value>(&out, 1), ctx);
+            (*fn)(keel::ArrayRef<Value>(callArgs, 2), 1, keel::MutArrayRef<Value>(&out, 1), ctx);
             return out;
         }
         if (sfx == "inv") {
@@ -118,8 +119,8 @@ Value evalDistStructBase(const Value &pd, const char *suffix, const Value &xVal,
             if (!fn) throw Error("icdf: 'tinv' is not available", 0, 0, "icdf", "", "numkit:icdf:missing");
             Value callArgs[2] = {xVal, Value::scalar(p3, mr)};
             Value out;
-            (*fn)(Span<const Value>(callArgs, 2), 1, Span<Value>(&out, 1), ctx);
-            for (size_t i = 0; i < out.numel(); ++i)
+            (*fn)(keel::ArrayRef<Value>(callArgs, 2), 1, keel::MutArrayRef<Value>(&out, 1), ctx);
+            for (keel::usize i = 0; i < out.numel(); ++i)
                 out.doubleDataMut()[i] = p1 + p2 * out.doubleDataMut()[i];
             return out;
         }
@@ -141,15 +142,15 @@ Value evalDistStructBase(const Value &pd, const char *suffix, const Value &xVal,
     if (nparams >= 2) callArgs.push_back(Value::scalar(p2, mr));
     if (nparams >= 3) callArgs.push_back(Value::scalar(p3, mr));
     Value out;
-    (*fn)(Span<const Value>(callArgs.data(), callArgs.size()), 1, Span<Value>(&out, 1), ctx);
+    (*fn)(keel::ArrayRef<Value>(callArgs.data(), callArgs.size()), 1, keel::MutArrayRef<Value>(&out, 1), ctx);
     return out;
 }
 
 void dispatchDistStruct(const char *fnName, const char *suffix,
-                        Span<const Value> args, size_t nargout, Span<Value> outs,
+                        keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs,
                         CallContext &ctx)
 {
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     const Value &pd = args[0];
     const bool isTrunc = pd.hasField("IsTruncated") && pd.field("IsTruncated").toBool();
     const double tLo = pd.hasField("TruncLower") ? pd.field("TruncLower").toScalar()
@@ -170,10 +171,10 @@ void dispatchDistStruct(const char *fnName, const char *suffix,
                 if (!fn) throw Error("random: 'trnd' is not available", 0, 0, "random", "", "numkit:random:missing");
                 std::vector<Value> callArgs;
                 callArgs.push_back(Value::scalar(p3, mr));
-                for (size_t i = 1; i < args.size(); ++i) callArgs.push_back(args[i]);
+                for (keel::usize i = 1; i < args.size(); ++i) callArgs.push_back(args[i]);
                 Value out;
-                (*fn)(Span<const Value>(callArgs.data(), callArgs.size()), 1, Span<Value>(&out, 1), ctx);
-                for (size_t i = 0; i < out.numel(); ++i)
+                (*fn)(keel::ArrayRef<Value>(callArgs.data(), callArgs.size()), 1, keel::MutArrayRef<Value>(&out, 1), ctx);
+                for (keel::usize i = 0; i < out.numel(); ++i)
                     out.doubleDataMut()[i] = p1 + p2 * out.doubleDataMut()[i];
                 outs[0] = std::move(out);
                 return;
@@ -191,8 +192,8 @@ void dispatchDistStruct(const char *fnName, const char *suffix,
             if (nparams >= 1) callArgs.push_back(Value::scalar(p1, mr));
             if (nparams >= 2) callArgs.push_back(Value::scalar(p2, mr));
             if (nparams >= 3) callArgs.push_back(Value::scalar(p3, mr));
-            for (size_t i = 1; i < args.size(); ++i) callArgs.push_back(args[i]);
-            (*fn)(Span<const Value>(callArgs.data(), callArgs.size()), nargout, outs, ctx);
+            for (keel::usize i = 1; i < args.size(); ++i) callArgs.push_back(args[i]);
+            (*fn)(keel::ArrayRef<Value>(callArgs.data(), callArgs.size()), nargout, outs, ctx);
             return;
         }
         // Truncated random: inverse-CDF transform icdf_base(pl + (pu - pl) * rand(sz))
@@ -201,13 +202,13 @@ void dispatchDistStruct(const char *fnName, const char *suffix,
         const double pu = std::isinf(tHi) && tHi > 0.0
             ? 1.0 : evalDistStructBase(pd, "cdf", Value::scalar(tHi, mr), ctx).toScalar();
         const double Z = std::max(pu - pl, 0.0);
-        size_t rows = 1, cols = 1;
+        keel::usize rows = 1, cols = 1;
         parse_rng_size(args, 1, rows, cols, "random");
         Value u = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
         double *ud = u.doubleDataMut();
-        const size_t n = rows * cols;
+        const keel::usize n = rows * cols;
         auto &rng = ctx.engine->rng();
-        for (size_t i = 0; i < n; ++i)
+        for (keel::usize i = 0; i < n; ++i)
             ud[i] = pl + Z * rng.nextUniform();
         Value out = evalDistStructBase(pd, "inv", u, ctx);
         outs[0] = reshape_rng_nd(std::move(out), args, 1, mr, "random");
@@ -229,8 +230,8 @@ void dispatchDistStruct(const char *fnName, const char *suffix,
     if (sfx == "pdf") {
         Value out = evalDistStructBase(pd, "pdf", xVal, ctx);
         double *od = out.doubleDataMut();
-        const size_t n = out.numel();
-        for (size_t i = 0; i < n; ++i) {
+        const keel::usize n = out.numel();
+        for (keel::usize i = 0; i < n; ++i) {
             const double xi = xVal.elemAsDouble(i);
             if (xi < tLo || xi > tHi) od[i] = 0.0;
             else od[i] /= Z;
@@ -241,8 +242,8 @@ void dispatchDistStruct(const char *fnName, const char *suffix,
     if (sfx == "cdf") {
         Value out = evalDistStructBase(pd, "cdf", xVal, ctx);
         double *od = out.doubleDataMut();
-        const size_t n = out.numel();
-        for (size_t i = 0; i < n; ++i) {
+        const keel::usize n = out.numel();
+        for (keel::usize i = 0; i < n; ++i) {
             const double xi = xVal.elemAsDouble(i);
             if (xi <= tLo) od[i] = 0.0;
             else if (xi >= tHi) od[i] = 1.0;
@@ -254,8 +255,8 @@ void dispatchDistStruct(const char *fnName, const char *suffix,
     if (sfx == "inv") {
         Value pScaled = xVal.isEmpty() ? xVal
             : Value::matrix(xVal.dims().rows(), xVal.dims().cols(), ValueType::DOUBLE, mr);
-        const size_t n = xVal.numel();
-        for (size_t i = 0; i < n; ++i) {
+        const keel::usize n = xVal.numel();
+        for (keel::usize i = 0; i < n; ++i) {
             const double pi = xVal.elemAsDouble(i);
             pScaled.doubleDataMut()[i] = (pi < 0.0 || pi > 1.0)
                 ? std::numeric_limits<double>::quiet_NaN()
@@ -270,7 +271,7 @@ void dispatchDistStruct(const char *fnName, const char *suffix,
 // Resolve the distribution name in args[0], forward args[1..] to the family
 // builtin <prefix><suffix> (cdf/pdf/inv/rnd) found via the engine.
 void dispatchDist(const char *fnName, const char *suffix,
-                  Span<const Value> args, size_t nargout, Span<Value> outs,
+                  keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs,
                   CallContext &ctx)
 {
     if (!args.empty() && isDistStruct(args[0])) {
@@ -301,19 +302,19 @@ void dispatchDist(const char *fnName, const char *suffix,
     if (it->second == "norm" && std::string(suffix) != "rnd" && args.size() < 4) {
         std::vector<Value> padded(args.begin() + 1, args.end());
         while (padded.size() < 3)
-            padded.push_back(Value::scalar(0.0, ctx.engine->resource()));
-        (*target_fn)(Span<const Value>(padded.data(), padded.size()), nargout, outs, ctx);
+            padded.push_back(Value::scalar(0.0, ctx.engine->allocator()));
+        (*target_fn)(keel::ArrayRef<Value>(padded.data(), padded.size()), nargout, outs, ctx);
         return;
     }
-    (*target_fn)(args.subspan(1), nargout, outs, ctx);
+    (*target_fn)(args.slice(1), nargout, outs, ctx);
 }
 
 } // namespace
 
-void makedist_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void makedist_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "makedist");
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     if (!args[0].isChar() && !args[0].isString())
         throw Error("makedist: first argument must be a distribution name",
                     0, 0, "makedist", "", "numkit:makedist:name");
@@ -358,7 +359,7 @@ void makedist_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
 
     if (args.size() > 1) {
         if (args[1].isChar() || args[1].isString()) {
-            for (size_t i = 1; i + 1 < args.size(); i += 2) {
+            for (keel::usize i = 1; i + 1 < args.size(); i += 2) {
                 const std::string k = toLowerStr(args[i].toString());
                 const double val = args[i + 1].toScalar();
                 if (k == toLowerStr(n1) || k == "p1") p1 = val;
@@ -387,13 +388,13 @@ void makedist_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     outs[0] = std::move(pd);
 }
 
-void truncate_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void truncate_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 3, 3, "truncate");
     if (!isDistStruct(args[0]))
         throw Error("truncate: first argument must be a probability distribution object",
                     0, 0, "truncate", "", "numkit:truncate:pd");
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     const double lo = args[1].toScalar();
     const double hi = args[2].toScalar();
     if (!(lo < hi))
@@ -406,25 +407,25 @@ void truncate_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     outs[0] = std::move(pd);
 }
 
-void cdf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+void cdf_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "cdf");  // no max: name-value tail in the reference
     dispatchDist("cdf", "cdf", args, nargout, outs, ctx);
 }
 
-void pdf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+void pdf_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "pdf");  // no max: name-value tail in the reference
     dispatchDist("pdf", "pdf", args, nargout, outs, ctx);
 }
 
-void icdf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+void icdf_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "icdf");  // no max: name-value tail in the reference
     dispatchDist("icdf", "inv", args, nargout, outs, ctx);
 }
 
-void random_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+void random_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "random");  // no max: name-value tail in the reference
     dispatchDist("random", "rnd", args, nargout, outs, ctx);

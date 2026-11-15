@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <memory_resource>
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
 #include <tuple>
@@ -31,8 +32,8 @@ namespace numkit::stats {
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Array of pdf values, same shape as `x`.
 /// @see nakacdf, nakainv, nakarnd, nakastat
-Value nakapdf(const Value &x, double mu, double omega,
-              std::pmr::memory_resource *mr = nullptr);
+Value nakapdf(const Value &x, keel::f64 mu, keel::f64 omega,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Nakagami cdf (`p = nakacdf(x, mu, omega)`).
 ///
@@ -45,8 +46,8 @@ Value nakapdf(const Value &x, double mu, double omega,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Array of cdf values in `[0, 1]`.
 /// @see nakapdf, nakainv
-Value nakacdf(const Value &x, double mu, double omega,
-              std::pmr::memory_resource *mr = nullptr);
+Value nakacdf(const Value &x, keel::f64 mu, keel::f64 omega,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Nakagami inverse cdf (`x = nakainv(p, mu, omega)`).
 ///
@@ -56,8 +57,8 @@ Value nakacdf(const Value &x, double mu, double omega,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Quantile array, same shape as `p`.
 /// @see nakacdf
-Value nakainv(const Value &p, double mu, double omega,
-              std::pmr::memory_resource *mr = nullptr);
+Value nakainv(const Value &p, keel::f64 mu, keel::f64 omega,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Nakagami random samples (`r = nakarnd(mu, omega, rows, cols)`).
 ///
@@ -70,8 +71,8 @@ Value nakainv(const Value &p, double mu, double omega,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `rows × cols` matrix of Nakagami samples.
 /// @see nakapdf
-Value nakarnd(::numkit::ops::RngContext &rng, double mu, double omega, size_t rows = 1, size_t cols = 1,
-              std::pmr::memory_resource *mr = nullptr);
+Value nakarnd(::numkit::ops::RngContext &rng, keel::f64 mu, keel::f64 omega, keel::usize rows = 1, keel::usize cols = 1,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Nakagami mean and variance (`[m, v] = nakastat(mu, omega)`).
 ///
@@ -83,7 +84,7 @@ Value nakarnd(::numkit::ops::RngContext &rng, double mu, double omega, size_t ro
 /// @param omega  Spread parameter.
 /// @return       `{mean, variance}` pair.
 /// @see nakapdf
-std::tuple<double, double> nakastat(double mu, double omega);
+std::tuple<keel::f64, keel::f64> nakastat(keel::f64 mu, keel::f64 omega);
 
 
 /// @}

@@ -7,8 +7,9 @@
 
 #pragma once
 
-#include <memory_resource>
-#include <numkit/value/span.hpp>
+#include <keel/core.h>
+#include <keel/memory.h>
+#include <keel/ref.h>
 #include <numkit/value/value.hpp>
 
 #include <string>
@@ -38,7 +39,7 @@ namespace numkit::stats {
 ///
 /// @see cluster_from_linkage, cophenet, inconsistent
 Value linkage(const Value &Y, const std::string &method,
-              std::pmr::memory_resource *mr = nullptr);
+              keel::Allocator *mr = nullptr);
 
 /// @brief 4-arg overload: when `Y` is a raw N×D data matrix,
 /// computes `pdist(Y, metric, p)` internally before linkage.
@@ -51,8 +52,8 @@ Value linkage(const Value &Y, const std::string &method,
 /// @return        (N−1)×3 linkage table.
 /// @see linkage
 Value linkage(const Value &Y, const std::string &method,
-              const std::string &metric, double p,
-              std::pmr::memory_resource *mr = nullptr);
+              const std::string &metric, keel::f64 p,
+              keel::Allocator *mr = nullptr);
 
 /// Flatten a linkage tree into cluster labels
 /// (`T = cluster(Z, opts)`).
@@ -65,9 +66,9 @@ Value linkage(const Value &Y, const std::string &method,
 /// @param criterion  `"inconsistent"` (default) or `"distance"`.
 /// @param mr         Memory resource (nullptr → process default).
 /// @return           N×1 column of 1-based cluster labels.
-Value cluster_from_linkage(const Value &Z, int maxclust, double cutoff,
+Value cluster_from_linkage(const Value &Z, int maxclust, keel::f64 cutoff,
                            const std::string &criterion,
-                           std::pmr::memory_resource *mr = nullptr);
+                           keel::Allocator *mr = nullptr);
 
 /// @brief 5-arg overload of @ref cluster_from_linkage with explicit
 /// inconsistency `depth`.
@@ -80,9 +81,9 @@ Value cluster_from_linkage(const Value &Z, int maxclust, double cutoff,
 /// @param mr         Memory resource (nullptr → process default).
 /// @return           N×1 column of 1-based cluster labels.
 /// @see cluster_from_linkage, inconsistent
-Value cluster_from_linkage(const Value &Z, int maxclust, double cutoff,
+Value cluster_from_linkage(const Value &Z, int maxclust, keel::f64 cutoff,
                            const std::string &criterion, int depth,
-                           std::pmr::memory_resource *mr = nullptr);
+                           keel::Allocator *mr = nullptr);
 
 /// Convenience: pdist + linkage + cluster in one call (`clusterdata`).
 ///
@@ -93,10 +94,10 @@ Value cluster_from_linkage(const Value &Z, int maxclust, double cutoff,
 /// @param criterion        Threshold criterion.
 /// @param mr               Memory resource (nullptr → process default).
 /// @return                 N×1 cluster labels.
-Value clusterdata(const Value &X, int maxclust, double cutoff,
+Value clusterdata(const Value &X, int maxclust, keel::f64 cutoff,
                   const std::string &linkage_method,
                   const std::string &criterion,
-                  std::pmr::memory_resource *mr = nullptr);
+                  keel::Allocator *mr = nullptr);
 
 /// @brief 6-arg @ref clusterdata overload: explicit inconsistency
 /// depth.
@@ -110,10 +111,10 @@ Value clusterdata(const Value &X, int maxclust, double cutoff,
 /// @param mr               Memory resource (nullptr → process default).
 /// @return                 N×1 cluster labels.
 /// @see clusterdata
-Value clusterdata(const Value &X, int maxclust, double cutoff,
+Value clusterdata(const Value &X, int maxclust, keel::f64 cutoff,
                   const std::string &linkage_method,
                   const std::string &criterion, int depth,
-                  std::pmr::memory_resource *mr = nullptr);
+                  keel::Allocator *mr = nullptr);
 
 /// @brief 8-arg @ref clusterdata overload: explicit depth + custom
 /// distance metric.
@@ -129,11 +130,11 @@ Value clusterdata(const Value &X, int maxclust, double cutoff,
 /// @param mr               Memory resource (nullptr → process default).
 /// @return                 N×1 cluster labels.
 /// @see clusterdata
-Value clusterdata(const Value &X, int maxclust, double cutoff,
+Value clusterdata(const Value &X, int maxclust, keel::f64 cutoff,
                   const std::string &linkage_method,
                   const std::string &criterion, int depth,
-                  const std::string &distance_metric, double p,
-                  std::pmr::memory_resource *mr = nullptr);
+                  const std::string &distance_metric, keel::f64 p,
+                  keel::Allocator *mr = nullptr);
 
 /// @brief Cophenetic correlation (`c = cophenet(Z, Y)`).
 ///
@@ -147,7 +148,7 @@ Value clusterdata(const Value &X, int maxclust, double cutoff,
 /// @return    Scalar correlation in `[-1, 1]`.
 /// @see linkage
 Value cophenet(const Value &Z, const Value &Y,
-               std::pmr::memory_resource *mr = nullptr);
+               keel::Allocator *mr = nullptr);
 
 /// @brief Inconsistency coefficient table
 /// (`R = inconsistent(Z, depth)`).
@@ -163,19 +164,19 @@ Value cophenet(const Value &Z, const Value &Y,
 /// @return       (N−1)×4 inconsistency table.
 /// @see cluster_from_linkage
 Value inconsistent(const Value &Z, int depth,
-                   std::pmr::memory_resource *mr = nullptr);
+                   keel::Allocator *mr = nullptr);
 
 /// @brief Full `linkage` entry — the METHOD/metric/p tail with the
 /// probed getParamVal classes (R2025b probe77 L04).
-Value linkage_full(const Value &Y, Span<const Value> tail,
-                   std::pmr::memory_resource *mr = nullptr);
+Value linkage_full(const Value &Y, keel::ArrayRef<Value> tail,
+                   keel::Allocator *mr = nullptr);
 /// @brief Full `cluster` entry — the MaxClust/Cutoff/Criterion/Depth
 /// NV contract with the probed value-list class (probe77 L09).
-Value cluster_full(const Value &Z, Span<const Value> tail,
-                   std::pmr::memory_resource *mr = nullptr);
+Value cluster_full(const Value &Z, keel::ArrayRef<Value> tail,
+                   keel::Allocator *mr = nullptr);
 /// @brief Full `inconsistent` entry — the positive-integer depth gate.
-Value inconsistent_full(const Value &Z, Span<const Value> tail,
-                        std::pmr::memory_resource *mr = nullptr);
+Value inconsistent_full(const Value &Z, keel::ArrayRef<Value> tail,
+                        keel::Allocator *mr = nullptr);
 
 
 /// @}

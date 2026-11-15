@@ -3,24 +3,22 @@
 // CallContext register half of distributions/multivariate.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
+#include <keel/core.h>
+#include <keel/ref.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/builtin/datafun.hpp>  // RngContext + rand/randn/randi/randperm (session-scoped, no global/mutex)
 #include <numkit/builtin/specfun.hpp>  // betainc (used by mvtcdf d=1)
 #include <numkit/stats/distributions/multivariate.hpp>
 #include <numkit/value/argcheck.hpp>
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
 #include <numkit/value/value.hpp>
 #include "distributions/dist_helpers.hpp"
 #include "distributions/multivariate_detail.hpp"
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <complex>
 #include <cstddef>
 #include <string>
 #include <tuple>
@@ -31,17 +29,17 @@ namespace numkit::stats {
 
 namespace detail {
 
-void mvncdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void mvncdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "mvncdf");  // no max: options-struct tail in the reference
     // Marshalling only — the positional forms (X[, mu[, Sigma]] and the
     // box (xl, xu, mu, Sigma)), the options-struct strip and every
     // shape/PSD gate live in mvncdf_full.
-    outs[0] = mvncdf_full(args, ctx.engine->resource());
+    outs[0] = mvncdf_full(args, ctx.engine->allocator());
 }
 
-void mvnrnd_reg(Span<const Value> args, size_t nargout,
-                Span<Value> outs, CallContext &ctx)
+void mvnrnd_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 4, "mvnrnd");
     // cases: extract a validated integer count (fractional / NaN /
@@ -54,16 +52,16 @@ void mvnrnd_reg(Span<const Value> args, size_t nargout,
             throw Error("mvnrnd: n must be a real integer scalar (got "
                         + std::to_string(n) + ").",
                         0, 0, "mvnrnd", "", "numkit:mvnrnd:badCases");
-        cases = Value::scalar(n, ctx.engine->resource());
+        cases = Value::scalar(n, ctx.engine->allocator());
     }
     auto r = mvnrnd_full(ctx.engine->rng(), args[0], args[1], cases,
-                         nargout >= 2, ctx.engine->resource());
+                         nargout >= 2, ctx.engine->allocator());
     outs[0] = std::move(r.r);
     if (nargout >= 2) outs[1] = std::move(r.T);
 }
 
-void mvtrnd_reg(Span<const Value> args, size_t /*nargout*/,
-                Span<Value> outs, CallContext &ctx)
+void mvtrnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
+                keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 3, "mvtrnd");
     Value cases;
@@ -73,49 +71,49 @@ void mvtrnd_reg(Span<const Value> args, size_t /*nargout*/,
             throw Error("mvtrnd: cases must be a real integer scalar (got "
                         + std::to_string(n) + ").",
                         0, 0, "mvtrnd", "", "numkit:mvtrnd:badCases");
-        cases = Value::scalar(n, ctx.engine->resource());
+        cases = Value::scalar(n, ctx.engine->allocator());
     }
     outs[0] = mvtrnd_full(ctx.engine->rng(), args[0], args[1], cases,
-                          ctx.engine->resource());
+                          ctx.engine->allocator());
 }
 
-void mnrnd_reg(Span<const Value> args, size_t /*nargout*/,
-               Span<Value> outs, CallContext &ctx)
+void mnrnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
+               keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 3, "mnrnd");
-    const std::size_t N = argcheck::roundLength(args[0], 1, "N", "mnrnd");
-    std::size_t m = 1;
+    const keel::usize N = argcheck::roundLength(args[0], 1, "N", "mnrnd");
+    keel::usize m = 1;
     if (args.size() >= 3 && !args[2].isEmpty())
         m = argcheck::arrayDim(args[2], "mnrnd");
-    outs[0] = mnrnd(ctx.engine->rng(), N, args[1], m, ctx.engine->resource());
+    outs[0] = mnrnd(ctx.engine->rng(), N, args[1], m, ctx.engine->allocator());
 }
 
-void wishrnd_reg(Span<const Value> args, size_t nargout,
-                 Span<Value> outs, CallContext &ctx)
+void wishrnd_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                 keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 3, "wishrnd");
     const double df = args[1].toScalar();
     const Value D_in = (args.size() > 2) ? args[2] : Value::Empty;
-    auto [W, D] = wishrnd_factor(ctx.engine->rng(), args[0], df, D_in, ctx.engine->resource());
+    auto [W, D] = wishrnd_factor(ctx.engine->rng(), args[0], df, D_in, ctx.engine->allocator());
     outs[0] = std::move(W);
     if (nargout >= 2) outs[1] = std::move(D);
 }
 
-void iwishrnd_reg(Span<const Value> args, size_t nargout,
-                  Span<Value> outs, CallContext &ctx)
+void iwishrnd_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                  keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 3, "iwishrnd");
     const double df = args[1].toScalar();
     const Value DI_in = (args.size() > 2) ? args[2] : Value::Empty;
-    auto [W, DI] = iwishrnd_factor(ctx.engine->rng(), args[0], df, DI_in, ctx.engine->resource());
+    auto [W, DI] = iwishrnd_factor(ctx.engine->rng(), args[0], df, DI_in, ctx.engine->allocator());
     outs[0] = std::move(W);
     if (nargout >= 2) outs[1] = std::move(DI);
 }
 
-void mvtcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void mvtcdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "mvtcdf");  // no max: name-value tail in the reference
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     // 3 args: mvtcdf(X, C, df) — upper-tail form.
     // 4 args: mvtcdf(L, U, C, df) — box form.
     // 5 args: mvtcdf(L, U, C, df, tol) — box form with tolerance.

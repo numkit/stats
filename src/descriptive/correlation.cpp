@@ -50,19 +50,23 @@
 //     poison their columns through the regression (all = reference);
 //   * single inputs produce single outputs (P14).
 
+#include <keel/core.h>
+#include <keel/memory.h>
+#include <keel/ref.h>
+#include <keel/arena.h>
+#include <keel/array.h>
+#include <keel/complex.h>
+#include <keel/math.h>
 #include <numkit/stats/descriptive/descriptive.hpp>
 #include "descriptive/descriptive_extras_detail.hpp"
 
 #include <numkit/stats/distributions/students_t.hpp>   // tcdf
 #include <numkit/value/argcheck.hpp>
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
 #include <numkit/value/value.hpp>
 
 #include <algorithm>
 #include <cmath>
-#include <complex>
 #include <cstddef>
 #include <limits>
 #include <string>
@@ -93,9 +97,9 @@ CorrTail parseTailChoice(const Value &v, std::string_view fn)
 {
     static constexpr std::string_view kTail[] = {"left", "both", "right"};
     static constexpr std::string_view kAlias[] = {"lt", "ne", "gt"};
-    int m = argcheck::matchStringChoice(v, Span<const std::string_view>(kTail));
+    int m = argcheck::matchStringChoice(v, keel::ArrayRef<std::string_view>(kTail));
     if (m >= 0) return static_cast<CorrTail>(m);
-    m = argcheck::matchStringChoice(v, Span<const std::string_view>(kAlias));
+    m = argcheck::matchStringChoice(v, keel::ArrayRef<std::string_view>(kAlias));
     if (m >= 0) return static_cast<CorrTail>(m);
     throw Error(std::string(fn) + ": Tail must be 'left', 'both', or 'right' "
                 "(aliases 'lt', 'ne', 'gt'), got '" + v.toString() + "'.",
@@ -108,32 +112,32 @@ CorrTail parseTailChoice(const Value &v, std::string_view fn)
 // Replace each column of X (n×p) with its tied (average) ranks, or weighted
 // midranks when wts is non-null.
 Value rankColumnsWeighted(const Value &X, const Value *wts,
-                          std::pmr::memory_resource *mr)
+                          keel::Allocator *mr)
 {
     if (!wts) return tiedrank(X, mr).first;
-    const std::size_t n = static_cast<std::size_t>(X.dims().dim(0));
-    const std::size_t p = (X.dims().ndim() >= 2)
-                            ? static_cast<std::size_t>(X.dims().dim(1)) : 1;
+    const keel::usize n = static_cast<keel::usize>(X.dims().dim(0));
+    const keel::usize p = (X.dims().ndim() >= 2)
+                            ? static_cast<keel::usize>(X.dims().dim(1)) : 1;
     Value R = Value::matrix(n, p, ValueType::DOUBLE, mr);
     double *rd = R.doubleDataMut();
-    ScratchArena scratch(mr);
-    for (std::size_t c = 0; c < p; ++c) {
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    for (keel::usize c = 0; c < p; ++c) {
         bool hasNaN = false;
-        for (std::size_t i = 0; i < n; ++i)
+        for (keel::usize i = 0; i < n; ++i)
             if (std::isnan(X.elemAsDouble(i + c * n))) { hasNaN = true; break; }
         if (hasNaN) {
-            for (std::size_t i = 0; i < n; ++i) rd[i + c * n] = kNaN;
+            for (keel::usize i = 0; i < n; ++i) rd[i + c * n] = kNaN;
             continue;
         }
-        ScratchVec<std::size_t> idx(n, static_cast<std::size_t>(0), &scratch);
-        for (std::size_t i = 0; i < n; ++i) idx[i] = i;
-        std::stable_sort(idx.begin(), idx.end(), [&](std::size_t a, std::size_t b) {
+        keel::Array<keel::usize> idx(n, static_cast<keel::usize>(0), scratch.allocator());
+        for (keel::usize i = 0; i < n; ++i) idx[i] = i;
+        std::stable_sort(idx.begin(), idx.end(), [&](keel::usize a, keel::usize b) {
             return X.elemAsDouble(a + c * n) < X.elemAsDouble(b + c * n);
         });
         double wPrev = 0.0;
-        std::size_t i = 0;
+        keel::usize i = 0;
         while (i < n) {
-            std::size_t j = i;
+            keel::usize j = i;
             const double v = X.elemAsDouble(idx[i] + c * n);
             double wGroup = wts->elemAsDouble(idx[i]);
             while (j + 1 < n && X.elemAsDouble(idx[j + 1] + c * n) == v) {
@@ -141,7 +145,7 @@ Value rankColumnsWeighted(const Value &X, const Value *wts,
                 wGroup += wts->elemAsDouble(idx[j]);
             }
             const double avg = wPrev + 0.5 * (1.0 + wGroup);
-            for (std::size_t k = i; k <= j; ++k) rd[idx[k] + c * n] = avg;
+            for (keel::usize k = i; k <= j; ++k) rd[idx[k] + c * n] = avg;
             wPrev += wGroup;
             i = j + 1;
         }
@@ -151,17 +155,17 @@ Value rankColumnsWeighted(const Value &X, const Value *wts,
 
 // Kendall tau-b between column ci of X and column cj of Y (length n),
 // with optional nonnegative observation weights wts.
-double kendallTauB(const Value &X, std::size_t ci,
-                   const Value &Y, std::size_t cj, std::size_t n,
+double kendallTauB(const Value &X, keel::usize ci,
+                   const Value &Y, keel::usize cj, keel::usize n,
                    const Value *wts = nullptr)
 {
     double s = 0.0, n0 = 0.0, n1 = 0.0, n2 = 0.0;
-    for (std::size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const double ai = X.elemAsDouble(i + ci * n);
         const double bi = Y.elemAsDouble(i + cj * n);
         if (std::isnan(ai) || std::isnan(bi)) return kNaN;
         const double wi = wts ? wts->elemAsDouble(i) : 1.0;
-        for (std::size_t j = i + 1; j < n; ++j) {
+        for (keel::usize j = i + 1; j < n; ++j) {
             const double aj = X.elemAsDouble(j + ci * n);
             const double bj = Y.elemAsDouble(j + cj * n);
             if (std::isnan(aj) || std::isnan(bj)) return kNaN;
@@ -186,39 +190,39 @@ double kendallTauB(const Value &X, std::size_t ci,
 
 // p×q matrix of Kendall tau-b for every column pair of X (n×p), Y (n×q).
 Value kendallMatrix(const Value &X, const Value &Y, const Value *wts,
-                    std::pmr::memory_resource *mr)
+                    keel::Allocator *mr)
 {
-    const std::size_t n = static_cast<std::size_t>(X.dims().dim(0));
-    const std::size_t p = (X.dims().ndim() >= 2)
-                            ? static_cast<std::size_t>(X.dims().dim(1)) : 1;
-    if (static_cast<std::size_t>(Y.dims().dim(0)) != n)
+    const keel::usize n = static_cast<keel::usize>(X.dims().dim(0));
+    const keel::usize p = (X.dims().ndim() >= 2)
+                            ? static_cast<keel::usize>(X.dims().dim(1)) : 1;
+    if (static_cast<keel::usize>(Y.dims().dim(0)) != n)
         throw Error("corr: X and Y must have the same number of rows",
                     0, 0, "corr", "", "numkit:corr:rows");
-    const std::size_t q = (Y.dims().ndim() >= 2)
-                            ? static_cast<std::size_t>(Y.dims().dim(1)) : 1;
+    const keel::usize q = (Y.dims().ndim() >= 2)
+                            ? static_cast<keel::usize>(Y.dims().dim(1)) : 1;
     Value out = Value::matrix(p, q, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
-    for (std::size_t j = 0; j < q; ++j)
-        for (std::size_t i = 0; i < p; ++i)
+    for (keel::usize j = 0; j < q; ++j)
+        for (keel::usize i = 0; i < p; ++i)
             od[i + j * p] = kendallTauB(X, i, Y, j, n, wts);
     return out;
 }
 
 // ── row prep ──────────────────────────────────────────────────────────
 
-std::size_t corrRowsOf(const Value &X)
+keel::usize corrRowsOf(const Value &X)
 {
-    return static_cast<std::size_t>(X.dims().dim(0));
+    return static_cast<keel::usize>(X.dims().dim(0));
 }
-std::size_t corrColsOf(const Value &X)
+keel::usize corrColsOf(const Value &X)
 {
-    return (X.dims().ndim() >= 2) ? static_cast<std::size_t>(X.dims().dim(1)) : 1;
+    return (X.dims().ndim() >= 2) ? static_cast<keel::usize>(X.dims().dim(1)) : 1;
 }
 
-bool elemIsNaN(const Value &V, std::size_t idx)
+bool elemIsNaN(const Value &V, keel::usize idx)
 {
     if (V.type() == ValueType::COMPLEX) {
-        const Complex c = V.complexData()[idx];
+        const keel::c64 c = V.complexData()[idx];
         return std::isnan(c.real()) || std::isnan(c.imag());
     }
     return std::isnan(V.elemAsDouble(idx));
@@ -227,46 +231,46 @@ bool elemIsNaN(const Value &V, std::size_t idx)
 // Gather X (and Y, sharing the row index) keeping only rows where keep
 // is true; weights filtered alongside. keep has n entries.
 void gatherRows(const Value &X, const Value *Y, const Value *wts,
-                const std::vector<uint8_t> &keep, std::pmr::memory_resource *mr,
+                const std::vector<keel::u8> &keep, keel::Allocator *mr,
                 Value &Xo, Value *Yo, Value &wo)
 {
-    const std::size_t n = corrRowsOf(X);
-    const std::size_t pX = corrColsOf(X);
-    const std::size_t pY = Y ? corrColsOf(*Y) : 0;
-    const std::size_t m = static_cast<std::size_t>(
+    const keel::usize n = corrRowsOf(X);
+    const keel::usize pX = corrColsOf(X);
+    const keel::usize pY = Y ? corrColsOf(*Y) : 0;
+    const keel::usize m = static_cast<keel::usize>(
         std::count(keep.begin(), keep.end(), 1));
     if (X.type() == ValueType::COMPLEX) {
         Xo = Value::matrix(m, pX, ValueType::COMPLEX, mr);
-        Complex *xo = Xo.complexDataMut();
-        for (std::size_t c = 0; c < pX; ++c)
-            for (std::size_t r = 0, w = 0; r < n; ++r)
+        keel::c64 *xo = Xo.complexDataMut();
+        for (keel::usize c = 0; c < pX; ++c)
+            for (keel::usize r = 0, w = 0; r < n; ++r)
                 if (keep[r]) xo[w++ + c * m] = X.complexData()[r + c * n];
     } else {
         Xo = Value::matrix(m, pX, ValueType::DOUBLE, mr);
         double *xo = Xo.doubleDataMut();
-        for (std::size_t c = 0; c < pX; ++c)
-            for (std::size_t r = 0, w = 0; r < n; ++r)
+        for (keel::usize c = 0; c < pX; ++c)
+            for (keel::usize r = 0, w = 0; r < n; ++r)
                 if (keep[r]) xo[w++ + c * m] = X.elemAsDouble(r + c * n);
     }
     if (Y && Yo) {
         if (Y->type() == ValueType::COMPLEX) {
             *Yo = Value::matrix(m, pY, ValueType::COMPLEX, mr);
-            Complex *yo = Yo->complexDataMut();
-            for (std::size_t c = 0; c < pY; ++c)
-                for (std::size_t r = 0, w = 0; r < n; ++r)
+            keel::c64 *yo = Yo->complexDataMut();
+            for (keel::usize c = 0; c < pY; ++c)
+                for (keel::usize r = 0, w = 0; r < n; ++r)
                     if (keep[r]) yo[w++ + c * m] = Y->complexData()[r + c * n];
         } else {
             *Yo = Value::matrix(m, pY, ValueType::DOUBLE, mr);
             double *yo = Yo->doubleDataMut();
-            for (std::size_t c = 0; c < pY; ++c)
-                for (std::size_t r = 0, w = 0; r < n; ++r)
+            for (keel::usize c = 0; c < pY; ++c)
+                for (keel::usize r = 0, w = 0; r < n; ++r)
                     if (keep[r]) yo[w++ + c * m] = Y->elemAsDouble(r + c * n);
         }
     }
     if (wts) {
         wo = Value::matrix(m, 1, ValueType::DOUBLE, mr);
         double *wd = wo.doubleDataMut();
-        for (std::size_t r = 0, w = 0; r < n; ++r)
+        for (keel::usize r = 0, w = 0; r < n; ++r)
             if (keep[r]) wd[w++] = wts->elemAsDouble(r);
     }
 }
@@ -275,18 +279,18 @@ void gatherRows(const Value &X, const Value *Y, const Value *wts,
 // of X (and Y, and no NaN weight — 'complete' turns zero weights into NaN
 // so they drop here as well, exactly like the reference).
 void dropCompleteRows(const Value &X, const Value *Y, const Value *wts,
-                      std::pmr::memory_resource *mr,
+                      keel::Allocator *mr,
                       Value &Xo, Value *Yo, Value &wo)
 {
-    const std::size_t n = corrRowsOf(X);
-    const std::size_t pX = corrColsOf(X);
-    const std::size_t pY = Y ? corrColsOf(*Y) : 0;
-    std::vector<uint8_t> keep(n, 1);
-    for (std::size_t r = 0; r < n; ++r) {
-        for (std::size_t c = 0; c < pX && keep[r]; ++c)
+    const keel::usize n = corrRowsOf(X);
+    const keel::usize pX = corrColsOf(X);
+    const keel::usize pY = Y ? corrColsOf(*Y) : 0;
+    std::vector<keel::u8> keep(n, 1);
+    for (keel::usize r = 0; r < n; ++r) {
+        for (keel::usize c = 0; c < pX && keep[r]; ++c)
             if (elemIsNaN(X, r + c * n)) keep[r] = 0;
         if (Y)
-            for (std::size_t c = 0; c < pY && keep[r]; ++c)
+            for (keel::usize c = 0; c < pY && keep[r]; ++c)
                 if (elemIsNaN(*Y, r + c * n)) keep[r] = 0;
         if (wts && keep[r] && !(wts->elemAsDouble(r) > 0.0)) keep[r] = 0;
     }
@@ -301,76 +305,76 @@ void dropCompleteRows(const Value &X, const Value *Y, const Value *wts,
 // (x' * y in reference notation) and the output is complex.
 Value pearsonMatrixFull(const Value &X, const Value &Y, const Value *wts,
                         bool corrXX, bool complexData,
-                        std::pmr::memory_resource *mr)
+                        keel::Allocator *mr)
 {
-    const std::size_t n = corrRowsOf(X);
-    const std::size_t p = corrColsOf(X);
-    const std::size_t q = corrColsOf(Y);
+    const keel::usize n = corrRowsOf(X);
+    const keel::usize p = corrColsOf(X);
+    const keel::usize q = corrColsOf(Y);
     const bool weighted = (wts != nullptr);
-    auto wOf = [&](std::size_t k) {
+    auto wOf = [&](keel::usize k) {
         return weighted ? wts->elemAsDouble(k) : 1.0;
     };
-    auto readX = [&](std::size_t k, std::size_t c) {
+    auto readX = [&](keel::usize k, keel::usize c) {
         if (X.type() == ValueType::COMPLEX)
-            return std::complex<double>(X.complexData()[k + c * n]);
-        return std::complex<double>(X.elemAsDouble(k + c * n), 0.0);
+            return keel::c64(X.complexData()[k + c * n]);
+        return keel::c64(X.elemAsDouble(k + c * n), 0.0);
     };
-    auto readY = [&](std::size_t k, std::size_t c) {
+    auto readY = [&](keel::usize k, keel::usize c) {
         if (Y.type() == ValueType::COMPLEX)
-            return std::complex<double>(Y.complexData()[k + c * n]);
-        return std::complex<double>(Y.elemAsDouble(k + c * n), 0.0);
+            return keel::c64(Y.complexData()[k + c * n]);
+        return keel::c64(Y.elemAsDouble(k + c * n), 0.0);
     };
 
     // Weighted (or plain) column means; then the centered columns scaled
     // by sqrt(w).
-    std::vector<std::complex<double>> mx(p), my(q);
+    std::vector<keel::c64> mx(p), my(q);
     std::vector<double> sw(1, 0.0);
     if (weighted) {
         double s = 0.0;
-        for (std::size_t k = 0; k < n; ++k) s += wOf(k);
+        for (keel::usize k = 0; k < n; ++k) s += wOf(k);
         sw[0] = s;
     } else {
         sw[0] = static_cast<double>(n);
     }
-    for (std::size_t c = 0; c < p; ++c) {
-        std::complex<double> s(0.0, 0.0);
-        for (std::size_t k = 0; k < n; ++k) s += wOf(k) * readX(k, c);
+    for (keel::usize c = 0; c < p; ++c) {
+        keel::c64 s(0.0, 0.0);
+        for (keel::usize k = 0; k < n; ++k) s += wOf(k) * readX(k, c);
         mx[c] = s / sw[0];
     }
-    for (std::size_t c = 0; c < q; ++c) {
-        std::complex<double> s(0.0, 0.0);
-        for (std::size_t k = 0; k < n; ++k) s += wOf(k) * readY(k, c);
+    for (keel::usize c = 0; c < q; ++c) {
+        keel::c64 s(0.0, 0.0);
+        for (keel::usize k = 0; k < n; ++k) s += wOf(k) * readY(k, c);
         my[c] = s / sw[0];
     }
     // coef(i,j) = (Σ conj(x̃) ỹ) / (|x̃| |ỹ|), x̃ = (x-mx)·sqrt(w).
     Value out = complexData ? Value::matrix(p, q, ValueType::COMPLEX, mr)
                             : Value::matrix(p, q, ValueType::DOUBLE, mr);
     std::vector<double> nx(p), ny(q);
-    for (std::size_t i = 0; i < p; ++i) {
+    for (keel::usize i = 0; i < p; ++i) {
         double s = 0.0;
-        for (std::size_t k = 0; k < n; ++k) {
+        for (keel::usize k = 0; k < n; ++k) {
             const auto d = (readX(k, i) - mx[i]) * std::sqrt(wOf(k));
-            s += std::norm(d);
+            s += keel::norm(d);
         }
         nx[i] = std::sqrt(s);
     }
-    for (std::size_t j = 0; j < q; ++j) {
+    for (keel::usize j = 0; j < q; ++j) {
         double s = 0.0;
-        for (std::size_t k = 0; k < n; ++k) {
+        for (keel::usize k = 0; k < n; ++k) {
             const auto d = (readY(k, j) - my[j]) * std::sqrt(wOf(k));
-            s += std::norm(d);
+            s += keel::norm(d);
         }
         ny[j] = std::sqrt(s);
     }
-    for (std::size_t j = 0; j < q; ++j)
-        for (std::size_t i = 0; i < p; ++i) {
-            std::complex<double> s(0.0, 0.0);
-            for (std::size_t k = 0; k < n; ++k)
-                s += std::conj((readX(k, i) - mx[i]) * std::sqrt(wOf(k)))
+    for (keel::usize j = 0; j < q; ++j)
+        for (keel::usize i = 0; i < p; ++i) {
+            keel::c64 s(0.0, 0.0);
+            for (keel::usize k = 0; k < n; ++k)
+                s += keel::conj((readX(k, i) - mx[i]) * std::sqrt(wOf(k)))
                      * ((readY(k, j) - my[j]) * std::sqrt(wOf(k)));
-            const std::complex<double> c = s / (nx[i] * ny[j]);
+            const keel::c64 c = s / (nx[i] * ny[j]);
             if (complexData) {
-                out.complexDataMut()[i + j * p] = Complex(c.real(), c.imag());
+                out.complexDataMut()[i + j * p] = keel::c64(c.real(), c.imag());
             } else {
                 out.doubleDataMut()[i + j * p] = c.real();
             }
@@ -379,25 +383,25 @@ Value pearsonMatrixFull(const Value &X, const Value &Y, const Value *wts,
     // diagonal becomes sign(diag) — for the complex path the diagonal is
     // x̃'x̃/|x̃|² = 1 exactly, and NaN columns stay NaN.
     if (complexData) {
-        Complex *od = out.complexDataMut();
-        for (std::size_t k = 0; k < p * q; ++k) {
-            const std::complex<double> c(od[k].real(), od[k].imag());
-            if (std::abs(c) > 1.0)
-                od[k] = Complex(c.real() / std::abs(c), c.imag() / std::abs(c));
+        keel::c64 *od = out.complexDataMut();
+        for (keel::usize k = 0; k < p * q; ++k) {
+            const keel::c64 c(od[k].real(), od[k].imag());
+            if (keel::abs(c) > 1.0)
+                od[k] = keel::c64(c.real() / keel::abs(c), c.imag() / keel::abs(c));
         }
         if (corrXX)
-            for (std::size_t i = 0; i < p; ++i) {
-                const std::complex<double> c(od[i + i * p].real(),
+            for (keel::usize i = 0; i < p; ++i) {
+                const keel::c64 c(od[i + i * p].real(),
                                              od[i + i * p].imag());
                 od[i + i * p] = std::isnan(c.real())
-                    ? Complex(kNaN, 0.0) : Complex(1.0, 0.0);
+                    ? keel::c64(kNaN, 0.0) : keel::c64(1.0, 0.0);
             }
     } else {
         double *od = out.doubleDataMut();
-        for (std::size_t k = 0; k < p * q; ++k)
+        for (keel::usize k = 0; k < p * q; ++k)
             if (std::fabs(od[k]) > 1.0) od[k] = od[k] / std::fabs(od[k]);
         if (corrXX)
-            for (std::size_t i = 0; i < p; ++i)
+            for (keel::usize i = 0; i < p; ++i)
                 od[i + i * p] = std::isnan(od[i + i * p])
                     ? od[i + i * p]
                     : (od[i + i * p] < 0.0 ? -1.0 : 1.0);
@@ -412,29 +416,29 @@ struct PairwisePearsonOut { Value coef, nij; };
 PairwisePearsonOut corrPairwisePearson(const Value &X, const Value &Y,
                                        const Value *wts, bool corrXX,
                                        bool complexData,
-                                       std::pmr::memory_resource *mr)
+                                       keel::Allocator *mr)
 {
-    const std::size_t n = corrRowsOf(X);
-    const std::size_t p = corrColsOf(X);
-    const std::size_t q = corrColsOf(Y);
+    const keel::usize n = corrRowsOf(X);
+    const keel::usize p = corrColsOf(X);
+    const keel::usize q = corrColsOf(Y);
     Value out = complexData ? Value::matrix(p, q, ValueType::COMPLEX, mr)
                             : Value::matrix(p, q, ValueType::DOUBLE, mr);
     Value nij = Value::matrix(p, q, ValueType::DOUBLE, mr);
     double *nd = nij.doubleDataMut();
 
-    auto readC = [](const Value &V, std::size_t idx) -> std::complex<double> {
+    auto readC = [](const Value &V, keel::usize idx) -> keel::c64 {
         if (V.type() == ValueType::COMPLEX)
-            return std::complex<double>(V.complexData()[idx]);
-        return std::complex<double>(V.elemAsDouble(idx), 0.0);
+            return keel::c64(V.complexData()[idx]);
+        return keel::c64(V.elemAsDouble(idx), 0.0);
     };
 
     // One (xi, yj) pair over the rows where both are non-NaN.
-    auto pairDot = [&](const Value &A, std::size_t ci,
-                       const Value &B, std::size_t cj) {
-        std::size_t m = 0;
+    auto pairDot = [&](const Value &A, keel::usize ci,
+                       const Value &B, keel::usize cj) {
+        keel::usize m = 0;
         double sw = 0.0;
-        std::complex<double> sai(0.0, 0.0), sbj(0.0, 0.0);
-        for (std::size_t k = 0; k < n; ++k) {
+        keel::c64 sai(0.0, 0.0), sbj(0.0, 0.0);
+        for (keel::usize k = 0; k < n; ++k) {
             if (elemIsNaN(A, k + ci * n) || elemIsNaN(B, k + cj * n)) continue;
             const auto a = readC(A, k + ci * n);
             const auto b = readC(B, k + cj * n);
@@ -443,59 +447,59 @@ PairwisePearsonOut corrPairwisePearson(const Value &X, const Value &Y,
             ++m;
         }
         nd[ci + cj * p] = static_cast<double>(m);
-        std::complex<double> rij(kNaN, 0.0);
+        keel::c64 rij(kNaN, 0.0);
         if (m >= 1 && sw > 0.0) {
             const auto ma = sai / sw, mb = sbj / sw;
-            std::complex<double> sab(0.0, 0.0);
+            keel::c64 sab(0.0, 0.0);
             double saa = 0.0, sbb = 0.0;
-            for (std::size_t k = 0; k < n; ++k) {
+            for (keel::usize k = 0; k < n; ++k) {
                 if (elemIsNaN(A, k + ci * n) || elemIsNaN(B, k + cj * n)) continue;
                 const auto a = readC(A, k + ci * n);
                 const auto b = readC(B, k + cj * n);
                 const double w = wts ? wts->elemAsDouble(k) : 1.0;
                 const double s = std::sqrt(w);
                 const auto da = (a - ma) * s, db = (b - mb) * s;
-                sab += std::conj(da) * db;
-                saa += std::norm(da);
-                sbb += std::norm(db);
+                sab += keel::conj(da) * db;
+                saa += keel::norm(da);
+                sbb += keel::norm(db);
             }
             const double den = std::sqrt(saa * sbb);
             if (den > 0.0) {
                 rij = sab / den;
-                if (std::abs(rij) > 1.0) rij /= std::abs(rij);
+                if (keel::abs(rij) > 1.0) rij /= keel::abs(rij);
             }
         }
         if (complexData) {
-            out.complexDataMut()[ci + cj * p] = Complex(rij.real(), rij.imag());
+            out.complexDataMut()[ci + cj * p] = keel::c64(rij.real(), rij.imag());
         } else {
             out.doubleDataMut()[ci + cj * p] = rij.real();
         }
     };
 
-    for (std::size_t i = 0; i < p; ++i) {
-        const std::size_t j1 = corrXX ? i : q;   // corrXX: lower triangle only
-        for (std::size_t j = 0; j < j1; ++j)
+    for (keel::usize i = 0; i < p; ++i) {
+        const keel::usize j1 = corrXX ? i : q;   // corrXX: lower triangle only
+        for (keel::usize j = 0; j < j1; ++j)
             pairDot(X, i, Y, j);
         if (corrXX) {
             // Diagonal: 1 unless the column is all-NaN.
-            std::size_t m = 0;
-            for (std::size_t k = 0; k < n; ++k)
+            keel::usize m = 0;
+            for (keel::usize k = 0; k < n; ++k)
                 if (!elemIsNaN(X, k + i * n)) ++m;
             nd[i + i * p] = static_cast<double>(m);
             if (complexData) {
                 out.complexDataMut()[i + i * p] = (m >= 1)
-                    ? Complex(1.0, 0.0) : Complex(kNaN, 0.0);
+                    ? keel::c64(1.0, 0.0) : keel::c64(kNaN, 0.0);
             } else {
                 out.doubleDataMut()[i + i * p] = (m >= 1) ? 1.0 : kNaN;
             }
         }
     }
     if (corrXX) {
-        for (std::size_t i = 0; i < p; ++i)
-            for (std::size_t j = 0; j < i; ++j) {
+        for (keel::usize i = 0; i < p; ++i)
+            for (keel::usize j = 0; j < i; ++j) {
                 if (complexData) {
-                    const Complex c = out.complexData()[i + j * p];
-                    out.complexDataMut()[j + i * p] = Complex(c.real(), -c.imag());
+                    const keel::c64 c = out.complexData()[i + j * p];
+                    out.complexDataMut()[j + i * p] = keel::c64(c.real(), -c.imag());
                 } else {
                     out.doubleDataMut()[j + i * p] = out.doubleData()[i + j * p];
                 }
@@ -508,22 +512,22 @@ PairwisePearsonOut corrPairwisePearson(const Value &X, const Value &Y,
 // Pairwise Kendall tau-b with per-pair NaN removal and optional weights.
 PairwisePearsonOut corrPairwiseKendall(const Value &X, const Value &Y,
                                        const Value *wts, bool corrXX,
-                                       std::pmr::memory_resource *mr)
+                                       keel::Allocator *mr)
 {
-    const std::size_t n = corrRowsOf(X);
-    const std::size_t p = corrColsOf(X);
-    const std::size_t q = corrColsOf(Y);
+    const keel::usize n = corrRowsOf(X);
+    const keel::usize p = corrColsOf(X);
+    const keel::usize q = corrColsOf(Y);
     Value out = Value::matrix(p, q, ValueType::DOUBLE, mr);
     Value nij = Value::matrix(p, q, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
     double *nd = nij.doubleDataMut();
 
-    for (std::size_t i = 0; i < p; ++i) {
-        const std::size_t j1 = corrXX ? (i + 1) : q;
-        for (std::size_t j = 0; j < j1; ++j) {
-            std::vector<uint8_t> keep(n, 0);
-            std::size_t m = 0;
-            for (std::size_t k = 0; k < n; ++k) {
+    for (keel::usize i = 0; i < p; ++i) {
+        const keel::usize j1 = corrXX ? (i + 1) : q;
+        for (keel::usize j = 0; j < j1; ++j) {
+            std::vector<keel::u8> keep(n, 0);
+            keel::usize m = 0;
+            for (keel::usize k = 0; k < n; ++k) {
                 if (!std::isnan(X.elemAsDouble(k + i * n)) &&
                     !std::isnan(Y.elemAsDouble(k + j * n))) {
                     keep[k] = 1;
@@ -539,7 +543,7 @@ PairwisePearsonOut corrPairwiseKendall(const Value &X, const Value &Y,
             Value Yb = Value::matrix(m, 1, ValueType::DOUBLE, mr);
             Value Wa;
             if (wts) Wa = Value::matrix(m, 1, ValueType::DOUBLE, mr);
-            for (std::size_t k = 0, w = 0; k < n; ++k) {
+            for (keel::usize k = 0, w = 0; k < n; ++k) {
                 if (keep[k]) {
                     Xa.doubleDataMut()[w] = X.elemAsDouble(k + i * n);
                     Yb.doubleDataMut()[w] = Y.elemAsDouble(k + j * n);
@@ -552,8 +556,8 @@ PairwisePearsonOut corrPairwiseKendall(const Value &X, const Value &Y,
         }
     }
     if (corrXX) {
-        for (std::size_t i = 0; i < p; ++i)
-            for (std::size_t j = 0; j < i; ++j) {
+        for (keel::usize i = 0; i < p; ++i)
+            for (keel::usize j = 0; j < i; ++j) {
                 od[j + i * p] = od[i + j * p];
                 nd[j + i * p] = nd[i + j * p];
             }
@@ -570,8 +574,8 @@ PairwisePearsonOut corrPairwiseKendall(const Value &X, const Value &Y,
 // from the same statistics (probe71b C08/C09/C15).
 
 // Pearson: t = r·√((n-2)/(1-r²)), |r|==1 → t = ±Inf (analytic tail).
-double corrPearsonTailP(CorrTail tail, double r, std::size_t n,
-                        std::pmr::memory_resource *mr)
+double corrPearsonTailP(CorrTail tail, double r, keel::usize n,
+                        keel::Allocator *mr)
 {
     if (n < 3 || std::isnan(r)) return kNaN;
     if (std::fabs(r) >= 1.0) {
@@ -612,52 +616,52 @@ double rankTailFromLU(CorrTail tail, double lower, double upper)
 // (probabilities, so no factorial overflow). D = #discordant pairs. The DP
 // ping-pongs two arena buffers sized to the max support (Dmax+1) — no
 // per-iteration allocation.
-std::pair<double, double> corrKendallExactLU(double tau, std::size_t n,
-                                             std::pmr::memory_resource *mr)
+std::pair<double, double> corrKendallExactLU(double tau, keel::usize n,
+                                             keel::Allocator *mr)
 {
     if (n < 2 || std::isnan(tau)) return { kNaN, kNaN };
-    const std::size_t Dmax = n * (n - 1) / 2;
+    const keel::usize Dmax = n * (n - 1) / 2;
     long Dobs = std::lround(static_cast<double>(Dmax) * (1.0 - tau) / 2.0);
     if (Dobs < 0) Dobs = 0;
     if (Dobs > static_cast<long>(Dmax)) Dobs = static_cast<long>(Dmax);
-    ScratchArena sc(mr);
-    ScratchVec<double> prob(Dmax + 1, 0.0, &sc);      // P(#inversions == d)
-    ScratchVec<double> next(Dmax + 1, 0.0, &sc);
+    keel::ArenaTemp sc = keel::get_scratch(mr);
+    keel::Array<double> prob(Dmax + 1, 0.0, sc.allocator());      // P(#inversions == d)
+    keel::Array<double> next(Dmax + 1, 0.0, sc.allocator());
     prob[0] = 1.0;
-    std::size_t curLen = 1;                            // active prefix length
-    for (std::size_t k = 1; k < n; ++k) {
-        const std::size_t newLen = curLen + k;
+    keel::usize curLen = 1;                            // active prefix length
+    for (keel::usize k = 1; k < n; ++k) {
+        const keel::usize newLen = curLen + k;
         std::fill(next.begin(), next.begin() + newLen, 0.0);
         const double w = 1.0 / static_cast<double>(k + 1);
-        for (std::size_t d = 0; d < curLen; ++d) {
+        for (keel::usize d = 0; d < curLen; ++d) {
             const double pv = prob[d] * w;
-            for (std::size_t s = 0; s <= k; ++s) next[d + s] += pv;
+            for (keel::usize s = 0; s <= k; ++s) next[d + s] += pv;
         }
-        prob.swap(next);                              // O(1), same arena
+        keel::swap(prob, next);                       // O(1), same arena
         curLen = newLen;
     }
     double lower = 0.0, upper = 0.0;
-    for (long d = 0; d <= Dobs; ++d) lower += prob[static_cast<std::size_t>(d)];
+    for (long d = 0; d <= Dobs; ++d) lower += prob[static_cast<keel::usize>(d)];
     for (long d = Dobs; d < static_cast<long>(curLen); ++d)
-        upper += prob[static_cast<std::size_t>(d)];
+        upper += prob[static_cast<keel::usize>(d)];
     return { lower, upper };
 }
 
 // Exact Spearman {lower, upper} by enumerating permutations (small n).
 // D = Σ(rankX_i - rankY_i)²; under H0 it is the displacement of a random perm.
-std::pair<double, double> corrSpearmanExactLU(double rho, std::size_t n,
-                                              std::pmr::memory_resource *mr)
+std::pair<double, double> corrSpearmanExactLU(double rho, keel::usize n,
+                                              keel::Allocator *mr)
 {
     const double scale = static_cast<double>(n) * (static_cast<double>(n) * n - 1.0) / 6.0;
     long Dobs = std::lround((1.0 - rho) * scale);
     if (Dobs < 0) Dobs = 0;
-    ScratchArena sc(mr);
-    ScratchVec<int> perm(n, &sc);
-    for (std::size_t i = 0; i < n; ++i) perm[i] = static_cast<int>(i);
-    std::size_t total = 0, leCount = 0, geCount = 0;
+    keel::ArenaTemp sc = keel::get_scratch(mr);
+    keel::Array<int> perm(n, sc.allocator());
+    for (keel::usize i = 0; i < n; ++i) perm[i] = static_cast<int>(i);
+    keel::usize total = 0, leCount = 0, geCount = 0;
     do {
         long D = 0;
-        for (std::size_t i = 0; i < n; ++i) {
+        for (keel::usize i = 0; i < n; ++i) {
             const long d = perm[i] - static_cast<long>(i);
             D += d * d;
         }
@@ -680,7 +684,7 @@ std::pair<double, double> corrSpearmanExactLU(double rho, std::size_t n,
 
 // AS 89: upper tail probability of Spearman's D (no ties), Edgeworth
 // expansion with continuity correction (algorithm AS 89).
-double as89Upper(double D, std::size_t n, double n3c)
+double as89Upper(double D, keel::usize n, double n3c)
 {
     static const double c[12] = { .2274, .2531, .1745, .0758, .1033, .3932,
                                   .0879, .0151, .0072, .0831, .0131, .00046 };
@@ -695,7 +699,7 @@ double as89Upper(double D, std::size_t n, double n3c)
     return std::min(1.0, std::max(0.0, pv));
 }
 
-double as89Tail(CorrTail tail, double D, std::size_t n, double n3c)
+double as89Tail(CorrTail tail, double D, keel::usize n, double n3c)
 {
     switch (tail) {
     case CorrTail::Both:
@@ -707,8 +711,8 @@ double as89Tail(CorrTail tail, double D, std::size_t n, double n3c)
 }
 
 // No-ties Spearman p from rho (rho -> D statistic -> exact / AS89).
-double corrSpearmanNoTiesTailP(CorrTail tail, double rho, std::size_t n,
-                               std::pmr::memory_resource *mr)
+double corrSpearmanNoTiesTailP(CorrTail tail, double rho, keel::usize n,
+                               keel::Allocator *mr)
 {
     if (n < 2 || std::isnan(rho)) return kNaN;
     if (n < 10) {
@@ -726,16 +730,16 @@ double corrSpearmanNoTiesTailP(CorrTail tail, double rho, std::size_t n,
 // MIDRANKS against a fixed x midrank column (the tied-data exact form).
 std::pair<double, double> spearmanExactMidrankLU(const double *xr,
                                                  const double *yr,
-                                                 std::size_t n, double Dobs,
-                                                 std::pmr::memory_resource *mr)
+                                                 keel::usize n, double Dobs,
+                                                 keel::Allocator *mr)
 {
-    ScratchArena sc(mr);
-    ScratchVec<int> perm(n, &sc);
-    for (std::size_t i = 0; i < n; ++i) perm[i] = static_cast<int>(i);
-    std::size_t total = 0, leCount = 0, geCount = 0;
+    keel::ArenaTemp sc = keel::get_scratch(mr);
+    keel::Array<int> perm(n, sc.allocator());
+    for (keel::usize i = 0; i < n; ++i) perm[i] = static_cast<int>(i);
+    keel::usize total = 0, leCount = 0, geCount = 0;
     do {
         double D = 0.0;
-        for (std::size_t i = 0; i < n; ++i) {
+        for (keel::usize i = 0; i < n; ++i) {
             const double d = xr[i] - yr[perm[i]];
             D += d * d;
         }
@@ -750,12 +754,12 @@ std::pair<double, double> spearmanExactMidrankLU(const double *xr,
 // Spearman coefficient (+ p-values). Computes coef into `coef` and, when
 // wantP, the p matrix into `p` (left empty otherwise).
 void spearmanFull(const Value &X, const Value &Y, bool corrXX, CorrTail tail,
-                  bool wantP, std::pmr::memory_resource *mr,
+                  bool wantP, keel::Allocator *mr,
                   Value &coef, Value &p)
 {
-    const std::size_t n = corrRowsOf(X);
-    const std::size_t p1 = corrColsOf(X);
-    const std::size_t p2 = corrXX ? p1 : corrColsOf(Y);
+    const keel::usize n = corrRowsOf(X);
+    const keel::usize p1 = corrColsOf(X);
+    const keel::usize p2 = corrXX ? p1 : corrColsOf(Y);
     auto xrP = tiedrank(X, mr);                 // ranks + per-column tieadj
     Value xr = xrP.first, xadjV = xrP.second;
     Value yr, yadjV;
@@ -770,9 +774,9 @@ void spearmanFull(const Value &X, const Value &Y, bool corrXX, CorrTail tail,
     const double *xadj = xadjV.doubleData();
     const double *yadj = yadjV.doubleData();
     bool anyTies = false;
-    for (std::size_t c = 0; c < p1; ++c) anyTies = anyTies || (xadj[c] > 0.0);
+    for (keel::usize c = 0; c < p1; ++c) anyTies = anyTies || (xadj[c] > 0.0);
     if (!corrXX)
-        for (std::size_t c = 0; c < p2; ++c) anyTies = anyTies || (yadj[c] > 0.0);
+        for (keel::usize c = 0; c < p2; ++c) anyTies = anyTies || (yadj[c] > 0.0);
 
     if (!wantP || !anyTies) {
         coef = corrXX ? corr_xx(xr, mr) : corr_xy(xr, yr, mr);
@@ -780,8 +784,8 @@ void spearmanFull(const Value &X, const Value &Y, bool corrXX, CorrTail tail,
         p = Value::matrix(p1, p2, ValueType::DOUBLE, mr);
         double *pd = p.doubleDataMut();
         const double *rd = coef.doubleData();
-        for (std::size_t j = 0; j < p2; ++j)
-            for (std::size_t i = 0; i < p1; ++i) {
+        for (keel::usize j = 0; j < p2; ++j)
+            for (keel::usize i = 0; i < p1; ++i) {
                 const double rij = rd[i + j * p1];
                 if (corrXX && i == j) {
                     pd[i + j * p1] = std::isnan(rij) ? kNaN : 1.0;
@@ -803,11 +807,11 @@ void spearmanFull(const Value &X, const Value &Y, bool corrXX, CorrTail tail,
     double *cd = coef.doubleDataMut();
     p = Value::matrix(p1, p2, ValueType::DOUBLE, mr);
     double *pd = p.doubleDataMut();
-    for (std::size_t i = 0; i < p1; ++i) {
-        const std::size_t j1 = corrXX ? i + 1 : p2;
-        for (std::size_t j = 0; j < j1; ++j) {
+    for (keel::usize i = 0; i < p1; ++i) {
+        const keel::usize j1 = corrXX ? i + 1 : p2;
+        for (keel::usize j = 0; j < j1; ++j) {
             double D = 0.0;
-            for (std::size_t k = 0; k < n; ++k) {
+            for (keel::usize k = 0; k < n; ++k) {
                 const double d = xd[k + i * n] - yd[k + j * n];
                 D += d * d;
             }
@@ -856,15 +860,15 @@ void spearmanFull(const Value &X, const Value &Y, bool corrXX, CorrTail tail,
         }
     }
     // Clamp off-diagonal coefficients to [-1,1] (preserves NaNs).
-    for (std::size_t k = 0; k < p1 * p2; ++k)
+    for (keel::usize k = 0; k < p1 * p2; ++k)
         if (std::fabs(cd[k]) > 1.0) cd[k] = cd[k] / std::fabs(cd[k]);
     if (corrXX) {
-        for (std::size_t i = 0; i < p1; ++i)
-            for (std::size_t j = 0; j < i; ++j) {
+        for (keel::usize i = 0; i < p1; ++i)
+            for (keel::usize j = 0; j < i; ++j) {
                 cd[j + i * p1] = cd[i + j * p1];
                 pd[j + i * p1] = pd[i + j * p1];
             }
-        for (std::size_t i = 0; i < p1; ++i) {
+        for (keel::usize i = 0; i < p1; ++i) {
             cd[i + i * p1] = std::isnan(cd[i + i * p1])
                 ? cd[i + i * p1]
                 : (cd[i + i * p1] < 0.0 ? -1.0 : 1.0);
@@ -877,23 +881,23 @@ void spearmanFull(const Value &X, const Value &Y, bool corrXX, CorrTail tail,
 // weights, and per-pair p-values.
 void corrPairwiseSpearman(const Value &X, const Value &Y, const Value *wts,
                           bool corrXX, CorrTail tail, bool wantP,
-                          std::pmr::memory_resource *mr,
+                          keel::Allocator *mr,
                           Value &coef, Value &p)
 {
-    const std::size_t n = corrRowsOf(X);
-    const std::size_t p1 = corrColsOf(X);
-    const std::size_t p2 = corrXX ? p1 : corrColsOf(Y);
+    const keel::usize n = corrRowsOf(X);
+    const keel::usize p1 = corrColsOf(X);
+    const keel::usize p2 = corrXX ? p1 : corrColsOf(Y);
     coef = Value::matrix(p1, p2, ValueType::DOUBLE, mr);
     double *cd = coef.doubleDataMut();
     if (wantP) p = Value::matrix(p1, p2, ValueType::DOUBLE, mr);
     double *pd = wantP ? p.doubleDataMut() : nullptr;
 
-    for (std::size_t i = 0; i < p1; ++i) {
-        const std::size_t j1 = corrXX ? (i + 1) : p2;
-        for (std::size_t j = 0; j < j1; ++j) {
-            std::vector<uint8_t> keep(n, 0);
-            std::size_t m = 0;
-            for (std::size_t k = 0; k < n; ++k) {
+    for (keel::usize i = 0; i < p1; ++i) {
+        const keel::usize j1 = corrXX ? (i + 1) : p2;
+        for (keel::usize j = 0; j < j1; ++j) {
+            std::vector<keel::u8> keep(n, 0);
+            keel::usize m = 0;
+            for (keel::usize k = 0; k < n; ++k) {
                 if (!std::isnan(X.elemAsDouble(k + i * n)) &&
                     !std::isnan(Y.elemAsDouble(k + j * n))) {
                     keep[k] = 1;
@@ -909,7 +913,7 @@ void corrPairwiseSpearman(const Value &X, const Value &Y, const Value *wts,
             Value Yb = Value::matrix(m, 1, ValueType::DOUBLE, mr);
             Value Wa;
             if (wts) Wa = Value::matrix(m, 1, ValueType::DOUBLE, mr);
-            for (std::size_t k = 0, w = 0; k < n; ++k) {
+            for (keel::usize k = 0, w = 0; k < n; ++k) {
                 if (keep[k]) {
                     Xa.doubleDataMut()[w] = X.elemAsDouble(k + i * n);
                     Yb.doubleDataMut()[w] = Y.elemAsDouble(k + j * n);
@@ -932,8 +936,8 @@ void corrPairwiseSpearman(const Value &X, const Value &Y, const Value *wts,
         }
     }
     if (corrXX) {
-        for (std::size_t i = 0; i < p1; ++i)
-            for (std::size_t j = 0; j < i; ++j) {
+        for (keel::usize i = 0; i < p1; ++i)
+            for (keel::usize j = 0; j < i; ++j) {
                 cd[j + i * p1] = cd[i + j * p1];
                 if (pd) pd[j + i * p1] = pd[i + j * p1];
             }
@@ -941,7 +945,7 @@ void corrPairwiseSpearman(const Value &X, const Value &Y, const Value *wts,
 }
 
 // Large-n Kendall: tie-free normal approximation z = 3τ√(n(n-1)/2(2n+5)).
-double corrKendallNormalP(CorrTail tail, double tau, std::size_t n)
+double corrKendallNormalP(CorrTail tail, double tau, keel::usize n)
 {
     if (n < 2 || std::isnan(tau)) return kNaN;
     if (std::fabs(tau) >= 1.0)
@@ -960,24 +964,24 @@ double corrKendallNormalP(CorrTail tail, double tau, std::size_t n)
 
 // Build the p-value matrix (same shape as r). corrXX → diagonal p is 1
 // (or NaN when r is NaN). nij (pairwise) supplies the per-pair counts.
-Value corrPValueMatrix(const Value &r, const Value *nij, std::size_t n,
+Value corrPValueMatrix(const Value &r, const Value *nij, keel::usize n,
                        CorrType ct, CorrTail tail, bool corrXX,
-                       std::pmr::memory_resource *mr)
+                       keel::Allocator *mr)
 {
-    const std::size_t p = static_cast<std::size_t>(r.dims().dim(0));
-    const std::size_t q = static_cast<std::size_t>(r.dims().dim(1));
+    const keel::usize p = static_cast<keel::usize>(r.dims().dim(0));
+    const keel::usize q = static_cast<keel::usize>(r.dims().dim(1));
     Value P = Value::matrix(p, q, ValueType::DOUBLE, mr);
     double *pd = P.doubleDataMut();
     const double *rd = r.doubleData();
     const double *nd = nij ? nij->doubleData() : nullptr;
-    for (std::size_t j = 0; j < q; ++j)
-        for (std::size_t i = 0; i < p; ++i) {
+    for (keel::usize j = 0; j < q; ++j)
+        for (keel::usize i = 0; i < p; ++i) {
             const double rij = rd[i + j * p];
             if (corrXX && i == j) {
                 pd[i + j * p] = std::isnan(rij) ? kNaN : 1.0;
                 continue;
             }
-            const std::size_t nn = nd ? static_cast<std::size_t>(nd[i + j * p]) : n;
+            const keel::usize nn = nd ? static_cast<keel::usize>(nd[i + j * p]) : n;
             double pv;
             if (ct == CorrType::Pearson)
                 pv = corrPearsonTailP(tail, rij, nn, mr);
@@ -997,19 +1001,19 @@ Value corrPValueMatrix(const Value &r, const Value *nij, std::size_t n,
 
 bool allFinite(const Value &X)
 {
-    const std::size_t cnt = X.numel();
-    for (std::size_t k = 0; k < cnt; ++k)
+    const keel::usize cnt = X.numel();
+    for (keel::usize k = 0; k < cnt; ++k)
         if (!std::isfinite(X.elemAsDouble(k))) return false;
     return true;
 }
 
-Value nanMatrix(std::size_t r, std::size_t c, bool single,
-                std::pmr::memory_resource *mr)
+Value nanMatrix(keel::usize r, keel::usize c, bool single,
+                keel::Allocator *mr)
 {
     Value out = single ? Value::matrix(r, c, ValueType::SINGLE, mr)
                        : Value::matrix(r, c, ValueType::DOUBLE, mr);
-    const std::size_t cnt = r * c;
-    for (std::size_t k = 0; k < cnt; ++k) {
+    const keel::usize cnt = r * c;
+    for (keel::usize k = 0; k < cnt; ++k) {
         if (single) out.singleDataMut()[k] =
             std::numeric_limits<float>::quiet_NaN();
         else out.doubleDataMut()[k] = kNaN;
@@ -1017,13 +1021,13 @@ Value nanMatrix(std::size_t r, std::size_t c, bool single,
     return out;
 }
 
-Value castToSingle(const Value &X, std::pmr::memory_resource *mr)
+Value castToSingle(const Value &X, keel::Allocator *mr)
 {
-    const std::size_t r = static_cast<std::size_t>(X.dims().dim(0));
-    const std::size_t c = static_cast<std::size_t>(X.dims().dim(1));
+    const keel::usize r = static_cast<keel::usize>(X.dims().dim(0));
+    const keel::usize c = static_cast<keel::usize>(X.dims().dim(1));
     Value out = Value::matrix(r, c, ValueType::SINGLE, mr);
-    const std::size_t cnt = r * c;
-    for (std::size_t k = 0; k < cnt; ++k)
+    const keel::usize cnt = r * c;
+    for (keel::usize k = 0; k < cnt; ++k)
         out.singleDataMut()[k] = static_cast<float>(X.elemAsDouble(k));
     return out;
 }
@@ -1032,15 +1036,15 @@ Value castToSingle(const Value &X, std::pmr::memory_resource *mr)
 // single (and integer-promoted) inputs materialize as double matrices —
 // compute runs in double, the output is cast back down. Complex storage
 // passes through untouched.
-Value asComputeDouble(const Value &X, std::pmr::memory_resource *mr)
+Value asComputeDouble(const Value &X, keel::Allocator *mr)
 {
     if (X.type() == ValueType::DOUBLE || X.type() == ValueType::COMPLEX)
         return X;
-    const std::size_t r = static_cast<std::size_t>(X.dims().dim(0));
-    const std::size_t c = static_cast<std::size_t>(X.dims().dim(1));
+    const keel::usize r = static_cast<keel::usize>(X.dims().dim(0));
+    const keel::usize c = static_cast<keel::usize>(X.dims().dim(1));
     Value out = Value::matrix(r, c, ValueType::DOUBLE, mr);
-    const std::size_t cnt = r * c;
-    for (std::size_t k = 0; k < cnt; ++k)
+    const keel::usize cnt = r * c;
+    for (keel::usize k = 0; k < cnt; ++k)
         out.doubleDataMut()[k] = X.elemAsDouble(k);
     return out;
 }
@@ -1048,26 +1052,26 @@ Value asComputeDouble(const Value &X, std::pmr::memory_resource *mr)
 // Listwise NaN-row drop over 1-3 row-aligned matrices (partialcorr's
 // 'complete' — and 'pairwise' in the combinedXZ form, where every column
 // is a control for every pair so the two coincide).
-void dropNaNRowsAny(std::vector<Value> &M, std::pmr::memory_resource *mr)
+void dropNaNRowsAny(std::vector<Value> &M, keel::Allocator *mr)
 {
-    const std::size_t n = static_cast<std::size_t>(M[0].dims().dim(0));
-    std::vector<uint8_t> keep(n, 1);
-    for (std::size_t t = 0; t < M.size(); ++t) {
-        const std::size_t nn = static_cast<std::size_t>(M[t].dims().dim(0));
-        const std::size_t p = static_cast<std::size_t>(M[t].dims().dim(1));
-        for (std::size_t r = 0; r < std::min(nn, n); ++r)
-            for (std::size_t c = 0; c < p && keep[r]; ++c)
+    const keel::usize n = static_cast<keel::usize>(M[0].dims().dim(0));
+    std::vector<keel::u8> keep(n, 1);
+    for (keel::usize t = 0; t < M.size(); ++t) {
+        const keel::usize nn = static_cast<keel::usize>(M[t].dims().dim(0));
+        const keel::usize p = static_cast<keel::usize>(M[t].dims().dim(1));
+        for (keel::usize r = 0; r < std::min(nn, n); ++r)
+            for (keel::usize c = 0; c < p && keep[r]; ++c)
                 if (std::isnan(M[t].elemAsDouble(r + c * nn))) keep[r] = 0;
     }
-    const std::size_t m = static_cast<std::size_t>(
+    const keel::usize m = static_cast<keel::usize>(
         std::count(keep.begin(), keep.end(), 1));
     for (auto &Mt : M) {
-        const std::size_t nn = static_cast<std::size_t>(Mt.dims().dim(0));
-        const std::size_t p = static_cast<std::size_t>(Mt.dims().dim(1));
+        const keel::usize nn = static_cast<keel::usize>(Mt.dims().dim(0));
+        const keel::usize p = static_cast<keel::usize>(Mt.dims().dim(1));
         Value out = Value::matrix(m, p, ValueType::DOUBLE, mr);
         double *od = out.doubleDataMut();
-        for (std::size_t c = 0; c < p; ++c)
-            for (std::size_t r = 0, w = 0; r < nn; ++r)
+        for (keel::usize c = 0; c < p; ++c)
+            for (keel::usize r = 0, w = 0; r < nn; ++r)
                 if (keep[r]) od[w++ + c * m] = Mt.elemAsDouble(r + c * nn);
         Mt = std::move(out);
     }
@@ -1075,21 +1079,21 @@ void dropNaNRowsAny(std::vector<Value> &M, std::pmr::memory_resource *mr)
 
 // Numerical column rank of centered Z (m × pZ), used to compute df = m - dz0 - 2
 // in partialcorr p-values.
-std::size_t centeredRank(const Value &Z, std::pmr::memory_resource *mr)
+keel::usize centeredRank(const Value &Z, keel::Allocator *mr)
 {
-    const std::size_t m = static_cast<std::size_t>(Z.dims().dim(0));
-    const std::size_t pZ = static_cast<std::size_t>(Z.dims().dim(1));
+    const keel::usize m = static_cast<keel::usize>(Z.dims().dim(0));
+    const keel::usize pZ = static_cast<keel::usize>(Z.dims().dim(1));
     if (m < 2 || pZ == 0) return 0;
-    ScratchArena sc(mr);
-    ScratchVec<double> A(m * pZ, 0.0, &sc);
+    keel::ArenaTemp sc = keel::get_scratch(mr);
+    keel::Array<double> A(m * pZ, 0.0, sc.allocator());
     const double *zd = Z.doubleData();
     double maxNorm = 0.0;
-    for (std::size_t j = 0; j < pZ; ++j) {
+    for (keel::usize j = 0; j < pZ; ++j) {
         double mean = 0.0;
-        for (std::size_t i = 0; i < m; ++i) mean += zd[i + j * m];
+        for (keel::usize i = 0; i < m; ++i) mean += zd[i + j * m];
         mean /= static_cast<double>(m);
         double colNorm2 = 0.0;
-        for (std::size_t i = 0; i < m; ++i) {
+        for (keel::usize i = 0; i < m; ++i) {
             const double d = zd[i + j * m] - mean;
             A[i + j * m] = d;
             colNorm2 += d * d;
@@ -1100,28 +1104,28 @@ std::size_t centeredRank(const Value &Z, std::pmr::memory_resource *mr)
     const double tol = static_cast<double>(std::max(m, pZ))
                      * std::numeric_limits<double>::epsilon() * maxNorm;
     // Modified Gram-Schmidt / column-pivoted QR rank count.
-    std::size_t rnk = 0;
-    ScratchVec<uint8_t> used(pZ, 0, &sc);
-    for (std::size_t step = 0; step < std::min(m, pZ); ++step) {
-        std::size_t bestCol = 0;
+    keel::usize rnk = 0;
+    keel::Array<keel::u8> used(pZ, 0, sc.allocator());
+    for (keel::usize step = 0; step < std::min(m, pZ); ++step) {
+        keel::usize bestCol = 0;
         double bestNorm = -1.0;
-        for (std::size_t j = 0; j < pZ; ++j) {
+        for (keel::usize j = 0; j < pZ; ++j) {
             if (used[j]) continue;
             double s = 0.0;
-            for (std::size_t i = 0; i < m; ++i) s += A[i + j * m] * A[i + j * m];
+            for (keel::usize i = 0; i < m; ++i) s += A[i + j * m] * A[i + j * m];
             const double nrm = std::sqrt(s);
             if (nrm > bestNorm) { bestNorm = nrm; bestCol = j; }
         }
         if (bestNorm <= tol) break;
         used[bestCol] = 1;
         ++rnk;
-        for (std::size_t i = 0; i < m; ++i) A[i + bestCol * m] /= bestNorm;
-        for (std::size_t j = 0; j < pZ; ++j) {
+        for (keel::usize i = 0; i < m; ++i) A[i + bestCol * m] /= bestNorm;
+        for (keel::usize j = 0; j < pZ; ++j) {
             if (used[j]) continue;
             double dot = 0.0;
-            for (std::size_t i = 0; i < m; ++i)
+            for (keel::usize i = 0; i < m; ++i)
                 dot += A[i + bestCol * m] * A[i + j * m];
-            for (std::size_t i = 0; i < m; ++i)
+            for (keel::usize i = 0; i < m; ++i)
                 A[i + j * m] -= dot * A[i + bestCol * m];
         }
     }
@@ -1130,7 +1134,7 @@ std::size_t centeredRank(const Value &Z, std::pmr::memory_resource *mr)
 
 void corr_full_argcheck(const Value &x, const Value *Y)
 {
-    const std::size_t n = corrRowsOf(x);
+    const keel::usize n = corrRowsOf(x);
     if (Y != nullptr && corrRowsOf(*Y) != n)
         throw Error("corr: X and Y must have the same number of rows "
                     "(X has " + std::to_string(n) + ", Y has "
@@ -1142,14 +1146,14 @@ void corr_full_argcheck(const Value &x, const Value *Y)
 
 // ── corr full entry ───────────────────────────────────────────────────
 
-CorrOut corr_full(const Value &x, const Value *Y, Span<const Value> nv,
-                  bool wantP, std::pmr::memory_resource *mr)
+CorrOut corr_full(const Value &x, const Value *Y, keel::ArrayRef<Value> nv,
+                  bool wantP, keel::Allocator *mr)
 {
     corr_full_argcheck(x, Y);
-    const std::size_t n = corrRowsOf(x);
-    const std::size_t p1 = corrColsOf(x);
+    const keel::usize n = corrRowsOf(x);
+    const keel::usize p1 = corrColsOf(x);
     const bool corrXX = (Y == nullptr);
-    const std::size_t p2 = corrXX ? p1 : corrColsOf(*Y);
+    const keel::usize p2 = corrXX ? p1 : corrColsOf(*Y);
     const bool anySingle = (x.type() == ValueType::SINGLE)
                            || (!corrXX && Y->type() == ValueType::SINGLE);
     // Materialize double copies for single / promoted inputs (the kernels
@@ -1169,8 +1173,8 @@ CorrOut corr_full(const Value &x, const Value *Y, Span<const Value> nv,
     static constexpr std::string_view kNv[] = { "type", "rows", "tail",
                                                 "weights" };
     argcheck::forEachNvPair(
-        nv, 0, Span<const std::string_view>(kNv), "corr",
-        "numkit:corr:badParamName", [&](std::size_t hit, const Value &v) {
+        nv, 0, keel::ArrayRef<std::string_view>(kNv), "corr",
+        "numkit:corr:badParamName", [&](keel::usize hit, const Value &v) {
             switch (hit) {
             case 0: typeRaw = v; break;
             case 1: rowsRaw = v; break;
@@ -1193,7 +1197,7 @@ CorrOut corr_full(const Value &x, const Value *Y, Span<const Value> nv,
                         + std::to_string(wtsRaw.dims().rows()) + "x"
                         + std::to_string(wtsRaw.dims().cols()) + ".",
                         0, 0, "corr", "", "numkit:corr:incorrectSize");
-        for (std::size_t k = 0; k < n; ++k) {
+        for (keel::usize k = 0; k < n; ++k) {
             const double w = wtsRaw.elemAsDouble(k);
             if (!(w >= 0.0))
                 throw Error("corr: expected Weights to be nonnegative (got "
@@ -1211,7 +1215,7 @@ CorrOut corr_full(const Value &x, const Value *Y, Span<const Value> nv,
         static constexpr std::string_view kRows[] = { "all", "complete",
                                                       "pairwise" };
         const int m = argcheck::matchStringChoice(
-            rowsRaw, Span<const std::string_view>(kRows));
+            rowsRaw, keel::ArrayRef<std::string_view>(kRows));
         if (m < 0)
             throw Error("corr: the Rows parameter value must be 'all', "
                         "'complete', or 'pairwise', got '"
@@ -1234,8 +1238,8 @@ CorrOut corr_full(const Value &x, const Value *Y, Span<const Value> nv,
         } else {
             // 'all' drops w==0 rows; 'pairwise' keeps w>0 (NaN weights were
             // already rejected at validation).
-            std::vector<uint8_t> keep(n, 1);
-            for (std::size_t k = 0; k < n; ++k)
+            std::vector<keel::u8> keep(n, 1);
+            for (keel::usize k = 0; k < n; ++k)
                 if (rows == CorrRows::All
                         ? (wts.elemAsDouble(k) == 0.0)
                         : !(wts.elemAsDouble(k) > 0.0))
@@ -1247,7 +1251,7 @@ CorrOut corr_full(const Value &x, const Value *Y, Span<const Value> nv,
         wEff = std::move(Wo);
     }
     const bool wActive = weighted;
-    const std::size_t nn = corrRowsOf(Xe);
+    const keel::usize nn = corrRowsOf(Xe);
 
     CorrOut out;
     if (nn < 2) {
@@ -1262,7 +1266,7 @@ CorrOut corr_full(const Value &x, const Value *Y, Span<const Value> nv,
         static constexpr std::string_view kTypes[] = { "pearson", "kendall",
                                                        "spearman" };
         const int m = argcheck::matchStringChoice(
-            typeRaw, Span<const std::string_view>(kTypes));
+            typeRaw, keel::ArrayRef<std::string_view>(kTypes));
         if (m < 0)
             throw Error("corr: the Type parameter value must be 'Pearson', "
                         "'Kendall', or 'Spearman', got '" + typeRaw.toString()
@@ -1359,8 +1363,8 @@ CorrOut corr_full(const Value &x, const Value *Y, Span<const Value> nv,
 // ── partialcorr full entry ────────────────────────────────────────────
 
 CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
-                         Span<const Value> nv, bool wantP,
-                         std::pmr::memory_resource *mr)
+                         keel::ArrayRef<Value> nv, bool wantP,
+                         keel::Allocator *mr)
 {
     const auto matricesErr = [](const std::string &what) {
         throw Error("partialcorr: all input arrays must be numeric matrices "
@@ -1372,7 +1376,7 @@ CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
         return M.isNumeric() && M.dims().ndim() <= 2 && M.numel() > 0;
     };
     const auto mismatchErr = [](const std::string &which,
-                                std::size_t got, std::size_t want) {
+                                keel::usize got, keel::usize want) {
         throw Error("partialcorr: all input arrays must have the same number "
                     "of rows (" + which + " has " + std::to_string(got)
                     + " rows, expected " + std::to_string(want) + ").",
@@ -1386,21 +1390,21 @@ CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
     };
 
     if (!isMatrixNumeric(x)) matricesErr("X is " + describe(x));
-    const std::size_t n = static_cast<std::size_t>(x.dims().dim(0));
-    const std::size_t d = static_cast<std::size_t>(x.dims().dim(1));
+    const keel::usize n = static_cast<keel::usize>(x.dims().dim(0));
+    const keel::usize d = static_cast<keel::usize>(x.dims().dim(1));
     if (y) {
         // (X, Y, Z): Y's row count is blamed BEFORE Y's matrix-ness
         // (reference order), Z is checked after its form is known.
-        if (static_cast<std::size_t>(y->dims().dim(0)) != n)
-            mismatchErr("Y", static_cast<std::size_t>(y->dims().dim(0)), n);
+        if (static_cast<keel::usize>(y->dims().dim(0)) != n)
+            mismatchErr("Y", static_cast<keel::usize>(y->dims().dim(0)), n);
         if (!isMatrixNumeric(*y)) matricesErr("Y is " + describe(*y));
         if (!isMatrixNumeric(*z)) matricesErr("Z is " + describe(*z));
-        if (static_cast<std::size_t>(z->dims().dim(0)) != n)
-            mismatchErr("Z", static_cast<std::size_t>(z->dims().dim(0)), n);
+        if (static_cast<keel::usize>(z->dims().dim(0)) != n)
+            mismatchErr("Z", static_cast<keel::usize>(z->dims().dim(0)), n);
     } else if (z) {
         if (!isMatrixNumeric(*z)) matricesErr("Z is " + describe(*z));
-        if (static_cast<std::size_t>(z->dims().dim(0)) != n)
-            mismatchErr("Z", static_cast<std::size_t>(z->dims().dim(0)), n);
+        if (static_cast<keel::usize>(z->dims().dim(0)) != n)
+            mismatchErr("Z", static_cast<keel::usize>(z->dims().dim(0)), n);
     }
     // Floats: the reference's superiorfloat step errors when no input is
     // float; single dominates double for the output class.
@@ -1429,15 +1433,15 @@ CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
     CorrTail tail = CorrTail::Both;
     static constexpr std::string_view kNv[] = { "rows", "type", "tail" };
     argcheck::forEachNvPair(
-        nv, 0, Span<const std::string_view>(kNv), "partialcorr",
-        "numkit:partialcorr:badParamName", [&](std::size_t hit, const Value &v) {
+        nv, 0, keel::ArrayRef<std::string_view>(kNv), "partialcorr",
+        "numkit:partialcorr:badParamName", [&](keel::usize hit, const Value &v) {
             switch (hit) {
             case 0: {
                 static constexpr std::string_view kRows[] = { "all",
                                                               "complete",
                                                               "pairwise" };
                 const int m = argcheck::matchStringChoice(
-                    v, Span<const std::string_view>(kRows));
+                    v, keel::ArrayRef<std::string_view>(kRows));
                 if (m < 0)
                     throw Error("partialcorr: the Rows parameter value must "
                                 "be 'all', 'complete', or 'pairwise', got '"
@@ -1452,7 +1456,7 @@ CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
                                                                "kendall",
                                                                "spearman" };
                 const int m = argcheck::matchStringChoice(
-                    v, Span<const std::string_view>(kTypes));
+                    v, keel::ArrayRef<std::string_view>(kTypes));
                 if (m < 0)
                     throw Error("partialcorr: the Type parameter value must "
                                 "be 'Pearson', 'Kendall', or 'Spearman', "
@@ -1478,8 +1482,8 @@ CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
 
     const bool combinedXZ = (z == nullptr);   // partialcorr(X, ...)
     const bool crossCorr = (y != nullptr);
-    const std::size_t dx = d;
-    const std::size_t dy = y ? static_cast<std::size_t>(y->dims().dim(1)) : d;
+    const keel::usize dx = d;
+    const keel::usize dy = y ? static_cast<keel::usize>(y->dims().dim(1)) : d;
 
     auto makeNanOut = [&]() -> CorrOut {
         CorrOut co;
@@ -1492,8 +1496,8 @@ CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
         Value P = Value::matrix(dx, dy, ValueType::DOUBLE, mr);
         double *pd = P.doubleDataMut();
         const double *rd = R.doubleData();
-        for (std::size_t j = 0; j < dy; ++j) {
-            for (std::size_t i = 0; i < dx; ++i) {
+        for (keel::usize j = 0; j < dy; ++j) {
+            for (keel::usize i = 0; i < dx; ++i) {
                 const double rij = rd[i + j * dx];
                 if (!crossCorr && i == j) {
                     pd[i + j * dx] = std::isnan(rij) ? kNaN : 1.0;
@@ -1503,7 +1507,7 @@ CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
                     pd[i + j * dx] = kNaN;
                 } else {
                     pd[i + j * dx] = corrPearsonTailP(
-                        tail, rij, static_cast<std::size_t>(df) + 2, mr);
+                        tail, rij, static_cast<keel::usize>(df) + 2, mr);
                 }
             }
         }
@@ -1516,7 +1520,7 @@ CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
         // control for every pair, so row removal is necessarily listwise.
         std::vector<Value> M{ xD };
         if (rows != CorrRows::All) dropNaNRowsAny(M, mr);
-        const std::size_t m = static_cast<std::size_t>(M[0].dims().dim(0));
+        const keel::usize m = static_cast<keel::usize>(M[0].dims().dim(0));
         const long dz = (d >= 2) ? static_cast<long>(d - 2) : 0;
         const long df = static_cast<long>(m) - dz - 2;
         if (!allFinite(M[0]) || m < 2 || df < 0)
@@ -1525,25 +1529,25 @@ CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
         R = partialcorr_xx(M[0], mr);
         if (wantP) P = buildPMatrix(R, df);
     } else if (rows == CorrRows::Pairwise) {
-        const std::size_t dz = static_cast<std::size_t>(zD.dims().dim(1));
+        const keel::usize dz = static_cast<keel::usize>(zD.dims().dim(1));
         const Value &yRef = y ? yD : xD;
         R = Value::matrix(dx, dy, ValueType::DOUBLE, mr);
         double *rd = R.doubleDataMut();
         if (wantP) P = Value::matrix(dx, dy, ValueType::DOUBLE, mr);
         double *pd = wantP ? P.doubleDataMut() : nullptr;
 
-        for (std::size_t i = 0; i < dx; ++i) {
-            const std::size_t j1 = crossCorr ? dy : (i + 1);
-            for (std::size_t j = 0; j < j1; ++j) {
-                std::vector<uint8_t> keep(n, 1);
-                std::size_t m = 0;
-                for (std::size_t r = 0; r < n; ++r) {
+        for (keel::usize i = 0; i < dx; ++i) {
+            const keel::usize j1 = crossCorr ? dy : (i + 1);
+            for (keel::usize j = 0; j < j1; ++j) {
+                std::vector<keel::u8> keep(n, 1);
+                keel::usize m = 0;
+                for (keel::usize r = 0; r < n; ++r) {
                     if (std::isnan(xD.elemAsDouble(r + i * n)) ||
                         std::isnan(yRef.elemAsDouble(r + j * n))) {
                         keep[r] = 0;
                         continue;
                     }
-                    for (std::size_t c = 0; c < dz; ++c) {
+                    for (keel::usize c = 0; c < dz; ++c) {
                         if (std::isnan(zD.elemAsDouble(r + c * n))) {
                             keep[r] = 0;
                             break;
@@ -1559,11 +1563,11 @@ CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
                 Value xSub = Value::matrix(m, 1, ValueType::DOUBLE, mr);
                 Value ySub = Value::matrix(m, 1, ValueType::DOUBLE, mr);
                 Value zSub = Value::matrix(m, dz, ValueType::DOUBLE, mr);
-                for (std::size_t r = 0, w = 0; r < n; ++r) {
+                for (keel::usize r = 0, w = 0; r < n; ++r) {
                     if (!keep[r]) continue;
                     xSub.doubleDataMut()[w] = xD.elemAsDouble(r + i * n);
                     ySub.doubleDataMut()[w] = yRef.elemAsDouble(r + j * n);
-                    for (std::size_t c = 0; c < dz; ++c)
+                    for (keel::usize c = 0; c < dz; ++c)
                         zSub.doubleDataMut()[w + c * m] = zD.elemAsDouble(r + c * n);
                     ++w;
                 }
@@ -1577,7 +1581,7 @@ CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
                     ySub = tiedrank(ySub, mr).first;
                     zSub = tiedrank(zSub, mr).first;
                 }
-                const std::size_t dz0 = centeredRank(zSub, mr);
+                const keel::usize dz0 = centeredRank(zSub, mr);
                 const long df = static_cast<long>(m) - static_cast<long>(dz0) - 2;
                 if (df < 0) {
                     rd[i + j * dx] = kNaN;
@@ -1595,14 +1599,14 @@ CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
                 rd[i + j * dx] = rij;
                 if (pd) {
                     pd[i + j * dx] = (df >= 1 && !std::isnan(rij))
-                        ? corrPearsonTailP(tail, rij, static_cast<std::size_t>(df) + 2, mr)
+                        ? corrPearsonTailP(tail, rij, static_cast<keel::usize>(df) + 2, mr)
                         : kNaN;
                 }
             }
         }
         if (!crossCorr) {
-            for (std::size_t i = 0; i < dx; ++i)
-                for (std::size_t j = 0; j < i; ++j) {
+            for (keel::usize i = 0; i < dx; ++i)
+                for (keel::usize j = 0; j < i; ++j) {
                     rd[j + i * dx] = rd[i + j * dx];
                     if (pd) pd[j + i * dx] = pd[i + j * dx];
                 }
@@ -1619,7 +1623,7 @@ CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
             if (y) Yv = std::move(M[1]);
             Zv = std::move(M.back());
         }
-        const std::size_t m = static_cast<std::size_t>(Zv.dims().dim(0));
+        const keel::usize m = static_cast<keel::usize>(Zv.dims().dim(0));
         if (!allFinite(Zv) || m < 2)
             return makeNanOut();
         if (ct == CorrType::Spearman) {
@@ -1627,7 +1631,7 @@ CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
             Zv = tiedrank(Zv, mr).first;
             if (y) Yv = tiedrank(Yv, mr).first;
         }
-        const std::size_t dz0 = centeredRank(Zv, mr);
+        const keel::usize dz0 = centeredRank(Zv, mr);
         const long df = static_cast<long>(m) - static_cast<long>(dz0) - 2;
         if (df < 0)
             return makeNanOut();

@@ -7,7 +7,8 @@
 
 #pragma once
 
-#include <memory_resource>
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
 #include <tuple>
@@ -30,8 +31,8 @@ namespace numkit::stats {
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Array of pdf values, same shape as `x`.
 /// @see unifcdf, unifinv, unifrnd, unifstat
-Value unifpdf(const Value &x, double a, double b,
-              std::pmr::memory_resource *mr = nullptr);
+Value unifpdf(const Value &x, keel::f64 a, keel::f64 b,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Continuous-uniform cdf (`p = unifcdf(x, a, b)`).
 ///
@@ -43,8 +44,8 @@ Value unifpdf(const Value &x, double a, double b,
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Array of cdf values in `[0, 1]`, same shape as `x`.
 /// @see unifpdf, unifinv
-Value unifcdf(const Value &x, double a, double b,
-              std::pmr::memory_resource *mr = nullptr);
+Value unifcdf(const Value &x, keel::f64 a, keel::f64 b,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Continuous-uniform inverse cdf (`x = unifinv(p, a, b)`).
 ///
@@ -56,8 +57,8 @@ Value unifcdf(const Value &x, double a, double b,
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Quantile array, same shape as `p`.
 /// @see unifcdf
-Value unifinv(const Value &p, double a, double b,
-              std::pmr::memory_resource *mr = nullptr);
+Value unifinv(const Value &p, keel::f64 a, keel::f64 b,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Continuous-uniform random samples (`r = unifrnd(a, b, rows, cols)`).
 ///
@@ -68,8 +69,8 @@ Value unifinv(const Value &p, double a, double b,
 /// @param mr    Memory resource (nullptr → process default).
 /// @return      `rows × cols` matrix of uniform samples.
 /// @see unifpdf
-Value unifrnd(::numkit::ops::RngContext &rng, double a, double b, size_t rows = 1, size_t cols = 1,
-              std::pmr::memory_resource *mr = nullptr);
+Value unifrnd(::numkit::ops::RngContext &rng, keel::f64 a, keel::f64 b, keel::usize rows = 1, keel::usize cols = 1,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Continuous-uniform mean and variance (`[m, v] = unifstat(a, b)`).
 ///
@@ -79,7 +80,7 @@ Value unifrnd(::numkit::ops::RngContext &rng, double a, double b, size_t rows = 
 /// @param b  Upper bound.
 /// @return   `{mean, variance}` pair.
 /// @see unifpdf
-std::tuple<double, double> unifstat(double a, double b);
+std::tuple<keel::f64, keel::f64> unifstat(keel::f64 a, keel::f64 b);
 
 
 /// @}

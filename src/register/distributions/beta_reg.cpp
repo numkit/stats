@@ -3,6 +3,8 @@
 // CallContext register half of distributions/beta.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
+#include <keel/core.h>
+#include <keel/ref.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/builtin/datafun.hpp>
 #include <numkit/builtin/specfun.hpp>
@@ -12,14 +14,11 @@
 #include "distributions/beta_detail.hpp"
 #include "distributions/dist_helpers.hpp"
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <complex>
 #include <cstddef>
 #include <string>
 #include <tuple>
@@ -30,10 +29,10 @@ namespace numkit::stats {
 
 namespace detail {
 
-void betapdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void betapdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 3, 3, "betapdf");
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     const Value &a = args[1];
     const Value &b = args[2];
     if (a.isScalar() && b.isScalar())
@@ -42,14 +41,14 @@ void betapdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
         outs[0] = broadcast_dist3(args[0], a, b, mr, "betapdf", betapdfK);
 }
 
-void betacdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void betacdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 3, "betacdf");  // no max: flag/option tail in the reference
     bool upper = false;
-    const Span<const Value> a0 = args.subspan(0, stripUpperFlag(args, upper));
+    const keel::ArrayRef<Value> a0 = args.slice(0, stripUpperFlag(args, upper));
     if (a0.size() < 3)
         throw Error("betacdf: requires (x, a, b[, 'upper'])", 0, 0, "betacdf", "", "numkit:betacdf:nargin");
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     const Value &a = a0[1];
     const Value &b = a0[2];
     Value v;
@@ -59,7 +58,7 @@ void betacdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
         // F(x; a, b) = betainc(clamp01(x), a, b); betainc broadcasts (xc, a, b)
         // and betaincScalar gives NaN where a<=0 or b<=0. betainc does NOT
         // validate sizes (would OOB), so guard empties + size clash first.
-        const size_t nx = a0[0].numel(), na = a.numel(), nb = b.numel();
+        const keel::usize nx = a0[0].numel(), na = a.numel(), nb = b.numel();
         if (nx == 0 || na == 0 || nb == 0) {
             v = dist_empty_like(nx == 0 ? a0[0] : (na == 0 ? a : b), mr);
         } else {
@@ -76,10 +75,10 @@ void betacdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     outs[0] = std::move(v);
 }
 
-void betainv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void betainv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 3, 3, "betainv");
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     const Value &p = args[0];
     const Value &a = args[1];
     const Value &b = args[2];
@@ -89,7 +88,7 @@ void betainv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     }
     // betaincinv broadcasts (p, a, b) and gives NaN for a<=0||b<=0 (no other
     // degenerate). It does NOT validate sizes (would OOB), so guard first.
-    const size_t np = p.numel(), na = a.numel(), nb = b.numel();
+    const keel::usize np = p.numel(), na = a.numel(), nb = b.numel();
     if (np == 0 || na == 0 || nb == 0) {
         outs[0] = dist_empty_like(np == 0 ? p : (na == 0 ? a : b), mr);
         return;
@@ -98,20 +97,20 @@ void betainv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     outs[0] = ::numkit::builtin::betaincinv(p, a, b, mr);
 }
 
-void betarnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void betarnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "betarnd");  // no max: trailing size args (N-D tail; nk caps at two — bugs/opened/stats/rnd-nd-size-tails.md)
     const double a = args[0].toScalar();
     const double b = args[1].toScalar();
-    size_t rows, cols;
+    keel::usize rows, cols;
     parse_rng_size(args, 2, rows, cols, "betarnd");
-    outs[0] = reshape_rng_nd(betarnd(ctx.engine->rng(), a, b, rows, cols, ctx.engine->resource()), args, 2, ctx.engine->resource(), "betarnd");
+    outs[0] = reshape_rng_nd(betarnd(ctx.engine->rng(), a, b, rows, cols, ctx.engine->allocator()), args, 2, ctx.engine->allocator(), "betarnd");
 }
 
-void betastat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+void betastat_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 2, "betastat");
-    emit_vec_stat_2arg(args, nargout, outs, ctx.engine->resource(), "betastat",
+    emit_vec_stat_2arg(args, nargout, outs, ctx.engine->allocator(), "betastat",
                        [](double a, double b) { return betastat(a, b); });
 }
 

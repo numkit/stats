@@ -1,5 +1,7 @@
 // toolboxes/stats/src/distributions/weibull.cpp
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/distributions/weibull.hpp>
 
 #include <numkit/builtin/datafun.hpp>
@@ -25,7 +27,7 @@ inline bool wbl_argcheck(double a, double b) noexcept
 }
 } // namespace
 
-Value wblpdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
+Value wblpdf(const Value &x, double a, double b, keel::Allocator *mr)
 {
     const double NaN = std::numeric_limits<double>::quiet_NaN();
     if (!wbl_argcheck(a, b))  // also catches NaN params
@@ -43,7 +45,7 @@ Value wblpdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
     }, mr);
 }
 
-Value wblcdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
+Value wblcdf(const Value &x, double a, double b, keel::Allocator *mr)
 {
     if (a <= 0.0 || b <= 0.0)
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -53,7 +55,7 @@ Value wblcdf(const Value &x, double a, double b, std::pmr::memory_resource *mr)
     }, mr);
 }
 
-Value wblinv(const Value &p, double a, double b, std::pmr::memory_resource *mr)
+Value wblinv(const Value &p, double a, double b, keel::Allocator *mr)
 {
     if (a <= 0.0 || b <= 0.0)
         return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -65,17 +67,17 @@ Value wblinv(const Value &p, double a, double b, std::pmr::memory_resource *mr)
     }, mr);
 }
 
-Value wblrnd(::numkit::ops::RngContext &rng, double a, double b, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value wblrnd(::numkit::ops::RngContext &rng, double a, double b, keel::usize rows, keel::usize cols, keel::Allocator *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (a <= 0.0 || b <= 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
-    const size_t n = rows * cols;
+    const keel::usize n = rows * cols;
     // std::weibull_distribution(shape=a, scale=b) — note ORDER FLIP relative
     // to MATLAB (a=scale, b=shape).
     std::weibull_distribution<double> wd(b, a);
-    for (size_t i = 0; i < n; ++i) od[i] = wd(gen);
+    for (keel::usize i = 0; i < n; ++i) od[i] = wd(gen);
     return out;
 }
 

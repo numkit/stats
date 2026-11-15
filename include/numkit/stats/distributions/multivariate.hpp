@@ -6,9 +6,10 @@
 
 #pragma once
 
+#include <keel/core.h>
+#include <keel/memory.h>
+#include <keel/ref.h>
 #include <cstddef>
-#include <memory_resource>
-#include <numkit/value/span.hpp>
 #include <numkit/value/value.hpp>
 
 namespace numkit {
@@ -44,8 +45,8 @@ namespace numkit::stats {
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `n × d` matrix of samples.
 /// @throws Error on shape mismatch or non-PD Sigma.
-Value mvnrnd(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigma, std::size_t n = 0,
-             std::pmr::memory_resource *mr = nullptr);
+Value mvnrnd(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigma, keel::usize n = 0,
+             keel::Allocator *mr = nullptr);
 
 /// @brief Full `mvnrnd` contract result (`[R, T] = mvnrnd(...)`).
 struct MvnrndOut {
@@ -65,7 +66,7 @@ struct MvnrndOut {
 /// single outputs, and the second output T (the factor Sigma = T·T').
 MvnrndOut mvnrnd_full(::numkit::ops::RngContext &rng, const Value &mu,
                       const Value &Sigma, const Value &cases, bool wantT,
-                      std::pmr::memory_resource *mr = nullptr);
+                      keel::Allocator *mr = nullptr);
 
 /// @brief Multivariate normal CDF (`p = mvncdf(X, mu, Sigma)`).
 ///
@@ -90,7 +91,7 @@ MvnrndOut mvnrnd_full(::numkit::ops::RngContext &rng, const Value &mu,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `n × 1` column of cumulative probabilities.
 Value mvncdf(const Value &X, const Value &mu, const Value &Sigma,
-              std::pmr::memory_resource *mr = nullptr);
+              keel::Allocator *mr = nullptr);
 
 /// @brief Full `mvncdf` entry — the complete parse+validate+compute
 /// contract (probed R2025b, build/probe73.m C-series).
@@ -100,7 +101,7 @@ Value mvncdf(const Value &X, const Value &mu, const Value &Sigma,
 /// check, strips a trailing options struct, applies the column-X row
 /// reinterpretation, the scalar/row/full mu forms, the 1×k diagonal
 /// Sigma row, PSD covariances, and single outputs.
-Value mvncdf_full(Span<const Value> args, std::pmr::memory_resource *mr = nullptr);
+Value mvncdf_full(keel::ArrayRef<Value> args, keel::Allocator *mr = nullptr);
 
 /// @brief Multivariate Student's-t random samples
 /// (`R = mvtrnd(C, df, n)`).
@@ -119,8 +120,8 @@ Value mvncdf_full(Span<const Value> args, std::pmr::memory_resource *mr = nullpt
 /// @param n    Sample count.
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     `n × d` matrix of samples.
-Value mvtrnd(::numkit::ops::RngContext &rng, const Value &C, double df, std::size_t n,
-              std::pmr::memory_resource *mr = nullptr);
+Value mvtrnd(::numkit::ops::RngContext &rng, const Value &C, keel::f64 df, keel::usize n,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Full `mvtrnd` entry (probed R2025b, probe73.m T-series):
 /// `cases` may be empty (→ 1), `df` is a positive scalar or one value
@@ -128,7 +129,7 @@ Value mvtrnd(::numkit::ops::RngContext &rng, const Value &C, double df, std::siz
 /// matrix, semidefinite C is accepted (eigenvalue factorization).
 Value mvtrnd_full(::numkit::ops::RngContext &rng, const Value &C,
                   const Value &df, const Value &cases,
-                  std::pmr::memory_resource *mr = nullptr);
+                  keel::Allocator *mr = nullptr);
 
 /// @brief Multinomial random samples (`R = mnrnd(N, P, m)`).
 ///
@@ -148,8 +149,8 @@ Value mvtrnd_full(::numkit::ops::RngContext &rng, const Value &C,
 /// @param m   Number of samples (default 1).
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    `m × k` count matrix.
-Value mnrnd(::numkit::ops::RngContext &rng, std::size_t N, const Value &P, std::size_t m = 1,
-              std::pmr::memory_resource *mr = nullptr);
+Value mnrnd(::numkit::ops::RngContext &rng, keel::usize N, const Value &P, keel::usize m = 1,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Wishart random matrix (`W = wishrnd(Sigma, df)`).
 ///
@@ -170,8 +171,8 @@ Value mnrnd(::numkit::ops::RngContext &rng, std::size_t N, const Value &P, std::
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Single `p × p` Wishart draw.
 /// @see iwishrnd, mvnrnd
-Value wishrnd(::numkit::ops::RngContext &rng, const Value &Sigma, double df,
-              std::pmr::memory_resource *mr = nullptr);
+Value wishrnd(::numkit::ops::RngContext &rng, const Value &Sigma, keel::f64 df,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Inverse-Wishart random matrix (`W = iwishrnd(Tau, df)`).
 ///
@@ -189,8 +190,8 @@ Value wishrnd(::numkit::ops::RngContext &rng, const Value &Sigma, double df,
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     Single `p × p` inverse Wishart draw.
 /// @see wishrnd
-Value iwishrnd(::numkit::ops::RngContext &rng, const Value &Tau, double df,
-               std::pmr::memory_resource *mr = nullptr);
+Value iwishrnd(::numkit::ops::RngContext &rng, const Value &Tau, keel::f64 df,
+               keel::Allocator *mr = nullptr);
 
 /// @brief Wishart sample with pre-computed Cholesky factor
 /// (`W = wishrnd(Sigma, df, D)`).
@@ -205,8 +206,8 @@ Value iwishrnd(::numkit::ops::RngContext &rng, const Value &Tau, double df,
 /// @param mr     Memory resource.
 /// @return       `{W, D}` — Wishart draw and the upper-Cholesky factor.
 std::tuple<Value, Value>
-wishrnd_factor(::numkit::ops::RngContext &rng, const Value &Sigma, double df,
-               const Value &D, std::pmr::memory_resource *mr = nullptr);
+wishrnd_factor(::numkit::ops::RngContext &rng, const Value &Sigma, keel::f64 df,
+               const Value &D, keel::Allocator *mr = nullptr);
 
 /// @brief Inverse-Wishart sample with pre-computed Cholesky factor
 /// (`W = iwishrnd(Tau, df, DI)`).
@@ -220,8 +221,8 @@ wishrnd_factor(::numkit::ops::RngContext &rng, const Value &Sigma, double df,
 ///
 /// @return  `{W, DI}` — Inv-Wishart draw and the lower-Cholesky of inv(Tau).
 std::tuple<Value, Value>
-iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, double df,
-                const Value &DI, std::pmr::memory_resource *mr = nullptr);
+iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, keel::f64 df,
+                const Value &DI, keel::Allocator *mr = nullptr);
 
 /// @brief Multivariate t cdf upper-tail (`p = mvtcdf(X, C, df)`).
 ///
@@ -242,9 +243,9 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, double df,
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     `n × 1` column of cdf values.
 /// @see mvtpdf, mvtrnd
-Value mvtcdf(const Value &X, const Value &C, double df,
-             double tol = 0.01,
-             std::pmr::memory_resource *mr = nullptr);
+Value mvtcdf(const Value &X, const Value &C, keel::f64 df,
+             keel::f64 tol = 0.01,
+             keel::Allocator *mr = nullptr);
 
 /// @brief Multivariate t box cdf (`p = mvtcdf(L, U, C, df)`).
 ///
@@ -260,9 +261,9 @@ Value mvtcdf(const Value &X, const Value &C, double df,
 /// @param tol  Target MC absolute error (default 0.01).
 /// @param mr   Memory resource.
 /// @return     `n × 1` column of box probabilities.
-Value mvtcdf_box(const Value &L, const Value &U, const Value &C, double df,
-                 double tol = 0.01,
-                 std::pmr::memory_resource *mr = nullptr);
+Value mvtcdf_box(const Value &L, const Value &U, const Value &C, keel::f64 df,
+                 keel::f64 tol = 0.01,
+                 keel::Allocator *mr = nullptr);
 
 
 /// @}

@@ -3,10 +3,11 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
+#include <keel/core.h>
+#include <keel/memory.h>
+#include <keel/array.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
 #include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
 
 #include <algorithm>
@@ -15,7 +16,6 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
-#include <memory_resource>
 #include <numeric>
 #include <string>
 #include <tuple>
@@ -30,22 +30,22 @@ namespace numkit::stats {
 
 namespace {
 
-void mean_var(const Value &x, double &mean, double &var, size_t &N) {
+void mean_var(const Value &x, double &mean, double &var, keel::usize &N) {
     N = x.numel();
     if (N == 0) { mean = 0.0; var = 0.0; return; }
     double s = 0.0;
-    for (size_t i = 0; i < N; ++i) s += x.elemAsDouble(i);
+    for (keel::usize i = 0; i < N; ++i) s += x.elemAsDouble(i);
     mean = s / double(N);
     if (N < 2) { var = 0.0; return; }
     double sq = 0.0;
-    for (size_t i = 0; i < N; ++i) {
+    for (keel::usize i = 0; i < N; ++i) {
         const double d = x.elemAsDouble(i) - mean;
         sq += d * d;
     }
     var = sq / double(N - 1);
 }
 
-Value rowCI(double lo, double hi, std::pmr::memory_resource *mr) {
+Value rowCI(double lo, double hi, keel::Allocator *mr) {
     Value v = Value::matrix(2, 1, ValueType::DOUBLE, mr);
     double *d = v.doubleDataMut();
     d[0] = lo;
@@ -53,12 +53,12 @@ Value rowCI(double lo, double hi, std::pmr::memory_resource *mr) {
     return v;
 }
 
-double tinv_scalar(double p, double nu, std::pmr::memory_resource *mr) {
+double tinv_scalar(double p, double nu, keel::Allocator *mr) {
     Value pv = Value::scalar(p, mr);
     return tinv(pv, nu, mr).toScalar();
 }
 
-double chi2inv_scalar(double p, double k, std::pmr::memory_resource *mr) {
+double chi2inv_scalar(double p, double k, keel::Allocator *mr) {
     Value pv = Value::scalar(p, mr);
     return chi2inv(pv, k, mr).toScalar();
 }
@@ -99,16 +99,16 @@ struct NormalFitOut {
 };
 
 NormalFitOut
-normal_fit_mle(const ScratchVec<double> &y, const ScratchVec<double> &fr, const ScratchVec<uint8_t> &cn, double alpha, std::pmr::memory_resource *mr)
+normal_fit_mle(const keel::Array<double> &y, const keel::Array<double> &fr, const keel::Array<keel::u8> &cn, double alpha, keel::Allocator *mr)
 {
     const double nan = std::numeric_limits<double>::quiet_NaN();
     NormalFitOut R{nan, nan, nan, nan, nan, nan, false};
-    const size_t N = y.size();
+    const keel::usize N = y.size();
     if (N < 2) return R;
 
     double sumf = 0.0;
     int nuncens = 0;
-    for (size_t i = 0; i < N; ++i) {
+    for (keel::usize i = 0; i < N; ++i) {
         sumf += fr[i];
         if (!cn[i]) ++nuncens;
     }
@@ -119,10 +119,10 @@ normal_fit_mle(const ScratchVec<double> &y, const ScratchVec<double> &fr, const 
     if (!any_cens) {
         // Closed-form weighted moments.
         double s = 0.0;
-        for (size_t i = 0; i < N; ++i) s += fr[i] * y[i];
+        for (keel::usize i = 0; i < N; ++i) s += fr[i] * y[i];
         const double mu = s / sumf;
         double sq = 0.0;
-        for (size_t i = 0; i < N; ++i) {
+        for (keel::usize i = 0; i < N; ++i) {
             const double d = y[i] - mu;
             sq += fr[i] * d * d;
         }
@@ -145,12 +145,12 @@ normal_fit_mle(const ScratchVec<double> &y, const ScratchVec<double> &fr, const 
     double mu = 0.0, sd = 0.0;
     {
         double s_un = 0.0, w_un = 0.0;
-        for (size_t i = 0; i < N; ++i) if (!cn[i]) {
+        for (keel::usize i = 0; i < N; ++i) if (!cn[i]) {
             s_un += fr[i] * y[i]; w_un += fr[i];
         }
         mu = s_un / w_un;
         double sq = 0.0;
-        for (size_t i = 0; i < N; ++i) if (!cn[i]) {
+        for (keel::usize i = 0; i < N; ++i) if (!cn[i]) {
             const double d = y[i] - mu; sq += fr[i] * d * d;
         }
         sd = std::sqrt(std::max(sq / std::max(w_un - 1.0, 1.0), 1e-12));
@@ -159,7 +159,7 @@ normal_fit_mle(const ScratchVec<double> &y, const ScratchVec<double> &fr, const 
     const double tolFun  = 1e-10;
     for (int it = 0; it < maxIter; ++it) {
         double sumfy = 0.0, sumfy2 = 0.0;
-        for (size_t i = 0; i < N; ++i) {
+        for (keel::usize i = 0; i < N; ++i) {
             const double yi = y[i], fi = fr[i];
             if (!cn[i]) {
                 sumfy  += fi * yi;
@@ -184,7 +184,7 @@ normal_fit_mle(const ScratchVec<double> &y, const ScratchVec<double> &fr, const 
 
     // Analytic observed Fisher info at the MLE.
     double Imm = 0.0, Ims = 0.0, Iss = 0.0;
-    for (size_t i = 0; i < N; ++i) {
+    for (keel::usize i = 0; i < N; ++i) {
         const double fi = fr[i];
         const double a  = (y[i] - mu) / sd;
         if (!cn[i]) {
@@ -219,7 +219,7 @@ normal_fit_mle(const ScratchVec<double> &y, const ScratchVec<double> &fr, const 
 
 } // anonymous
 namespace {
-double betainv_scalar2(double p, double a, double b, std::pmr::memory_resource *mr)
+double betainv_scalar2(double p, double a, double b, keel::Allocator *mr)
 {
     if (a <= 0.0 || b <= 0.0) return std::numeric_limits<double>::quiet_NaN();
     if (p <= 0.0) return 0.0;
@@ -239,9 +239,9 @@ double explike_full(double mu, const Value &x,
                     const Value &cens, const Value &freq, double *avarOut);
 double wbllike_full(double scale, double shape, const Value &x,
                     const Value &cens, const Value &freq,
-                    std::pmr::memory_resource *mr);
+                    keel::Allocator *mr);
 double evlike_full(double mu, double sigma, const Value &x,
                    const Value &cens, const Value &freq,
-                   std::pmr::memory_resource *mr);
+                   keel::Allocator *mr);
 
 } // namespace numkit::stats

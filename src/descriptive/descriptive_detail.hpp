@@ -3,10 +3,15 @@
 // Phase 2b compute/register split â€” see project_layering_refactor memory.
 #pragma once
 
+#include <keel/core.h>
+#include <keel/memory.h>
+#include <keel/ref.h>
+#include <keel/arena.h>
+#include <keel/array.h>
+#include <keel/complex.h>
+#include <keel/math.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
 #include <numkit/ops/helpers.hpp>            // createForDims/createMatrix/DimsArg (engine-free)
 #include <numkit/ops/reductions.hpp>  // numkit::builtin::detail dim-infra (engine-free, ops re-export)
 #include <numkit/builtin/detail/datafun/var_reduction.hpp> // varianceTwoPass (engine-free)
@@ -17,7 +22,6 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
-#include <memory_resource>
 #include <numeric>
 #include <string>
 #include <tuple>
@@ -50,13 +54,13 @@ void validateNormFlag(int w, const char *fn)
 // input type without writing parallel single-precision kernels â€”
 // arithmetic happens at double precision (more precise than MATLAB)
 // then narrows at the end.
-Value narrowToSingle(Value d, std::pmr::memory_resource *mr)
+Value narrowToSingle(Value d, keel::Allocator *mr)
 {
     if (d.type() != ValueType::DOUBLE) return d;
     Value r = createForDims(d.dims(), ValueType::SINGLE, mr);
     const double *src = d.doubleData();
     float *dst = r.singleDataMut();
-    for (size_t i = 0; i < d.numel(); ++i)
+    for (keel::usize i = 0; i < d.numel(); ++i)
         dst[i] = static_cast<float>(src[i]);
     return r;
 }
@@ -66,17 +70,17 @@ Value narrowToSingle(Value d, std::pmr::memory_resource *mr)
 // preserves the integer class for median (median(int32([1 2 3 4]))=3 int32,
 // median(int8([-1 -2]))=-2 int8) â€” the two-middle-element average is rounded
 // half-away-from-zero and the class is retained.
-Value narrowToInteger(const Value &d, ValueType vt, std::pmr::memory_resource *mr)
+Value narrowToInteger(const Value &d, ValueType vt, keel::Allocator *mr)
 {
     if (d.type() != ValueType::DOUBLE) return d;
     Value r = createForDims(d.dims(), vt, mr);
     const double *src = d.doubleData();
-    const size_t n = d.numel();
+    const keel::usize n = d.numel();
     auto fill = [&](auto *dst) {
         using T = std::remove_pointer_t<std::decay_t<decltype(dst)>>;
         const double lo = static_cast<double>(std::numeric_limits<T>::min());
         const double hi = static_cast<double>(std::numeric_limits<T>::max());
-        for (size_t i = 0; i < n; ++i) {
+        for (keel::usize i = 0; i < n; ++i) {
             double v = std::round(src[i]);   // round half away from zero
             if (v < lo) v = lo;
             else if (v > hi) v = hi;          // saturate to class range
@@ -101,17 +105,17 @@ Value narrowToInteger(const Value &d, ValueType vt, std::pmr::memory_resource *m
 // MATLAB convention. With normFlag == 0 (default) divides by n-1;
 // normFlag == 1 divides by n. When omitNan is true, NaN-complex
 // elements (real or imag is NaN) are skipped before mean/variance.
-inline bool isComplexNaNStats(Complex c)
+inline bool isComplexNaNStats(keel::c64 c)
 {
     return std::isnan(c.real()) || std::isnan(c.imag());
 }
 
-double complexVarianceFromSlice(const Complex *data, size_t n, int normFlag,
+double complexVarianceFromSlice(const keel::c64 *data, keel::usize n, int normFlag,
                                 bool omitNan = false)
 {
-    Complex mean(0.0, 0.0);
-    size_t k = 0;
-    for (size_t i = 0; i < n; ++i) {
+    keel::c64 mean(0.0, 0.0);
+    keel::usize k = 0;
+    for (keel::usize i = 0; i < n; ++i) {
         if (omitNan && isComplexNaNStats(data[i])) continue;
         mean += data[i];
         ++k;
@@ -120,20 +124,20 @@ double complexVarianceFromSlice(const Complex *data, size_t n, int normFlag,
     if (k == 1) return (normFlag == 0) ? std::nan("") : 0.0;
     mean /= static_cast<double>(k);
     double acc = 0.0;
-    for (size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         if (omitNan && isComplexNaNStats(data[i])) continue;
-        const Complex d = data[i] - mean;
+        const keel::c64 d = data[i] - mean;
         acc += d.real() * d.real() + d.imag() * d.imag();
     }
     const double divisor = static_cast<double>(k - (normFlag == 0 ? 1 : 0));
     return acc / divisor;
 }
 
-inline Value allocVarianceOutput(const Value &x, int redDim, std::pmr::memory_resource *mr)
+inline Value allocVarianceOutput(const Value &x, int redDim, keel::Allocator *mr)
 {
     if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
-        ScratchArena scratch(mr);
-        auto shape = outShapeForDimND(x, redDim, &scratch);
+        keel::ArenaTemp scratch = keel::get_scratch(mr);
+        auto shape = outShapeForDimND(x, redDim, scratch.allocator());
         return Value::matrixND(shape.data(), (int) shape.size(), ValueType::DOUBLE, mr);
     }
     auto outShape = outShapeForDim(x, redDim);
@@ -149,7 +153,7 @@ inline Value allocVarianceOutput(const Value &x, int redDim, std::pmr::memory_re
 // A size-0 sibling dim keeps the result empty, e.g. var(zeros(3,0))=1x0,
 // median([],2)=0x1. nk previously returned a 0x0 empty for all of these.
 inline Value emptyStatReductionFill(const Value &x, int dim, double fill,
-                                    std::pmr::memory_resource *mr)
+                                    keel::Allocator *mr)
 {
     const auto &dd = x.dims();
     if (dim < 1 && dd.ndim() == 2 && dd.rows() == 0 && dd.cols() == 0)
@@ -170,12 +174,12 @@ inline Value emptyStatReductionFill(const Value &x, int dim, double fill,
     }
     Value out = createMatrix(o, ValueType::DOUBLE, mr);
     double *p = out.doubleDataMut();
-    const size_t n = out.numel();
-    for (size_t i = 0; i < n; ++i) p[i] = fill;
+    const keel::usize n = out.numel();
+    for (keel::usize i = 0; i < n; ++i) p[i] = fill;
     return out;
 }
 
-inline Value emptyStatReductionNaN(const Value &x, int dim, std::pmr::memory_resource *mr)
+inline Value emptyStatReductionNaN(const Value &x, int dim, keel::Allocator *mr)
 {
     return emptyStatReductionFill(x, dim, std::nan(""), mr);
 }
@@ -183,38 +187,38 @@ inline Value emptyStatReductionNaN(const Value &x, int dim, std::pmr::memory_res
 // Complex variance along dim: walks slices via stride math, gathers
 // each slice into a Complex scratch buffer, computes per-slice complex
 // variance, writes DOUBLE output.
-void complexVarianceAlongDim(const Value &x, int redDim, double *dst, int normFlag, bool omitNan, std::pmr::memory_resource *mr)
+void complexVarianceAlongDim(const Value &x, int redDim, double *dst, int normFlag, bool omitNan, keel::Allocator *mr)
 {
     const auto &d = x.dims();
     const int redAxis = redDim - 1;
-    const size_t sliceLen = d.dim(redAxis);
-    size_t B = 1;
+    const keel::usize sliceLen = d.dim(redAxis);
+    keel::usize B = 1;
     for (int i = 0; i < redAxis; ++i) B *= d.dim(i);
-    size_t O = 1;
+    keel::usize O = 1;
     for (int i = redAxis + 1; i < d.ndim(); ++i) O *= d.dim(i);
 
-    const Complex *src = x.complexData();
-    ScratchVec<Complex> scratch(sliceLen, mr);
-    auto reduceSlice = [&](size_t outOff, size_t baseOff, size_t stride) {
-        for (size_t k = 0; k < sliceLen; ++k)
+    const keel::c64 *src = x.complexData();
+    keel::Array<keel::c64> scratch(sliceLen, mr);
+    auto reduceSlice = [&](keel::usize outOff, keel::usize baseOff, keel::usize stride) {
+        for (keel::usize k = 0; k < sliceLen; ++k)
             scratch[k] = src[baseOff + k * stride];
         dst[outOff] = complexVarianceFromSlice(scratch.data(), sliceLen, normFlag, omitNan);
     };
     if (B == 1) {
-        for (size_t o = 0; o < O; ++o) reduceSlice(o, o * sliceLen, 1);
+        for (keel::usize o = 0; o < O; ++o) reduceSlice(o, o * sliceLen, 1);
         return;
     }
-    for (size_t o = 0; o < O; ++o)
-        for (size_t b = 0; b < B; ++b)
+    for (keel::usize o = 0; o < O; ++o)
+        for (keel::usize b = 0; b < B; ++b)
             reduceSlice(o * B + b, o * sliceLen * B + b, B);
 }
 
 Value varianceComplex(const Value &x, int normFlag, int dim,
-                       std::pmr::memory_resource *mr, bool sqrtIt, bool omitNan = false)
+                       keel::Allocator *mr, bool sqrtIt, bool omitNan = false)
 {
     if (x.isEmpty())
         return emptyStatReductionNaN(x, dim, mr);
-    const Complex *src = x.complexData();
+    const keel::c64 *src = x.complexData();
     if (x.isScalar() || x.dims().isVector()) {
         double v = complexVarianceFromSlice(src, x.numel(), normFlag, omitNan);
         if (sqrtIt && !std::isnan(v)) v = std::sqrt(v);
@@ -222,12 +226,12 @@ Value varianceComplex(const Value &x, int normFlag, int dim,
     }
     const int d = (dim > 0) ? dim : firstNonSingletonDim(x);
     Value out = allocVarianceOutput(x, d, mr);
-    ScratchArena scratch(mr);
-    complexVarianceAlongDim(x, d, out.doubleDataMut(), normFlag, omitNan, &scratch);
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    complexVarianceAlongDim(x, d, out.doubleDataMut(), normFlag, omitNan, scratch.allocator());
     if (sqrtIt) {
         double *p = out.doubleDataMut();
-        const size_t n = out.numel();
-        for (size_t i = 0; i < n; ++i)
+        const keel::usize n = out.numel();
+        for (keel::usize i = 0; i < n; ++i)
             if (!std::isnan(p[i])) p[i] = std::sqrt(p[i]);
     }
     return out;
@@ -236,16 +240,16 @@ Value varianceComplex(const Value &x, int normFlag, int dim,
 } // namespace
 namespace {
 
-double medianFromSlice(double *data, size_t n)
+double medianFromSlice(double *data, keel::usize n)
 {
     if (n == 0) return std::nan("");
     if (n == 1) return data[0];
     // MATLAB R2025b default: NaN poisons (median(v) where v has NaN
     // returns NaN; 'omitnan' is opt-in via the explicit nanflag, which
     // routes to nanmedian instead of this kernel).
-    for (size_t i = 0; i < n; ++i)
+    for (keel::usize i = 0; i < n; ++i)
         if (std::isnan(data[i])) return std::nan("");
-    const size_t mid = n / 2;
+    const keel::usize mid = n / 2;
     std::nth_element(data, data + mid, data + n);
     if (n % 2 == 1)
         return data[mid];
@@ -259,68 +263,68 @@ namespace {
 
 // Complex ordering: by magnitude, ties broken by phase angle (matches nk
 // sort/max and MATLAB's complex median ordering).
-inline bool complexAbsAngleLess(const Complex &a, const Complex &b)
+inline bool complexAbsAngleLess(const keel::c64 &a, const keel::c64 &b)
 {
-    const double aa = std::abs(a), ab = std::abs(b);
+    const double aa = keel::abs(a), ab = keel::abs(b);
     if (aa != ab) return aa < ab;
-    return std::arg(a) < std::arg(b);
+    return keel::arg(a) < keel::arg(b);
 }
 
 // Median of a complex slice (mutates s by sorting). Propagates NaN (MATLAB
 // 'includenan' default). Even n â†’ mean of the two middle values.
-Complex complexMedianFromSlice(Complex *s, size_t n)
+keel::c64 complexMedianFromSlice(keel::c64 *s, keel::usize n)
 {
-    if (n == 0) return Complex(std::nan(""), std::nan(""));
-    for (size_t i = 0; i < n; ++i)
-        if (isComplexNaNStats(s[i])) return Complex(std::nan(""), std::nan(""));
+    if (n == 0) return keel::c64(std::nan(""), std::nan(""));
+    for (keel::usize i = 0; i < n; ++i)
+        if (isComplexNaNStats(s[i])) return keel::c64(std::nan(""), std::nan(""));
     std::sort(s, s + n, complexAbsAngleLess);
     if (n & 1u) return s[n / 2];
     return 0.5 * (s[n / 2 - 1] + s[n / 2]);
 }
 
 // Per-dim complex median (mirrors complexVarianceAlongDim; COMPLEX output).
-void complexMedianAlongDim(const Value &x, int redDim, Complex *dst,
-                           std::pmr::memory_resource *mr)
+void complexMedianAlongDim(const Value &x, int redDim, keel::c64 *dst,
+                           keel::Allocator *mr)
 {
     const auto &d = x.dims();
     const int redAxis = redDim - 1;
-    const size_t sliceLen = d.dim(redAxis);
-    size_t B = 1;
+    const keel::usize sliceLen = d.dim(redAxis);
+    keel::usize B = 1;
     for (int i = 0; i < redAxis; ++i) B *= d.dim(i);
-    size_t O = 1;
+    keel::usize O = 1;
     for (int i = redAxis + 1; i < d.ndim(); ++i) O *= d.dim(i);
-    const Complex *src = x.complexData();
-    ScratchVec<Complex> scratch(sliceLen, mr);
-    auto reduceSlice = [&](size_t outOff, size_t baseOff, size_t stride) {
-        for (size_t k = 0; k < sliceLen; ++k) scratch[k] = src[baseOff + k * stride];
+    const keel::c64 *src = x.complexData();
+    keel::Array<keel::c64> scratch(sliceLen, mr);
+    auto reduceSlice = [&](keel::usize outOff, keel::usize baseOff, keel::usize stride) {
+        for (keel::usize k = 0; k < sliceLen; ++k) scratch[k] = src[baseOff + k * stride];
         dst[outOff] = complexMedianFromSlice(scratch.data(), sliceLen);
     };
     if (B == 1) {
-        for (size_t o = 0; o < O; ++o) reduceSlice(o, o * sliceLen, 1);
+        for (keel::usize o = 0; o < O; ++o) reduceSlice(o, o * sliceLen, 1);
         return;
     }
-    for (size_t o = 0; o < O; ++o)
-        for (size_t b = 0; b < B; ++b)
+    for (keel::usize o = 0; o < O; ++o)
+        for (keel::usize b = 0; b < B; ++b)
             reduceSlice(o * B + b, o * sliceLen * B + b, B);
 }
 
-Value medianComplex(const Value &x, int dim, std::pmr::memory_resource *mr)
+Value medianComplex(const Value &x, int dim, keel::Allocator *mr)
 {
     if (x.isEmpty()) return emptyStatReductionNaN(x, dim, mr);
     if (x.isScalar()) return Value::complexScalar(x.complexData()[0], mr);
     const int d = resolveDim(x, dim, "median");
     Value out;
     if (x.dims().ndim() >= 4 && d >= 1 && d <= x.dims().ndim()) {
-        ScratchArena sc(mr);
-        auto shape = outShapeForDimND(x, d, &sc);
+        keel::ArenaTemp sc = keel::get_scratch(mr);
+        auto shape = outShapeForDimND(x, d, sc.allocator());
         out = Value::matrixND(shape.data(), static_cast<int>(shape.size()),
                               ValueType::COMPLEX, mr);
     } else {
         auto outShape = outShapeForDim(x, d);
         out = createMatrix(outShape, ValueType::COMPLEX, mr);
     }
-    ScratchArena scratch(mr);
-    complexMedianAlongDim(x, d, out.complexDataMut(), &scratch);
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    complexMedianAlongDim(x, d, out.complexDataMut(), scratch.allocator());
     return out;
 }
 
@@ -328,7 +332,7 @@ Value medianComplex(const Value &x, int dim, std::pmr::memory_resource *mr)
 namespace {
 
 
-double quantileFromSortedSlice(const double *sorted, size_t n, double p,
+double quantileFromSortedSlice(const double *sorted, keel::usize n, double p,
                                QMethod method)
 {
     if (n == 0) return std::nan("");
@@ -351,8 +355,8 @@ double quantileFromSortedSlice(const double *sorted, size_t n, double p,
     }
     if (q <= 1.0) return sorted[0];
     if (q >= static_cast<double>(n)) return sorted[n - 1];
-    const size_t lo = static_cast<size_t>(std::floor(q)) - 1; // â†’ 0-based
-    const size_t hi = lo + 1;
+    const keel::usize lo = static_cast<keel::usize>(std::floor(q)) - 1; // â†’ 0-based
+    const keel::usize hi = lo + 1;
     const double frac = q - std::floor(q);
     return sorted[lo] + frac * (sorted[hi] - sorted[lo]);
 }
@@ -361,32 +365,32 @@ double quantileFromSortedSlice(const double *sorted, size_t n, double p,
 // raw user input to a [0,1] probability (1.0 for quantile, 1/100 for
 // prctile). `method` selects the interpolation rule (default Midpoint
 // = MATLAB R2025b default).
-Value quantileImpl(const Value &x, const Value &p, int dim, double pScale, QMethod method, const char *fn, std::pmr::memory_resource *mr)
+Value quantileImpl(const Value &x, const Value &p, int dim, double pScale, QMethod method, const char *fn, keel::Allocator *mr)
 {
     if (p.numel() == 0)
         throw Error(std::string(fn) + ": p must be non-empty",
                      0, 0, fn, "", std::string("numkit:") + fn + ":emptyP");
 
-    ScratchArena scratch(mr);
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
 
     // Normalize probabilities into a flat vector (so prctile sees /100)
     // then validate the post-scaling value lies in [0,1].
-    auto probs = ScratchVec<double>(p.numel(), &scratch);
-    for (size_t i = 0; i < p.numel(); ++i) {
+    auto probs = keel::Array<double>(p.numel(), scratch.allocator());
+    for (keel::usize i = 0; i < p.numel(); ++i) {
         probs[i] = p.doubleData()[i] * pScale;
         if (!(probs[i] >= 0.0 && probs[i] <= 1.0))
             throw Error(std::string(fn) + ": probabilities out of range",
                          0, 0, fn, "", std::string("numkit:") + fn + ":badProb");
     }
 
-    const size_t k = probs.size();
+    const keel::usize k = probs.size();
     const int d = resolveDim(x, dim, fn);
 
     // Scalar p â†’ standard one-output-per-slice path.
     if (k == 1) {
         const double pp = probs[0];
         return applyAlongDim(x, d,
-            [pp, method](size_t, double *slice, size_t n) {
+            [pp, method](keel::usize, double *slice, keel::usize n) {
                 std::sort(slice, slice + n);
                 return quantileFromSortedSlice(slice, n, pp, method);
             }, mr);
@@ -400,11 +404,11 @@ Value quantileImpl(const Value &x, const Value &p, int dim, double pScale, QMeth
     }
     if (x.dims().isVector() || x.isScalar()) {
         // Output is 1Ã—k row vector.
-        auto sorted = ScratchVec<double>(x.numel(), &scratch);
+        auto sorted = keel::Array<double>(x.numel(), scratch.allocator());
         std::copy(x.doubleData(), x.doubleData() + x.numel(), sorted.data());
         std::sort(sorted.begin(), sorted.end());
         auto out = Value::matrix(1, k, ValueType::DOUBLE, mr);
-        for (size_t i = 0; i < k; ++i)
+        for (keel::usize i = 0; i < k; ++i)
             out.doubleDataMut()[i] = quantileFromSortedSlice(sorted.data(),
                                                               sorted.size(),
                                                               probs[i],
@@ -415,7 +419,7 @@ Value quantileImpl(const Value &x, const Value &p, int dim, double pScale, QMeth
     // Build output shape: same as input but the reduced dim has size k.
     const auto &dd = x.dims();
     const int nd = std::max(dd.ndim(), d);
-    std::vector<size_t> outShape(nd);
+    std::vector<keel::usize> outShape(nd);
     for (int i = 0; i < nd; ++i)
         outShape[i] = (i == d - 1) ? k : ((i < dd.ndim()) ? dd.dim(i) : 1);
     Value out = (nd <= 2) ? Value::matrix(outShape[0], outShape[1], ValueType::DOUBLE, mr)
@@ -423,25 +427,25 @@ Value quantileImpl(const Value &x, const Value &p, int dim, double pScale, QMeth
                           : Value::matrixND(outShape.data(), nd, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
 
-    size_t B = 1;
+    keel::usize B = 1;
     for (int i = 0; i < d - 1; ++i)
         B *= (i < dd.ndim()) ? dd.dim(i) : 1;
-    const size_t N = (d - 1 < dd.ndim()) ? dd.dim(d - 1) : 1;
-    size_t O = 1;
+    const keel::usize N = (d - 1 < dd.ndim()) ? dd.dim(d - 1) : 1;
+    keel::usize O = 1;
     for (int i = d; i < nd; ++i)
         O *= (i < dd.ndim()) ? dd.dim(i) : 1;
 
-    auto sorted = ScratchVec<double>(N, &scratch);
+    auto sorted = keel::Array<double>(N, scratch.allocator());
     const double *src = x.doubleData();
 
-    for (size_t o = 0; o < O; ++o) {
-        for (size_t b = 0; b < B; ++b) {
+    for (keel::usize o = 0; o < O; ++o) {
+        for (keel::usize b = 0; b < B; ++b) {
             const double *srcBase = src + o * (B * N) + b;
-            for (size_t s = 0; s < N; ++s)
+            for (keel::usize s = 0; s < N; ++s)
                 sorted[s] = srcBase[s * B];
             std::sort(sorted.begin(), sorted.end());
             double *dstBase = dst + o * (B * k) + b;
-            for (size_t i = 0; i < k; ++i)
+            for (keel::usize i = 0; i < k; ++i)
                 dstBase[i * B] = quantileFromSortedSlice(sorted.data(), N, probs[i], method);
         }
     }
@@ -452,7 +456,7 @@ Value quantileImpl(const Value &x, const Value &p, int dim, double pScale, QMeth
 namespace {
 
 template <typename T>
-inline T readSrcAsT(const Value &x, size_t i, bool typeMatch)
+inline T readSrcAsT(const Value &x, keel::usize i, bool typeMatch)
 {
     if (typeMatch)
         return static_cast<const T *>(x.rawData())[i];
@@ -467,7 +471,7 @@ inline T readSrcAsT(const Value &x, size_t i, bool typeMatch)
 }
 
 template <typename T>
-inline Value makeScalarT(T v, ValueType outType, std::pmr::memory_resource *mr)
+inline Value makeScalarT(T v, ValueType outType, keel::Allocator *mr)
 {
     if (outType == ValueType::DOUBLE)
         return Value::scalar(static_cast<double>(v), mr);
@@ -488,11 +492,11 @@ inline T modeEmptyValue()
 }
 
 template <typename T>
-inline size_t compactNonNanT(T *data, size_t n)
+inline keel::usize compactNonNanT(T *data, keel::usize n)
 {
     if constexpr (std::is_floating_point_v<T>) {
-        size_t w = 0;
-        for (size_t i = 0; i < n; ++i)
+        keel::usize w = 0;
+        for (keel::usize i = 0; i < n; ++i)
             if (!std::isnan(data[i])) {
                 if (w != i) data[w] = data[i];
                 ++w;
@@ -505,9 +509,9 @@ inline size_t compactNonNanT(T *data, size_t n)
 }
 
 template <typename T>
-inline void modeFromSliceT(T *data, size_t n, T &outVal, double &outCount)
+inline void modeFromSliceT(T *data, keel::usize n, T &outVal, double &outCount)
 {
-    const size_t k = compactNonNanT<T>(data, n);
+    const keel::usize k = compactNonNanT<T>(data, n);
     if (k == 0) {
         outVal = modeEmptyValue<T>();
         outCount = 0.0;
@@ -515,10 +519,10 @@ inline void modeFromSliceT(T *data, size_t n, T &outVal, double &outCount)
     }
     std::sort(data, data + k);
     T bestVal = data[0];
-    size_t bestCount = 1;
+    keel::usize bestCount = 1;
     T curVal = data[0];
-    size_t curCount = 1;
-    for (size_t i = 1; i < k; ++i) {
+    keel::usize curCount = 1;
+    for (keel::usize i = 1; i < k; ++i) {
         if (data[i] == curVal) {
             ++curCount;
         } else {
@@ -538,26 +542,26 @@ inline void modeFromSliceT(T *data, size_t n, T &outVal, double &outCount)
 // On empty slices (sliceLen == 0) fills outputs with NaN/0 (or 0/0 for
 // integer T) â€” matches MATLAB's mode-of-empty-slice convention.
 template <typename T>
-void modeAlongDim(const Value &x, int redDim, T *dst, double *dstC, bool typeMatch, std::pmr::memory_resource *mr)
+void modeAlongDim(const Value &x, int redDim, T *dst, double *dstC, bool typeMatch, keel::Allocator *mr)
 {
     const auto &d = x.dims();
     const int redAxis = redDim - 1;
-    const size_t sliceLen = d.dim(redAxis);
-    size_t B = 1;
+    const keel::usize sliceLen = d.dim(redAxis);
+    keel::usize B = 1;
     for (int i = 0; i < redAxis; ++i) B *= d.dim(i);
-    size_t O = 1;
+    keel::usize O = 1;
     for (int i = redAxis + 1; i < d.ndim(); ++i) O *= d.dim(i);
 
     if (sliceLen == 0) {
         const T defVal = modeEmptyValue<T>();
-        const size_t total = B * O;
-        for (size_t i = 0; i < total; ++i) { dst[i] = defVal; dstC[i] = 0.0; }
+        const keel::usize total = B * O;
+        for (keel::usize i = 0; i < total; ++i) { dst[i] = defVal; dstC[i] = 0.0; }
         return;
     }
 
-    ScratchVec<T> scratch(sliceLen, mr);
-    auto runSlice = [&](size_t outIdx, size_t baseOff, size_t stride) {
-        for (size_t k = 0; k < sliceLen; ++k)
+    keel::Array<T> scratch(sliceLen, mr);
+    auto runSlice = [&](keel::usize outIdx, keel::usize baseOff, keel::usize stride) {
+        for (keel::usize k = 0; k < sliceLen; ++k)
             scratch[k] = readSrcAsT<T>(x, baseOff + k * stride, typeMatch);
         T v; double c;
         modeFromSliceT<T>(scratch.data(), sliceLen, v, c);
@@ -566,24 +570,24 @@ void modeAlongDim(const Value &x, int redDim, T *dst, double *dstC, bool typeMat
     };
 
     if (B == 1) {
-        for (size_t o = 0; o < O; ++o) runSlice(o, o * sliceLen, 1);
+        for (keel::usize o = 0; o < O; ++o) runSlice(o, o * sliceLen, 1);
         return;
     }
-    for (size_t o = 0; o < O; ++o) {
-        for (size_t b = 0; b < B; ++b) {
-            const size_t base = o * sliceLen * B + b;
-            const size_t outIdx = o * B + b;
+    for (keel::usize o = 0; o < O; ++o) {
+        for (keel::usize b = 0; b < B; ++b) {
+            const keel::usize base = o * sliceLen * B + b;
+            const keel::usize outIdx = o * B + b;
             runSlice(outIdx, base, B);
         }
     }
 }
 
 inline std::pair<Value, Value>
-allocModeOutputs(const Value &x, int redDim, ValueType outType, std::pmr::memory_resource *mr)
+allocModeOutputs(const Value &x, int redDim, ValueType outType, keel::Allocator *mr)
 {
     if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
-        ScratchArena scratch(mr);
-        auto shape = outShapeForDimND(x, redDim, &scratch);
+        keel::ArenaTemp scratch = keel::get_scratch(mr);
+        auto shape = outShapeForDimND(x, redDim, scratch.allocator());
         return {Value::matrixND(shape.data(), (int) shape.size(), outType, mr),
                 Value::matrixND(shape.data(), (int) shape.size(), ValueType::DOUBLE, mr)};
     }
@@ -594,17 +598,17 @@ allocModeOutputs(const Value &x, int redDim, ValueType outType, std::pmr::memory
 
 template <typename T>
 std::tuple<Value, Value>
-modeAllT(const Value &x, ValueType outType, std::pmr::memory_resource *mr)
+modeAllT(const Value &x, ValueType outType, keel::Allocator *mr)
 {
     const bool typeMatch = (x.type() == outType);
     if (x.isEmpty() && x.dims().ndim() < 4) {
         return std::make_tuple(Value::matrix(0, 0, outType, mr),
                                Value::matrix(0, 0, ValueType::DOUBLE, mr));
     }
-    ScratchArena scratch(mr);
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
     if (x.isScalar() || x.dims().isVector()) {
-        ScratchVec<T> buf(x.numel(), &scratch);
-        for (size_t i = 0; i < x.numel(); ++i)
+        keel::Array<T> buf(x.numel(), scratch.allocator());
+        for (keel::usize i = 0; i < x.numel(); ++i)
             buf[i] = readSrcAsT<T>(x, i, typeMatch);
         T v; double c;
         modeFromSliceT<T>(buf.data(), x.numel(), v, c);
@@ -613,13 +617,13 @@ modeAllT(const Value &x, ValueType outType, std::pmr::memory_resource *mr)
     }
     const int redDim = firstNonSingletonDim(x);
     auto [out, outC] = allocModeOutputs(x, redDim, outType, mr);
-    modeAlongDim<T>(x, redDim, static_cast<T *>(out.rawDataMut()), outC.doubleDataMut(), typeMatch, &scratch);
+    modeAlongDim<T>(x, redDim, static_cast<T *>(out.rawDataMut()), outC.doubleDataMut(), typeMatch, scratch.allocator());
     return std::make_tuple(std::move(out), std::move(outC));
 }
 
 template <typename T>
 std::tuple<Value, Value>
-modeAlongDimT(const Value &x, int dim, ValueType outType, std::pmr::memory_resource *mr)
+modeAlongDimT(const Value &x, int dim, ValueType outType, keel::Allocator *mr)
 {
     const bool typeMatch = (x.type() == outType);
     if (x.isEmpty() && x.dims().ndim() < 4) {
@@ -629,7 +633,7 @@ modeAlongDimT(const Value &x, int dim, ValueType outType, std::pmr::memory_resou
     if (x.isScalar() || x.dims().isVector()) {
         if (dim != firstNonSingletonDim(x)) {
             // Identity reduction: copy x as outType, frequencies = ones.
-            const size_t n = x.numel();
+            const keel::usize n = x.numel();
             Value out, outC;
             if (x.dims().isVector()) {
                 out  = createMatrix({x.dims().rows(), x.dims().cols(), 0}, outType, mr);
@@ -641,7 +645,7 @@ modeAlongDimT(const Value &x, int dim, ValueType outType, std::pmr::memory_resou
             }
             T *dst = static_cast<T *>(out.rawDataMut());
             double *dstC = outC.doubleDataMut();
-            for (size_t i = 0; i < n; ++i) {
+            for (keel::usize i = 0; i < n; ++i) {
                 dst[i]  = readSrcAsT<T>(x, i, typeMatch);
                 dstC[i] = 1.0;
             }
@@ -650,8 +654,8 @@ modeAlongDimT(const Value &x, int dim, ValueType outType, std::pmr::memory_resou
         return modeAllT<T>(x, outType, mr);
     }
     auto [out, outC] = allocModeOutputs(x, dim, outType, mr);
-    ScratchArena scratch(mr);
-    modeAlongDim<T>(x, dim, static_cast<T *>(out.rawDataMut()), outC.doubleDataMut(), typeMatch, &scratch);
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    modeAlongDim<T>(x, dim, static_cast<T *>(out.rawDataMut()), outC.doubleDataMut(), typeMatch, scratch.allocator());
     return std::make_tuple(std::move(out), std::move(outC));
 }
 
@@ -659,7 +663,7 @@ modeAlongDimT(const Value &x, int dim, ValueType outType, std::pmr::memory_resou
 // outType=LOGICAL so the result preserves logical class. CHAR uses
 // T=char. COMPLEX has no defined order â†’ throw.
 std::tuple<Value, Value>
-dispatchMode(const Value &x, int dim, std::pmr::memory_resource *mr, const char *fn)
+dispatchMode(const Value &x, int dim, keel::Allocator *mr, const char *fn)
 {
     const bool useDimReducer = (dim > 0);
     auto run = [&](auto tag, ValueType outT) {
@@ -671,15 +675,15 @@ dispatchMode(const Value &x, int dim, std::pmr::memory_resource *mr, const char 
     switch (x.type()) {
     case ValueType::DOUBLE:  return run(double  {}, ValueType::DOUBLE);
     case ValueType::SINGLE:  return run(float   {}, ValueType::SINGLE);
-    case ValueType::INT8:    return run(int8_t  {}, ValueType::INT8);
-    case ValueType::INT16:   return run(int16_t {}, ValueType::INT16);
-    case ValueType::INT32:   return run(int32_t {}, ValueType::INT32);
-    case ValueType::INT64:   return run(int64_t {}, ValueType::INT64);
-    case ValueType::UINT8:   return run(uint8_t {}, ValueType::UINT8);
-    case ValueType::UINT16:  return run(uint16_t{}, ValueType::UINT16);
-    case ValueType::UINT32:  return run(uint32_t{}, ValueType::UINT32);
-    case ValueType::UINT64:  return run(uint64_t{}, ValueType::UINT64);
-    case ValueType::LOGICAL: return run(uint8_t {}, ValueType::LOGICAL);
+    case ValueType::INT8:    return run(keel::i8  {}, ValueType::INT8);
+    case ValueType::INT16:   return run(keel::i16 {}, ValueType::INT16);
+    case ValueType::INT32:   return run(keel::i32 {}, ValueType::INT32);
+    case ValueType::INT64:   return run(keel::i64 {}, ValueType::INT64);
+    case ValueType::UINT8:   return run(keel::u8 {}, ValueType::UINT8);
+    case ValueType::UINT16:  return run(keel::u16{}, ValueType::UINT16);
+    case ValueType::UINT32:  return run(keel::u32{}, ValueType::UINT32);
+    case ValueType::UINT64:  return run(keel::u64{}, ValueType::UINT64);
+    case ValueType::LOGICAL: return run(keel::u8 {}, ValueType::LOGICAL);
     case ValueType::CHAR:    return run(char    {}, ValueType::CHAR);
     case ValueType::COMPLEX:
         throw Error(std::string(fn) + ": not defined for complex inputs",
@@ -712,8 +716,8 @@ void validateNormFlagCov(int w, const char *fn)
 
 // Build an nÃ—p column-major DOUBLE buffer from x. Vector input is
 // treated as a single column. Returns the raw data, n, and p.
-void readMatrix(const Value &x, ScratchVec<double> &out,
-                std::size_t &n, std::size_t &p)
+void readMatrix(const Value &x, keel::Array<double> &out,
+                keel::usize &n, keel::usize &p)
 {
     if (x.dims().isVector() || x.isScalar()) {
         n = x.numel();
@@ -731,32 +735,32 @@ void readMatrix(const Value &x, ScratchVec<double> &out,
         std::memcpy(out.data(), src, n * p * sizeof(double));
         return;
     }
-    for (std::size_t i = 0; i < n * p; ++i)
+    for (keel::usize i = 0; i < n * p; ++i)
         out[i] = x.elemAsDouble(i);
 }
 
 // In-place: subtract per-column mean from a column-major nÃ—p buffer.
-void centerColumns(double *data, std::size_t n, std::size_t p)
+void centerColumns(double *data, keel::usize n, keel::usize p)
 {
-    for (std::size_t c = 0; c < p; ++c) {
+    for (keel::usize c = 0; c < p; ++c) {
         double s = 0.0;
-        for (std::size_t r = 0; r < n; ++r)
+        for (keel::usize r = 0; r < n; ++r)
             s += data[c * n + r];
         const double m = s / static_cast<double>(n);
-        for (std::size_t r = 0; r < n; ++r)
+        for (keel::usize r = 0; r < n; ++r)
             data[c * n + r] -= m;
     }
 }
 
 // covImpl: take a centered nÃ—p buffer, compute X' * X / divisor â†’ pÃ—p.
-Value covMatrixFromCentered(const double *X, std::size_t n, std::size_t p, double divisor, std::pmr::memory_resource *mr)
+Value covMatrixFromCentered(const double *X, keel::usize n, keel::usize p, double divisor, keel::Allocator *mr)
 {
     auto out = Value::matrix(p, p, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
-    for (std::size_t i = 0; i < p; ++i)
-        for (std::size_t j = 0; j < p; ++j) {
+    for (keel::usize i = 0; i < p; ++i)
+        for (keel::usize j = 0; j < p; ++j) {
             double s = 0.0;
-            for (std::size_t r = 0; r < n; ++r)
+            for (keel::usize r = 0; r < n; ++r)
                 s += X[i * n + r] * X[j * n + r];
             dst[j * p + i] = s / divisor;
         }
@@ -783,7 +787,7 @@ bool parseCovNanFlag(const Value &v, CovNan &mode)
 
 // Assemble two equal-length vectors into an nÃ—2 column-major matrix Value
 // [x(:) y(:)] for the two-vector NaN-aware path.
-Value assembleXY(const Value &x, const Value &y, std::pmr::memory_resource *mr)
+Value assembleXY(const Value &x, const Value &y, keel::Allocator *mr)
 {
     validateCovInputs(x, "cov");
     validateCovInputs(y, "cov");
@@ -793,10 +797,10 @@ Value assembleXY(const Value &x, const Value &y, std::pmr::memory_resource *mr)
     if (x.numel() != y.numel())
         throw Error("cov: x and y must have the same length",
                      0, 0, "cov", "", "numkit:cov:lengthMismatch");
-    const std::size_t n = x.numel();
+    const keel::usize n = x.numel();
     auto out = Value::matrix(n, 2, ValueType::DOUBLE, mr);
     double *o = out.doubleDataMut();
-    for (std::size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         o[i] = x.elemAsDouble(i);
         o[n + i] = y.elemAsDouble(i);
     }
@@ -809,16 +813,16 @@ Value assembleXY(const Value &x, const Value &y, std::pmr::memory_resource *mr)
 // default 'includenan' is the NaN-poisoning behaviour of plain cov() and is
 // routed there by the dispatcher.
 Value covNanAware(const Value &x, int normFlag, CovNan mode,
-                  std::pmr::memory_resource *mr)
+                  keel::Allocator *mr)
 {
     validateNormFlagCov(normFlag, "cov");
     validateCovInputs(x, "cov");
-    ScratchArena scratch(mr);
-    ScratchVec<double> data(&scratch);
-    std::size_t n, p;
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    keel::Array<double> data(scratch.allocator());
+    keel::usize n, p;
     readMatrix(x, data, n, p);
 
-    auto divisorOf = [normFlag](std::size_t m) {
+    auto divisorOf = [normFlag](keel::usize m) {
         return (normFlag == 0) ? std::max(1.0, static_cast<double>(m) - 1.0)
                                : static_cast<double>(m);
     };
@@ -826,37 +830,37 @@ Value covNanAware(const Value &x, int normFlag, CovNan mode,
     // Vector input â†’ scalar variance over the non-NaN elements.
     if (p == 1) {
         double s = 0.0;
-        std::size_t m = 0;
-        for (std::size_t i = 0; i < n; ++i)
+        keel::usize m = 0;
+        for (keel::usize i = 0; i < n; ++i)
             if (!std::isnan(data[i])) { s += data[i]; ++m; }
         if (m == 0) return Value::scalar(std::nan(""), mr);
         const double mean = s / static_cast<double>(m);
         double sq = 0.0;
-        for (std::size_t i = 0; i < n; ++i)
+        for (keel::usize i = 0; i < n; ++i)
             if (!std::isnan(data[i])) { const double d = data[i] - mean; sq += d * d; }
         return Value::scalar(sq / divisorOf(m), mr);
     }
 
     if (mode == CovNan::Omitrows) {
-        auto rowOk = [&](std::size_t r) {
-            for (std::size_t c = 0; c < p; ++c)
+        auto rowOk = [&](keel::usize r) {
+            for (keel::usize c = 0; c < p; ++c)
                 if (std::isnan(data[c * n + r])) return false;
             return true;
         };
-        std::size_t m = 0;
-        for (std::size_t r = 0; r < n; ++r) if (rowOk(r)) ++m;
+        keel::usize m = 0;
+        for (keel::usize r = 0; r < n; ++r) if (rowOk(r)) ++m;
         if (m == 0) {
             auto out = Value::matrix(p, p, ValueType::DOUBLE, mr);
             double *o = out.doubleDataMut();
-            for (std::size_t i = 0; i < p * p; ++i) o[i] = std::nan("");
+            for (keel::usize i = 0; i < p * p; ++i) o[i] = std::nan("");
             return out;
         }
-        ScratchVec<double> kept(&scratch);
+        keel::Array<double> kept(scratch.allocator());
         kept.assign(m * p, 0.0);
-        std::size_t rr = 0;
-        for (std::size_t r = 0; r < n; ++r) {
+        keel::usize rr = 0;
+        for (keel::usize r = 0; r < n; ++r) {
             if (!rowOk(r)) continue;
-            for (std::size_t c = 0; c < p; ++c) kept[c * m + rr] = data[c * n + r];
+            for (keel::usize c = 0; c < p; ++c) kept[c * m + rr] = data[c * n + r];
             ++rr;
         }
         centerColumns(kept.data(), m, p);
@@ -866,11 +870,11 @@ Value covNanAware(const Value &x, int normFlag, CovNan mode,
     // Partialrows.
     auto out = Value::matrix(p, p, ValueType::DOUBLE, mr);
     double *o = out.doubleDataMut();
-    for (std::size_t i = 0; i < p; ++i)
-        for (std::size_t j = i; j < p; ++j) {
+    for (keel::usize i = 0; i < p; ++i)
+        for (keel::usize j = i; j < p; ++j) {
             double si = 0.0, sj = 0.0;
-            std::size_t m = 0;
-            for (std::size_t r = 0; r < n; ++r) {
+            keel::usize m = 0;
+            for (keel::usize r = 0; r < n; ++r) {
                 const double a = data[i * n + r], b = data[j * n + r];
                 if (!std::isnan(a) && !std::isnan(b)) { si += a; sj += b; ++m; }
             }
@@ -881,7 +885,7 @@ Value covNanAware(const Value &x, int normFlag, CovNan mode,
                 const double mi = si / static_cast<double>(m);
                 const double mj = sj / static_cast<double>(m);
                 double s = 0.0;
-                for (std::size_t r = 0; r < n; ++r) {
+                for (keel::usize r = 0; r < n; ++r) {
                     const double a = data[i * n + r], b = data[j * n + r];
                     if (!std::isnan(a) && !std::isnan(b))
                         s += (a - mi) * (b - mj);
@@ -897,12 +901,12 @@ Value covNanAware(const Value &x, int normFlag, CovNan mode,
 // â”€â”€ corrcoef 'Rows' NaN policy â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 enum class CorrcoefRows { All, Complete, Pairwise };
 
-CorrcoefRows parseCorrcoefRows(Span<const Value> args, std::size_t start)
+CorrcoefRows parseCorrcoefRows(keel::ArrayRef<Value> args, keel::usize start)
 {
     // Probed R2025b: only 'alpha' and 'rows' are valid parameter names
     // (validatestring prefixes); anything else is invalidArgName, and a
     // lone unmatched value string is unmatchedPVPair.
-    for (std::size_t i = start; i < args.size(); ++i) {
+    for (keel::usize i = start; i < args.size(); ++i) {
         if (!(args[i].isChar() || args[i].isString())) continue;
         std::string probe = args[i].toString();
         for (char &c : probe) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
@@ -918,7 +922,7 @@ CorrcoefRows parseCorrcoefRows(Span<const Value> args, std::size_t start)
         }
         ++i;  // skip the value
     }
-    for (std::size_t i = start; i + 1 < args.size(); i += 2) {
+    for (keel::usize i = start; i + 1 < args.size(); i += 2) {
         if (!(args[i].isChar() || args[i].isString())) continue;
         std::string name = args[i].toString();
         for (char &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
@@ -938,9 +942,9 @@ CorrcoefRows parseCorrcoefRows(Span<const Value> args, std::size_t start)
 
 // corrcoef(...,'Alpha',a): significance level for the RL/RU confidence
 // bounds (default 0.05). Must be in (0, 1).
-double parseCorrcoefAlpha(Span<const Value> args, std::size_t start)
+double parseCorrcoefAlpha(keel::ArrayRef<Value> args, keel::usize start)
 {
-    for (std::size_t i = start; i + 1 < args.size(); i += 2) {
+    for (keel::usize i = start; i + 1 < args.size(); i += 2) {
         if (!(args[i].isChar() || args[i].isString())) continue;
         std::string name = args[i].toString();
         for (char &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
@@ -955,18 +959,18 @@ double parseCorrcoefAlpha(Span<const Value> args, std::size_t start)
     return 0.05;
 }
 
-std::size_t countCompleteRows(const Value &X)
+keel::usize countCompleteRows(const Value &X)
 {
-    std::size_t n, p;
+    keel::usize n, p;
     {
         const bool vec = X.dims().isVector() || X.isScalar();
         n = vec ? X.numel() : X.dims().rows();
         p = vec ? 1 : X.dims().cols();
     }
-    std::size_t m = 0;
-    for (std::size_t r = 0; r < n; ++r) {
+    keel::usize m = 0;
+    for (keel::usize r = 0; r < n; ++r) {
         bool ok = true;
-        for (std::size_t c = 0; c < p && ok; ++c)
+        for (keel::usize c = 0; c < p && ok; ++c)
             if (std::isnan(X.elemAsDouble(r + c * n))) ok = false;
         if (ok) ++m;
     }
@@ -978,11 +982,11 @@ std::size_t countCompleteRows(const Value &X)
 // over exactly those common rows. Also optionally fills MCounts with the
 // per-pair non-NaN sample count m_ij for pairwise p-values and CIs.
 Value corrcoefPairwiseWithCounts(const Value &X, Value *MCounts,
-                                 std::pmr::memory_resource *mr)
+                                 keel::Allocator *mr)
 {
-    ScratchArena scratch(mr);
-    ScratchVec<double> data(&scratch);
-    std::size_t n, p;
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    keel::Array<double> data(scratch.allocator());
+    keel::usize n, p;
     readMatrix(X, data, n, p);
     auto out = Value::matrix(p, p, ValueType::DOUBLE, mr);
     double *o = out.doubleDataMut();
@@ -991,11 +995,11 @@ Value corrcoefPairwiseWithCounts(const Value &X, Value *MCounts,
         *MCounts = Value::matrix(p, p, ValueType::DOUBLE, mr);
         mc = MCounts->doubleDataMut();
     }
-    for (std::size_t i = 0; i < p; ++i)
-        for (std::size_t j = 0; j < p; ++j) {
+    for (keel::usize i = 0; i < p; ++i)
+        for (keel::usize j = 0; j < p; ++j) {
             double si = 0.0, sj = 0.0;
-            std::size_t m = 0;
-            for (std::size_t r = 0; r < n; ++r) {
+            keel::usize m = 0;
+            for (keel::usize r = 0; r < n; ++r) {
                 const double a = data[i * n + r], b = data[j * n + r];
                 if (!std::isnan(a) && !std::isnan(b)) { si += a; sj += b; ++m; }
             }
@@ -1007,7 +1011,7 @@ Value corrcoefPairwiseWithCounts(const Value &X, Value *MCounts,
                 const double mi = si / static_cast<double>(m);
                 const double mj = sj / static_cast<double>(m);
                 double sxy = 0.0, sxx = 0.0, syy = 0.0;
-                for (std::size_t r = 0; r < n; ++r) {
+                for (keel::usize r = 0; r < n; ++r) {
                     const double a = data[i * n + r], b = data[j * n + r];
                     if (std::isnan(a) || std::isnan(b)) continue;
                     const double da = a - mi, db = b - mj;
@@ -1022,7 +1026,7 @@ Value corrcoefPairwiseWithCounts(const Value &X, Value *MCounts,
     return out;
 }
 
-Value corrcoefPairwise(const Value &X, std::pmr::memory_resource *mr)
+Value corrcoefPairwise(const Value &X, keel::Allocator *mr)
 {
     return corrcoefPairwiseWithCounts(X, nullptr, mr);
 }
@@ -1030,60 +1034,60 @@ Value corrcoefPairwise(const Value &X, std::pmr::memory_resource *mr)
 // Complex correlation matrix R for 1-arg X (n x p) or 2-arg (x, y).
 // C(i,j) = sum_r conj(Z(r,i)) * Z(r,j) / (n - 1),
 // R(i,j) = C(i,j) / sqrt(real(C(i,i)) * real(C(j,j))).
-Value corrcoefComplexMatrix(const Value &X, std::pmr::memory_resource *mr)
+Value corrcoefComplexMatrix(const Value &X, keel::Allocator *mr)
 {
     const bool isVec = X.dims().isVector() || X.isScalar();
-    const std::size_t n = isVec ? X.numel() : X.dims().rows();
-    const std::size_t p = isVec ? 1 : X.dims().cols();
+    const keel::usize n = isVec ? X.numel() : X.dims().rows();
+    const keel::usize p = isVec ? 1 : X.dims().cols();
     if (p == 0) return Value::complexMatrix(0, 0, mr);
-    ScratchArena scratch(mr);
-    ScratchVec<Complex> Z(n * p, &scratch);
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    keel::Array<keel::c64> Z(n * p, scratch.allocator());
     const bool xCplx = X.isComplex();
-    for (std::size_t c = 0; c < p; ++c) {
-        for (std::size_t r = 0; r < n; ++r) {
-            const std::size_t idx = c * n + r;
+    for (keel::usize c = 0; c < p; ++c) {
+        for (keel::usize r = 0; r < n; ++r) {
+            const keel::usize idx = c * n + r;
             Z[idx] = xCplx ? X.complexData()[idx]
-                           : Complex(X.elemAsDouble(idx), 0.0);
+                           : keel::c64(X.elemAsDouble(idx), 0.0);
         }
     }
     if (n <= 1) {
         Value R = Value::matrix(p, p, ValueType::DOUBLE, mr);
-        for (std::size_t k = 0; k < p * p; ++k) R.doubleDataMut()[k] = std::nan("");
+        for (keel::usize k = 0; k < p * p; ++k) R.doubleDataMut()[k] = std::nan("");
         return R;
     }
-    for (std::size_t c = 0; c < p; ++c) {
-        Complex mean(0.0, 0.0);
-        for (std::size_t r = 0; r < n; ++r) mean += Z[c * n + r];
+    for (keel::usize c = 0; c < p; ++c) {
+        keel::c64 mean(0.0, 0.0);
+        for (keel::usize r = 0; r < n; ++r) mean += Z[c * n + r];
         mean /= static_cast<double>(n);
-        for (std::size_t r = 0; r < n; ++r) Z[c * n + r] -= mean;
+        for (keel::usize r = 0; r < n; ++r) Z[c * n + r] -= mean;
     }
-    ScratchVec<double> stds(p, &scratch);
-    for (std::size_t c = 0; c < p; ++c) {
+    keel::Array<double> stds(p, scratch.allocator());
+    for (keel::usize c = 0; c < p; ++c) {
         double ss = 0.0;
-        for (std::size_t r = 0; r < n; ++r) ss += std::norm(Z[c * n + r]);
+        for (keel::usize r = 0; r < n; ++r) ss += keel::norm(Z[c * n + r]);
         stds[c] = std::sqrt(ss);
     }
     Value R = Value::complexMatrix(p, p, mr);
-    Complex *rd = R.complexDataMut();
-    for (std::size_t i = 0; i < p; ++i) {
-        for (std::size_t j = 0; j < p; ++j) {
+    keel::c64 *rd = R.complexDataMut();
+    for (keel::usize i = 0; i < p; ++i) {
+        for (keel::usize j = 0; j < p; ++j) {
             if (i == j) {
-                rd[j * p + i] = (stds[i] > 0.0) ? Complex(1.0, 0.0)
-                                                : Complex(std::nan(""), std::nan(""));
+                rd[j * p + i] = (stds[i] > 0.0) ? keel::c64(1.0, 0.0)
+                                                : keel::c64(std::nan(""), std::nan(""));
                 continue;
             }
-            Complex s(0.0, 0.0);
-            for (std::size_t r = 0; r < n; ++r)
-                s += std::conj(Z[i * n + r]) * Z[j * n + r];
+            keel::c64 s(0.0, 0.0);
+            for (keel::usize r = 0; r < n; ++r)
+                s += keel::conj(Z[i * n + r]) * Z[j * n + r];
             const double den = stds[i] * stds[j];
             rd[j * p + i] = (den > 0.0) ? (s / den)
-                                        : Complex(std::nan(""), std::nan(""));
+                                        : keel::c64(std::nan(""), std::nan(""));
         }
     }
     return R;
 }
 
-Value corrcoefComplexXY(const Value &x, const Value &y, std::pmr::memory_resource *mr)
+Value corrcoefComplexXY(const Value &x, const Value &y, keel::Allocator *mr)
 {
     if (!x.dims().isVector() || !y.dims().isVector())
         throw Error("corrcoef: two-input form requires vector arguments",
@@ -1091,39 +1095,39 @@ Value corrcoefComplexXY(const Value &x, const Value &y, std::pmr::memory_resourc
     if (x.numel() != y.numel())
         throw Error("corrcoef: x and y must have the same length",
                      0, 0, "corrcoef", "", "numkit:corrcoef:lengthMismatch");
-    const std::size_t n = x.numel();
+    const keel::usize n = x.numel();
     Value M = Value::complexMatrix(n, 2, mr);
-    Complex *md = M.complexDataMut();
-    for (std::size_t i = 0; i < n; ++i) {
-        md[i]     = x.isComplex() ? x.complexData()[i] : Complex(x.elemAsDouble(i), 0.0);
-        md[n + i] = y.isComplex() ? y.complexData()[i] : Complex(y.elemAsDouble(i), 0.0);
+    keel::c64 *md = M.complexDataMut();
+    for (keel::usize i = 0; i < n; ++i) {
+        md[i]     = x.isComplex() ? x.complexData()[i] : keel::c64(x.elemAsDouble(i), 0.0);
+        md[n + i] = y.isComplex() ? y.complexData()[i] : keel::c64(y.elemAsDouble(i), 0.0);
     }
     return corrcoefComplexMatrix(M, mr);
 }
 
-Value corrcoefScalarOne(std::pmr::memory_resource *mr)
+Value corrcoefScalarOne(keel::Allocator *mr)
 {
     auto R = Value::matrix(1, 1, ValueType::DOUBLE, mr);
     R.doubleDataMut()[0] = 1.0;
     return R;
 }
 
-Value corrcoefFromCov(const Value &C, std::pmr::memory_resource *mr)
+Value corrcoefFromCov(const Value &C, keel::Allocator *mr)
 {
     if (C.dims().rows() != C.dims().cols())
         throw Error("corrcoef: covariance matrix must be square",
                      0, 0, "corrcoef", "", "numkit:corrcoef:internal");
-    const std::size_t p = C.dims().rows();
+    const keel::usize p = C.dims().rows();
     auto R = Value::matrix(p, p, ValueType::DOUBLE, mr);
     if (p == 0) return R;
     const double *cd = C.doubleData();
     double *rd = R.doubleDataMut();
-    ScratchArena scratch(mr);
-    auto diag = ScratchVec<double>(p, &scratch);
-    for (std::size_t i = 0; i < p; ++i)
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    auto diag = keel::Array<double>(p, scratch.allocator());
+    for (keel::usize i = 0; i < p; ++i)
         diag[i] = std::sqrt(cd[i * p + i]);
-    for (std::size_t i = 0; i < p; ++i)
-        for (std::size_t j = 0; j < p; ++j) {
+    for (keel::usize i = 0; i < p; ++i)
+        for (keel::usize j = 0; j < p; ++j) {
             const double denom = diag[i] * diag[j];
             rd[j * p + i] = (denom == 0.0) ? std::nan("") : cd[j * p + i] / denom;
         }
@@ -1134,9 +1138,9 @@ Value corrcoefFromCov(const Value &C, std::pmr::memory_resource *mr)
 // Diagonal is 1 (unless R(i,i) is NaN); off-diagonal P(i,j) = 2*tcdf(-|t|, n-2)
 // with the test statistic t = r*sqrt((n-2)/(1-r^2)). With n <= 2 (df <= 0) the
 // off-diagonal p-values are NaN.
-Value corrcoefPValues(const Value &R, double n, std::pmr::memory_resource *mr)
+Value corrcoefPValues(const Value &R, double n, keel::Allocator *mr)
 {
-    const std::size_t p = R.dims().rows();
+    const keel::usize p = R.dims().rows();
     auto P = Value::matrix(p, p, ValueType::DOUBLE, mr);
     if (p == 0) return P;
     const double df = n - 2.0;
@@ -1146,7 +1150,7 @@ Value corrcoefPValues(const Value &R, double n, std::pmr::memory_resource *mr)
     // Build the matrix of -|t| values, then evaluate the t-CDF vectorized.
     auto T = Value::matrix(p, p, ValueType::DOUBLE, mr);
     double *td = T.doubleDataMut();
-    for (std::size_t k = 0; k < p * p; ++k) {
+    for (keel::usize k = 0; k < p * p; ++k) {
         const double r = rd[k];
         if (std::isnan(r)) {
             td[k] = std::nan("");
@@ -1161,9 +1165,9 @@ Value corrcoefPValues(const Value &R, double n, std::pmr::memory_resource *mr)
     Value cdf = (df > 0.0) ? tcdf(T, df, mr) : Value{};
     const double *cd = (df > 0.0) ? cdf.doubleData() : nullptr;
 
-    for (std::size_t i = 0; i < p; ++i)
-        for (std::size_t j = 0; j < p; ++j) {
-            const std::size_t k = j * p + i;
+    for (keel::usize i = 0; i < p; ++i)
+        for (keel::usize j = 0; j < p; ++j) {
+            const keel::usize k = j * p + i;
             if (std::isnan(rd[k])) { pd[k] = std::nan(""); continue; }
             if (i == j) { pd[k] = 1.0; continue; }
             if (df <= 0.0) { pd[k] = std::nan(""); continue; }
@@ -1175,17 +1179,17 @@ Value corrcoefPValues(const Value &R, double n, std::pmr::memory_resource *mr)
 }
 
 Value corrcoefPValuesPairwise(const Value &R, const Value &MCounts,
-                              std::pmr::memory_resource *mr)
+                              keel::Allocator *mr)
 {
-    const std::size_t p = R.dims().rows();
+    const keel::usize p = R.dims().rows();
     auto P = Value::matrix(p, p, ValueType::DOUBLE, mr);
     if (p == 0) return P;
     const double *rd = R.doubleData();
     const double *mc = MCounts.doubleData();
     double *pd = P.doubleDataMut();
-    for (std::size_t i = 0; i < p; ++i)
-        for (std::size_t j = 0; j < p; ++j) {
-            const std::size_t k = j * p + i;
+    for (keel::usize i = 0; i < p; ++i)
+        for (keel::usize j = 0; j < p; ++j) {
+            const keel::usize k = j * p + i;
             const double r = rd[k];
             if (std::isnan(r)) { pd[k] = std::nan(""); continue; }
             if (i == j) { pd[k] = 1.0; continue; }
@@ -1207,9 +1211,9 @@ Value corrcoefPValuesPairwise(const Value &R, const Value &MCounts,
 // |r| == 1 (incl. the diagonal) -> RL = RU = r. n <= 3 -> se infinite, so
 // the bounds widen to the full [-1, 1]. Matches MATLAB R2025b.
 void corrcoefConfBounds(const Value &R, double n, double alpha,
-                        Value &RL, Value &RU, std::pmr::memory_resource *mr)
+                        Value &RL, Value &RU, keel::Allocator *mr)
 {
-    const std::size_t p = R.dims().rows();
+    const keel::usize p = R.dims().rows();
     RL = Value::matrix(p, p, ValueType::DOUBLE, mr);
     RU = Value::matrix(p, p, ValueType::DOUBLE, mr);
     if (p == 0) return;
@@ -1220,7 +1224,7 @@ void corrcoefConfBounds(const Value &R, double n, double alpha,
         norminv(Value::scalar(1.0 - alpha / 2.0, mr), 0.0, 1.0, mr).toScalar();
     const double se = (n > 3.0) ? 1.0 / std::sqrt(n - 3.0)
                                 : std::numeric_limits<double>::infinity();
-    for (std::size_t k = 0; k < p * p; ++k) {
+    for (keel::usize k = 0; k < p * p; ++k) {
         const double r = rd[k];
         if (std::isnan(r)) { rl[k] = std::nan(""); ru[k] = std::nan(""); continue; }
         if (std::fabs(r) >= 1.0) { rl[k] = r; ru[k] = r; continue; }
@@ -1231,9 +1235,9 @@ void corrcoefConfBounds(const Value &R, double n, double alpha,
 }
 
 void corrcoefConfBoundsPairwise(const Value &R, const Value &MCounts, double alpha,
-                                Value &RL, Value &RU, std::pmr::memory_resource *mr)
+                                Value &RL, Value &RU, keel::Allocator *mr)
 {
-    const std::size_t p = R.dims().rows();
+    const keel::usize p = R.dims().rows();
     RL = Value::matrix(p, p, ValueType::DOUBLE, mr);
     RU = Value::matrix(p, p, ValueType::DOUBLE, mr);
     if (p == 0) return;
@@ -1243,7 +1247,7 @@ void corrcoefConfBoundsPairwise(const Value &R, const Value &MCounts, double alp
     double *ru = RU.doubleDataMut();
     const double zc =
         norminv(Value::scalar(1.0 - alpha / 2.0, mr), 0.0, 1.0, mr).toScalar();
-    for (std::size_t k = 0; k < p * p; ++k) {
+    for (keel::usize k = 0; k < p * p; ++k) {
         const double r = rd[k];
         if (std::isnan(r)) { rl[k] = std::nan(""); ru[k] = std::nan(""); continue; }
         if (std::fabs(r) >= 1.0) { rl[k] = r; ru[k] = r; continue; }
@@ -1262,7 +1266,7 @@ namespace {
 // If the last positional arg is a 'omitnan'/'includenan' string,
 // strip it from the count and return the omit flag. Throws on unknown
 // trailing strings so user errors don't get silently ignored.
-size_t stripNanFlag(Span<const Value> args, bool &omitNan, const char * /*fn*/)
+keel::usize stripNanFlag(keel::ArrayRef<Value> args, bool &omitNan, const char * /*fn*/)
 {
     omitNan = false;
     if (args.empty()) return 0;
@@ -1288,6 +1292,6 @@ inline void rejectComplexOmitNan(const Value &x, const char *fn)
 
 Value quantileWithOpts(const Value &x, const Value &p, int dim, bool flatten,
                        QMethod method, double pScale, const char *fn,
-                       std::pmr::memory_resource *mr);
+                       keel::Allocator *mr);
 
 } // namespace numkit::stats

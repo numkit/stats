@@ -2,20 +2,20 @@
 //
 // CallContext register half of descriptive/descriptive_extras.cpp (Phase 2b
 // compute/register split). Engine-coupled glue over the engine-free compute.
+#include <keel/core.h>
+#include <keel/memory.h>
+#include <keel/ref.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/descriptive/descriptive.hpp>
 #include <numkit/stats/distributions/students_t.hpp>
 #include <numkit/value/argcheck.hpp>
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
 #include <numkit/value/value.hpp>
 #include "descriptive/descriptive_extras_detail.hpp"
 #include "support/reduce_vecdim.hpp"
 #include <numkit/ops/helpers.hpp>
 #include <numkit/ops/reductions.hpp>
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -33,11 +33,11 @@ namespace numkit::stats {
 
 namespace detail {
 
-void prepareCurveData_reg(Span<const Value> args, size_t nargout,
-                          Span<Value> outs, CallContext &ctx)
+void prepareCurveData_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                          keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 3, "prepareCurveData");
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     Value w_empty = Value::matrix(0, 0, ValueType::DOUBLE, mr);
     const Value &w = (args.size() >= 3) ? args[2] : w_empty;
     auto [xo, yo, wo] = prepareCurveData(args[0], args[1], w, mr);
@@ -46,32 +46,32 @@ void prepareCurveData_reg(Span<const Value> args, size_t nargout,
     if (nargout > 2) outs[2] = std::move(wo);
 }
 
-void prepareSurfaceData_reg(Span<const Value> args, size_t nargout,
-                            Span<Value> outs, CallContext &ctx)
+void prepareSurfaceData_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                            keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 3, 4, "prepareSurfaceData");
-    auto [xo, yo, zo] = prepareSurfaceData(args[0], args[1], args[2], ctx.engine->resource());
+    auto [xo, yo, zo] = prepareSurfaceData(args[0], args[1], args[2], ctx.engine->allocator());
     outs[0] = std::move(xo);
     if (nargout > 1) outs[1] = std::move(yo);
     if (nargout > 2) outs[2] = std::move(zo);
 }
 
-void ksdensity_reg(Span<const Value> args, size_t nargout,
-                   Span<Value> outs, CallContext &ctx)
+void ksdensity_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                   keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "ksdensity");  // no max: name-value tail (shared reg also serves the kde alias: union contract)
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     Value pts = Value::matrix(0, 0, ValueType::DOUBLE, mr);
     double bw_user = 0.0;
     std::string kernel = "normal";
     std::string function_mode = "pdf";
-    size_t numpoints = 100;
+    keel::usize numpoints = 100;
     const Value *weights = nullptr;
     auto lower = [](std::string s) {
         for (auto &c : s) c = (char)std::tolower((unsigned char)c);
         return s;
     };
-    size_t i = 1;
+    keel::usize i = 1;
     if (i < args.size() && !args[i].isChar() && !args[i].isString()
         && !args[i].isEmpty()) {
         pts = args[i];
@@ -96,7 +96,7 @@ void ksdensity_reg(Span<const Value> args, size_t nargout,
         }
         else if (name == "kernel")    kernel = v.toString();
         else if (name == "function")  function_mode = v.toString();
-        else if (name == "numpoints") numpoints = (size_t)v.toScalar();
+        else if (name == "numpoints") numpoints = (keel::usize)v.toScalar();
         else if (name == "weights")   { if (!v.isEmpty()) weights = &v; }
         else if (name == "censoring" || name == "support"
                  || name == "boundarycorrection") {
@@ -113,14 +113,14 @@ void ksdensity_reg(Span<const Value> args, size_t nargout,
     if (nargout > 2) outs[2] = std::move(R.bw);
 }
 
-void datastats_reg(Span<const Value> args, size_t /*nargout*/,
-                   Span<Value> outs, CallContext &ctx)
+void datastats_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
+                   keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 2, "datastats");
     auto build = [&](const Value &v) {
         auto [num, mx, mn, me, md, rg, sd] =
-            datastats(v, ctx.engine->resource());
-        Value s = Value::structure(ctx.engine->resource());
+            datastats(v, ctx.engine->allocator());
+        Value s = Value::structure(ctx.engine->allocator());
         s.field("num")    = num;
         s.field("max")    = mx;
         s.field("min")    = mn;
@@ -138,7 +138,7 @@ void datastats_reg(Span<const Value> args, size_t /*nargout*/,
         outs[1] = build(args[1]);
 }
 
-void bounds_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+void bounds_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 3, "bounds");
     int dim = 0;
@@ -165,7 +165,7 @@ void bounds_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
                 vecdimSet = std::move(set);
         }
     }
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     if (!vecdimSet.empty()) {
         // Partial vecdim — same kernels as the scalar-dim path.
         Value c = vecdim::collapseDims(args[0], vecdimSet, mr);
@@ -192,7 +192,7 @@ void bounds_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
     }
 }
 
-void iqr_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void iqr_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 2, "iqr");
     int dim = 0;
@@ -219,7 +219,7 @@ void iqr_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
                 vecdimSet = std::move(set);
         }
     }
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     if (!vecdimSet.empty()) {
         // Partial vecdim — same kernel as the scalar-dim path.
         Value c = vecdim::collapseDims(args[0], vecdimSet, mr);
@@ -241,7 +241,7 @@ void iqr_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
     }
 }
 
-void maxk_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+void maxk_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "maxk");  // no max: name-value tail in the reference
     const int k = argcheck::expectedInteger(
@@ -249,7 +249,7 @@ void maxk_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
     argcheck::expectedNonNegative(double(k), 2, "k", "maxk");
     int dim = 0;
     // Optional positional dim (numeric scalar that's not a string).
-    size_t i = 2;
+    keel::usize i = 2;
     if (i < args.size() && !args[i].isChar() && !args[i].isString()
         && !args[i].isEmpty()) {
         dim = argcheck::dimArg(args[i], "maxk"); ++i;
@@ -279,21 +279,21 @@ void maxk_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
         }
         i += 2;
     }
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     Value idx;
     Value *idxPtr = (nargout >= 2) ? &idx : nullptr;
     outs[0] = topKAlongDim(args[0], dim, k, /*ascending=*/false, "maxk", mr, idxPtr, byAbs);
     if (nargout >= 2) outs[1] = std::move(idx);
 }
 
-void mink_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+void mink_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "mink");  // no max: name-value tail in the reference
     const int k = argcheck::expectedInteger(
         argcheck::expectedReal(args[1], 2, "k", "mink"), 2, "k", "mink");
     argcheck::expectedNonNegative(double(k), 2, "k", "mink");
     int dim = 0;
-    size_t i = 2;
+    keel::usize i = 2;
     if (i < args.size() && !args[i].isChar() && !args[i].isString()
         && !args[i].isEmpty()) {
         dim = argcheck::dimArg(args[i], "mink"); ++i;
@@ -320,7 +320,7 @@ void mink_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
         }
         i += 2;
     }
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     Value idx;
     Value *idxPtr = (nargout >= 2) ? &idx : nullptr;
     outs[0] = topKAlongDim(args[0], dim, k, /*ascending=*/true, "mink", mr, idxPtr, byAbs);
@@ -332,7 +332,7 @@ void mink_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
 // inputs to mape/rmse are inherently 1-D so flatten and dim=0 produce the
 // same result.
 namespace {
-void parseDimOrAll(const Value &x, Span<const Value> args, size_t pos,
+void parseDimOrAll(const Value &x, keel::ArrayRef<Value> args, keel::usize pos,
                    int &dim, bool &flatten, std::vector<int> &vecdimSet,
                    const char *fn)
 {
@@ -358,7 +358,7 @@ void parseDimOrAll(const Value &x, Span<const Value> args, size_t pos,
         vecdimSet = std::move(set);
 }
 
-Value flattenToRow(const Value &x, std::pmr::memory_resource *mr)
+Value flattenToRow(const Value &x, keel::Allocator *mr)
 {
     Value flat = Value::matrix(1, x.numel(), ValueType::DOUBLE, mr);
     if (x.numel() > 0) {
@@ -369,23 +369,23 @@ Value flattenToRow(const Value &x, std::pmr::memory_resource *mr)
 }
 } // anonymous
 
-void mape_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+void mape_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs,
               CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "mape");  // no max: flag/NV tail in the reference
     int dim = 0; bool flatten = false; std::vector<int> vecdimSet;
     parseDimOrAll(args[0], args, 2, dim, flatten, vecdimSet, "mape");
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     // Flags + Weights (probe71 contract; classes live in the compute
     // layer's parseErrorMetricOpts).
     const bool allConsumed =
         flatten && args.size() > 2 && (args[2].isChar() || args[2].isString());
-    const std::size_t flagStart =
+    const keel::usize flagStart =
         (args.size() > 2 && !args[2].isEmpty() &&
          (!(args[2].isChar() || args[2].isString()) || allConsumed)) ? 3 : 2;
-    const std::size_t dimLen = flatten ? std::max(args[0].numel(),
+    const keel::usize dimLen = flatten ? std::max(args[0].numel(),
                                                   args[1].numel())
-        : args[0].dims().dim(dim > 0 ? static_cast<std::size_t>(dim) - 1 : 0);
+        : args[0].dims().dim(dim > 0 ? static_cast<keel::usize>(dim) - 1 : 0);
     const ErrorMetricOpts opts = parseErrorMetricOpts(
         args, flagStart, true, args[0], args[1], dimLen, "mape");
     if (!vecdimSet.empty()) {
@@ -406,20 +406,20 @@ void mape_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     }
 }
 
-void rmse_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void rmse_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "rmse");  // no max: flag/NV tail in the reference
     int dim = 0; bool flatten = false; std::vector<int> vecdimSet;
     parseDimOrAll(args[0], args, 2, dim, flatten, vecdimSet, "rmse");
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     const bool allConsumed =
         flatten && args.size() > 2 && (args[2].isChar() || args[2].isString());
-    const std::size_t flagStart =
+    const keel::usize flagStart =
         (args.size() > 2 && !args[2].isEmpty() &&
          (!(args[2].isChar() || args[2].isString()) || allConsumed)) ? 3 : 2;
-    const std::size_t dimLen = flatten ? std::max(args[0].numel(),
+    const keel::usize dimLen = flatten ? std::max(args[0].numel(),
                                                   args[1].numel())
-        : args[0].dims().dim(dim > 0 ? static_cast<std::size_t>(dim) - 1 : 0);
+        : args[0].dims().dim(dim > 0 ? static_cast<keel::usize>(dim) - 1 : 0);
     const ErrorMetricOpts opts = parseErrorMetricOpts(
         args, flagStart, false, args[0], args[1], dimLen, "rmse");
     if (!vecdimSet.empty()) {
@@ -440,10 +440,10 @@ void rmse_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     }
 }
 
-void ecdf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+void ecdf_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "ecdf");  // no max: name-value tail in the reference
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     std::string function_mode = "cdf";
     double alpha = 0.05;
     const Value *freq = nullptr;
@@ -451,7 +451,7 @@ void ecdf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
         for (auto &c : s) c = (char)std::tolower((unsigned char)c);
         return s;
     };
-    for (size_t i = 1; i + 1 < args.size(); i += 2) {
+    for (keel::usize i = 1; i + 1 < args.size(); i += 2) {
         if (!(args[i].isChar() || args[i].isString())) break;
         const std::string key = lower(args[i].toString());
         const Value &v = args[i + 1];
@@ -480,21 +480,21 @@ void ecdf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
     if (nargout > 3) outs[3] = std::move(R.fup);
 }
 
-void ecdfhist_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+void ecdfhist_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "ecdfhist");  // no max: name-value tail in the reference
     int m = 10;
     if (args.size() >= 3 && !args[2].isEmpty())
         m = static_cast<int>(argcheck::roundLength(args[2], 3, "m", "ecdfhist"));
-    auto [n, c] = ecdfhist(args[0], args[1], m, ctx.engine->resource());
+    auto [n, c] = ecdfhist(args[0], args[1], m, ctx.engine->allocator());
     outs[0] = std::move(n);
     if (nargout > 1) outs[1] = std::move(c);
 }
 
 // ── partialcorr adapter ──────────────────────────────────────────────
 
-void partialcorr_reg(Span<const Value> args, size_t nargout,
-                     Span<Value> outs, CallContext &ctx)
+void partialcorr_reg(keel::ArrayRef<Value> args, keel::usize nargout,
+                     keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "partialcorr");  // no max: name-value tail in the reference
     // Marshalling only — the matrix/float gates, the (X) / (X, Z) /
@@ -503,7 +503,7 @@ void partialcorr_reg(Span<const Value> args, size_t nargout,
     // argument is Z (or Y when a numeric 3rd follows); anything else
     // starts the name-value tail.
     const Value *y = nullptr, *z = nullptr;
-    std::size_t posN = 1;
+    keel::usize posN = 1;
     if (args.size() > 1 && args[1].isNumeric()) {
         z = &args[1];
         posN = 2;
@@ -515,8 +515,8 @@ void partialcorr_reg(Span<const Value> args, size_t nargout,
     }
     CorrOut r = partialcorr_full(
         args[0], y, z,
-        Span<const Value>(args.data() + posN, args.size() - posN),
-        nargout >= 2, ctx.engine->resource());
+        keel::ArrayRef<Value>(args.data() + posN, args.size() - posN),
+        nargout >= 2, ctx.engine->allocator());
     outs[0] = std::move(r.rho);
     if (nargout >= 2) outs[1] = std::move(r.p);
 }
@@ -526,18 +526,18 @@ void partialcorr_reg(Span<const Value> args, size_t nargout,
 // corr(X[, Y][, NV…]) — marshalling only; the Type/Rows/Tail/Weights
 // name-value contract, the zero-weight row prep, the complex gates and
 // the tail-aware p-values live in corr_full (correlation.cpp).
-void corr_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+void corr_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "corr");  // no max: name-value tail in the reference
     // Distinguish corr(X[, NV…]) from corr(X, Y[, NV…]): a char/string
     // 2nd argument starts the name-value tail (reference ischar dispatch).
     const bool twoArg =
         (args.size() >= 2 && !args[1].isChar() && !args[1].isString());
-    const std::size_t nvStart = twoArg ? 2 : 1;
+    const keel::usize nvStart = twoArg ? 2 : 1;
     CorrOut r = corr_full(args[0], twoArg ? &args[1] : nullptr,
-                          Span<const Value>(args.data() + nvStart,
+                          keel::ArrayRef<Value>(args.data() + nvStart,
                                             args.size() - nvStart),
-                          nargout >= 2, ctx.engine->resource());
+                          nargout >= 2, ctx.engine->allocator());
     outs[0] = std::move(r.rho);
     if (nargout >= 2) outs[1] = std::move(r.p);
 }
@@ -545,12 +545,12 @@ void corr_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
 // detrend(A, ...) — marshalling only; the full parse+validate+
 // compute contract lives in cleaning.cpp's detrend_full (float gate,
 // degree/bp/nanflag/Continuous NVs, single + N-D results).
-void detrend_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void detrend_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "detrend");  // no max: flag/option tail in the reference
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     outs[0] = detrend_full(args[0],
-                           Span<const Value>(args.data() + 1, args.size() - 1), mr);
+                           keel::ArrayRef<Value>(args.data() + 1, args.size() - 1), mr);
 }
 
 // ── missing-data adapters ────────────────────────────────────────────
@@ -563,12 +563,12 @@ void detrend_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 // compute contracts (method prefixes, windows, ThresholdFactor /
 // MaxNumOutliers ranges, per-element moving thresholds, single
 // contagion, row/column removal) live in cleaning.cpp.
-void isoutlier_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+void isoutlier_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "isoutlier");  // no max: name-value tail in the reference
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     IsOutlierOut r = isoutlier_full(args[0],
-                                    Span<const Value>(args.data() + 1, args.size() - 1),
+                                    keel::ArrayRef<Value>(args.data() + 1, args.size() - 1),
                                     nargout > 1, mr);
     outs[0] = std::move(r.tf);
     if (nargout > 1) outs[1] = std::move(r.lo);
@@ -576,12 +576,12 @@ void isoutlier_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Cal
     if (nargout > 3) outs[3] = std::move(r.center);
 }
 
-void rmoutliers_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+void rmoutliers_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "rmoutliers");  // no max: name-value tail in the reference
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     RmOutliersOut r = rmoutliers_full(args[0],
-                                      Span<const Value>(args.data() + 1, args.size() - 1), mr);
+                                      keel::ArrayRef<Value>(args.data() + 1, args.size() - 1), mr);
     outs[0] = std::move(r.B);
     if (nargout > 1) outs[1] = std::move(r.ind);
     if (nargout > 2) outs[2] = std::move(r.tf);
@@ -594,34 +594,34 @@ void rmoutliers_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Ca
 // the contracts (constant-value requirements, EndValues semantics,
 // movmean/movmedian fills, row removal, indicator vectors) live in
 // cleaning.cpp.
-void fillmissing_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+void fillmissing_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "fillmissing");  // no max: name-value tail in the reference
-    auto *mr = ctx.engine->resource();
-    auto callFn = [&ctx](const Value &fh, Span<const Value> fargs) -> Value {
+    auto *mr = ctx.engine->allocator();
+    auto callFn = [&ctx](const Value &fh, keel::ArrayRef<Value> fargs) -> Value {
         return ctx.engine->callFunctionHandle(fh, fargs, ctx.env);
     };
     FillMissingOut r = fillmissing_full(args[0],
-                                        Span<const Value>(args.data() + 1, args.size() - 1),
+                                        keel::ArrayRef<Value>(args.data() + 1, args.size() - 1),
                                         nargout > 1, mr, callFn);
     outs[0] = std::move(r.B);
     if (nargout > 1) outs[1] = std::move(r.filled);
 }
 
-void rmmissing_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+void rmmissing_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "rmmissing");  // no max: name-value tail in the reference
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     RmMissingOut r = rmmissing_full(args[0],
-                                    Span<const Value>(args.data() + 1, args.size() - 1), mr);
+                                    keel::ArrayRef<Value>(args.data() + 1, args.size() - 1), mr);
     outs[0] = std::move(r.B);
     if (nargout > 1) outs[1] = std::move(r.ind);
 }
 
-void standardizeMissing_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void standardizeMissing_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "standardizeMissing");
-    outs[0] = standardizeMissing_full(args[0], args[1], ctx.engine->resource());
+    outs[0] = standardizeMissing_full(args[0], args[1], ctx.engine->allocator());
 }
 
 // filloutliers(A, fillmethod[, findmethod][, NV])
@@ -629,8 +629,8 @@ void standardizeMissing_reg(Span<const Value> args, size_t /*nargout*/, Span<Val
 //                "next" | "nearest" | "linear"
 //   findmethod : "median" (default) | "mean" | "quartiles"
 //   NV         : ThresholdFactor (default per-method)
-void filloutliers_reg(Span<const Value> args, size_t /*nargout*/,
-                      Span<Value> outs, CallContext &ctx)
+void filloutliers_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
+                      keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "filloutliers");  // no max: name-value tail in the reference
     auto lower = [](std::string v) {
@@ -643,7 +643,7 @@ void filloutliers_reg(Span<const Value> args, size_t /*nargout*/,
     double tf = 3.0;
     bool tf_set = false;
     double loP = 0.0, hiP = 0.0;
-    std::size_t i = 2;
+    keel::usize i = 2;
     if (i < args.size() && (args[i].isChar() || args[i].isString())) {
         const std::string s = lower(args[i].toString());
         // Distinguish findmethod string vs NV name. NV names are known.
@@ -699,19 +699,19 @@ void filloutliers_reg(Span<const Value> args, size_t /*nargout*/,
         tf = 2.0 * tf;
     }
     outs[0] = filloutliers_of(args[0], args[1], detect, tf, loP, hiP,
-                              ctx.engine->resource());
+                              ctx.engine->allocator());
 }
 
 // ── range / mad / geomean / harmmean / moment / trimmean adapters ────
 
-void range_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void range_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 2, "range");
     int dim = 0;
     std::vector<int> vecdimSet;
     if (args.size() >= 2)
         vecdim::parseDimSlot(args[0], args[1], "range", dim, vecdimSet);
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     if (!vecdimSet.empty()) {
         Value c = vecdim::collapseDims(args[0], vecdimSet, mr);
         outs[0] = vecdim::expandReduced(
@@ -722,7 +722,7 @@ void range_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     outs[0] = range_of(args[0], dim, mr);
 }
 
-void mad_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void mad_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 3, "mad");
     int flag = 0;
@@ -735,7 +735,7 @@ void mad_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
     }
     if (args.size() >= 3)
         vecdim::parseDimSlot(args[0], args[2], "mad", dim, vecdimSet);
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     if (!vecdimSet.empty()) {
         Value c = vecdim::collapseDims(args[0], vecdimSet, mr);
         outs[0] = vecdim::expandReduced(
@@ -748,7 +748,7 @@ void mad_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
 
 // Parse a trailing 'omitnan'/'includenan' nanflag from a geomean/harmmean
 // arg list. Returns the omit flag and the count of remaining numeric args.
-bool parseMeanNanFlag(Span<const Value> args, const char *fn, std::size_t &nargs)
+bool parseMeanNanFlag(keel::ArrayRef<Value> args, const char *fn, keel::usize &nargs)
 {
     nargs = args.size();
     if (nargs >= 2 && (args[nargs - 1].isChar() || args[nargs - 1].isString())) {
@@ -763,16 +763,16 @@ bool parseMeanNanFlag(Span<const Value> args, const char *fn, std::size_t &nargs
     return false;
 }
 
-void geomean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void geomean_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "geomean");  // no max: flag/option tail in the reference
-    std::size_t nargs;
+    keel::usize nargs;
     const bool omitnan = parseMeanNanFlag(args, "geomean", nargs);
     int dim = 0;
     std::vector<int> vecdimSet;
     if (nargs >= 2)
         vecdim::parseDimSlot(args[0], args[1], "geomean", dim, vecdimSet);
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     if (!vecdimSet.empty()) {
         Value c = vecdim::collapseDims(args[0], vecdimSet, mr);
         outs[0] = vecdim::expandReduced(
@@ -783,16 +783,16 @@ void geomean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     outs[0] = geomean_of(args[0], dim, omitnan, mr);
 }
 
-void harmmean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void harmmean_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "harmmean");  // no max: flag/option tail in the reference
-    std::size_t nargs;
+    keel::usize nargs;
     const bool omitnan = parseMeanNanFlag(args, "harmmean", nargs);
     int dim = 0;
     std::vector<int> vecdimSet;
     if (nargs >= 2)
         vecdim::parseDimSlot(args[0], args[1], "harmmean", dim, vecdimSet);
-    auto *mr = ctx.engine->resource();
+    auto *mr = ctx.engine->allocator();
     if (!vecdimSet.empty()) {
         Value c = vecdim::collapseDims(args[0], vecdimSet, mr);
         outs[0] = vecdim::expandReduced(
@@ -803,7 +803,7 @@ void harmmean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     outs[0] = harmmean_of(args[0], dim, omitnan, mr);
 }
 
-void moment_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void moment_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 3, "moment");
     const int order = argcheck::expectedInteger(
@@ -820,17 +820,17 @@ void moment_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     }
     if (!vecdimSet.empty()) {
         Value c = vecdim::collapseDims(args[0], vecdimSet,
-                                       ctx.engine->resource());
+                                       ctx.engine->allocator());
         outs[0] = vecdim::expandReduced(
             moment_of(c, order, static_cast<int>(c.dims().ndim()),
-                      ctx.engine->resource()),
-            args[0], vecdimSet, ctx.engine->resource());
+                      ctx.engine->allocator()),
+            args[0], vecdimSet, ctx.engine->allocator());
         return;
     }
-    outs[0] = moment_of(args[0], order, dim, ctx.engine->resource());
+    outs[0] = moment_of(args[0], order, dim, ctx.engine->allocator());
 }
 
-void trimmean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void trimmean_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 4, "trimmean");
     const double pct = args[1].toScalar();
@@ -841,7 +841,7 @@ void trimmean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     bool useFloor = false;
     int dim = 0;
     std::vector<int> vecdimSet;
-    std::size_t i = 2;
+    keel::usize i = 2;
     if (i < args.size() && (args[i].isChar() || args[i].isString())) {
         std::string f = args[i].toString();
         for (char &c : f) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
@@ -862,14 +862,14 @@ void trimmean_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     }
     if (!vecdimSet.empty()) {
         Value c = vecdim::collapseDims(args[0], vecdimSet,
-                                       ctx.engine->resource());
+                                       ctx.engine->allocator());
         outs[0] = vecdim::expandReduced(
             trimmean_of(c, pct, static_cast<int>(c.dims().ndim()), useFloor,
-                        ctx.engine->resource()),
-            args[0], vecdimSet, ctx.engine->resource());
+                        ctx.engine->allocator()),
+            args[0], vecdimSet, ctx.engine->allocator());
         return;
     }
-    outs[0] = trimmean_of(args[0], pct, dim, useFloor, ctx.engine->resource());
+    outs[0] = trimmean_of(args[0], pct, dim, useFloor, ctx.engine->allocator());
 }
 
 } // namespace detail

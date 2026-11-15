@@ -7,6 +7,8 @@
 //   rnd:  μ + σ · randn
 //   stat: [mean=μ, var=σ²]
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/distributions/normal.hpp>
 
 #include <numkit/builtin/datafun.hpp>  // RngContext + rand/randn/randi/randperm (session-scoped, no global/mutex)
@@ -34,28 +36,28 @@ inline bool norm_argcheck(double sigma) noexcept
 }
 } // namespace
 
-Value normpdf(const Value &x, double mu, double sigma, std::pmr::memory_resource *mr)
+Value normpdf(const Value &x, double mu, double sigma, keel::Allocator *mr)
 {
     return elementwise(x, [=](double xi) { return normpdfK(xi, mu, sigma); }, mr);
 }
 
-Value normcdf(const Value &x, double mu, double sigma, std::pmr::memory_resource *mr)
+Value normcdf(const Value &x, double mu, double sigma, keel::Allocator *mr)
 {
     return elementwise(x, [=](double xi) { return normcdfK(xi, mu, sigma); }, mr);
 }
 
-Value norminv(const Value &p, double mu, double sigma, std::pmr::memory_resource *mr)
+Value norminv(const Value &p, double mu, double sigma, keel::Allocator *mr)
 {
     return elementwise(p, [=](double pi) { return norminvK(pi, mu, sigma); }, mr);
 }
 
-Value normrnd(::numkit::ops::RngContext &rng, double mu, double sigma, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value normrnd(::numkit::ops::RngContext &rng, double mu, double sigma, keel::usize rows, keel::usize cols, keel::Allocator *mr)
 {
     if (sigma < 0.0) sigma = 0.0;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
-    const size_t n = rows * cols;
-    for (size_t i = 0; i < n; ++i) od[i] = mu + sigma * rng.nextNormal();
+    const keel::usize n = rows * cols;
+    for (keel::usize i = 0; i < n; ++i) od[i] = mu + sigma * rng.nextNormal();
     return out;
 }
 

@@ -1,5 +1,7 @@
 // toolboxes/stats/src/distributions/geometric.cpp
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/distributions/geometric.hpp>
 
 #include <numkit/builtin/datafun.hpp>
@@ -25,7 +27,7 @@ inline bool geo_argcheck(double p) noexcept
 }
 } // namespace
 
-Value geopdf(const Value &k, double p, std::pmr::memory_resource *mr)
+Value geopdf(const Value &k, double p, keel::Allocator *mr)
 {
     if (!geo_argcheck(p))
         return elementwise(k, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -36,7 +38,7 @@ Value geopdf(const Value &k, double p, std::pmr::memory_resource *mr)
     }, mr);
 }
 
-Value geocdf(const Value &k, double p, std::pmr::memory_resource *mr)
+Value geocdf(const Value &k, double p, keel::Allocator *mr)
 {
     if (p <= 0.0 || p > 1.0)
         return elementwise(k, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -48,7 +50,7 @@ Value geocdf(const Value &k, double p, std::pmr::memory_resource *mr)
     }, mr);
 }
 
-Value geoinv(const Value &q, double p, std::pmr::memory_resource *mr)
+Value geoinv(const Value &q, double p, keel::Allocator *mr)
 {
     if (p <= 0.0 || p > 1.0)
         return elementwise(q, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -74,15 +76,15 @@ Value geoinv(const Value &q, double p, std::pmr::memory_resource *mr)
     }, mr);
 }
 
-Value geornd(::numkit::ops::RngContext &rng, double p, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value geornd(::numkit::ops::RngContext &rng, double p, keel::usize rows, keel::usize cols, keel::Allocator *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (p <= 0.0 || p > 1.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
-    const size_t cnt = rows * cols;
+    const keel::usize cnt = rows * cols;
     std::geometric_distribution<int> gd(p);
-    for (size_t i = 0; i < cnt; ++i) od[i] = static_cast<double>(gd(gen));
+    for (keel::usize i = 0; i < cnt; ++i) od[i] = static_cast<double>(gd(gen));
     return out;
 }
 

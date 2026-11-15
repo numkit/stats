@@ -9,6 +9,7 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
+#include <keel/core.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
@@ -17,7 +18,6 @@
 #include <cstddef>
 #include <cstring>
 #include <limits>
-#include <memory_resource>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -34,12 +34,12 @@ namespace {
 // matrix. On return, the lower-triangular factor lives in the lower
 // half of S; upper half is zeroed. Throws if S is not PD (a diagonal
 // becomes ≤ 0). Algorithm: classical Cholesky-Banachiewicz.
-void choleskyLowerInPlace(double *S, std::size_t n)
+void choleskyLowerInPlace(double *S, keel::usize n)
 {
-    for (std::size_t j = 0; j < n; ++j) {
+    for (keel::usize j = 0; j < n; ++j) {
         // Diagonal entry: L[j][j] = sqrt(S[j][j] - sum_{k<j} L[j][k]^2)
         double diag = S[j * n + j];
-        for (std::size_t k = 0; k < j; ++k)
+        for (keel::usize k = 0; k < j; ++k)
             diag -= S[j * n + k] * S[j * n + k];
         if (diag <= 0.0)
             throw Error("mvnrnd: Sigma must be positive definite "
@@ -48,14 +48,14 @@ void choleskyLowerInPlace(double *S, std::size_t n)
         const double Ljj = std::sqrt(diag);
         S[j * n + j] = Ljj;
         // Below-diagonal entries: L[i][j] = (S[i][j] - sum_{k<j} L[i][k]*L[j][k]) / L[j][j]
-        for (std::size_t i = j + 1; i < n; ++i) {
+        for (keel::usize i = j + 1; i < n; ++i) {
             double s = S[i * n + j];
-            for (std::size_t k = 0; k < j; ++k)
+            for (keel::usize k = 0; k < j; ++k)
                 s -= S[i * n + k] * S[j * n + k];
             S[i * n + j] = s / Ljj;
         }
         // Zero the strictly-upper triangle for clarity.
-        for (std::size_t i = 0; i < j; ++i)
+        for (keel::usize i = 0; i < j; ++i)
             S[i * n + j] = 0.0;
     }
 }
@@ -109,30 +109,30 @@ double bivariateCdf(double h, double k, double rho)
 
 // Monte Carlo CDF (d ≥ 3): sample from N(mu, Sigma), count how many
 // fall componentwise <= q. Antithetic sampling improves variance.
-double monteCarloCdf(const double *L, std::size_t d,
+double monteCarloCdf(const double *L, keel::usize d,
                       const double *mu, const double *q,
-                      std::size_t N, std::mt19937 &gen)
+                      keel::usize N, std::mt19937 &gen)
 {
     std::normal_distribution<double> Nz(0.0, 1.0);
-    std::size_t below = 0;
+    keel::usize below = 0;
     std::vector<double> z(d), sample(d);
-    const std::size_t halfN = N / 2;
-    for (std::size_t s = 0; s < halfN; ++s) {
-        for (std::size_t k = 0; k < d; ++k) z[k] = Nz(gen);
+    const keel::usize halfN = N / 2;
+    for (keel::usize s = 0; s < halfN; ++s) {
+        for (keel::usize k = 0; k < d; ++k) z[k] = Nz(gen);
         // sample1 = mu + L * z, sample2 = mu - L * z  (antithetic).
         for (int sign = 0; sign < 2; ++sign) {
             const double sz = (sign == 0) ? 1.0 : -1.0;
             bool ok = true;
-            for (std::size_t j = 0; j < d; ++j) {
+            for (keel::usize j = 0; j < d; ++j) {
                 double v = mu[j];
-                for (std::size_t k = 0; k <= j; ++k)
+                for (keel::usize k = 0; k <= j; ++k)
                     v += sz * L[j * d + k] * z[k];
                 if (v > q[j]) { ok = false; break; }
             }
             if (ok) ++below;
         }
     }
-    const std::size_t total = halfN * 2;
+    const keel::usize total = halfN * 2;
     return static_cast<double>(below) / static_cast<double>(total);
 }
 
@@ -173,9 +173,9 @@ inline double phiInv(double p)
 // Genz (1992) Separation-of-Variables (SOV) quasi-Monte Carlo integrator
 // for P(a <= X <= b) where X ~ N(0, L*L') and L is d×d row-major lower
 // Cholesky. Uses antithetic Richtmyer irrational-lattice QMC shifts.
-inline double genzSovCdf(const double *L, std::size_t d,
+inline double genzSovCdf(const double *L, keel::usize d,
                          const double *a, const double *b,
-                         std::size_t maxEvals = 10000,
+                         keel::usize maxEvals = 10000,
                          double tol = 1e-5)
 {
     auto evalPhi = [](double x) -> double {
@@ -192,9 +192,9 @@ inline double genzSovCdf(const double *L, std::size_t d,
         2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53,
         59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131
     };
-    const std::size_t m = d - 1;
+    const keel::usize m = d - 1;
     std::vector<double> alpha(m);
-    for (std::size_t k = 0; k < m; ++k) {
+    for (keel::usize k = 0; k < m; ++k) {
         const double pk = (k < 32) ? static_cast<double>(kPrimes[k])
                                    : static_cast<double>(137 + 2 * k);
         const double rt = std::sqrt(pk);
@@ -205,13 +205,13 @@ inline double genzSovCdf(const double *L, std::size_t d,
     auto evalIntegrand = [&](const std::vector<double> &uvec) -> double {
         double f = f0;
         double dp = d0, ep = e0;
-        for (std::size_t i = 1; i < d; ++i) {
+        for (keel::usize i = 1; i < d; ++i) {
             double u = dp + uvec[i - 1] * (ep - dp);
             if (u < 1e-16) u = 1e-16;
             if (u > 1.0 - 1e-16) u = 1.0 - 1e-16;
             y[i - 1] = phiInv(u);
             double s = 0.0;
-            for (std::size_t k = 0; k < i; ++k)
+            for (keel::usize k = 0; k < i; ++k)
                 s += L[i * d + k] * y[k];
             const double di = evalPhi((a[i] - s) / L[i * d + i]);
             const double ei = evalPhi((b[i] - s) / L[i * d + i]);
@@ -224,26 +224,26 @@ inline double genzSovCdf(const double *L, std::size_t d,
         return f;
     };
 
-    const std::size_t nBatches = 8;
-    const std::size_t pairsPerBatch = std::max<std::size_t>(64, maxEvals / (2 * nBatches));
+    const keel::usize nBatches = 8;
+    const keel::usize pairsPerBatch = std::max<keel::usize>(64, maxEvals / (2 * nBatches));
     std::mt19937 shiftGen(5489u);
     std::uniform_real_distribution<double> U(0.0, 1.0);
     std::vector<double> shift(m);
 
     double meanEst = 0.0;
     double m2 = 0.0;
-    std::size_t completedBatches = 0;
-    for (std::size_t batch = 0; batch < nBatches; ++batch) {
-        for (std::size_t k = 0; k < m; ++k) shift[k] = U(shiftGen);
+    keel::usize completedBatches = 0;
+    for (keel::usize batch = 0; batch < nBatches; ++batch) {
+        for (keel::usize k = 0; k < m; ++k) shift[k] = U(shiftGen);
         double batchSum = 0.0;
-        for (std::size_t p = 1; p <= pairsPerBatch; ++p) {
+        for (keel::usize p = 1; p <= pairsPerBatch; ++p) {
             const double pd = static_cast<double>(p);
-            for (std::size_t k = 0; k < m; ++k) {
+            for (keel::usize k = 0; k < m; ++k) {
                 double v = pd * alpha[k] + shift[k];
                 w[k] = v - std::floor(v);
             }
             const double f1 = evalIntegrand(w);
-            for (std::size_t k = 0; k < m; ++k) w[k] = 1.0 - w[k];
+            for (keel::usize k = 0; k < m; ++k) w[k] = 1.0 - w[k];
             const double f2 = evalIntegrand(w);
             batchSum += 0.5 * (f1 + f2);
         }
@@ -264,15 +264,15 @@ inline double genzSovCdf(const double *L, std::size_t d,
 namespace {
 
 // Validate C square, infer d. Return (d, n).
-std::pair<std::size_t, std::size_t>
+std::pair<keel::usize, keel::usize>
 mvtcdf_shape_check(const Value &X, const Value &C, const char *fn)
 {
     if (C.dims().rows() != C.dims().cols())
         throw Error(std::string(fn) + ": C must be square",
                     0, 0, fn, "", std::string("numkit:") + fn + ":notSquareC");
-    const std::size_t d = C.dims().rows();
+    const keel::usize d = C.dims().rows();
     if (d == 0) return {0, 0};
-    std::size_t n;
+    keel::usize n;
     if (X.isScalar()) {
         if (d != 1)
             throw Error(std::string(fn) + ": X is scalar but d > 1",
@@ -304,42 +304,42 @@ int mvtcdf_N_from_tol(double tol)
 // Core MC: hits when L[row] < y < U[row] componentwise, antithetic.
 // Lvec / Uvec are length-d (-Inf / +Inf allowed). Returns probability.
 template <typename FetchLU>
-double mvtcdf_mc(const std::vector<double> &Lchol, std::size_t d,
+double mvtcdf_mc(const std::vector<double> &Lchol, keel::usize d,
                  double df, int N, std::mt19937_64 &gen,
                  FetchLU &&fetch_LU /* (j) -> {Lj, Uj} */)
 {
     std::normal_distribution<double> Nz(0.0, 1.0);
     std::chi_squared_distribution<double> Chi(df);
     std::vector<double> z(d), y(d), Lvec(d), Uvec(d);
-    for (std::size_t j = 0; j < d; ++j) {
+    for (keel::usize j = 0; j < d; ++j) {
         auto [lj, uj] = fetch_LU(j);
         Lvec[j] = lj; Uvec[j] = uj;
     }
     int hits = 0;
     for (int k = 0; k < N / 2; ++k) {
-        for (std::size_t j = 0; j < d; ++j) z[j] = Nz(gen);
+        for (keel::usize j = 0; j < d; ++j) z[j] = Nz(gen);
         const double scale = std::sqrt(df / Chi(gen));
         // Pass 1: z direct.
-        for (std::size_t j = 0; j < d; ++j) {
+        for (keel::usize j = 0; j < d; ++j) {
             double s = 0.0;
-            for (std::size_t k2 = 0; k2 <= j; ++k2)
+            for (keel::usize k2 = 0; k2 <= j; ++k2)
                 s += Lchol[j * d + k2] * z[k2];
             y[j] = s * scale;
         }
         bool inside = true;
-        for (std::size_t j = 0; j < d; ++j) {
+        for (keel::usize j = 0; j < d; ++j) {
             if (y[j] < Lvec[j] || y[j] > Uvec[j]) { inside = false; break; }
         }
         if (inside) ++hits;
         // Pass 2: -z antithetic.
-        for (std::size_t j = 0; j < d; ++j) {
+        for (keel::usize j = 0; j < d; ++j) {
             double s = 0.0;
-            for (std::size_t k2 = 0; k2 <= j; ++k2)
+            for (keel::usize k2 = 0; k2 <= j; ++k2)
                 s -= Lchol[j * d + k2] * z[k2];
             y[j] = s * scale;
         }
         inside = true;
-        for (std::size_t j = 0; j < d; ++j) {
+        for (keel::usize j = 0; j < d; ++j) {
             if (y[j] < Lvec[j] || y[j] > Uvec[j]) { inside = false; break; }
         }
         if (inside) ++hits;

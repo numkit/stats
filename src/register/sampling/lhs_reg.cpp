@@ -3,6 +3,8 @@
 // CallContext register half of sampling/lhs.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
+#include <keel/core.h>
+#include <keel/ref.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/builtin/datafun.hpp>
 #include <numkit/stats/distributions/normal.hpp>
@@ -11,13 +13,10 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
-#include <numkit/value/scratch.hpp>
-#include <numkit/value/span.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <complex>
 #include <cstddef>
 #include <string>
 #include <tuple>
@@ -28,16 +27,16 @@ namespace numkit::stats {
 
 namespace detail {
 
-void lhsdesign_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void lhsdesign_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "lhsdesign");  // no max: name-value tail in the reference
-    const std::size_t n = argcheck::arrayDim(args[0], "lhsdesign");
-    const std::size_t p = argcheck::arrayDim(args[1], "lhsdesign");
+    const keel::usize n = argcheck::arrayDim(args[0], "lhsdesign");
+    const keel::usize p = argcheck::arrayDim(args[1], "lhsdesign");
     bool smooth = true;
     LhsCriterion crit = LhsCriterion::Maximin;
-    std::size_t iters = 5;
+    keel::usize iters = 5;
     // Parse name-value pairs from args[2..].
-    for (std::size_t k = 2; k + 1 < args.size(); k += 2) {
+    for (keel::usize k = 2; k + 1 < args.size(); k += 2) {
         if (!args[k].isChar() && !args[k].isString())
             throw Error("lhsdesign: name-value arguments expected",
                         0, 0, "lhsdesign", "", "numkit:lhsdesign:badNameValue");
@@ -62,14 +61,14 @@ void lhsdesign_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                         0, 0, "lhsdesign", "", "numkit:lhsdesign:badOption");
         }
     }
-    outs[0] = lhsdesign(ctx.engine->rng(), n, p, smooth, crit, iters, ctx.engine->resource());
+    outs[0] = lhsdesign(ctx.engine->rng(), n, p, smooth, crit, iters, ctx.engine->allocator());
 }
 
-void lhsnorm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+void lhsnorm_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 3, 4, "lhsnorm");
-    const std::size_t n = argcheck::arrayDim(args[2], "lhsnorm");
-    outs[0] = lhsnorm(ctx.engine->rng(), args[0], args[1], n, ctx.engine->resource());
+    const keel::usize n = argcheck::arrayDim(args[2], "lhsnorm");
+    outs[0] = lhsnorm(ctx.engine->rng(), args[0], args[1], n, ctx.engine->allocator());
 }
 
 } // namespace detail

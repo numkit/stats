@@ -1,6 +1,7 @@
 // toolboxes/stats/tests/cophenet_test.cpp
 // cophenet.
 
+#include <keel/core.h>
 #include <numkit/core/standard_engine.hpp>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
@@ -33,7 +34,7 @@ TEST_F(CophenetTest, TwoOutputProducesCopheneticDistances)
     eval("Y = pdist(X); Z = linkage(Y);");
     eval("[c, d] = cophenet(Z, Y);");
     EXPECT_NEAR(evalScalar("c"), 0.8441281440, 1e-9);
-    EXPECT_EQ(static_cast<size_t>(evalScalar("numel(d)")), 10u);
+    EXPECT_EQ(static_cast<keel::usize>(evalScalar("numel(d)")), 10u);
     EXPECT_NEAR(evalScalar("d(1)"), 0.7071067812, 1e-9);
     EXPECT_NEAR(evalScalar("d(2)"), 4.9497474683, 1e-9);
     EXPECT_NEAR(evalScalar("d(8)"), 0.7071067812, 1e-9);

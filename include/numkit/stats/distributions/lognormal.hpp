@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <memory_resource>
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
 #include <tuple>
@@ -32,8 +33,8 @@ namespace numkit::stats {
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Array of pdf values, same shape as `x`.
 /// @see logncdf, logninv, lognrnd, lognstat
-Value lognpdf(const Value &x, double mu, double sigma,
-              std::pmr::memory_resource *mr = nullptr);
+Value lognpdf(const Value &x, keel::f64 mu, keel::f64 sigma,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Lognormal cdf (`p = logncdf(x, mu, sigma)`).
 ///
@@ -45,8 +46,8 @@ Value lognpdf(const Value &x, double mu, double sigma,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Array of cdf values in `[0, 1]`.
 /// @see lognpdf, logninv
-Value logncdf(const Value &x, double mu, double sigma,
-              std::pmr::memory_resource *mr = nullptr);
+Value logncdf(const Value &x, keel::f64 mu, keel::f64 sigma,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Lognormal inverse cdf (`x = logninv(p, mu, sigma)`).
 ///
@@ -58,8 +59,8 @@ Value logncdf(const Value &x, double mu, double sigma,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Quantile array, same shape as `p`.
 /// @see logncdf
-Value logninv(const Value &p, double mu, double sigma,
-              std::pmr::memory_resource *mr = nullptr);
+Value logninv(const Value &p, keel::f64 mu, keel::f64 sigma,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Lognormal random samples (`r = lognrnd(mu, sigma, rows, cols)`).
 ///
@@ -72,8 +73,8 @@ Value logninv(const Value &p, double mu, double sigma,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `rows × cols` matrix of lognormal samples.
 /// @see lognpdf
-Value lognrnd(::numkit::ops::RngContext &rng, double mu, double sigma, size_t rows = 1, size_t cols = 1,
-              std::pmr::memory_resource *mr = nullptr);
+Value lognrnd(::numkit::ops::RngContext &rng, keel::f64 mu, keel::f64 sigma, keel::usize rows = 1, keel::usize cols = 1,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Lognormal mean and variance (`[m, v] = lognstat(mu, sigma)`).
 ///
@@ -85,7 +86,7 @@ Value lognrnd(::numkit::ops::RngContext &rng, double mu, double sigma, size_t ro
 /// @param sigma  Standard deviation of the underlying normal.
 /// @return       `{mean, variance}` pair (of the lognormal RV `X`, not the log).
 /// @see lognpdf
-std::tuple<double, double> lognstat(double mu, double sigma);
+std::tuple<keel::f64, keel::f64> lognstat(keel::f64 mu, keel::f64 sigma);
 
 
 /// @}

@@ -6,10 +6,15 @@
 // optimal bound, but matches the rest of the library's "correctness
 // first, optimise after benches" policy.
 
+#include <keel/core.h>
+#include <keel/memory.h>
+#include <keel/ref.h>
+#include <keel/arena.h>
+#include <keel/array.h>
+#include <keel/math.h>
 #include <numkit/stats/moving/moving.hpp>
 
 #include <numkit/value/value.hpp>
-#include <numkit/value/scratch.hpp>
 #include <numkit/value/error.hpp>
 
 #include <numkit/ops/helpers.hpp>            // createLike, createForDims (toolboxes/builtin/src/)
@@ -31,23 +36,23 @@ namespace numkit::stats {
 
 // ── public API (legacy dim-only sigs; defaults for extras) ────────────
 
-Value movmean(const Value &x, Span<const size_t> k, int dim, std::pmr::memory_resource *mr)
+Value movmean(const Value &x, keel::ArrayRef<keel::usize> k, int dim, keel::Allocator *mr)
 { MovOpts o; o.dim = dim; return movmean_impl(x, k, o, mr); }
-Value movsum(const Value &x, Span<const size_t> k, int dim, std::pmr::memory_resource *mr)
+Value movsum(const Value &x, keel::ArrayRef<keel::usize> k, int dim, keel::Allocator *mr)
 { MovOpts o; o.dim = dim; return movsum_impl(x, k, o, mr); }
-Value movmin(const Value &x, Span<const size_t> k, int dim, std::pmr::memory_resource *mr)
+Value movmin(const Value &x, keel::ArrayRef<keel::usize> k, int dim, keel::Allocator *mr)
 { MovOpts o; o.dim = dim; return movmin_impl(x, k, o, mr); }
-Value movmax(const Value &x, Span<const size_t> k, int dim, std::pmr::memory_resource *mr)
+Value movmax(const Value &x, keel::ArrayRef<keel::usize> k, int dim, keel::Allocator *mr)
 { MovOpts o; o.dim = dim; return movmax_impl(x, k, o, mr); }
-Value movprod(const Value &x, Span<const size_t> k, int dim, std::pmr::memory_resource *mr)
+Value movprod(const Value &x, keel::ArrayRef<keel::usize> k, int dim, keel::Allocator *mr)
 { MovOpts o; o.dim = dim; return movprod_impl(x, k, o, mr); }
-Value movmedian(const Value &x, Span<const size_t> k, int dim, std::pmr::memory_resource *mr)
+Value movmedian(const Value &x, keel::ArrayRef<keel::usize> k, int dim, keel::Allocator *mr)
 { MovOpts o; o.dim = dim; return movmedian_impl(x, k, o, mr); }
-Value movvar(const Value &x, Span<const size_t> k, int normFlag, int dim, std::pmr::memory_resource *mr)
+Value movvar(const Value &x, keel::ArrayRef<keel::usize> k, int normFlag, int dim, keel::Allocator *mr)
 { MovOpts o; o.dim = dim; return movvar_impl(x, k, normFlag, o, mr); }
-Value movstd(const Value &x, Span<const size_t> k, int normFlag, int dim, std::pmr::memory_resource *mr)
+Value movstd(const Value &x, keel::ArrayRef<keel::usize> k, int normFlag, int dim, keel::Allocator *mr)
 { MovOpts o; o.dim = dim; return movstd_impl(x, k, normFlag, o, mr); }
-Value movmad(const Value &x, Span<const size_t> k, int dim, std::pmr::memory_resource *mr)
+Value movmad(const Value &x, keel::ArrayRef<keel::usize> k, int dim, keel::Allocator *mr)
 { MovOpts o; o.dim = dim; return movmad_impl(x, k, o, mr); }
 
 // Gaussian-weighted moving average for smoothdata 'gaussian'. MATLAB R2025b
@@ -60,14 +65,14 @@ Value movmad(const Value &x, Span<const size_t> k, int dim, std::pmr::memory_res
 // directly. Inputs are DOUBLE-backed (mirrors the rest of the moving driver).
 static Value smoothGaussianDim(const Value &x, const Window &w, double sigma,
                                int dim, const MovOpts &opt,
-                               std::pmr::memory_resource *mr)
+                               keel::Allocator *mr)
 {
     if (x.isEmpty()) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     if (x.isScalar()) return Value::scalar(x.toScalar(), mr);
 
     const long kb = w.kb, kf = w.kf;
     const double inv2s2 = (sigma > 0.0) ? 1.0 / (2.0 * sigma * sigma) : 0.0;
-    auto perSlice = [&](const double *src, size_t n, ptrdiff_t step, double *dst) {
+    auto perSlice = [&](const double *src, keel::usize n, keel::isize step, double *dst) {
         const long N = static_cast<long>(n);
         for (long i = 0; i < N; ++i) {
             const long lo = std::max(0L, i - kb), hi = std::min(N - 1, i + kf);
@@ -91,20 +96,20 @@ static Value smoothGaussianDim(const Value &x, const Window &w, double sigma,
     const auto &d = x.dims();
     if (d.isVector()) { perSlice(src, x.numel(), 1, dst); return out; }
 
-    const size_t R = d.rows(), C = d.cols();
-    const size_t P = d.is3D() ? d.pages() : 1, pg = R * C;
+    const keel::usize R = d.rows(), C = d.cols();
+    const keel::usize P = d.is3D() ? d.pages() : 1, pg = R * C;
     if (dim == 1) {
-        for (size_t p = 0; p < P; ++p)
-            for (size_t c = 0; c < C; ++c)
+        for (keel::usize p = 0; p < P; ++p)
+            for (keel::usize c = 0; c < C; ++c)
                 perSlice(src + p * pg + c * R, R, 1, dst + p * pg + c * R);
     } else if (dim == 2) {
-        for (size_t p = 0; p < P; ++p)
-            for (size_t r = 0; r < R; ++r)
-                perSlice(src + p * pg + r, C, static_cast<ptrdiff_t>(R), dst + p * pg + r);
+        for (keel::usize p = 0; p < P; ++p)
+            for (keel::usize r = 0; r < R; ++r)
+                perSlice(src + p * pg + r, C, static_cast<keel::isize>(R), dst + p * pg + r);
     } else if (dim == 3 && d.is3D()) {
-        for (size_t c = 0; c < C; ++c)
-            for (size_t r = 0; r < R; ++r)
-                perSlice(src + c * R + r, P, static_cast<ptrdiff_t>(pg), dst + c * R + r);
+        for (keel::usize c = 0; c < C; ++c)
+            for (keel::usize r = 0; r < R; ++r)
+                perSlice(src + c * R + r, P, static_cast<keel::isize>(pg), dst + c * R + r);
     } else {
         std::copy(src, src + x.numel(), dst);
     }
@@ -119,7 +124,7 @@ static void buildSGMatrix(int F, int deg, std::vector<double> &B)
 {
     const int p1 = deg + 1;
     const int m  = (F - 1) / 2;
-    std::vector<double> AtA(static_cast<size_t>(p1) * p1, 0.0);
+    std::vector<double> AtA(static_cast<keel::usize>(p1) * p1, 0.0);
     for (int a = 0; a < p1; ++a)
         for (int b = 0; b < p1; ++b) {
             double s = 0.0;
@@ -128,7 +133,7 @@ static void buildSGMatrix(int F, int deg, std::vector<double> &B)
         }
     // Invert AtA via Gauss-Jordan on [AtA | I].
     const int W = 2 * p1;
-    std::vector<double> aug(static_cast<size_t>(p1) * W, 0.0);
+    std::vector<double> aug(static_cast<keel::usize>(p1) * W, 0.0);
     for (int i = 0; i < p1; ++i) { for (int j = 0; j < p1; ++j) aug[i * W + j] = AtA[i * p1 + j]; aug[i * W + p1 + i] = 1.0; }
     for (int col = 0; col < p1; ++col) {
         int piv = col; double best = std::fabs(aug[col * W + col]);
@@ -143,7 +148,7 @@ static void buildSGMatrix(int F, int deg, std::vector<double> &B)
             for (int j = 0; j < W; ++j) aug[r * W + j] -= f * aug[col * W + j];
         }
     }
-    B.assign(static_cast<size_t>(F) * F, 0.0);
+    B.assign(static_cast<keel::usize>(F) * F, 0.0);
     for (int i = 0; i < F; ++i)
         for (int j = 0; j < F; ++j) {
             double s = 0.0;
@@ -152,14 +157,14 @@ static void buildSGMatrix(int F, int deg, std::vector<double> &B)
                 for (int b = 0; b < p1; ++b)
                     s += ia * aug[a * W + p1 + b] * std::pow(static_cast<double>(j - m), b);
             }
-            B[static_cast<size_t>(i) * F + j] = s;
+            B[static_cast<keel::usize>(i) * F + j] = s;
         }
 }
 
 // Apply the SG projection over one slice (stride `step`): interior samples use
 // the centre row; the first/last m samples use the boundary rows of the F-point
 // edge window. Matches MATLAB sgolayfilt's edge handling.
-static void sgolaySlice(const double *src, size_t n, ptrdiff_t step, double *dst,
+static void sgolaySlice(const double *src, keel::usize n, keel::isize step, double *dst,
                         const std::vector<double> &B, int F)
 {
     const int N = static_cast<int>(n);
@@ -170,14 +175,14 @@ static void sgolaySlice(const double *src, size_t n, ptrdiff_t step, double *dst
         else if (nn >= N - m)  { row = nn - (N - F);  base = N - F; }   // trailing edge
         else                   { row = m;             base = nn - m; }  // interior
         double s = 0.0;
-        for (int j = 0; j < F; ++j) s += B[static_cast<size_t>(row) * F + j] * src[static_cast<ptrdiff_t>(base + j) * step];
-        dst[static_cast<ptrdiff_t>(nn) * step] = s;
+        for (int j = 0; j < F; ++j) s += B[static_cast<keel::usize>(row) * F + j] * src[static_cast<keel::isize>(base + j) * step];
+        dst[static_cast<keel::isize>(nn) * step] = s;
     }
 }
 
 // Savitzky-Golay smoothing for smoothdata 'sgolay' (degree 2). Walks slices
 // along `dim`; reduces the window to fit short slices.
-static Value smoothSGDim(const Value &x, int F, int deg, int dim, std::pmr::memory_resource *mr)
+static Value smoothSGDim(const Value &x, int F, int deg, int dim, keel::Allocator *mr)
 {
     if (x.isEmpty()) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     if (x.isScalar()) return Value::scalar(x.toScalar(), mr);
@@ -187,7 +192,7 @@ static Value smoothSGDim(const Value &x, int F, int deg, int dim, std::pmr::memo
     const double *src = x.doubleData();
     const auto &  d   = x.dims();
 
-    const size_t sliceLen = d.isVector() ? x.numel()
+    const keel::usize sliceLen = d.isVector() ? x.numel()
                                          : (dim == 2 ? d.cols() : (dim == 3 ? (d.is3D() ? d.pages() : 1) : d.rows()));
     int Fe = F;
     if (Fe > static_cast<int>(sliceLen)) Fe = static_cast<int>(sliceLen);
@@ -197,29 +202,29 @@ static Value smoothSGDim(const Value &x, int F, int deg, int dim, std::pmr::memo
     std::vector<double> B;
     if (Fe >= deg + 1) buildSGMatrix(Fe, deg, B);
 
-    auto perSlice = [&](const double *s, size_t nlen, ptrdiff_t step, double *o) {
-        if (Fe < deg + 1 || nlen < static_cast<size_t>(Fe)) {
-            for (size_t i = 0; i < nlen; ++i) o[i * step] = s[i * step];  // too short → passthrough
+    auto perSlice = [&](const double *s, keel::usize nlen, keel::isize step, double *o) {
+        if (Fe < deg + 1 || nlen < static_cast<keel::usize>(Fe)) {
+            for (keel::usize i = 0; i < nlen; ++i) o[i * step] = s[i * step];  // too short → passthrough
             return;
         }
         sgolaySlice(s, nlen, step, o, B, Fe);
     };
 
     if (d.isVector()) { perSlice(src, x.numel(), 1, dst); return out; }
-    const size_t R = d.rows(), C = d.cols();
-    const size_t P = d.is3D() ? d.pages() : 1, pg = R * C;
+    const keel::usize R = d.rows(), C = d.cols();
+    const keel::usize P = d.is3D() ? d.pages() : 1, pg = R * C;
     if (dim == 1) {
-        for (size_t p = 0; p < P; ++p)
-            for (size_t c = 0; c < C; ++c)
+        for (keel::usize p = 0; p < P; ++p)
+            for (keel::usize c = 0; c < C; ++c)
                 perSlice(src + p * pg + c * R, R, 1, dst + p * pg + c * R);
     } else if (dim == 2) {
-        for (size_t p = 0; p < P; ++p)
-            for (size_t r = 0; r < R; ++r)
-                perSlice(src + p * pg + r, C, static_cast<ptrdiff_t>(R), dst + p * pg + r);
+        for (keel::usize p = 0; p < P; ++p)
+            for (keel::usize r = 0; r < R; ++r)
+                perSlice(src + p * pg + r, C, static_cast<keel::isize>(R), dst + p * pg + r);
     } else if (dim == 3 && d.is3D()) {
-        for (size_t c = 0; c < C; ++c)
-            for (size_t r = 0; r < R; ++r)
-                perSlice(src + c * R + r, P, static_cast<ptrdiff_t>(pg), dst + c * R + r);
+        for (keel::usize c = 0; c < C; ++c)
+            for (keel::usize r = 0; r < R; ++r)
+                perSlice(src + c * R + r, P, static_cast<keel::isize>(pg), dst + c * R + r);
     } else {
         std::copy(src, src + x.numel(), dst);
     }
@@ -232,7 +237,7 @@ static Value smoothSGDim(const Value &x, int F, int deg, int dim, std::pmr::memo
 // (window edges → weight 0); the fitted value is the constant term (the fit at
 // the query point). Matches MATLAB exactly. Rank-deficient windows fall back to
 // the weighted mean. P = deg+1 ≤ 3.
-static void localRegressSlice(const double *src, size_t n, ptrdiff_t step, double *dst,
+static void localRegressSlice(const double *src, keel::usize n, keel::isize step, double *dst,
                               int F, int deg)
 {
     const int N = static_cast<int>(n);
@@ -257,7 +262,7 @@ static void localRegressSlice(const double *src, size_t n, ptrdiff_t step, doubl
             double basis[3];
             basis[0] = 1.0;
             for (int p = 1; p < P; ++p) basis[p] = basis[p - 1] * (j - i);
-            const double yj = src[static_cast<ptrdiff_t>(j) * step];
+            const double yj = src[static_cast<keel::isize>(j) * step];
             for (int a = 0; a < P; ++a) {
                 Atb[a] += w * basis[a] * yj;
                 for (int b = 0; b < P; ++b) AtA[a * P + b] += w * basis[a] * basis[b];
@@ -279,13 +284,13 @@ static void localRegressSlice(const double *src, size_t n, ptrdiff_t step, doubl
             b[col] /= d;
             for (int r = 0; r < P; ++r) { if (r == col) continue; const double f = M[r * P + col]; for (int j = 0; j < P; ++j) M[r * P + j] -= f * M[col * P + j]; b[r] -= f * b[col]; }
         }
-        val = ok ? b[0] : (AtA[0] > 0.0 ? Atb[0] / AtA[0] : src[static_cast<ptrdiff_t>(i) * step]);
-        dst[static_cast<ptrdiff_t>(i) * step] = val;
+        val = ok ? b[0] : (AtA[0] > 0.0 ? Atb[0] / AtA[0] : src[static_cast<keel::isize>(i) * step]);
+        dst[static_cast<keel::isize>(i) * step] = val;
     }
 }
 
 // smoothdata 'lowess'/'loess' driver — walks slices along `dim`.
-static Value smoothLocalRegDim(const Value &x, int F, int deg, int dim, std::pmr::memory_resource *mr)
+static Value smoothLocalRegDim(const Value &x, int F, int deg, int dim, keel::Allocator *mr)
 {
     if (x.isEmpty()) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     if (x.isScalar()) return Value::scalar(x.toScalar(), mr);
@@ -295,35 +300,35 @@ static Value smoothLocalRegDim(const Value &x, int F, int deg, int dim, std::pmr
     const double *src = x.doubleData();
     const auto &  d   = x.dims();
 
-    const size_t sliceLen = d.isVector() ? x.numel()
+    const keel::usize sliceLen = d.isVector() ? x.numel()
                                          : (dim == 2 ? d.cols() : (dim == 3 ? (d.is3D() ? d.pages() : 1) : d.rows()));
     int Fe = F;
     if (Fe > static_cast<int>(sliceLen)) Fe = static_cast<int>(sliceLen);
     if (Fe < 1) Fe = 1;
 
-    auto perSlice = [&](const double *s, size_t nlen, ptrdiff_t step, double *o) {
-        if (nlen < static_cast<size_t>(Fe) || Fe < 2) {
-            for (size_t i = 0; i < nlen; ++i) o[i * step] = s[i * step];
+    auto perSlice = [&](const double *s, keel::usize nlen, keel::isize step, double *o) {
+        if (nlen < static_cast<keel::usize>(Fe) || Fe < 2) {
+            for (keel::usize i = 0; i < nlen; ++i) o[i * step] = s[i * step];
             return;
         }
         localRegressSlice(s, nlen, step, o, Fe, deg);
     };
 
     if (d.isVector()) { perSlice(src, x.numel(), 1, dst); return out; }
-    const size_t R = d.rows(), C = d.cols();
-    const size_t P = d.is3D() ? d.pages() : 1, pg = R * C;
+    const keel::usize R = d.rows(), C = d.cols();
+    const keel::usize P = d.is3D() ? d.pages() : 1, pg = R * C;
     if (dim == 1) {
-        for (size_t p = 0; p < P; ++p)
-            for (size_t c = 0; c < C; ++c)
+        for (keel::usize p = 0; p < P; ++p)
+            for (keel::usize c = 0; c < C; ++c)
                 perSlice(src + p * pg + c * R, R, 1, dst + p * pg + c * R);
     } else if (dim == 2) {
-        for (size_t p = 0; p < P; ++p)
-            for (size_t r = 0; r < R; ++r)
-                perSlice(src + p * pg + r, C, static_cast<ptrdiff_t>(R), dst + p * pg + r);
+        for (keel::usize p = 0; p < P; ++p)
+            for (keel::usize r = 0; r < R; ++r)
+                perSlice(src + p * pg + r, C, static_cast<keel::isize>(R), dst + p * pg + r);
     } else if (dim == 3 && d.is3D()) {
-        for (size_t c = 0; c < C; ++c)
-            for (size_t r = 0; r < R; ++r)
-                perSlice(src + c * R + r, P, static_cast<ptrdiff_t>(pg), dst + c * R + r);
+        for (keel::usize c = 0; c < C; ++c)
+            for (keel::usize r = 0; r < R; ++r)
+                perSlice(src + c * R + r, P, static_cast<keel::isize>(pg), dst + c * R + r);
     } else {
         std::copy(src, src + x.numel(), dst);
     }
@@ -361,7 +366,7 @@ void hampel_argcheck(const Value &x, int k, double nsigmas)
 } // namespace
 
 // ── smoothdata ────────────────────────────────────────────────────────
-Value smoothdata(const Value &x, const std::string &method, int k, int dim, std::pmr::memory_resource *mr)
+Value smoothdata(const Value &x, const std::string &method, int k, int dim, keel::Allocator *mr)
 {
     smoothdata_argcheck(method);
     std::string m = method;
@@ -369,7 +374,7 @@ Value smoothdata(const Value &x, const std::string &method, int k, int dim, std:
 
     // Heuristic default window — the reference engine picks ~max(min(round(0.1*n), 10), 3).
     if (k <= 0) {
-        const size_t n = (x.dims().isVector() || x.isScalar())
+        const keel::usize n = (x.dims().isVector() || x.isScalar())
                           ? x.numel()
                           : x.dims().rows();
         long auto_k = static_cast<long>(std::round(0.1 * static_cast<double>(n)));
@@ -378,8 +383,8 @@ Value smoothdata(const Value &x, const std::string &method, int k, int dim, std:
         k = static_cast<int>(auto_k);
         if (k < 1) k = 1;
     }
-    const size_t kArr[1] = { static_cast<size_t>(k) };
-    Span<const size_t> kSpan(kArr, 1);
+    const keel::usize kArr[1] = { static_cast<keel::usize>(k) };
+    keel::ArrayRef<keel::usize> kSpan(kArr, 1);
 
     MovOpts opt;
     opt.dim = dim;
@@ -421,33 +426,33 @@ constexpr double kHampelMadToStd = 1.4826022185056018;
 // Core single-pass hampel filter over a length-`n` vector. Always fills
 // `dst`; when non-null, also fills `mask` (1 where the point was replaced),
 // `median` (local window median), and `sigma` (local 1.4826·MAD estimate).
-void hampelCore(const double *src, std::size_t n, int k, double nsigmas,
-                       double *dst, std::uint8_t *mask, double *median,
-                       double *sigma, std::pmr::memory_resource *mr)
+void hampelCore(const double *src, keel::usize n, int k, double nsigmas,
+                       double *dst, keel::u8 *mask, double *median,
+                       double *sigma, keel::Allocator *mr)
 {
     if (n == 0) return;
-    ScratchArena scratch(mr);
-    auto buf = ScratchVec<double>(static_cast<size_t>(2 * k + 1), &scratch);
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    auto buf = keel::Array<double>(static_cast<keel::usize>(2 * k + 1), scratch.allocator());
     for (long i = 0; i < static_cast<long>(n); ++i) {
         const long lo = std::max<long>(0, i - k);
         const long hi = std::min<long>(static_cast<long>(n) - 1, i + k);
         const long len = hi - lo + 1;
         for (long j = 0; j < len; ++j)
-            buf[static_cast<size_t>(j)] = src[lo + j];
+            buf[static_cast<keel::usize>(j)] = src[lo + j];
         // Median + MAD on the same window.
-        auto copy1 = ScratchVec<double>(static_cast<size_t>(len), &scratch);
+        auto copy1 = keel::Array<double>(static_cast<keel::usize>(len), scratch.allocator());
         std::copy(buf.data(), buf.data() + len, copy1.data());
-        const double med = winMedianInPlace(copy1.data(), static_cast<size_t>(len));
-        auto devs = ScratchVec<double>(static_cast<size_t>(len), &scratch);
+        const double med = winMedianInPlace(copy1.data(), static_cast<keel::usize>(len));
+        auto devs = keel::Array<double>(static_cast<keel::usize>(len), scratch.allocator());
         for (long j = 0; j < len; ++j)
-            devs[static_cast<size_t>(j)] = std::abs(buf[static_cast<size_t>(j)] - med);
-        const double mad = winMedianInPlace(devs.data(), static_cast<size_t>(len));
+            devs[static_cast<keel::usize>(j)] = keel::abs(buf[static_cast<keel::usize>(j)] - med);
+        const double mad = winMedianInPlace(devs.data(), static_cast<keel::usize>(len));
         const double sig = kHampelMadToStd * mad;
-        const bool isOut = std::abs(src[i] - med) > nsigmas * sig;
+        const bool isOut = keel::abs(src[i] - med) > nsigmas * sig;
         dst[i] = isOut ? med : src[i];
-        if (mask)   mask[static_cast<size_t>(i)]   = isOut ? 1 : 0;
-        if (median) median[static_cast<size_t>(i)] = med;
-        if (sigma)  sigma[static_cast<size_t>(i)]  = sig;
+        if (mask)   mask[static_cast<keel::usize>(i)]   = isOut ? 1 : 0;
+        if (median) median[static_cast<keel::usize>(i)] = med;
+        if (sigma)  sigma[static_cast<keel::usize>(i)]  = sig;
     }
 }
 
@@ -456,11 +461,11 @@ void hampelValidate(const Value &x, int k, double nsigmas)
     hampel_argcheck(x, k, nsigmas);
 }
 
-Value hampel(const Value &x, int k, double nsigmas, std::pmr::memory_resource *mr)
+Value hampel(const Value &x, int k, double nsigmas, keel::Allocator *mr)
 {
     hampel_argcheck(x, k, nsigmas);
     auto out = createLike(x, ValueType::DOUBLE, mr);
-    const size_t n = x.numel();
+    const keel::usize n = x.numel();
     if (n == 0) return out;
     hampelCore(x.doubleData(), n, k, nsigmas, out.doubleDataMut(),
                nullptr, nullptr, nullptr, mr);

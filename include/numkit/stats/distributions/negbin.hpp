@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <memory_resource>
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
 #include <tuple>
@@ -31,8 +32,8 @@ namespace numkit::stats {
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Array of pmf values, same shape as `k`.
 /// @see nbincdf, nbininv, nbinrnd, nbinstat
-Value nbinpdf(const Value &k, double r, double p,
-              std::pmr::memory_resource *mr = nullptr);
+Value nbinpdf(const Value &k, keel::f64 r, keel::f64 p,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Negative binomial cdf (`F = nbincdf(k, r, p)`).
 ///
@@ -45,8 +46,8 @@ Value nbinpdf(const Value &k, double r, double p,
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Array of cdf values in `[0, 1]`.
 /// @see nbinpdf, nbininv
-Value nbincdf(const Value &k, double r, double p,
-              std::pmr::memory_resource *mr = nullptr);
+Value nbincdf(const Value &k, keel::f64 r, keel::f64 p,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Negative binomial inverse cdf (`k = nbininv(q, r, p)`).
 ///
@@ -58,8 +59,8 @@ Value nbincdf(const Value &k, double r, double p,
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Quantile array, same shape as `q`.
 /// @see nbincdf
-Value nbininv(const Value &q, double r, double p,
-              std::pmr::memory_resource *mr = nullptr);
+Value nbininv(const Value &q, keel::f64 r, keel::f64 p,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Negative binomial random samples (`r_out = nbinrnd(r, p, rows, cols)`).
 ///
@@ -70,8 +71,8 @@ Value nbininv(const Value &q, double r, double p,
 /// @param mr    Memory resource (nullptr → process default).
 /// @return      `rows × cols` matrix of negative-binomial samples.
 /// @see nbinpdf
-Value nbinrnd(::numkit::ops::RngContext &rng, double r, double p, size_t rows = 1, size_t cols = 1,
-              std::pmr::memory_resource *mr = nullptr);
+Value nbinrnd(::numkit::ops::RngContext &rng, keel::f64 r, keel::f64 p, keel::usize rows = 1, keel::usize cols = 1,
+              keel::Allocator *mr = nullptr);
 
 /// @brief Negative binomial mean and variance (`[m, v] = nbinstat(r, p)`).
 ///
@@ -83,7 +84,7 @@ Value nbinrnd(::numkit::ops::RngContext &rng, double r, double p, size_t rows = 
 /// @param p  Success probability per trial.
 /// @return   `{mean, variance}` pair.
 /// @see nbinpdf
-std::tuple<double, double> nbinstat(double r, double p);
+std::tuple<keel::f64, keel::f64> nbinstat(keel::f64 r, keel::f64 p);
 
 /// @brief Negative-binomial MLE fit (`[rhat, phat] = nbinfit(x)`).
 ///
@@ -96,15 +97,15 @@ std::tuple<double, double> nbinstat(double r, double p);
 /// @param x   Non-negative count observations.
 /// @param mr  Memory resource.
 /// @return    `[rhat, phat]` as a `1 × 2` row.
-Value nbinfit(const Value &x, std::pmr::memory_resource *mr = nullptr);
+Value nbinfit(const Value &x, keel::Allocator *mr = nullptr);
 
 /// @brief 95% Wald CI for nbinfit (`pci = nbinfit_ci(x, alpha)`).
 ///
 /// Returns the 2 × 2 confidence matrix `[lo; hi]` for `[r, p]` from
 /// the observed Fisher information at the MLE. `r` uses a log-scale
 /// Wald CI; `p` uses a logit-scale Wald CI (MATLAB convention).
-Value nbinfit_ci(const Value &x, double alpha = 0.05,
-                 std::pmr::memory_resource *mr = nullptr);
+Value nbinfit_ci(const Value &x, keel::f64 alpha = 0.05,
+                 keel::Allocator *mr = nullptr);
 
 
 /// @}

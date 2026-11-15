@@ -3,6 +3,8 @@
 // Student's t-distribution. Composes betainc / betaincinv for cdf /
 // icdf; rnd uses Z / sqrt(X/ν) with Z ~ N(0,1), X ~ χ²(ν).
 
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <numkit/stats/distributions/students_t.hpp>
 
 #include <numkit/builtin/datafun.hpp>
@@ -34,7 +36,7 @@ inline bool t_argcheck(double nu) noexcept
 }
 } // namespace
 
-Value tpdf(const Value &x, double nu, std::pmr::memory_resource *mr)
+Value tpdf(const Value &x, double nu, keel::Allocator *mr)
 {
     if (!t_argcheck(nu))  // nu <= 0 or NaN
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
@@ -56,13 +58,13 @@ Value tpdf(const Value &x, double nu, std::pmr::memory_resource *mr)
     }, mr);
 }
 
-Value tcdf(const Value &x, double nu, std::pmr::memory_resource *mr)
+Value tcdf(const Value &x, double nu, keel::Allocator *mr)
 {
     if (nu <= 0.0)
         return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
     // Build z[i] = ν / (ν + x[i]²); pass through betainc with (ν/2, 1/2).
     // The cdf is then 1 - ½·I_z(ν/2, ½) for x ≥ 0 and ½·I_z otherwise.
-    const size_t n = x.numel();
+    const keel::usize n = x.numel();
     Value z = elementwise(x, [=](double xi){ return nu / (nu + xi * xi); }, mr);
     Value a = Value::scalar(0.5 * nu, mr);
     Value b = Value::scalar(0.5, mr);
@@ -74,7 +76,7 @@ Value tcdf(const Value &x, double nu, std::pmr::memory_resource *mr)
         out = Value::matrix3d(x.dims().rows(), x.dims().cols(), x.dims().pages(), ValueType::DOUBLE, mr);
     if (n == 0) return out;
     double *od = out.doubleDataMut();
-    for (size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const double xi = x.elemAsDouble(i);
         const double Ii = Iz.elemAsDouble(i);
         od[i] = (xi >= 0.0) ? 1.0 - 0.5 * Ii : 0.5 * Ii;
@@ -82,7 +84,7 @@ Value tcdf(const Value &x, double nu, std::pmr::memory_resource *mr)
     return out;
 }
 
-Value tinv(const Value &p, double nu, std::pmr::memory_resource *mr)
+Value tinv(const Value &p, double nu, keel::Allocator *mr)
 {
     const double NaN = std::numeric_limits<double>::quiet_NaN();
     const double PINF = std::numeric_limits<double>::infinity();
@@ -114,7 +116,7 @@ Value tinv(const Value &p, double nu, std::pmr::memory_resource *mr)
     // Use betaincinv: from p ↔ z via I_z(ν/2, 1/2) = q where:
     //   p ≥ 0.5: q = 2(1-p), x = +sqrt(ν · (1/z - 1))
     //   p < 0.5: q = 2p,     x = -sqrt(ν · (1/z - 1))
-    const size_t n = p.numel();
+    const keel::usize n = p.numel();
     auto qv = elementwise(p, [](double pi){
         // Out-of-range / NaN handled later; clamp to a valid betaincinv arg here.
         if (std::isnan(pi) || pi < 0.0 || pi > 1.0) return 0.5;
@@ -129,7 +131,7 @@ Value tinv(const Value &p, double nu, std::pmr::memory_resource *mr)
         out = Value::matrix3d(p.dims().rows(), p.dims().cols(), p.dims().pages(), ValueType::DOUBLE, mr);
     if (n == 0) return out;
     double *od = out.doubleDataMut();
-    for (size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const double pi = p.elemAsDouble(i);
         if (std::isnan(pi) || pi < 0.0 || pi > 1.0) { od[i] = NaN; continue; }
         if (pi == 0.0) { od[i] = NINF; continue; }
@@ -142,16 +144,16 @@ Value tinv(const Value &p, double nu, std::pmr::memory_resource *mr)
     return out;
 }
 
-Value trnd(::numkit::ops::RngContext &rng, double nu, size_t rows, size_t cols, std::pmr::memory_resource *mr)
+Value trnd(::numkit::ops::RngContext &rng, double nu, keel::usize rows, keel::usize cols, keel::Allocator *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (nu <= 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
-    const size_t n = rows * cols;
+    const keel::usize n = rows * cols;
     std::normal_distribution<double> nd(0.0, 1.0);
     std::gamma_distribution<double>  gd(0.5 * nu, 2.0);  // χ²(ν) = Gamma(ν/2, 2)
-    for (size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const double Z = nd(gen);
         const double X = gd(gen);
         od[i] = Z / std::sqrt(X / nu);
@@ -173,13 +175,13 @@ std::tuple<double, double> tstat(double nu)
 
 
 Value nctpdf(const Value &x, double nu, double delta,
-             std::pmr::memory_resource *mr)
+             keel::Allocator *mr)
 {
     return elementwise(x, [&](double xi) { return nctpdf_one(xi, nu, delta, mr); }, mr);
 }
 
 Value nctcdf(const Value &x, double nu, double delta, bool upper,
-             std::pmr::memory_resource *mr)
+             keel::Allocator *mr)
 {
     return elementwise(x, [&](double xi) {
         double F = nctcdf_one(xi, nu, delta, mr);
@@ -189,7 +191,7 @@ Value nctcdf(const Value &x, double nu, double delta, bool upper,
 
 
 Value nctinv(const Value &p, double nu, double delta,
-             std::pmr::memory_resource *mr)
+             keel::Allocator *mr)
 {
     return elementwise(p, [&](double pi) { return nctinv_one(pi, nu, delta, mr); }, mr);
 }
@@ -210,17 +212,17 @@ std::tuple<double, double> nctstat(double nu, double delta)
     return {m, v};
 }
 
-Value nctrnd(::numkit::ops::RngContext &rng, double nu, double delta, std::size_t rows, std::size_t cols,
-             std::pmr::memory_resource *mr)
+Value nctrnd(::numkit::ops::RngContext &rng, double nu, double delta, keel::usize rows, keel::usize cols,
+             keel::Allocator *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (!(nu > 0.0) || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
-    const std::size_t n = rows * cols;
+    const keel::usize n = rows * cols;
     std::normal_distribution<double> nd(0.0, 1.0);
     std::gamma_distribution<double>  gd(0.5 * nu, 2.0);   // χ²(ν) = Gamma(ν/2, 2)
-    for (std::size_t i = 0; i < n; ++i) {
+    for (keel::usize i = 0; i < n; ++i) {
         const double Z = nd(gen);
         const double X = gd(gen);
         od[i] = (Z + delta) / std::sqrt(X / nu);
