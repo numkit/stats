@@ -6,6 +6,7 @@
 #include <keel/core.h>
 #include <keel/ref.h>
 #include <keel/string.h>
+#include <keel/utf8.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/descriptive/descriptive.hpp>
 #include <numkit/value/argcheck.hpp>
@@ -13,7 +14,6 @@
 #include <numkit/value/value.hpp>
 
 #include <algorithm>
-#include <cctype>
 #include <tuple>
 #include <utility>
 
@@ -32,7 +32,7 @@ void parseCorrOpts(keel::ArrayRef<Value> args, keel::usize start, int &numLags, 
     for (keel::usize i = start; i < args.size(); ++i) {
         if (args[i].isChar()) {
             keel::String opt = args[i].toString();
-            for (char &c : opt) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            for (char &c : opt) c = keel::to_ascii_lower(c);
             if (i + 1 < args.size()) {
                 if (opt == "numlags") {
                     numLags = argcheck::expectedInteger(

@@ -8,6 +8,7 @@
 #include <keel/memory.h>
 #include <keel/ref.h>
 #include <keel/string.h>
+#include <keel/utf8.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/descriptive/descriptive.hpp>
 #include <numkit/stats/distributions/students_t.hpp>
@@ -21,7 +22,6 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -71,7 +71,7 @@ void ksdensity_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     const Value *weights = nullptr;
     auto lower = [](keel::StringRef sv) {
         keel::String s = keel::String::from(sv);
-        for (auto &c : s) c = (char)std::tolower((unsigned char)c);
+        for (auto &c : s) c = keel::to_ascii_lower(c);
         return s;
     };
     keel::usize i = 1;
@@ -154,7 +154,7 @@ void bounds_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayR
         if (a.isChar() || a.isString()) {
             keel::String s = a.toString();
             std::transform(s.begin(), s.end(), s.begin(),
-                [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
+                [](unsigned char c){ return keel::to_ascii_lower(c); });
             if (s.as_ref() == "all") flatten = true;
             else throw Error(keel::format("bounds: unknown flag '{}'", s.as_ref()),
                               0, 0, "bounds", "", "numkit:bounds:badFlag");
@@ -208,7 +208,7 @@ void iqr_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArray
         if (a.isChar() || a.isString()) {
             keel::String s = a.toString();
             std::transform(s.begin(), s.end(), s.begin(),
-                [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
+                [](unsigned char c){ return keel::to_ascii_lower(c); });
             if (s.as_ref() == "all") flatten = true;
             else throw Error(keel::format("iqr: unknown flag '{}'", s.as_ref()),
                               0, 0, "iqr", "", "numkit:iqr:badFlag");
@@ -269,11 +269,11 @@ void maxk_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef
                         0, 0, "maxk", "", "numkit:maxk:nv");
         keel::String name = args[i].toString();
         std::transform(name.begin(), name.end(), name.begin(),
-                       [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
+                       [](unsigned char c){ return keel::to_ascii_lower(c); });
         if (name.as_ref() == "comparisonmethod") {
             keel::String m = args[i + 1].toString();
             std::transform(m.begin(), m.end(), m.begin(),
-                           [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
+                           [](unsigned char c){ return keel::to_ascii_lower(c); });
             if (m.as_ref() != "real" && m.as_ref() != "abs" && m.as_ref() != "auto")
                 throw Error("maxk: ComparisonMethod must be 'real', 'abs' or 'auto'",
                             0, 0, "maxk", "", "numkit:maxk:cm");
@@ -310,11 +310,11 @@ void mink_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef
                         0, 0, "mink", "", "numkit:mink:nv");
         keel::String name = args[i].toString();
         std::transform(name.begin(), name.end(), name.begin(),
-                       [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
+                       [](unsigned char c){ return keel::to_ascii_lower(c); });
         if (name.as_ref() == "comparisonmethod") {
             keel::String m = args[i + 1].toString();
             std::transform(m.begin(), m.end(), m.begin(),
-                           [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
+                           [](unsigned char c){ return keel::to_ascii_lower(c); });
             if (m.as_ref() != "real" && m.as_ref() != "abs" && m.as_ref() != "auto")
                 throw Error("mink: ComparisonMethod must be 'real', 'abs' or 'auto'",
                             0, 0, "mink", "", "numkit:mink:cm");
@@ -347,7 +347,7 @@ void parseDimOrAll(const Value &x, keel::ArrayRef<Value> args, keel::usize pos,
     if (a.isChar() || a.isString()) {
         keel::String s = a.toString();
         std::transform(s.begin(), s.end(), s.begin(),
-                       [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
+                       [](unsigned char c){ return keel::to_ascii_lower(c); });
         if (s.as_ref() == "all") { flatten = true; return; }
         // Any other string belongs to the flag/Weights parser that
         // runs after this (nanflags / 'Weights'); do not consume it.
@@ -454,7 +454,7 @@ void ecdf_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef
     const Value *freq = nullptr;
     auto lower = [](keel::StringRef sv) {
         keel::String s = keel::String::from(sv);
-        for (auto &c : s) c = (char)std::tolower((unsigned char)c);
+        for (auto &c : s) c = keel::to_ascii_lower(c);
         return s;
     };
     for (keel::usize i = 1; i + 1 < args.size(); i += 2) {
@@ -643,7 +643,7 @@ void filloutliers_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     auto lower = [](keel::StringRef sv) {
         keel::String v = keel::String::from(sv);
         for (char &ch : v)
-            ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+            ch = keel::to_ascii_lower(ch);
         return v;
     };
 
@@ -764,7 +764,7 @@ bool parseMeanNanFlag(keel::ArrayRef<Value> args, const char *fn, keel::usize &n
     nargs = args.size();
     if (nargs >= 2 && (args[nargs - 1].isChar() || args[nargs - 1].isString())) {
         keel::String f = args[nargs - 1].toString();
-        for (char &c : f) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        for (char &c : f) c = keel::to_ascii_lower(c);
         if (f.as_ref() == "omitnan")     { --nargs; return true; }
         if (f.as_ref() == "includenan")  { --nargs; return false; }
         if (f.as_ref() == "all" && nargs == 2) return false;  // 'all' is the dim slot, not a nanflag
@@ -855,7 +855,7 @@ void trimmean_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mut
     keel::usize i = 2;
     if (i < args.size() && (args[i].isChar() || args[i].isString())) {
         keel::String f = args[i].toString();
-        for (char &c : f) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        for (char &c : f) c = keel::to_ascii_lower(c);
         if (f.as_ref() == "floor")      useFloor = true;
         else if (f.as_ref() == "round") useFloor = false;
         else

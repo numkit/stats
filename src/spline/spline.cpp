@@ -7,12 +7,11 @@
 #include <keel/memory.h>
 #include <keel/ref.h>
 #include <keel/string.h>
+#include <keel/utf8.h>
 #include <numkit/stats/spline/spline.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
-
-#include <cctype>
 #include <utility>
 
 namespace numkit::stats {
@@ -496,7 +495,7 @@ Value fnbrk(const Value &pp, keel::StringRef part_in, keel::Allocator *mr)
         throw Error("fnbrk: input must be a spline struct",
                     0, 0, "fnbrk", "", "numkit:fnbrk:struct");
     keel::String part = keel::String::from(part_in);
-    for (auto &c : part) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    for (auto &c : part) c = keel::to_ascii_lower(c);
     auto copyV = [&](const Value &v) {
         if (v.type() == ValueType::CHAR || v.isString()) {
             keel::String sv = v.toString();

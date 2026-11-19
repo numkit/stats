@@ -10,6 +10,7 @@
 #include <keel/ref.h>
 #include <keel/math.h>
 #include <keel/string.h>
+#include <keel/utf8.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/distributions/beta.hpp>
 #include <numkit/stats/distributions/chi2.hpp>
@@ -22,7 +23,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <tuple>
@@ -552,7 +552,7 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     auto toLower = [](keel::StringRef raw) {
         keel::String s = keel::String::from(raw);
         for (char &ch : s)
-            ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+            ch = keel::to_ascii_lower(ch);
         return s;
     };
     for (keel::usize i = 1; i + 1 < args.size(); i += 2) {
@@ -959,7 +959,7 @@ void fitdist_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     // Canonicalise.
     keel::String name;
     name.reserve(raw.size());
-    for (char c : raw) name.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+    for (char c : raw) name.push_back(keel::to_ascii_lower(c));
     keel::StringRef canonical;
     keel::Array<keel::StringRef> param_names;
     if (name == "normal" || name == "norm") {

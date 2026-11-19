@@ -7,6 +7,7 @@
 #include <keel/format.h>
 #include <keel/ref.h>
 #include <keel/string.h>
+#include <keel/utf8.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/builtin/datafun.hpp>
 #include <numkit/stats/distributions/normal.hpp>
@@ -16,7 +17,6 @@
 #include <numkit/value/value.hpp>
 
 #include <algorithm>
-#include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <tuple>
@@ -40,10 +40,10 @@ void lhsdesign_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mu
             throw Error("lhsdesign: name-value arguments expected",
                         0, 0, "lhsdesign", "", "numkit:lhsdesign:badNameValue");
         keel::String name = args[k].toString();
-        for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        for (auto &c : name) c = keel::to_ascii_lower(c);
         if (name == "smooth") {
             keel::String v = args[k + 1].toString();
-            for (auto &c : v) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            for (auto &c : v) c = keel::to_ascii_lower(c);
             smooth = (v != "off");
         } else if (name == "criterion") {
             static constexpr LhsCriterion kCrit[] = {LhsCriterion::None,

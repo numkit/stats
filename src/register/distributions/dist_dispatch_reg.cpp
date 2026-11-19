@@ -13,6 +13,7 @@
 #include <keel/format.h>
 #include <keel/ref.h>
 #include <keel/string.h>
+#include <keel/utf8.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/builtin/datafun.hpp>
 #include "distributions/dist_helpers.hpp"
@@ -21,7 +22,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <cctype>
 #include <cmath>
 #include <limits>
 
@@ -74,7 +74,7 @@ keel::StringRef lookupDistPrefix(keel::StringRef name)
 keel::String toLowerStr(keel::StringRef sv)
 {
     keel::String s = keel::String::from(sv);
-    for (char &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    for (char &c : s) c = keel::to_ascii_lower(c);
     return s;
 }
 

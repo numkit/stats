@@ -48,6 +48,7 @@
 #include <keel/format.h>
 #include <keel/function_ref.h>
 #include <keel/string.h>
+#include <keel/utf8.h>
 #include <numkit/stats/descriptive/descriptive.hpp>
 #include <numkit/builtin/datatypes.hpp>   // standardizeMissing (live bare-name impl)
 #include <numkit/stats/distributions/normal.hpp>     // norminv (via descriptive_detail.hpp)
@@ -59,7 +60,6 @@
 #include <numkit/value/value_type.hpp>
 
 #include <algorithm>
-#include <cctype>
 #include <cstdio>
 
 #include <cmath>
@@ -75,7 +75,7 @@ keel::String lowerCopy(keel::StringRef sv)
 {
     keel::String s = keel::String::from(sv);
     for (char &c : s)
-        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        c = keel::to_ascii_lower(c);
     return s;
 }
 

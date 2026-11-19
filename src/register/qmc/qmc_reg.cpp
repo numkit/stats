@@ -6,6 +6,7 @@
 #include <keel/core.h>
 #include <keel/ref.h>
 #include <keel/string.h>
+#include <keel/utf8.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/qmc/qmc.hpp>
 #include <numkit/value/argcheck.hpp>
@@ -13,7 +14,6 @@
 #include <numkit/value/value.hpp>
 
 #include <algorithm>
-#include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <tuple>
@@ -35,7 +35,7 @@ void haltonset_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     for (keel::usize i = 1; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar() && !args[i].isString()) break;
         keel::String name = args[i].toString();
-        for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        for (auto &c : name) c = keel::to_ascii_lower(c);
         const Value &v = args[i + 1];
         if      (name == "skip") skip = static_cast<long long>(v.toScalar());
         else if (name == "leap") leap = static_cast<long long>(v.toScalar());

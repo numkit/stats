@@ -7,6 +7,7 @@
 #include <keel/format.h>
 #include <keel/ref.h>
 #include <keel/string.h>
+#include <keel/utf8.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/builtin/datafun.hpp>
 #include <numkit/stats/cluster/kmeans.hpp>
@@ -17,7 +18,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <tuple>
@@ -36,7 +36,7 @@ void kmeans_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     int replicates = 1;
     auto lower = [](keel::StringRef sv) {
         keel::String s = keel::String::from(sv);
-        for (auto &c : s) c = (char)std::tolower((unsigned char)c);
+        for (auto &c : s) c = keel::to_ascii_lower(c);
         return s;
     };
     for (keel::usize i = 2; i + 1 < args.size(); i += 2) {

@@ -17,6 +17,7 @@
 #include <keel/ref.h>
 #include <keel/math.h>
 #include <keel/string.h>
+#include <keel/utf8.h>
 #include <numkit/stats/distributions/multivariate.hpp>
 
 #include <numkit/builtin/datafun.hpp>          // RngContext
@@ -27,7 +28,6 @@
 #include "multivariate_detail.hpp"         // phiCdf / bivariateCdf / monteCarloCdf
 
 #include <algorithm>
-#include <cctype>
 #include <cmath>
 #include <limits>
 #include <random>
@@ -518,7 +518,7 @@ Value mvncdf_full(keel::ArrayRef<Value> args, keel::Allocator *mr)
             auto getFieldCI = [&](const char *key) -> const Value * {
                 for (auto entry : fields) {
                     keel::String k = keel::String::from(entry.key.as_ref());
-                    for (char &ch : k) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+                    for (char &ch : k) ch = keel::to_ascii_lower(ch);
                     if (k == key && !entry.value.isEmpty() && entry.value.isNumeric())
                         return fields.get(entry.key);
                 }

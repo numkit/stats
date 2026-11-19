@@ -6,6 +6,7 @@
 #include <keel/core.h>
 #include <keel/ref.h>
 #include <keel/string.h>
+#include <keel/utf8.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/cluster/distance.hpp>
 #include <numkit/stats/cluster/linkage.hpp>
@@ -16,7 +17,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <tuple>
@@ -71,7 +71,7 @@ void clusterdata_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     keel::String distance_metric = keel::String::from("euclidean");
     auto lower = [](keel::StringRef sv) {
         keel::String s = keel::String::from(sv);
-        for (auto &c : s) c = (char)std::tolower((unsigned char)c);
+        for (auto &c : s) c = keel::to_ascii_lower(c);
         return s;
     };
     // MATLAB scalar shortcut: clusterdata(X, c) where c is numeric.

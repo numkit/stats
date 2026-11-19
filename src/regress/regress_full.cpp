@@ -12,6 +12,7 @@
 #include <keel/memory.h>
 #include <keel/ref.h>
 #include <keel/string.h>
+#include <keel/utf8.h>
 #include <numkit/stats/regress/regress.hpp>   // ridge / nlparci / glmval + full entries
 
 #include <numkit/stats/distributions/chi2.hpp>         // chi2inv (glmval simultaneous)
@@ -24,7 +25,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cctype>
 #include <limits>
 
 namespace numkit::stats {
@@ -36,7 +36,7 @@ GlmLink parseGlmLinkName(const Value &v, const char *fn)
     keel::String raw = v.toString();
     keel::String s = raw.clone();
     for (char &c : s)
-        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        c = keel::to_ascii_lower(c);
     if (s.empty() || s == "canonical") return GlmLink::Identity;
     if (s == "identity")    return GlmLink::Identity;
     if (s == "logit")       return GlmLink::Logit;
@@ -291,8 +291,7 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
             keel::String rawName = tail[i].toString();
             keel::String name = rawName.clone();
             for (char &c : name)
-                c = static_cast<char>(std::tolower(
-                    static_cast<unsigned char>(c)));
+                c = keel::to_ascii_lower(c);
             const Value &v = tail[i + 1];
             if      (name == "confidence")   { clev = v.elemAsDouble(0); haveConfidence = true; }
             else if (name == "alpha")        { clev = 1.0 - v.elemAsDouble(0); haveAlpha = true; }
@@ -305,7 +304,7 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
                 else if (v.isChar() || v.isString()) {
                     keel::String sv = v.toString();
                     for (char &c : sv)
-                        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                        c = keel::to_ascii_lower(c);
                     simultaneous = (sv == "true" || sv == "on");
                 } else {
                     simultaneous = (v.elemAsDouble(0) != 0.0);

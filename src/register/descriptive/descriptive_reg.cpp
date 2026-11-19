@@ -11,6 +11,7 @@
 #include <keel/complex.h>
 #include <keel/format.h>
 #include <keel/string.h>
+#include <keel/utf8.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/descriptive/descriptive.hpp>
 #include <numkit/stats/distributions/normal.hpp>     // norminv for corrcoef conf bounds
@@ -27,7 +28,6 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <tuple>
@@ -162,7 +162,7 @@ Value varStdDispatch(keel::ArrayRef<Value> args, bool sqrtIt, const char *fn,
         if (a.isChar() || a.isString()) {
             keel::String s = a.toString();
             std::transform(s.begin(), s.end(), s.begin(),
-                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+                           [](unsigned char c) { return keel::to_ascii_lower(c); });
             if (s.as_ref() == "all") flattenAll = true;
             else throw Error(keel::format("{}: unknown dim flag '{}'", fn, s.as_ref()),
                               0, 0, fn, "", keel::format("numkit:{}:dim", fn));
@@ -378,7 +378,7 @@ void median_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
         if (a.isChar() || a.isString()) {
             keel::String s = a.toString();
             std::transform(s.begin(), s.end(), s.begin(),
-                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+                           [](unsigned char c) { return keel::to_ascii_lower(c); });
             if (s.as_ref() == "all") isAll = true;
             else throw Error(keel::format("median: unknown option '{}'", s.as_ref()),
                               0, 0, "median", "", "numkit:median:unknownOption");
@@ -510,7 +510,7 @@ QArgs parseQArgs(keel::ArrayRef<Value> args, keel::usize start, const Value &x,
     } else if (i < args.size() && (args[i].isChar() || args[i].isString())) {
         keel::String s = args[i].toString();
         std::transform(s.begin(), s.end(), s.begin(),
-                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+                       [](unsigned char c) { return keel::to_ascii_lower(c); });
         if (s.as_ref() == "all") {
             q.flatten = true;
             ++i;
@@ -524,14 +524,14 @@ QArgs parseQArgs(keel::ArrayRef<Value> args, keel::usize start, const Value &x,
                         0, 0, fn, "", keel::format("numkit:{}:nv", fn));
         keel::String name = args[i].toString();
         std::transform(name.begin(), name.end(), name.begin(),
-                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+                       [](unsigned char c) { return keel::to_ascii_lower(c); });
         if (name.as_ref() == "method") {
             if (!args[i + 1].isChar() && !args[i + 1].isString())
                 throw Error(keel::format("{}: Method must be a string", fn),
                             0, 0, fn, "", keel::format("numkit:{}:method", fn));
             keel::String m = args[i + 1].toString();
             std::transform(m.begin(), m.end(), m.begin(),
-                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+                           [](unsigned char c) { return keel::to_ascii_lower(c); });
             // MATLAB's documented values are 'exact' (default) and
             // 'approximate'. 'exact' is the linear-interpolation order-
             // statistic method, which is nk's Midpoint. The
@@ -638,7 +638,7 @@ void mode_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef
         if (a.isChar() || a.isString()) {
             keel::String s = a.toString();
             std::transform(s.begin(), s.end(), s.begin(),
-                [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
+                [](unsigned char c){ return keel::to_ascii_lower(c); });
             if (s.as_ref() == "all") flatten = true;
             else throw Error(keel::format("mode: unknown flag '{}'", s.as_ref()),
                               0, 0, "mode", "", "numkit:mode:badFlag");

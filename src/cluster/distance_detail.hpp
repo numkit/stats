@@ -9,12 +9,12 @@
 #include <keel/array.h>
 #include <keel/ref.h>
 #include <keel/string.h>
+#include <keel/utf8.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
 
 #include <algorithm>
-#include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -41,7 +41,7 @@ Metric parse_metric(keel::StringRef raw) {
     // Case-insensitive + accept MATLAB-style aliases (e.g. 'sqEuclidean'
     // for squared-euclidean).
     keel::String s; s.reserve(raw.size());
-    for (char c : raw) s.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+    for (char c : raw) s.push_back(keel::to_ascii_lower(c));
     if (s == "euclidean")        return Metric::Euclidean;
     if (s == "squaredeuclidean" ||
         s == "sqeuclidean")      return Metric::SqEuclidean;

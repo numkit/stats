@@ -7,6 +7,7 @@
 #include <keel/format.h>
 #include <keel/ref.h>
 #include <keel/string.h>
+#include <keel/utf8.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/copulas/copulas.hpp>
 #include <numkit/stats/distributions/multivariate.hpp>
@@ -18,7 +19,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <tuple>
@@ -32,7 +32,7 @@ namespace {
 keel::String family_lower(const Value &v)
 {
     keel::String s = v.toString();
-    for (auto &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    for (auto &c : s) c = keel::to_ascii_lower(c);
     return s;
 }
 }

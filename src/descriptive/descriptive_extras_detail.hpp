@@ -11,6 +11,7 @@
 #include <keel/format.h>
 #include <keel/function_ref.h>
 #include <keel/string.h>
+#include <keel/utf8.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/ops/helpers.hpp>            // createForDims/createMatrix/DimsArg (engine-free)
@@ -19,7 +20,6 @@
 #include <numkit/builtin/polyfun.hpp>       // spline / pchip / makima
 
 #include <algorithm>
-#include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -958,7 +958,7 @@ enum class KsKernel { Normal, Box, Triangle, Epanechnikov };
 KsKernel parse_ks_kernel(keel::StringRef raw) {
     keel::String s;
     s.reserve(raw.size());
-    for (char c : raw) s.push_back((char)std::tolower((unsigned char)c));
+    for (char c : raw) s.push_back(keel::to_ascii_lower(c));
     if (s.as_ref() == "normal" || s.as_ref() == "gauss" || s.as_ref() == "gaussian") return KsKernel::Normal;
     if (s.as_ref() == "box" || s.as_ref() == "rectangular" || s.as_ref() == "rect")   return KsKernel::Box;
     if (s.as_ref() == "triangle" || s.as_ref() == "triangular")              return KsKernel::Triangle;

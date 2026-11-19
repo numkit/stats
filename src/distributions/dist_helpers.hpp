@@ -15,13 +15,13 @@
 #include <keel/memory.h>
 #include <keel/ref.h>
 #include <keel/string.h>
+#include <keel/utf8.h>
 #include <numkit/builtin/elmat.hpp>
 #include <numkit/value/argcheck.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 
 #include <algorithm>
-#include <cctype>
 #include <cmath>
 #include <tuple>
 #include <utility>
@@ -39,7 +39,7 @@ inline keel::usize stripUpperFlag(keel::ArrayRef<Value> args, bool &upper)
     const Value &last = args[args.size() - 1];
     if (!last.isChar() && !last.isString()) return args.size();
     keel::String s = last.toString();
-    for (char &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    for (char &c : s) c = keel::to_ascii_lower(c);
     if (s == "upper") {
         upper = true;
         return args.size() - 1;

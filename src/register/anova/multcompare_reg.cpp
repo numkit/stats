@@ -7,6 +7,7 @@
 #include <keel/format.h>
 #include <keel/ref.h>
 #include <keel/string.h>
+#include <keel/utf8.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/anova/anova.hpp>
 #include <numkit/stats/distributions/students_t.hpp>   // tinv, tcdf
@@ -16,7 +17,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <tuple>
@@ -31,7 +31,7 @@ namespace {
 McCorrection parse_ctype(keel::StringRef raw)
 {
     keel::String s = keel::String::from(raw);
-    for (auto &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    for (auto &c : s) c = keel::to_ascii_lower(c);
     if (s == "bonferroni")                 return McCorrection::Bonferroni;
     if (s == "lsd")                        return McCorrection::LSD;
     if (s == "tukey-kramer" || s == "hsd") return McCorrection::TukeyKramer;
@@ -68,7 +68,7 @@ void multcompare_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
                         0, 0, "multcompare", "", "numkit:multcompare:badParam");
         keel::String rawKey = args[i].toString();
         keel::String key = rawKey.clone();
-        for (auto &c : key) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        for (auto &c : key) c = keel::to_ascii_lower(c);
         const Value &val = args[i + 1];
         if (key == "alpha") {
             alpha = val.toScalar();

@@ -5,13 +5,13 @@
 #include <keel/memory.h>
 #include <keel/ref.h>
 #include <keel/string.h>
+#include <keel/utf8.h>
 #include <numkit/stats/lda/lda.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cctype>
 #include <cmath>
 #include <limits>
 
@@ -68,7 +68,7 @@ void classify_argcheck(const Value &sample, const Value &training, const Value &
                     0, 0, "classify", "", "numkit:classify:group");
 
     type = keel::String::from(type_in);
-    for (auto &c : type) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    for (auto &c : type) c = keel::to_ascii_lower(c);
     if (type.empty()) type = keel::String::from("linear");
     quadratic = (type == "quadratic" || type == "diagquadratic");
     diagonal  = (type == "diaglinear" || type == "diagquadratic");

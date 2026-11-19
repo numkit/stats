@@ -12,6 +12,7 @@
 #include <keel/format.h>
 #include <keel/math.h>
 #include <keel/string.h>
+#include <keel/utf8.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/ops/helpers.hpp>            // createForDims/createMatrix/DimsArg (engine-free)
@@ -19,7 +20,6 @@
 #include <numkit/builtin/detail/datafun/var_reduction.hpp> // varianceTwoPass (engine-free)
 
 #include <algorithm>
-#include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -779,7 +779,7 @@ bool parseCovNanFlag(const Value &v, CovNan &mode)
     if (!v.isChar() && !v.isString()) return false;
     keel::String s = v.toString();
     for (auto &c : s)
-        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        c = keel::to_ascii_lower(c);
     if (s.as_ref() == "includenan")  { mode = CovNan::Include;     return true; }
     if (s.as_ref() == "omitrows")    { mode = CovNan::Omitrows;    return true; }
     if (s.as_ref() == "partialrows") { mode = CovNan::Partialrows; return true; }
@@ -910,7 +910,7 @@ CorrcoefRows parseCorrcoefRows(keel::ArrayRef<Value> args, keel::usize start)
     for (keel::usize i = start; i < args.size(); ++i) {
         if (!(args[i].isChar() || args[i].isString())) continue;
         keel::String probe = args[i].toString();
-        for (char &c : probe) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        for (char &c : probe) c = keel::to_ascii_lower(c);
         const keel::StringRef pr = probe.as_ref();
         const bool isName = pr == "rows" || pr == "alpha"
             || (pr.size() <= 4 && keel::StringRef("rows").substr(0, pr.size()) == pr)
@@ -927,10 +927,10 @@ CorrcoefRows parseCorrcoefRows(keel::ArrayRef<Value> args, keel::usize start)
     for (keel::usize i = start; i + 1 < args.size(); i += 2) {
         if (!(args[i].isChar() || args[i].isString())) continue;
         keel::String name = args[i].toString();
-        for (char &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        for (char &c : name) c = keel::to_ascii_lower(c);
         if (name.as_ref() == "rows") {
             keel::String v = args[i + 1].toString();
-            for (char &c : v) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            for (char &c : v) c = keel::to_ascii_lower(c);
             if (v.as_ref() == "all")      return CorrcoefRows::All;
             if (v.as_ref() == "complete") return CorrcoefRows::Complete;
             if (v.as_ref() == "pairwise") return CorrcoefRows::Pairwise;
@@ -949,7 +949,7 @@ double parseCorrcoefAlpha(keel::ArrayRef<Value> args, keel::usize start)
     for (keel::usize i = start; i + 1 < args.size(); i += 2) {
         if (!(args[i].isChar() || args[i].isString())) continue;
         keel::String name = args[i].toString();
-        for (char &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        for (char &c : name) c = keel::to_ascii_lower(c);
         if (name.as_ref() == "alpha") {
             const double a = args[i + 1].toScalar();
             if (!(a > 0.0 && a < 1.0))
@@ -1276,7 +1276,7 @@ keel::usize stripNanFlag(keel::ArrayRef<Value> args, bool &omitNan, const char *
     if (last.type() != ValueType::CHAR) return args.size();
     keel::String s = last.toString();
     std::transform(s.begin(), s.end(), s.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+                   [](unsigned char c) { return keel::to_ascii_lower(c); });
     if (s.as_ref() == "omitnan" || s.as_ref() == "omitmissing") { omitNan = true; return args.size() - 1; }
     if (s.as_ref() == "includenan" || s.as_ref() == "includemissing") return args.size() - 1;
     // Not a nan flag â€” leave it to the caller to handle (e.g. 'all').

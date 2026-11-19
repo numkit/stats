@@ -19,6 +19,7 @@
 #include <keel/memory.h>
 #include <keel/ref.h>
 #include <keel/string.h>
+#include <keel/utf8.h>
 #include <numkit/stats/cluster/distance.hpp>
 #include <numkit/stats/cluster/linkage.hpp>
 #include <numkit/stats/cluster/silhouette.hpp>
@@ -29,7 +30,6 @@
 #include <numkit/value/value.hpp>
 
 #include <algorithm>
-#include <cctype>
 #include <cmath>
 
 namespace numkit::stats {
@@ -40,7 +40,7 @@ keel::String lowerCopy(keel::StringRef sv)
 {
     keel::String s = keel::String::from(sv);
     for (char &c : s)
-        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        c = keel::to_ascii_lower(c);
     return s;
 }
 

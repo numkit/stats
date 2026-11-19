@@ -6,6 +6,7 @@
 #include <keel/array.h>
 #include <keel/ref.h>
 #include <keel/string.h>
+#include <keel/utf8.h>
 #include <numkit/stats/test/hypothesis.hpp>
 
 #include <numkit/stats/distributions/students_t.hpp>
@@ -18,7 +19,6 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cctype>
 #include <cmath>
 #include <cstdint>
 #include <limits>
@@ -1222,7 +1222,7 @@ runstest(const Value &x, double v_in, double alpha, TestTail tail, keel::StringR
     if (n1 == 0 || n0 == 0) return retNan();
 
     keel::String method = keel::String::from(method_in);
-    for (auto &c : method) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    for (auto &c : method) c = keel::to_ascii_lower(c);
     bool exact;
     if      (method == "approximate") exact = false;
     else                              exact = true;  // MATLAB default
@@ -1336,7 +1336,7 @@ ranksum(const Value &x, const Value &y, double alpha, TestTail tail, keel::Strin
 
     // Choose method.
     keel::String method = keel::String::from(method_in);
-    for (auto &c : method) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    for (auto &c : method) c = keel::to_ascii_lower(c);
     bool exact;
     if      (method == "exact")       exact = true;
     else if (method == "approximate") exact = false;
@@ -1476,7 +1476,7 @@ signrank(const Value &x, const Value &y_or_m, double alpha, TestTail tail, keel:
 
     // Choose method.
     keel::String method = keel::String::from(method_in);
-    for (auto &c : method) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    for (auto &c : method) c = keel::to_ascii_lower(c);
     bool exact;
     if      (method == "exact")       exact = true;
     else if (method == "approximate") exact = false;

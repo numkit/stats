@@ -28,7 +28,6 @@
 #include <numkit/builtin/detail/datafun/var_reduction.hpp>
 
 #include <algorithm>
-#include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>

@@ -9,6 +9,7 @@
 #include <keel/arena.h>
 #include <keel/array.h>
 #include <keel/string.h>
+#include <keel/utf8.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/distributions/binomial.hpp>
 #include <numkit/stats/distributions/chi2.hpp>
@@ -22,7 +23,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <tuple>
@@ -86,7 +86,7 @@ void ttest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         const Value &a = args[i];
         if (a.isChar() || a.isString()) {
             keel::String sl = a.toString();
-            for (auto &c : sl) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            for (auto &c : sl) c = keel::to_ascii_lower(c);
             if (sl == "alpha" && i + 1 < args.size()) {
                 alpha = args[i + 1].toScalar(); i += 2;
             } else if (sl == "tail" && i + 1 < args.size()) {
@@ -126,7 +126,7 @@ void ttest2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     for (keel::usize i = 2; i + 1 < args.size(); ++i) {
         if (args[i].isChar() || args[i].isString()) {
             keel::String k = args[i].toString();
-            for (auto &c : k) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            for (auto &c : k) c = keel::to_ascii_lower(c);
             if      (k == "tail")    { keel::String tv = args[i + 1].toString(); tail = parse_tail(tv.as_ref(), TestTail::Both); }
             else if (k == "vartype") vartype = args[i + 1].toString();
             else if (k == "alpha")   alpha = args[i + 1].toScalar();
@@ -158,7 +158,7 @@ void ztest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         const Value &a = args[i];
         if (a.isChar() || a.isString()) {
             keel::String sl = a.toString();
-            for (auto &c : sl) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            for (auto &c : sl) c = keel::to_ascii_lower(c);
             if (sl == "alpha" && i + 1 < args.size()) { alpha = args[i + 1].toScalar(); i += 2; }
             else if (sl == "tail" && i + 1 < args.size()) { keel::String tv = args[i + 1].toString(); tail = parse_tail(tv.as_ref(), tail); i += 2; }
             else if (sl == "dim") {
@@ -193,7 +193,7 @@ void vartest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         const Value &a = args[i];
         if (a.isChar() || a.isString()) {
             keel::String sl = a.toString();
-            for (auto &c : sl) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            for (auto &c : sl) c = keel::to_ascii_lower(c);
             if (sl == "alpha" && i + 1 < args.size()) { alpha = args[i + 1].toScalar(); i += 2; }
             else if (sl == "tail" && i + 1 < args.size()) { keel::String tv = args[i + 1].toString(); tail = parse_tail(tv.as_ref(), tail); i += 2; }
             else if (sl == "dim") {
@@ -227,7 +227,7 @@ void vartest2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         const Value &a = args[i];
         if (a.isChar() || a.isString()) {
             keel::String sl = a.toString();
-            for (auto &c : sl) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            for (auto &c : sl) c = keel::to_ascii_lower(c);
             if (sl == "alpha" && i + 1 < args.size()) { alpha = args[i + 1].toScalar(); i += 2; }
             else if (sl == "tail" && i + 1 < args.size()) { keel::String tv = args[i + 1].toString(); tail = parse_tail(tv.as_ref(), tail); i += 2; }
             else if (sl == "dim") {
@@ -264,7 +264,7 @@ void kstest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         const Value &a = args[i];
         if (a.isChar() || a.isString()) {
             keel::String sl = a.toString();
-            for (auto &c : sl) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            for (auto &c : sl) c = keel::to_ascii_lower(c);
             if (sl == "alpha" && i + 1 < args.size()) {
                 alpha = args[i + 1].toScalar();
                 i += 2;
@@ -301,7 +301,7 @@ void kstest2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         const Value &a = args[i];
         if (a.isChar() || a.isString()) {
             keel::String sl = a.toString();
-            for (auto &c : sl) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            for (auto &c : sl) c = keel::to_ascii_lower(c);
             if (sl == "alpha" && i + 1 < args.size()) {
                 alpha = args[i + 1].toScalar(); i += 2;
             } else if (sl == "tail" && i + 1 < args.size()) {
@@ -347,7 +347,7 @@ void fishertest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     for (keel::usize i = 1; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar() && !args[i].isString()) break;
         keel::String name = args[i].toString();
-        for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        for (auto &c : name) c = keel::to_ascii_lower(c);
         const Value &v = args[i + 1];
         if      (name == "alpha") alpha = v.toScalar();
         else if (name == "tail")  { keel::String tv = v.toString(); tail = parse_tail(tv.as_ref(), TestTail::Both); }
@@ -374,7 +374,7 @@ void chi2gof_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     auto *mr = ctx.engine->allocator();
     auto lower = [](keel::StringRef sv) {
         keel::String s = keel::String::from(sv);
-        for (auto &c : s) c = (char)std::tolower((unsigned char)c);
+        for (auto &c : s) c = keel::to_ascii_lower(c);
         return s;
     };
 
@@ -605,7 +605,7 @@ void vartestn_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     auto *mr = ctx.engine->allocator();
     auto lower = [](keel::StringRef sv) {
         keel::String s = keel::String::from(sv);
-        for (auto &c : s) c = (char)std::tolower((unsigned char)c);
+        for (auto &c : s) c = keel::to_ascii_lower(c);
         return s;
     };
     // Parse: vartestn(X[, GROUP], N-V...). The 2nd arg is GROUP iff it's
@@ -697,7 +697,7 @@ void runstest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     keel::usize i = 1;
     if (i < args.size() && (args[i].isChar() || args[i].isString())) {
         keel::String sl = args[i].toString();
-        for (auto &c : sl) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        for (auto &c : sl) c = keel::to_ascii_lower(c);
         if (sl == "ud") { up_down = true; ++i; }
         // otherwise leave for the Name-Value loop below.
     } else if (i < args.size() && !args[i].isEmpty()) {
@@ -712,7 +712,7 @@ void runstest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     while (i + 1 < args.size()) {
         if (!args[i].isChar() && !args[i].isString()) break;
         keel::String name = args[i].toString();
-        for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        for (auto &c : name) c = keel::to_ascii_lower(c);
         const Value &val = args[i + 1];
         if      (name == "alpha")  alpha = val.toScalar();
         else if (name == "tail")   { keel::String tv = val.toString(); tail = parse_tail(tv.as_ref(), TestTail::Both); }
@@ -778,7 +778,7 @@ void ranksum_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     while (i + 1 < args.size()) {
         if (!args[i].isChar() && !args[i].isString()) break;
         keel::String name = args[i].toString();
-        for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        for (auto &c : name) c = keel::to_ascii_lower(c);
         const Value &v = args[i + 1];
         if      (name == "alpha")  alpha = v.toScalar();
         else if (name == "tail")   { keel::String tv = v.toString(); tail = parse_tail(tv.as_ref(), TestTail::Both); }
@@ -821,7 +821,7 @@ void signrank_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     while (i + 1 < args.size()) {
         if (!args[i].isChar() && !args[i].isString()) break;
         keel::String name = args[i].toString();
-        for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        for (auto &c : name) c = keel::to_ascii_lower(c);
         const Value &v = args[i + 1];
         if      (name == "alpha")  alpha = v.toScalar();
         else if (name == "tail")   { keel::String tv = v.toString(); tail = parse_tail(tv.as_ref(), TestTail::Both); }
@@ -867,7 +867,7 @@ void signtest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     while (i + 1 < args.size()) {
         if (!args[i].isChar() && !args[i].isString()) break;
         keel::String name = args[i].toString();
-        for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        for (auto &c : name) c = keel::to_ascii_lower(c);
         const Value &v = args[i + 1];
         if      (name == "alpha")  alpha = v.toScalar();
         else if (name == "tail")   { keel::String tv = v.toString(); tail = parse_tail(tv.as_ref(), TestTail::Both); }
@@ -925,7 +925,7 @@ void ansaribradley_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     while (i + 1 < args.size()) {
         if (!args[i].isChar() && !args[i].isString()) break;
         keel::String name = args[i].toString();
-        for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        for (auto &c : name) c = keel::to_ascii_lower(c);
         const Value &v = args[i + 1];
         if      (name == "alpha") alpha = v.toScalar();
         else if (name == "tail")  { keel::String tv = v.toString(); tail = parse_tail(tv.as_ref(), TestTail::Both); }

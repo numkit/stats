@@ -6,6 +6,7 @@
 #include <keel/array.h>
 #include <keel/ref.h>
 #include <keel/string.h>
+#include <keel/utf8.h>
 #include <numkit/stats/cluster/kmedoids.hpp>
 
 #include <numkit/builtin/datafun.hpp>
@@ -15,7 +16,6 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cctype>
 #include <cmath>
 #include <cstdint>
 #include <limits>
@@ -33,7 +33,7 @@ enum class Metric { Euclidean, SqEuclidean, Cityblock, Chebychev,
 
 Metric parse_metric(keel::StringRef s) {
     keel::String sl; sl.reserve(s.size());
-    for (char c : s) sl.push_back((char)std::tolower((unsigned char)c));
+    for (char c : s) sl.push_back(keel::to_ascii_lower(c));
     if (sl == "euclidean")        return Metric::Euclidean;
     if (sl == "squaredeuclidean" ||
         sl == "sqeuclidean")      return Metric::SqEuclidean;

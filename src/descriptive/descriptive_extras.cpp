@@ -11,6 +11,7 @@
 #include <keel/format.h>
 #include <keel/math.h>
 #include <keel/string.h>
+#include <keel/utf8.h>
 #include <numkit/stats/descriptive/descriptive.hpp>
 #include <numkit/stats/distributions/normal.hpp>   // norminv (via descriptive_detail.hpp)
 #include <numkit/stats/distributions/students_t.hpp>
@@ -24,7 +25,6 @@
 #include <numkit/ops/reductions.hpp>
 
 #include <algorithm>
-#include <cctype>
 #include <cmath>
 #include <limits>
 
@@ -696,8 +696,7 @@ ErrorMetricOpts parseErrorMetricOpts(keel::ArrayRef<Value> tail,
         if (v.isChar() || v.isString()) {
             low = v.toString();
             for (char &c : low)
-                c = static_cast<char>(std::tolower(
-                    static_cast<unsigned char>(c)));
+                c = keel::to_ascii_lower(c);
         }
         int hit = -1; int cnt = 0;
         const keel::StringRef lref = low.as_ref();
@@ -1232,7 +1231,7 @@ ksdensity_full(const Value &x, const Value &pts, double bw_user, keel::StringRef
     const keel::usize M = grid.size();
     auto lower = [](keel::StringRef sv) {
         keel::String s = keel::String::from(sv);
-        for (auto &c : s) c = (char)std::tolower((unsigned char)c);
+        for (auto &c : s) c = keel::to_ascii_lower(c);
         return s;
     };
     const keel::String mode = function_mode.empty() ? keel::String::from("pdf")
@@ -1526,7 +1525,7 @@ Value filloutliers(const Value &A, const Value &fillMethod,
 {
     keel::String detect = keel::String::from(findMethod);
     for (char &ch : detect)
-        ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+        ch = keel::to_ascii_lower(ch);
     const keel::StringRef detRef = detect.as_ref();
     if (detRef != "median" && detRef != "mean" && detRef != "quartiles")
         throw Error("filloutliers: findMethod must be 'median', 'mean', or "
@@ -1690,7 +1689,7 @@ EcdfFull ecdf_full(const Value &y, const Value *freq, keel::StringRef function_m
     // Apply Function mode.
     auto lower = [](keel::StringRef sv) {
         keel::String s = keel::String::from(sv);
-        for (auto &c : s) c = (char)std::tolower((unsigned char)c);
+        for (auto &c : s) c = keel::to_ascii_lower(c);
         return s;
     };
     const keel::String mode = lower(function_mode);

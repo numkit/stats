@@ -51,6 +51,7 @@
 #include <keel/memory.h>
 #include <keel/ref.h>
 #include <keel/string.h>
+#include <keel/utf8.h>
 #include <numkit/stats/descriptive/descriptive.hpp>
 #include "descriptive/descriptive_extras_detail.hpp"
 
@@ -60,7 +61,6 @@
 #include <numkit/value/value.hpp>
 
 #include <algorithm>
-#include <cctype>
 #include <cmath>
 
 namespace numkit::stats {
@@ -201,7 +201,7 @@ Value nearcorr_full(const Value &A, keel::ArrayRef<Value> nv,
                 keel::String rawMv = v.toString();
                 keel::String mv = rawMv.clone();
                 for (char &c : mv)
-                    c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                    c = keel::to_ascii_lower(c);
                 if (mv != "newton" && mv != "projection")
                     badOpt(keel::format("'Method' must be 'newton' or 'projection', got '{}'", rawMv));
                 break;  // both accepted — see the divergence note above

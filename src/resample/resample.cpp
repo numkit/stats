@@ -6,6 +6,7 @@
 #include <keel/memory.h>
 #include <keel/ref.h>
 #include <keel/string.h>
+#include <keel/utf8.h>
 #include <numkit/stats/resample/resample.hpp>
 
 #include <numkit/builtin/datafun.hpp>
@@ -14,7 +15,6 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cctype>
 #include <cstring>
 #include <mutex>
 #include <numeric>
@@ -128,7 +128,7 @@ bool parseReplaceFlag(const Value &v, const char *fn, const char *tag)
         if (b == 0.0 || b == 1.0) return b != 0.0;
     } else if (v.isChar() || v.isString()) {
         keel::String t = v.toString();
-        for (char &c : t) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        for (char &c : t) c = keel::to_ascii_lower(c);
         if (t == "true") return true;
         if (t == "false") return false;
     }
@@ -306,7 +306,7 @@ Value datasample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
         if (!(args[i].isChar() || args[i].isString())) continue;
         keel::String name = args[i].toString();
         for (char &c : name)
-            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            c = keel::to_ascii_lower(c);
         if (name == "replace") {
             if (!args[i + 1].isLogical() || !args[i + 1].isScalar())
                 throw Error("datasample: REPLACE must be either true or "

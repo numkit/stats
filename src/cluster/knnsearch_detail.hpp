@@ -7,11 +7,11 @@
 #include <keel/format.h>
 #include <keel/ref.h>
 #include <keel/string.h>
+#include <keel/utf8.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -51,7 +51,7 @@ KnnOpts parse_knn_args(keel::ArrayRef<Value> args, const char *fn)
             throw Error(keel::format("{}: expected name-value pair", fn),
                         0, 0, fn, "", "numkit:knn:nvpair");
         keel::String name = args[i].toString();
-        for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        for (auto &c : name) c = keel::to_ascii_lower(c);
         if (i + 1 >= args.size())
             throw Error(keel::format("{}: '{}' missing value", fn, name),
                         0, 0, fn, "", "numkit:knn:nvval");

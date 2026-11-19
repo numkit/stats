@@ -14,6 +14,7 @@
 #include <keel/format.h>
 #include <keel/math.h>
 #include <keel/string.h>
+#include <keel/utf8.h>
 #include <numkit/stats/moving/moving.hpp>
 
 #include <numkit/value/value.hpp>
@@ -23,7 +24,6 @@
 #include <numkit/ops/reductions.hpp>  // numkit::ops::firstNonSingletonDim, validateDim
 
 #include <algorithm>
-#include <cctype>
 #include <cmath>
 #include <limits>
 
@@ -341,7 +341,7 @@ namespace {
 void smoothdata_argcheck(keel::StringRef method)
 {
     keel::String m = keel::String::from(method);
-    for (auto &c : m) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    for (auto &c : m) c = keel::to_ascii_lower(c);
     if (!m.empty() && m != "movmean" && m != "movmedian" && m != "gaussian"
         && m != "sgolay" && m != "lowess" && m != "loess") {
         throw Error(keel::format("smoothdata: method '{}' not supported "
@@ -371,7 +371,7 @@ Value smoothdata(const Value &x, keel::StringRef method, int k, int dim, keel::A
 {
     smoothdata_argcheck(method);
     keel::String m = keel::String::from(method);
-    for (auto &c : m) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    for (auto &c : m) c = keel::to_ascii_lower(c);
 
     // Heuristic default window — the reference engine picks ~max(min(round(0.1*n), 10), 3).
     if (k <= 0) {

@@ -7,6 +7,7 @@
 #include <keel/memory.h>
 #include <keel/ref.h>
 #include <keel/string.h>
+#include <keel/utf8.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/builtin/datafun.hpp>
 #include <numkit/stats/cluster/kmedoids.hpp>
@@ -17,7 +18,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <tuple>
@@ -40,7 +40,7 @@ void kmedoids_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     keel::String start     = keel::String::from("plus");
     auto lower = [](keel::StringRef sv) {
         keel::String s = keel::String::from(sv);
-        for (auto &c : s) c = (char)std::tolower((unsigned char)c);
+        for (auto &c : s) c = keel::to_ascii_lower(c);
         return s;
     };
     for (keel::usize i = 2; i + 1 < args.size(); i += 2) {
@@ -82,7 +82,7 @@ void dbscan_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     double p = 2.0;
     auto lower = [](keel::StringRef sv) {
         keel::String s = keel::String::from(sv);
-        for (auto &c : s) c = (char)std::tolower((unsigned char)c);
+        for (auto &c : s) c = keel::to_ascii_lower(c);
         return s;
     };
     // MATLAB requires N-V form; we also tolerate a 4th positional metric
