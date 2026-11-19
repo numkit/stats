@@ -92,7 +92,7 @@ Grp2idxResult grp2idx(const Value &s, keel::Allocator *mr)
             if (!std::isnan(xi)) uniq.push_back(xi);
         }
         std::sort(uniq.begin(), uniq.end());
-        uniq.resize(static_cast<keel::usize>(std::unique(uniq.begin(), uniq.end()) - uniq.begin()));
+        uniq.resize(std::unique(uniq.begin(), uniq.end()) - uniq.begin());
         names.reserve(uniq.size());
         for (double u : uniq) names.push_back(fmtGroupNum(u));
         g.reserve(n);

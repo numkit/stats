@@ -36,7 +36,6 @@ namespace numkit::stats {
 
 namespace {
 
-constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
 constexpr double kInf = std::numeric_limits<double>::infinity();
 
 bool isMatrixValue(const Value &V)

@@ -99,7 +99,7 @@ void bootstrp_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
         throw Error("bootstrp: empty data", 0, 0, "bootstrp", "", "numkit:bootstrp:empty");
 
     keel::ArenaTemp scratch = keel::get_scratch(mr);
-    keel::Array<int> idx(static_cast<keel::usize>(N), scratch.allocator());
+    keel::Array<int> idx(N, scratch.allocator());
 
     // First call to determine output dimensionality of fn(sample).
     drawBootstrapIndices(ctx.engine->rng(), N, idx.data());
@@ -156,8 +156,8 @@ void crossval_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     const Value &X = args[1];
     const Value &Y = args[2];
 
-    const keel::usize m = static_cast<keel::usize>(X.dims().dim(0));
-    if (Y.dims().dim(0) != static_cast<int>(m))
+    const keel::usize m = X.dims().dim(0);
+    if (Y.dims().dim(0) != m)
         throw Error("crossval: X and Y must have the same number of rows",
                     0, 0, "crossval", "", "numkit:crossval:dimMismatch");
     if (m < 2)
@@ -268,7 +268,7 @@ void bootci_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     double *cd = ci.doubleDataMut();
 
     keel::ArenaTemp scratch = keel::get_scratch(mr);
-    keel::Array<double> col(static_cast<keel::usize>(nboot), scratch.allocator());
+    keel::Array<double> col(nboot, scratch.allocator());
     for (keel::usize j = 0; j < K; ++j) {
         for (int i = 0; i < nboot; ++i) col[i] = bd[i + j * nboot];
         std::sort(col.begin(), col.end());
@@ -312,7 +312,7 @@ void jackknife_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     const Value Xeff = isVec ? X.reshape(static_cast<keel::usize>(n), 1, mr) : X;
 
     keel::ArenaTemp scratch = keel::get_scratch(mr);
-    keel::Array<int> idx(static_cast<keel::usize>(n > 1 ? n - 1 : 0), scratch.allocator());
+    keel::Array<int> idx(n > 1 ? n - 1 : 0, scratch.allocator());
     auto leaveOneOut = [&](int skip) {
         int w = 0;
         for (int i = 0; i < n; ++i)

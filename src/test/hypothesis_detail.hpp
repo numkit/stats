@@ -30,7 +30,7 @@ namespace numkit::stats {
 
 namespace {
 
-void mean_var(const Value &x, double &mean_out, double &var_out, keel::usize &n_out) {
+[[maybe_unused]] void mean_var(const Value &x, double &mean_out, double &var_out, keel::usize &n_out) {
     const keel::usize N = x.numel();
     n_out = N;
     if (N == 0) { mean_out = 0.0; var_out = 0.0; return; }
@@ -58,7 +58,7 @@ inline TestTail parse_tail(keel::StringRef s, TestTail def) {
 }
 
 // Compute two-sided / one-sided p-value from a t-statistic and df.
-double tpvalue(double tstat, double df, TestTail tail, keel::Allocator *mr) {
+[[maybe_unused]] double tpvalue(double tstat, double df, TestTail tail, keel::Allocator *mr) {
     Value tv = Value::scalar(tstat, mr);
     Value cdf_v = tcdf(tv, df, mr);
     const double cdf = cdf_v.toScalar();
@@ -70,7 +70,7 @@ double tpvalue(double tstat, double df, TestTail tail, keel::Allocator *mr) {
     return 1.0;
 }
 
-double zpvalue(double z, TestTail tail, keel::Allocator *mr) {
+[[maybe_unused]] double zpvalue(double z, TestTail tail, keel::Allocator *mr) {
     Value zv = Value::scalar(z, mr);
     Value cdf_v = normcdf(zv, 0.0, 1.0, mr);
     const double cdf = cdf_v.toScalar();
@@ -175,7 +175,7 @@ double birnbaumTingey(int n, double d) {
 
 // Two-sided one-sample p: exact for small statistics; MATLAB's corrected
 // asymptotic 2·exp(-(2.000071 + .331/√n + 1.409/n)·n·D²) for large ones.
-double ksOneSampleTwoSidedP(int n, double D) {
+[[maybe_unused]] double ksOneSampleTwoSidedP(int n, double D) {
     const double s = static_cast<double>(n) * D * D;
     if (s > 7.24 || (s > 3.76 && n > 99))
         return std::min(1.0, 2.0 * std::exp(-(2.000071 + 0.331/std::sqrt((double)n)
@@ -184,11 +184,11 @@ double ksOneSampleTwoSidedP(int n, double D) {
 }
 
 // One-sided one-sample p (exact Birnbaum-Tingey on the directional statistic).
-double ksOneSampleOneSidedP(int n, double D) { return birnbaumTingey(n, D); }
+[[maybe_unused]] double ksOneSampleOneSidedP(int n, double D) { return birnbaumTingey(n, D); }
 
 // Two-sample KS p (Stephens' corrected asymptotic): two-sided is the
 // alternating series, one-sided the single leading term.
-double ksTwoSampleP(double neff, double D, bool twoSided) {
+[[maybe_unused]] double ksTwoSampleP(double neff, double D, bool twoSided) {
     const double lambda = (std::sqrt(neff) + 0.12 + 0.11/std::sqrt(neff)) * D;
     if (!twoSided)
         return std::min(1.0, std::max(0.0, std::exp(-2.0 * lambda * lambda)));
@@ -214,7 +214,7 @@ double ksCriticalValue(PFn pfn, double alpha) {
 
 // Evaluate a piecewise-linear empirical CDF at point x given a sorted
 // reference grid (x_grid, F_grid). Outside the grid, clamp to 0 / 1.
-double interp_cdf(keel::ArrayRef<double> xg,
+[[maybe_unused]] double interp_cdf(keel::ArrayRef<double> xg,
                   keel::ArrayRef<double> Fg, double x) {
     if (xg.empty()) return 0.0;
     if (x <= xg.front()) return Fg.front();
@@ -253,7 +253,7 @@ inline double jb_stat(const double *x, keel::usize N) {
 // (so spec output is reproducible). Returns (p, critval) where p is
 // MATLAB-capped at 0.5.
 struct JBMCResult { double p; double cv; };
-JBMCResult jb_montecarlo(keel::usize N, double JB_obs, double alpha, double mctol)
+[[maybe_unused]] JBMCResult jb_montecarlo(keel::usize N, double JB_obs, double alpha, double mctol)
 {
     // Hard caps: at most 1e6 reps, at least 1000 batch.
     const keel::usize batch     = 1000;
@@ -307,7 +307,7 @@ struct Groups {
         : ns(mr), offsets(mr), data(mr) {}
 };
 
-Groups bucket_by_group(const Value &x, const Value &group, keel::Allocator *scratch_mr)
+[[maybe_unused]] Groups bucket_by_group(const Value &x, const Value &group, keel::Allocator *scratch_mr)
 {
     const keel::usize Nx = x.numel();
     Groups G(scratch_mr);
@@ -351,7 +351,7 @@ Groups bucket_by_group(const Value &x, const Value &group, keel::Allocator *scra
 // One-way ANOVA on Z values stored in groups buckets. Returns
 // (F, df1, df2, p).
 struct AnovaOut { double F, df1, df2, p; };
-AnovaOut anova1_on_groups(const keel::Array<double> &Z, const keel::Array<keel::usize> &offsets, const keel::Array<keel::usize> &ns, keel::Allocator *mr)
+[[maybe_unused]] AnovaOut anova1_on_groups(const keel::Array<double> &Z, const keel::Array<keel::usize> &offsets, const keel::Array<keel::usize> &ns, keel::Allocator *mr)
 {
     const keel::usize k = ns.size();
     keel::usize N = 0;
@@ -403,7 +403,7 @@ inline double log_binom(double n, double k) {
 
 // Exact P(R = r) under H0 for a sequence with n1 ones and n0 zeros.
 // r in [1, n1+n0]; returns 0 outside the support.
-double exact_runs_pmf(int r, int n1, int n0)
+[[maybe_unused]] double exact_runs_pmf(int r, int n1, int n0)
 {
     if (r < 2) return 0.0;
     const double logC = log_binom(double(n1 + n0), double(n1));

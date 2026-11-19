@@ -522,7 +522,7 @@ Value detrendBP_of(const Value &x, keel::ArrayRef<double> bpUser,
     }
     bps.push_back(static_cast<double>(N - 1));
     std::sort(bps.begin(), bps.end());
-    bps.resize(static_cast<keel::usize>(std::unique(bps.begin(), bps.end()) - bps.begin()));
+    bps.resize(std::unique(bps.begin(), bps.end()) - bps.begin());
     const keel::usize lb = bps.size() - 1;
     const keel::usize k = lb + 1;
 

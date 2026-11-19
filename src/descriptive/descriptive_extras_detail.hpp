@@ -150,7 +150,7 @@ using ::numkit::ops::validateDim;
 using ::numkit::ops::applyAlongDimWithIndex;
 using ::numkit::ops::resolveDim;   // 0 -> first non-singleton, else validate
 
-double sliceMin(const double *s, keel::usize n)
+[[maybe_unused]] double sliceMin(const double *s, keel::usize n)
 {
     if (n == 0) return std::numeric_limits<double>::quiet_NaN();
     double m = s[0];
@@ -159,7 +159,7 @@ double sliceMin(const double *s, keel::usize n)
     return m;
 }
 
-double sliceMax(const double *s, keel::usize n)
+[[maybe_unused]] double sliceMax(const double *s, keel::usize n)
 {
     if (n == 0) return std::numeric_limits<double>::quiet_NaN();
     double m = s[0];
@@ -182,7 +182,7 @@ namespace {
 // When `idxOut` is non-null it receives the 1-based indices (along the
 // operating dimension) of the returned elements, like MATLAB's
 // [M, I] = mink/maxk(...). Ties keep the lower original index (stable sort).
-Value topKAlongDim(const Value &x, int dim, int kReq, bool ascending, const char *fn, keel::Allocator *mr, Value *idxOut = nullptr, bool byAbs = false)
+[[maybe_unused]] Value topKAlongDim(const Value &x, int dim, int kReq, bool ascending, const char *fn, keel::Allocator *mr, Value *idxOut = nullptr, bool byAbs = false)
 {
     if (kReq < 0)
         throw Error(keel::format("{}: k must be non-negative", fn),
@@ -317,7 +317,7 @@ namespace {
 // Residualise `wCol` (length m) on a column-major design matrix `C`
 // of size m × pC (already includes intercept if needed). Returns the
 // residual vector via `out`. Uses (C'C)\C'·w via Gauss elimination.
-void residualiseColumn_local(const double *C, keel::usize m,
+[[maybe_unused]] void residualiseColumn_local(const double *C, keel::usize m,
                               keel::usize pC, const double *MM,
                               const double *wCol, double *out,
                               keel::Allocator *mr)
@@ -369,7 +369,7 @@ void residualiseColumn_local(const double *C, keel::usize m,
     }
 }
 
-double pearsonOnResiduals(const double *a, const double *b, keel::usize m)
+[[maybe_unused]] double pearsonOnResiduals(const double *a, const double *b, keel::usize m)
 {
     // Residuals from a regression with an intercept have mean ≈ 0, but
     // we still subtract the mean defensively for numerical safety.
@@ -464,7 +464,7 @@ double evalPoly(const keel::Array<double> &a, double x)
     return r;
 }
 
-void detrendColumn(const double *src, double *dst, keel::usize n, int order, keel::Allocator *scratch_mr)
+[[maybe_unused]] void detrendColumn(const double *src, double *dst, keel::usize n, int order, keel::Allocator *scratch_mr)
 {
     if (n == 0) return;
     if (order < 0) order = 1;
@@ -514,7 +514,7 @@ bool solveSmallDense(double *G, double *rhs, keel::usize k)
 // Detrend one length-N column against a prebuilt design matrix `a`
 // (column-major, N×k): subtract the least-squares fit a·(a\src).
 // Used by the piecewise-linear (breakpoint) detrend path.
-void detrendColumnBP(const double *a, keel::usize N, keel::usize k,
+[[maybe_unused]] void detrendColumnBP(const double *a, keel::usize N, keel::usize k,
                      const double *src, double *dst,
                      keel::Allocator *mr)
 {
@@ -555,7 +555,7 @@ struct FoDetect {
     double center, lo, hi;      // threshold center, L, U
 };
 
-FoDetect detect_one_column(const double *x, keel::usize n,
+[[maybe_unused]] FoDetect detect_one_column(const double *x, keel::usize n,
                            keel::StringRef method, double tf)
 {
     FoDetect r;
@@ -638,7 +638,7 @@ FoDetect detect_one_column(const double *x, keel::usize n,
 //   * movmean   — center = local mean,   scale = local sample std (n-1).
 // The element is an outlier when |x_i - center| > tf * scale. NaNs are
 // never flagged. Returns the per-column mask (1 == outlier).
-keel::Array<keel::u8> detect_moving_column(const double *x, keel::usize n,
+[[maybe_unused]] keel::Array<keel::u8> detect_moving_column(const double *x, keel::usize n,
                                           bool isMedian, long hb, long hf,
                                           double tf)
 {
@@ -649,7 +649,7 @@ keel::Array<keel::u8> detect_moving_column(const double *x, keel::usize n,
         return (k % 2 == 1) ? v[k / 2] : 0.5 * (v[k / 2 - 1] + v[k / 2]);
     };
     keel::Array<double> win;
-    win.reserve(static_cast<keel::usize>(hb + hf + 1));
+    win.reserve(hb + hf + 1);
     for (keel::usize i = 0; i < n; ++i) {
         if (std::isnan(x[i])) continue;
         long lo = static_cast<long>(i) - hb; if (lo < 0) lo = 0;
@@ -690,7 +690,7 @@ keel::Array<keel::u8> detect_moving_column(const double *x, keel::usize n,
 // outliers, using the prctile convention (sorted positions at
 // 100*(k-0.5)/n, clamped at the ends, linear interp). center = midpoint
 // of the two percentile bounds.
-FoDetect detect_percentile_column(const double *x, keel::usize n,
+[[maybe_unused]] FoDetect detect_percentile_column(const double *x, keel::usize n,
                                   double loP, double hiP)
 {
     FoDetect r;
@@ -724,7 +724,7 @@ FoDetect detect_percentile_column(const double *x, keel::usize n,
 
 // Apply a per-column fill given the column data, outlier mask, and
 // detection thresholds. p is overwritten in place.
-void apply_fill(double *p, keel::usize n,
+[[maybe_unused]] void apply_fill(double *p, keel::usize n,
                 keel::ArrayRef<keel::u8> mask, double centerVal,
                 double lo, double hi, keel::StringRef fill,
                 double constVal, bool fill_is_constant)
@@ -901,7 +901,7 @@ void fill_one_column(double *p, keel::usize len, keel::StringRef method,
 // own nature, which matches MATLAB R2025b).
 enum class FmEndMode { Extrap, None, Const, Nearest, PrevEnd, NextEnd };
 
-void apply_end_values_column(const double *orig, double *out, keel::usize len,
+[[maybe_unused]] void apply_end_values_column(const double *orig, double *out, keel::usize len,
                              FmEndMode mode, double endVal)
 {
     if (len == 0 || mode == FmEndMode::Extrap) return;
@@ -955,7 +955,7 @@ namespace {
 // kernel is supported on [-1, 1] for finite-support kernels (or all of
 // R for normal). Bandwidth is applied externally.
 enum class KsKernel { Normal, Box, Triangle, Epanechnikov };
-KsKernel parse_ks_kernel(keel::StringRef raw) {
+[[maybe_unused]] KsKernel parse_ks_kernel(keel::StringRef raw) {
     keel::String s;
     s.reserve(raw.size());
     for (char c : raw) s.push_back(keel::to_ascii_lower(c));
@@ -1026,7 +1026,7 @@ inline bool finite_double(double v) {
 
 // Flatten + filter helper. `srcs` give pointer/numel pairs (already
 // linearised), `keep_mask[i]` indicates whether row i survives.
-Value pack_filtered(keel::ArrayRef<double> src, keel::ArrayRef<keel::u8> keep, keel::Allocator *mr)
+[[maybe_unused]] Value pack_filtered(keel::ArrayRef<double> src, keel::ArrayRef<keel::u8> keep, keel::Allocator *mr)
 {
     keel::usize kept = 0;
     for (keel::u8 k : keep) if (k) ++kept;

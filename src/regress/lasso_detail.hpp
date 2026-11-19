@@ -38,7 +38,7 @@ double softThreshold(double z, double g)
 
 // Standardise X (n×p column-major) in-place: each column has mean 0,
 // std 1 (population std, divides by sqrt(n)). Returns (mu, sd) vectors.
-void standardise(double *X, keel::usize n, keel::usize p,
+[[maybe_unused]] void standardise(double *X, keel::usize n, keel::usize p,
                   keel::Array<double> &mu, keel::Array<double> &sd)
 {
     mu = keel::Array<double>(p, 0.0);
@@ -61,8 +61,8 @@ void standardise(double *X, keel::usize n, keel::usize p,
 
 // One-pass coordinate descent on standardised X. Updates beta in place.
 // Returns true if max coefficient change < tol.
-bool coordDescentSweep(const double *Xs, keel::usize n, keel::usize p,
-                        const double *y,
+[[maybe_unused]] bool coordDescentSweep(const double *Xs, keel::usize n, keel::usize p,
+                        const double * /*y*/,
                         keel::Array<double> &r, keel::Array<double> &beta,
                         keel::ArrayRef<double> XjNormSq,
                         double lambda_eff, double lambda_l2,
@@ -108,7 +108,7 @@ double invLog_g(double e) { return std::exp(e); }
 double dEtaLog_g(double mu) { return 1.0 / std::max(mu, 1e-12); }
 
 struct LinkPair { double (*inv)(double); double (*dEta)(double); };
-LinkPair pickLink(GlmDistribution d) {
+[[maybe_unused]] LinkPair pickLink(GlmDistribution d) {
     switch (d) {
     case GlmDistribution::Normal:   return { invIdentity_g, dEtaIdentity_g };
     case GlmDistribution::Binomial: return { invLogit_g,    dEtaLogit_g };
@@ -117,7 +117,7 @@ LinkPair pickLink(GlmDistribution d) {
     }
 }
 
-double varG(double mu, GlmDistribution d) {
+[[maybe_unused]] double varG(double mu, GlmDistribution d) {
     switch (d) {
     case GlmDistribution::Normal:   return 1.0;
     case GlmDistribution::Binomial: {
@@ -129,7 +129,7 @@ double varG(double mu, GlmDistribution d) {
     }
 }
 
-double initMu(double yi, GlmDistribution d) {
+[[maybe_unused]] double initMu(double yi, GlmDistribution d) {
     switch (d) {
     case GlmDistribution::Normal:   return yi;
     case GlmDistribution::Binomial: return (yi + 0.5) * 0.5;

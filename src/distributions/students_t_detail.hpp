@@ -47,7 +47,7 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
 
 // Read a Value's first element as scalar (for inputs we know are
 // scalar Values produced by the helpers). Avoids extra copies.
-double scalarOf(const Value &v) { return v.toScalar(); }
+[[maybe_unused]] double scalarOf(const Value &v) { return v.toScalar(); }
 
 // ── Central-t scalar helpers for the parameter-broadcast path (vector nu) ──
 // tpdf is closed-form; tcdf/tinv compose betainc/betaincinv so they use a
@@ -228,7 +228,7 @@ double tinv_scalar(double p, double nu, keel::Allocator *mr)
     return lower_half ? -x : x;
 }
 
-double nctinv_one(double p, double nu, double delta,
+[[maybe_unused]] double nctinv_one(double p, double nu, double delta,
                   keel::Allocator *mr)
 {
     if (!(nu > 0.0)) return std::numeric_limits<double>::quiet_NaN();

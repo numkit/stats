@@ -433,7 +433,7 @@ void hampelCore(const double *src, keel::usize n, int k, double nsigmas,
 {
     if (n == 0) return;
     keel::ArenaTemp scratch = keel::get_scratch(mr);
-    auto buf = keel::Array<double>(static_cast<keel::usize>(2 * k + 1), scratch.allocator());
+    auto buf = keel::Array<double>(2 * k + 1, scratch.allocator());
     for (long i = 0; i < static_cast<long>(n); ++i) {
         const long lo = std::max<long>(0, i - k);
         const long hi = std::min<long>(static_cast<long>(n) - 1, i + k);
@@ -441,10 +441,10 @@ void hampelCore(const double *src, keel::usize n, int k, double nsigmas,
         for (long j = 0; j < len; ++j)
             buf[static_cast<keel::usize>(j)] = src[lo + j];
         // Median + MAD on the same window.
-        auto copy1 = keel::Array<double>(static_cast<keel::usize>(len), scratch.allocator());
+        auto copy1 = keel::Array<double>(len, scratch.allocator());
         std::copy(buf.data(), buf.data() + len, copy1.data());
         const double med = winMedianInPlace(copy1.data(), static_cast<keel::usize>(len));
-        auto devs = keel::Array<double>(static_cast<keel::usize>(len), scratch.allocator());
+        auto devs = keel::Array<double>(len, scratch.allocator());
         for (long j = 0; j < len; ++j)
             devs[static_cast<keel::usize>(j)] = keel::abs(buf[static_cast<keel::usize>(j)] - med);
         const double mad = winMedianInPlace(devs.data(), static_cast<keel::usize>(len));

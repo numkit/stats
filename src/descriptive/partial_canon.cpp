@@ -110,29 +110,29 @@ void partialcorri_argcheck(const Value &Y, const Value &X, const Value &Z)
     if (X.dims().ndim() > 2 || Y.dims().ndim() > 2)
         throw Error("partialcorri: X, Y must be 2D matrices",
                     0, 0, "partialcorri", "", "numkit:partialcorri:notMatrix");
-    const keel::usize n = static_cast<keel::usize>(Y.dims().dim(0));
-    if (X.dims().dim(0) != static_cast<long long>(n))
+    const keel::usize n = Y.dims().dim(0);
+    if (X.dims().dim(0) != n)
         throw Error("partialcorri: rows(X) must equal rows(Y)",
                     0, 0, "partialcorri", "", "numkit:partialcorri:dimMismatch");
     if (!Z.isEmpty()) {
         if (Z.dims().ndim() > 2)
             throw Error("partialcorri: Z must be a 2D matrix",
                         0, 0, "partialcorri", "", "numkit:partialcorri:notMatrix");
-        if (Z.dims().dim(0) != static_cast<long long>(n))
+        if (Z.dims().dim(0) != n)
             throw Error("partialcorri: rows(Z) must equal rows(Y)",
                         0, 0, "partialcorri", "", "numkit:partialcorri:dimMismatch");
     }
 }
 
-void canoncorr_argcheck(const Value &X, const Value &Y)
+[[maybe_unused]] void canoncorr_argcheck(const Value &X, const Value &Y)
 {
     if (X.dims().ndim() > 2 || Y.dims().ndim() > 2)
         throw Error("canoncorr: X, Y must be 2D matrices",
                     0, 0, "canoncorr", "", "numkit:canoncorr:notMatrix");
-    const keel::usize n = static_cast<keel::usize>(X.dims().dim(0));
-    const keel::usize p = static_cast<keel::usize>(X.dims().dim(1));
-    const keel::usize q = static_cast<keel::usize>(Y.dims().dim(1));
-    if (Y.dims().dim(0) != static_cast<long long>(n))
+    const keel::usize n = X.dims().dim(0);
+    const keel::usize p = X.dims().dim(1);
+    const keel::usize q = Y.dims().dim(1);
+    if (Y.dims().dim(0) != n)
         throw Error("canoncorr: rows(Y) must equal rows(X)",
                     0, 0, "canoncorr", "", "numkit:canoncorr:dimMismatch");
     if (n < p + q)
@@ -221,10 +221,10 @@ CanoncorrResult canoncorr(const Value &X, const Value &Y,
     if (X.dims().ndim() > 2 || Y.dims().ndim() > 2)
         throw Error("canoncorr: X, Y must be 2D matrices",
                     0, 0, "canoncorr", "", "numkit:canoncorr:notMatrix");
-    const keel::usize n = static_cast<keel::usize>(X.dims().dim(0));
-    const keel::usize p = static_cast<keel::usize>(X.dims().dim(1));
-    const keel::usize q = static_cast<keel::usize>(Y.dims().dim(1));
-    if (Y.dims().dim(0) != static_cast<long long>(n))
+    const keel::usize n = X.dims().dim(0);
+    const keel::usize p = X.dims().dim(1);
+    const keel::usize q = Y.dims().dim(1);
+    if (Y.dims().dim(0) != n)
         throw Error("canoncorr: rows(Y) must equal rows(X)",
                     0, 0, "canoncorr", "", "numkit:canoncorr:dimMismatch");
     if (n < p + q)

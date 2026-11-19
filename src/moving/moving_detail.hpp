@@ -132,7 +132,7 @@ inline keel::String toLower(keel::StringRef sv)
     return s;
 }
 
-MovOpts parseMovExtras(keel::ArrayRef<Value> args, keel::usize start, const char *fn)
+[[maybe_unused]] MovOpts parseMovExtras(keel::ArrayRef<Value> args, keel::usize start, const char *fn)
 {
     MovOpts o;
     o.fn_name = fn;
@@ -221,7 +221,7 @@ MovOpts parseMovExtras(keel::ArrayRef<Value> args, keel::usize start, const char
     return o;
 }
 
-keel::Array<keel::usize> decodeWindowWithOpts(const Value &k, const char *fn,
+[[maybe_unused]] keel::Array<keel::usize> decodeWindowWithOpts(const Value &k, const char *fn,
                                         const keel::ArenaTemp &scratch, MovOpts &opt)
 {
     if (!opt.has_sample_points)
@@ -258,7 +258,7 @@ keel::Array<keel::usize> decodeWindowWithOpts(const Value &k, const char *fn,
 }
 
 // Allocate a same-shape DOUBLE output via createLike.
-Value allocSameShape(const Value &x, keel::Allocator *mr)
+[[maybe_unused]] Value allocSameShape(const Value &x, keel::Allocator *mr)
 {
     return createLike(x, ValueType::DOUBLE, mr);
 }
@@ -281,7 +281,7 @@ void runMoving(const double *src, keel::usize n, keel::isize step,
     if (n == 0) return;
     const long N = static_cast<long>(n);
     const long fullLen = w.kb + w.kf + 1;
-    auto buf = keel::Array<double>(static_cast<keel::usize>(fullLen), scratch.allocator());
+    auto buf = keel::Array<double>(fullLen, scratch.allocator());
     for (long i = 0; i < N; ++i) {
         keel::usize bufN = 0;
         for (long j = -w.kb; j <= w.kf; ++j) {
@@ -381,7 +381,7 @@ Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &o
         const long kb = w.kb, kf = w.kf;
         const long fullLen = kb + kf + 1;
         if (static_cast<long>(n) < fullLen) return;
-        auto buf = keel::Array<double>(static_cast<keel::usize>(fullLen), scratch.allocator());
+        auto buf = keel::Array<double>(fullLen, scratch.allocator());
         long outI = 0;
         for (long i = kb; i + kf < static_cast<long>(n); ++i) {
             keel::usize bufN = 0;

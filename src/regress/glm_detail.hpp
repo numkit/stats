@@ -27,7 +27,7 @@ namespace numkit::stats {
 namespace {
 
 // In-place Gauss elimination on row-major p×p `M`, p-length `b`.
-bool gaussSolve(double *M, double *b, keel::usize p)
+[[maybe_unused]] bool gaussSolve(double *M, double *b, keel::usize p)
 {
     for (keel::usize k = 0; k < p; ++k) {
         keel::usize piv = k;
@@ -125,7 +125,7 @@ double dEtaProbit(double mu) {
     return (phi > 1e-300) ? 1.0 / phi : 1e300;
 }
 
-LinkFn makeLink(GlmLink l) {
+[[maybe_unused]] LinkFn makeLink(GlmLink l) {
     switch (l) {
     case GlmLink::Identity:   return { invIdentity, dEtaIdentity };
     case GlmLink::Logit:      return { invLogit,    dEtaLogit };
@@ -137,7 +137,7 @@ LinkFn makeLink(GlmLink l) {
 }
 
 // Variance function V(mu) for each family.
-double varianceFn(double mu, GlmDistribution d) {
+[[maybe_unused]] double varianceFn(double mu, GlmDistribution d) {
     switch (d) {
     case GlmDistribution::Normal:           return 1.0;
     case GlmDistribution::Binomial: {
@@ -158,7 +158,7 @@ double varianceFn(double mu, GlmDistribution d) {
 }
 
 // Initial mu estimate for IRLS.
-double initialMu(double yi, GlmDistribution d) {
+[[maybe_unused]] double initialMu(double yi, GlmDistribution d) {
     switch (d) {
     case GlmDistribution::Normal:          return yi;
     case GlmDistribution::Binomial:        return (yi + 0.5) / 2.0;  // shrink toward 0.5
@@ -170,7 +170,7 @@ double initialMu(double yi, GlmDistribution d) {
 }
 
 // Deviance term per observation (a multiplied by 2 in the total).
-double devTerm(double y, double mu, GlmDistribution d) {
+[[maybe_unused]] double devTerm(double y, double mu, GlmDistribution d) {
     switch (d) {
     case GlmDistribution::Normal: {
         const double r = y - mu;
@@ -207,7 +207,7 @@ double devTerm(double y, double mu, GlmDistribution d) {
 
 // Pick the canonical link if Identity was passed (which we use as
 // "default" sentinel).
-GlmLink canonicalLink(GlmDistribution d) {
+[[maybe_unused]] GlmLink canonicalLink(GlmDistribution d) {
     switch (d) {
     case GlmDistribution::Normal:           return GlmLink::Identity;
     case GlmDistribution::Binomial:         return GlmLink::Logit;

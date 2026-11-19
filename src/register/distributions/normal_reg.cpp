@@ -104,7 +104,7 @@ void normrnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
     } else {
         const Value &ref = (nmu >= nsig) ? muVal : sigVal;
         if (ref.dims().ndim() > 2) {
-            keel::Array<keel::usize> shape(static_cast<keel::usize>(ref.dims().ndim()));
+            keel::Array<keel::usize> shape(ref.dims().ndim());
             for (int d = 0; d < ref.dims().ndim(); ++d)
                 shape[d] = ref.dims().dim(d);
             outs[0] = builtin::reshape(std::move(out), keel::ArrayRef<keel::usize>(shape.data(), shape.size()), mr);

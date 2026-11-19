@@ -37,7 +37,7 @@ enum class Metric { Euclidean, SqEuclidean, Cityblock, Chebychev, Minkowski,
                     Cosine, Correlation, Hamming, Jaccard, Mahalanobis,
                     Seuclidean, Spearman };
 
-Metric parse_metric(keel::StringRef raw) {
+[[maybe_unused]] Metric parse_metric(keel::StringRef raw) {
     // Case-insensitive + accept MATLAB-style aliases (e.g. 'sqEuclidean'
     // for squared-euclidean).
     keel::String s; s.reserve(raw.size());
@@ -105,7 +105,7 @@ inline void invert_small(double *A, keel::usize D,
 
 // Compute the unbiased covariance matrix of the M×D data `X` (column-major
 // in the Value) into the supplied D*D row-major buffer.
-void data_cov(const Value &X, double *cov_out,
+[[maybe_unused]] void data_cov(const Value &X, double *cov_out,
               keel::Allocator *scratch_mr)
 {
     const keel::usize M = X.dims().rows();

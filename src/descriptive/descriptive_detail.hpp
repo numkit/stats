@@ -44,7 +44,7 @@ enum class QMethod { Midpoint, Inclusive, Exclusive, Approximate };
 
 namespace {
 
-void validateNormFlag(int w, const char *fn)
+[[maybe_unused]] void validateNormFlag(int w, const char *fn)
 {
     if (w != 0 && w != 1)
         throw Error(keel::format("{}: normalization flag must be 0 or 1", fn),
@@ -71,7 +71,7 @@ Value narrowToSingle(Value d, keel::Allocator *mr)
 // preserves the integer class for median (median(int32([1 2 3 4]))=3 int32,
 // median(int8([-1 -2]))=-2 int8) â€” the two-middle-element average is rounded
 // half-away-from-zero and the class is retained.
-Value narrowToInteger(const Value &d, ValueType vt, keel::Allocator *mr)
+[[maybe_unused]] Value narrowToInteger(const Value &d, ValueType vt, keel::Allocator *mr)
 {
     if (d.type() != ValueType::DOUBLE) return d;
     Value r = createForDims(d.dims(), vt, mr);
@@ -214,7 +214,7 @@ void complexVarianceAlongDim(const Value &x, int redDim, double *dst, int normFl
             reduceSlice(o * B + b, o * sliceLen * B + b, B);
 }
 
-Value varianceComplex(const Value &x, int normFlag, int dim,
+[[maybe_unused]] Value varianceComplex(const Value &x, int normFlag, int dim,
                        keel::Allocator *mr, bool sqrtIt, bool omitNan = false)
 {
     if (x.isEmpty())
@@ -241,7 +241,7 @@ Value varianceComplex(const Value &x, int normFlag, int dim,
 } // namespace
 namespace {
 
-double medianFromSlice(double *data, keel::usize n)
+[[maybe_unused]] double medianFromSlice(double *data, keel::usize n)
 {
     if (n == 0) return std::nan("");
     if (n == 1) return data[0];
@@ -309,7 +309,7 @@ void complexMedianAlongDim(const Value &x, int redDim, keel::c64 *dst,
             reduceSlice(o * B + b, o * sliceLen * B + b, B);
 }
 
-Value medianComplex(const Value &x, int dim, keel::Allocator *mr)
+[[maybe_unused]] Value medianComplex(const Value &x, int dim, keel::Allocator *mr)
 {
     if (x.isEmpty()) return emptyStatReductionNaN(x, dim, mr);
     if (x.isScalar()) return Value::complexScalar(x.complexData()[0], mr);
@@ -366,7 +366,7 @@ double quantileFromSortedSlice(const double *sorted, keel::usize n, double p,
 // raw user input to a [0,1] probability (1.0 for quantile, 1/100 for
 // prctile). `method` selects the interpolation rule (default Midpoint
 // = MATLAB R2025b default).
-Value quantileImpl(const Value &x, const Value &p, int dim, double pScale, QMethod method, const char *fn, keel::Allocator *mr)
+[[maybe_unused]] Value quantileImpl(const Value &x, const Value &p, int dim, double pScale, QMethod method, const char *fn, keel::Allocator *mr)
 {
     if (p.numel() == 0)
         throw Error(keel::format("{}: p must be non-empty", fn),
@@ -420,7 +420,7 @@ Value quantileImpl(const Value &x, const Value &p, int dim, double pScale, QMeth
     // Build output shape: same as input but the reduced dim has size k.
     const auto &dd = x.dims();
     const int nd = std::max(dd.ndim(), d);
-    keel::Array<keel::usize> outShape(static_cast<keel::usize>(nd), scratch.allocator());
+    keel::Array<keel::usize> outShape(nd, scratch.allocator());
     for (int i = 0; i < nd; ++i)
         outShape[i] = (i == d - 1) ? k : ((i < dd.ndim()) ? dd.dim(i) : 1);
     Value out = (nd <= 2) ? Value::matrix(outShape[0], outShape[1], ValueType::DOUBLE, mr)
@@ -663,7 +663,7 @@ modeAlongDimT(const Value &x, int dim, ValueType outType, keel::Allocator *mr)
 // Dispatch on x.type(). LOGICAL maps to T=uint8_t (storage type) and
 // outType=LOGICAL so the result preserves logical class. CHAR uses
 // T=char. COMPLEX has no defined order â†’ throw.
-std::tuple<Value, Value>
+[[maybe_unused]] std::tuple<Value, Value>
 dispatchMode(const Value &x, int dim, keel::Allocator *mr, const char *fn)
 {
     const bool useDimReducer = (dim > 0);
@@ -774,7 +774,7 @@ namespace {
 enum class CovNan { Include, Omitrows, Partialrows };
 
 // Recognize a NaN-policy string ('includenan' | 'omitrows' | 'partialrows').
-bool parseCovNanFlag(const Value &v, CovNan &mode)
+[[maybe_unused]] bool parseCovNanFlag(const Value &v, CovNan &mode)
 {
     if (!v.isChar() && !v.isString()) return false;
     keel::String s = v.toString();
@@ -788,7 +788,7 @@ bool parseCovNanFlag(const Value &v, CovNan &mode)
 
 // Assemble two equal-length vectors into an nÃ—2 column-major matrix Value
 // [x(:) y(:)] for the two-vector NaN-aware path.
-Value assembleXY(const Value &x, const Value &y, keel::Allocator *mr)
+[[maybe_unused]] Value assembleXY(const Value &x, const Value &y, keel::Allocator *mr)
 {
     validateCovInputs(x, "cov");
     validateCovInputs(y, "cov");
@@ -813,7 +813,7 @@ Value assembleXY(const Value &x, const Value &y, keel::Allocator *mr)
 // columns are non-NaN, with the means taken over exactly those rows). The
 // default 'includenan' is the NaN-poisoning behaviour of plain cov() and is
 // routed there by the dispatcher.
-Value covNanAware(const Value &x, int normFlag, CovNan mode,
+[[maybe_unused]] Value covNanAware(const Value &x, int normFlag, CovNan mode,
                   keel::Allocator *mr)
 {
     validateNormFlagCov(normFlag, "cov");
@@ -902,7 +902,7 @@ Value covNanAware(const Value &x, int normFlag, CovNan mode,
 // â”€â”€ corrcoef 'Rows' NaN policy â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 enum class CorrcoefRows { All, Complete, Pairwise };
 
-CorrcoefRows parseCorrcoefRows(keel::ArrayRef<Value> args, keel::usize start)
+[[maybe_unused]] CorrcoefRows parseCorrcoefRows(keel::ArrayRef<Value> args, keel::usize start)
 {
     // Probed R2025b: only 'alpha' and 'rows' are valid parameter names
     // (validatestring prefixes); anything else is invalidArgName, and a
@@ -944,7 +944,7 @@ CorrcoefRows parseCorrcoefRows(keel::ArrayRef<Value> args, keel::usize start)
 
 // corrcoef(...,'Alpha',a): significance level for the RL/RU confidence
 // bounds (default 0.05). Must be in (0, 1).
-double parseCorrcoefAlpha(keel::ArrayRef<Value> args, keel::usize start)
+[[maybe_unused]] double parseCorrcoefAlpha(keel::ArrayRef<Value> args, keel::usize start)
 {
     for (keel::usize i = start; i + 1 < args.size(); i += 2) {
         if (!(args[i].isChar() || args[i].isString())) continue;
@@ -961,7 +961,7 @@ double parseCorrcoefAlpha(keel::ArrayRef<Value> args, keel::usize start)
     return 0.05;
 }
 
-keel::usize countCompleteRows(const Value &X)
+[[maybe_unused]] keel::usize countCompleteRows(const Value &X)
 {
     keel::usize n, p;
     {
@@ -1028,7 +1028,7 @@ Value corrcoefPairwiseWithCounts(const Value &X, Value *MCounts,
     return out;
 }
 
-Value corrcoefPairwise(const Value &X, keel::Allocator *mr)
+[[maybe_unused]] Value corrcoefPairwise(const Value &X, keel::Allocator *mr)
 {
     return corrcoefPairwiseWithCounts(X, nullptr, mr);
 }
@@ -1089,7 +1089,7 @@ Value corrcoefComplexMatrix(const Value &X, keel::Allocator *mr)
     return R;
 }
 
-Value corrcoefComplexXY(const Value &x, const Value &y, keel::Allocator *mr)
+[[maybe_unused]] Value corrcoefComplexXY(const Value &x, const Value &y, keel::Allocator *mr)
 {
     if (!x.dims().isVector() || !y.dims().isVector())
         throw Error("corrcoef: two-input form requires vector arguments",
@@ -1107,14 +1107,14 @@ Value corrcoefComplexXY(const Value &x, const Value &y, keel::Allocator *mr)
     return corrcoefComplexMatrix(M, mr);
 }
 
-Value corrcoefScalarOne(keel::Allocator *mr)
+[[maybe_unused]] Value corrcoefScalarOne(keel::Allocator *mr)
 {
     auto R = Value::matrix(1, 1, ValueType::DOUBLE, mr);
     R.doubleDataMut()[0] = 1.0;
     return R;
 }
 
-Value corrcoefFromCov(const Value &C, keel::Allocator *mr)
+[[maybe_unused]] Value corrcoefFromCov(const Value &C, keel::Allocator *mr)
 {
     if (C.dims().rows() != C.dims().cols())
         throw Error("corrcoef: covariance matrix must be square",
@@ -1140,7 +1140,7 @@ Value corrcoefFromCov(const Value &C, keel::Allocator *mr)
 // Diagonal is 1 (unless R(i,i) is NaN); off-diagonal P(i,j) = 2*tcdf(-|t|, n-2)
 // with the test statistic t = r*sqrt((n-2)/(1-r^2)). With n <= 2 (df <= 0) the
 // off-diagonal p-values are NaN.
-Value corrcoefPValues(const Value &R, double n, keel::Allocator *mr)
+[[maybe_unused]] Value corrcoefPValues(const Value &R, double n, keel::Allocator *mr)
 {
     const keel::usize p = R.dims().rows();
     auto P = Value::matrix(p, p, ValueType::DOUBLE, mr);
@@ -1180,7 +1180,7 @@ Value corrcoefPValues(const Value &R, double n, keel::Allocator *mr)
     return P;
 }
 
-Value corrcoefPValuesPairwise(const Value &R, const Value &MCounts,
+[[maybe_unused]] Value corrcoefPValuesPairwise(const Value &R, const Value &MCounts,
                               keel::Allocator *mr)
 {
     const keel::usize p = R.dims().rows();
@@ -1212,7 +1212,7 @@ Value corrcoefPValuesPairwise(const Value &R, const Value &MCounts,
 // zc = norminv(1-alpha/2); RL = tanh(z - zc*se), RU = tanh(z + zc*se).
 // |r| == 1 (incl. the diagonal) -> RL = RU = r. n <= 3 -> se infinite, so
 // the bounds widen to the full [-1, 1]. Matches MATLAB R2025b.
-void corrcoefConfBounds(const Value &R, double n, double alpha,
+[[maybe_unused]] void corrcoefConfBounds(const Value &R, double n, double alpha,
                         Value &RL, Value &RU, keel::Allocator *mr)
 {
     const keel::usize p = R.dims().rows();
@@ -1236,7 +1236,7 @@ void corrcoefConfBounds(const Value &R, double n, double alpha,
     }
 }
 
-void corrcoefConfBoundsPairwise(const Value &R, const Value &MCounts, double alpha,
+[[maybe_unused]] void corrcoefConfBoundsPairwise(const Value &R, const Value &MCounts, double alpha,
                                 Value &RL, Value &RU, keel::Allocator *mr)
 {
     const keel::usize p = R.dims().rows();
@@ -1268,7 +1268,7 @@ namespace {
 // If the last positional arg is a 'omitnan'/'includenan' string,
 // strip it from the count and return the omit flag. Throws on unknown
 // trailing strings so user errors don't get silently ignored.
-keel::usize stripNanFlag(keel::ArrayRef<Value> args, bool &omitNan, const char * /*fn*/)
+[[maybe_unused]] keel::usize stripNanFlag(keel::ArrayRef<Value> args, bool &omitNan, const char * /*fn*/)
 {
     omitNan = false;
     if (args.empty()) return 0;

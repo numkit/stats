@@ -186,7 +186,6 @@ kmedoids_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_ite
             ++rep_iters;
             // Assign each point to nearest medoid.
             std::fill(sumd.begin(), sumd.end(), 0.0);
-            double total = 0.0;
             for (keel::usize i = 0; i < N; ++i) {
                 int best = 0;
                 double bd = std::numeric_limits<double>::infinity();
@@ -197,7 +196,6 @@ kmedoids_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_ite
                 }
                 idx[i] = best;
                 sumd[best] += bd;
-                total += bd;
             }
 
             // Update each medoid: among its members, pick the one whose

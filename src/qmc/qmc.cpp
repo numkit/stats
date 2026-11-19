@@ -41,7 +41,7 @@ keel::Array<int> rr2_permutation(int p)
     while ((1 << k) < p) ++k;
     int m = (1 << k);
     keel::Array<int> perm;
-    perm.reserve(static_cast<keel::usize>(p));
+    perm.reserve(p);
     for (int j = 0; j < m; ++j) {
         int rev = 0;
         for (int b = 0; b < k; ++b) {

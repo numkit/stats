@@ -64,7 +64,7 @@ bool gaussSolve(double *M, double *b, keel::usize p)
 
 // Weighted OLS: solve (X' · W · X) β = X' · W · y. X is n×p col-major,
 // y and w are length n. Returns β as length-p vector.
-keel::Array<double> weightedLS(const double *X, keel::usize n, keel::usize p,
+[[maybe_unused]] keel::Array<double> weightedLS(const double *X, keel::usize n, keel::usize p,
                                 const double *y, const double *w)
 {
     keel::Array<double> M(p * p, 0.0);
@@ -94,7 +94,7 @@ constexpr double kSqrtEps = 1.4901161193847656e-08;  // sqrt(eps)
 constexpr double M_PI = 3.14159265358979323846;
 #endif
 
-double robustWeight(RobustWeight wt, double u)
+[[maybe_unused]] double robustWeight(RobustWeight wt, double u)
 {
     const double a = std::fabs(u);
     switch (wt) {
@@ -121,7 +121,7 @@ double robustWeight(RobustWeight wt, double u)
     return 1.0;
 }
 
-double defaultTune(RobustWeight wt)
+[[maybe_unused]] double defaultTune(RobustWeight wt)
 {
     switch (wt) {
         case RobustWeight::Andrews:  return 1.339;
@@ -139,7 +139,7 @@ double defaultTune(RobustWeight wt)
 
 // MATLAB madsigma: sort |r| ascending, drop the smallest (p-1), take the
 // median of the rest, divide by 0.6745.
-double madsigma(keel::ArrayRef<double> r_in, keel::usize p)
+[[maybe_unused]] double madsigma(keel::ArrayRef<double> r_in, keel::usize p)
 {
     const keel::usize n = r_in.size();
     keel::Array<double> r(n);
@@ -155,7 +155,7 @@ double madsigma(keel::ArrayRef<double> r_in, keel::usize p)
 }
 
 // Sample standard deviation (N-1) used for tiny_s.
-double sampleStd(keel::ArrayRef<double> v)
+[[maybe_unused]] double sampleStd(keel::ArrayRef<double> v)
 {
     const keel::usize n = v.size();
     if (n < 2) return 0.0;
@@ -169,7 +169,7 @@ double sampleStd(keel::ArrayRef<double> v)
 
 // Hat-matrix (leverage) diagonal of X (col-major n×p) via (X'X)^-1.
 // h_i = x_i' (X'X)^-1 x_i. Returns NaN-free leverages clamped at 0.9999.
-keel::Array<double> leverage(const double *X, keel::usize n, keel::usize p)
+[[maybe_unused]] keel::Array<double> leverage(const double *X, keel::usize n, keel::usize p)
 {
     keel::Array<double> XtX(p * p, 0.0);
     for (keel::usize j = 0; j < p; ++j)
@@ -229,7 +229,7 @@ namespace {
 
 // Compute Mahalanobis distances of rows of X (col-major n × d) w.r.t.
 // mean `mu` and the inverse covariance `invC`. Returns length-n vector.
-keel::Array<double> mahalanobisDist(const double *X, keel::usize n,
+[[maybe_unused]] keel::Array<double> mahalanobisDist(const double *X, keel::usize n,
                                      keel::usize d,
                                      const double *mu, const double *invC)
 {
@@ -249,7 +249,7 @@ keel::Array<double> mahalanobisDist(const double *X, keel::usize n,
 
 // Compute mean / cov of a column-major n × d matrix, restricted to
 // rows in `keep` (sorted ascending). Returns mu (d), C (d × d row-major).
-void meanCovSubset(const double *X, keel::usize n_orig, keel::usize d,
+[[maybe_unused]] void meanCovSubset(const double *X, keel::usize n_orig, keel::usize d,
                    keel::ArrayRef<keel::usize> keep,
                    keel::Array<double> &mu, keel::Array<double> &C)
 {
@@ -274,7 +274,7 @@ void meanCovSubset(const double *X, keel::usize n_orig, keel::usize d,
 
 // Invert d×d row-major matrix via Gauss-Jordan. Returns inverse
 // row-major in `out`. Returns false on singularity.
-bool invertSPD(keel::ArrayRef<double> C, keel::usize d,
+[[maybe_unused]] bool invertSPD(keel::ArrayRef<double> C, keel::usize d,
                 keel::Array<double> &out)
 {
     keel::Array<double> A(d * 2 * d, 0.0);

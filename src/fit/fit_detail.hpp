@@ -28,7 +28,7 @@ namespace numkit::stats {
 
 namespace {
 
-void mean_var(const Value &x, double &mean, double &var, keel::usize &N) {
+[[maybe_unused]] void mean_var(const Value &x, double &mean, double &var, keel::usize &N) {
     N = x.numel();
     if (N == 0) { mean = 0.0; var = 0.0; return; }
     double s = 0.0;
@@ -43,7 +43,7 @@ void mean_var(const Value &x, double &mean, double &var, keel::usize &N) {
     var = sq / double(N - 1);
 }
 
-Value rowCI(double lo, double hi, keel::Allocator *mr) {
+[[maybe_unused]] Value rowCI(double lo, double hi, keel::Allocator *mr) {
     Value v = Value::matrix(2, 1, ValueType::DOUBLE, mr);
     double *d = v.doubleDataMut();
     d[0] = lo;
@@ -96,7 +96,7 @@ struct NormalFitOut {
     bool   ok;
 };
 
-NormalFitOut
+[[maybe_unused]] NormalFitOut
 normal_fit_mle(const keel::Array<double> &y, const keel::Array<double> &fr, const keel::Array<keel::u8> &cn, double alpha, keel::Allocator *mr)
 {
     const double nan = std::numeric_limits<double>::quiet_NaN();
@@ -217,7 +217,7 @@ normal_fit_mle(const keel::Array<double> &y, const keel::Array<double> &fr, cons
 
 } // anonymous
 namespace {
-double betainv_scalar2(double p, double a, double b, keel::Allocator *mr)
+[[maybe_unused]] double betainv_scalar2(double p, double a, double b, keel::Allocator *mr)
 {
     if (a <= 0.0 || b <= 0.0) return std::numeric_limits<double>::quiet_NaN();
     if (p <= 0.0) return 0.0;

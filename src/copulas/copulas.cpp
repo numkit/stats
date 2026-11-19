@@ -149,7 +149,7 @@ inline double phi_inv(double u, keel::Allocator *mr)
 }
 
 // Scalar Φ via normcdf.
-inline double phi_cdf(double z, keel::Allocator *mr)
+[[maybe_unused]] inline double phi_cdf(double z, keel::Allocator *mr)
 {
     Value zv = Value::scalar(z, mr);
     return normcdf(zv, 0.0, 1.0, mr).toScalar();
@@ -163,7 +163,7 @@ inline double t_inv(double u, double nu, keel::Allocator *mr)
 }
 
 // Scalar t-cdf via tcdf.
-inline double t_cdf(double z, double nu, keel::Allocator *mr)
+[[maybe_unused]] inline double t_cdf(double z, double nu, keel::Allocator *mr)
 {
     Value zv = Value::scalar(z, mr);
     return tcdf(zv, nu, mr).toScalar();

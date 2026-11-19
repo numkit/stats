@@ -40,12 +40,12 @@ keel::Array<double> sortedUniqueNoNaN(const Value &x)
         v.push_back(xi);
     }
     std::sort(v.begin(), v.end());
-    v.resize(static_cast<keel::usize>(std::unique(v.begin(), v.end()) - v.begin()));
+    v.resize(std::unique(v.begin(), v.end()) - v.begin());
     return v;
 }
 
 // Find index of value in sorted unique list (binary search).
-keel::usize indexOf(const keel::Array<double> &u, double val)
+[[maybe_unused]] keel::usize indexOf(const keel::Array<double> &u, double val)
 {
     auto it = std::lower_bound(u.begin(), u.end(), val);
     return static_cast<keel::usize>(it - u.begin());
@@ -55,7 +55,7 @@ keel::usize indexOf(const keel::Array<double> &u, double val)
 // MATLAB crosstab's `labels` output. Integer values print without a
 // decimal point; non-integers fall back to %.5g (num2str's default
 // significant-digit count for the simple decimals seen in group ids).
-keel::String labelString(double v)
+[[maybe_unused]] keel::String labelString(double v)
 {
     char buf[64];
     if (std::isfinite(v) && v == std::floor(v) && std::fabs(v) < 1e15)

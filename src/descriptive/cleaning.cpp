@@ -2167,7 +2167,7 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
             knots = std::move(keep);
         }
         std::sort(knots.begin(), knots.end());
-        knots.resize(static_cast<keel::usize>(std::unique(knots.begin(), knots.end()) - knots.begin()));
+        knots.resize(std::unique(knots.begin(), knots.end()) - knots.begin());
 
         // NaN policy.
         keel::Array<keel::usize> orig;

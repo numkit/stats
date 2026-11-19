@@ -35,7 +35,7 @@ namespace {
 // matrix. On return, the lower-triangular factor lives in the lower
 // half of S; upper half is zeroed. Throws if S is not PD (a diagonal
 // becomes ≤ 0). Algorithm: classical Cholesky-Banachiewicz.
-void choleskyLowerInPlace(double *S, keel::usize n)
+[[maybe_unused]] void choleskyLowerInPlace(double *S, keel::usize n)
 {
     for (keel::usize j = 0; j < n; ++j) {
         // Diagonal entry: L[j][j] = sqrt(S[j][j] - sum_{k<j} L[j][k]^2)
@@ -71,7 +71,7 @@ double phiCdf(double x) { return 0.5 * std::erfc(-x / std::sqrt(2.0)); }
 // normal CDF via the parametric integral
 //   Φ_2(h, k; ρ) = Φ(h) · Φ(k) + ∫_0^ρ φ_2(h, k; t) dt
 // where φ_2 is the bivariate normal pdf.
-double bivariateCdf(double h, double k, double rho)
+[[maybe_unused]] double bivariateCdf(double h, double k, double rho)
 {
     // Clamp ρ to avoid issues at the boundary.
     if (rho >  1.0 - 1e-12) rho =  1.0 - 1e-12;
@@ -110,7 +110,7 @@ double bivariateCdf(double h, double k, double rho)
 
 // Monte Carlo CDF (d ≥ 3): sample from N(mu, Sigma), count how many
 // fall componentwise <= q. Antithetic sampling improves variance.
-double monteCarloCdf(const double *L, keel::usize d,
+[[maybe_unused]] double monteCarloCdf(const double *L, keel::usize d,
                       const double *mu, const double *q,
                       keel::usize N, std::mt19937 &gen)
 {
@@ -265,7 +265,7 @@ inline double genzSovCdf(const double *L, keel::usize d,
 namespace {
 
 // Validate C square, infer d. Return (d, n).
-std::pair<keel::usize, keel::usize>
+[[maybe_unused]] std::pair<keel::usize, keel::usize>
 mvtcdf_shape_check(const Value &X, const Value &C, const char *fn)
 {
     if (C.dims().rows() != C.dims().cols())
@@ -292,7 +292,7 @@ mvtcdf_shape_check(const Value &X, const Value &C, const char *fn)
 
 // Sample-count from tol: standard error of indicator MC ≈ 1/(2·sqrt(N))
 // for p near 0.5; pick N = max(10000, 1/tol²).
-int mvtcdf_N_from_tol(double tol)
+[[maybe_unused]] int mvtcdf_N_from_tol(double tol)
 {
     if (!(tol > 0.0)) tol = 0.01;
     const double n_d = 1.0 / (tol * tol);

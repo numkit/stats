@@ -32,7 +32,7 @@ namespace numkit::stats {
 namespace {
 
 // Local digamma ψ(x) via Bernoulli asymptotic + recurrence to x ≥ 6.
-double digamma(double x)
+[[maybe_unused]] double digamma(double x)
 {
     double s = 0.0;
     while (x < 6.0) {
@@ -48,7 +48,7 @@ double digamma(double x)
 }
 
 // Trigamma ψ'(x) via same recurrence path.
-double trigamma(double x)
+[[maybe_unused]] double trigamma(double x)
 {
     double s = 0.0;
     while (x < 6.0) {
@@ -63,7 +63,7 @@ double trigamma(double x)
     return r + s;
 }
 
-keel::Array<double> toFlat(const Value &x)
+[[maybe_unused]] keel::Array<double> toFlat(const Value &x)
 {
     keel::Array<double> v(x.numel());
     for (keel::usize i = 0; i < v.size(); ++i) v[i] = x.elemAsDouble(i);
@@ -207,7 +207,7 @@ namespace {
 
 // NLL definitions for each fit. Used by FD-Hessian Wald CI.
 
-double nll_gam(double a, double b, const keel::Array<double> &xv)
+[[maybe_unused]] double nll_gam(double a, double b, const keel::Array<double> &xv)
 {
     if (!(a > 0.0) || !(b > 0.0)) return std::numeric_limits<double>::infinity();
     const double N = static_cast<double>(xv.size());
@@ -217,7 +217,7 @@ double nll_gam(double a, double b, const keel::Array<double> &xv)
          - (a - 1.0) * slx + sx / b;
 }
 
-double nll_wbl(double a, double b, const keel::Array<double> &xv)
+[[maybe_unused]] double nll_wbl(double a, double b, const keel::Array<double> &xv)
 {
     if (!(a > 0.0) || !(b > 0.0)) return std::numeric_limits<double>::infinity();
     const double N = static_cast<double>(xv.size());
@@ -230,7 +230,7 @@ double nll_wbl(double a, double b, const keel::Array<double> &xv)
          - (b - 1.0) * slx + sw;
 }
 
-double nll_beta(double a, double b, const keel::Array<double> &xv)
+[[maybe_unused]] double nll_beta(double a, double b, const keel::Array<double> &xv)
 {
     if (!(a > 0.0) || !(b > 0.0)) return std::numeric_limits<double>::infinity();
     const double N = static_cast<double>(xv.size());
@@ -243,7 +243,7 @@ double nll_beta(double a, double b, const keel::Array<double> &xv)
          - (a - 1.0) * slx - (b - 1.0) * sl1mx;
 }
 
-double nll_nbin(double r, double p, const keel::Array<double> &xv)
+[[maybe_unused]] double nll_nbin(double r, double p, const keel::Array<double> &xv)
 {
     if (!(r > 0.0) || !(p > 0.0) || !(p < 1.0))
         return std::numeric_limits<double>::infinity();
@@ -257,7 +257,7 @@ double nll_nbin(double r, double p, const keel::Array<double> &xv)
     return term - N * r * std::log(p) - sx * std::log(1.0 - p);
 }
 
-double nll_ev(double mu, double sigma, const keel::Array<double> &xv)
+[[maybe_unused]] double nll_ev(double mu, double sigma, const keel::Array<double> &xv)
 {
     if (!(sigma > 0.0)) return std::numeric_limits<double>::infinity();
     const double N = static_cast<double>(xv.size());
@@ -278,7 +278,7 @@ namespace {
 
 // Build 2×2 Wald CI from analytical Fisher information (H = Hessian
 // of NLL at MLE).
-Value wald_ci_from_hessian(double t1, double t2,
+[[maybe_unused]] Value wald_ci_from_hessian(double t1, double t2,
                            double H11, double H22, double H12,
                            CITransform tr1, CITransform tr2,
                            double alpha, keel::Allocator *mr)

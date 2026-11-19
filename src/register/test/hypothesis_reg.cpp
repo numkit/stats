@@ -33,7 +33,7 @@ namespace numkit::stats {
 namespace detail {
 
 namespace {
-TestTail parse_tail_arg(keel::ArrayRef<Value> args, keel::usize i, TestTail def) {
+[[maybe_unused]] TestTail parse_tail_arg(keel::ArrayRef<Value> args, keel::usize i, TestTail def) {
     if (i >= args.size()) return def;
     const Value &v = args[i];
     if (v.isChar() || v.isString()) return parse_tail(v.toString(), def);

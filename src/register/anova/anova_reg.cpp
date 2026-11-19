@@ -255,7 +255,7 @@ void kruskalwallis_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         uniq.reserve(M);
         for (auto &p : all) uniq.push_back(p.g);
         std::sort(uniq.begin(), uniq.end());
-        uniq.resize(static_cast<keel::usize>(std::unique(uniq.begin(), uniq.end()) - uniq.begin()));
+        uniq.resize(std::unique(uniq.begin(), uniq.end()) - uniq.begin());
         const keel::usize K = uniq.size();
         keel::Array<keel::usize> n(K, 0);
         keel::Array<double> sumR(K, 0.0);

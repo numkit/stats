@@ -148,7 +148,7 @@ double ncfcdf_one(double x, double nu1, double nu2, double delta,
     return sum;
 }
 
-double ncfinv_one(double p, double nu1, double nu2, double delta,
+[[maybe_unused]] double ncfinv_one(double p, double nu1, double nu2, double delta,
                   keel::Allocator *mr)
 {
     if (!(nu1 > 0.0) || !(nu2 > 0.0) || delta < 0.0

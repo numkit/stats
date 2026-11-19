@@ -29,14 +29,14 @@ namespace numkit::stats {
 
 namespace {
 
-void validateNormFlag(int w, const char *fn)
+[[maybe_unused]] void validateNormFlag(int w, const char *fn)
 {
     if (w != 0 && w != 1)
         throw Error(keel::format("{}: normalization flag must be 0 or 1", fn),
                      0, 0, fn, "", keel::format("numkit:{}:badFlag", fn));
 }
 
-double medianFromSlice(double *data, keel::usize n)
+[[maybe_unused]] double medianFromSlice(double *data, keel::usize n)
 {
     if (n == 0) return std::nan("");
     if (n == 1) return data[0];
@@ -53,7 +53,7 @@ double medianFromSlice(double *data, keel::usize n)
 namespace {
 
 // Read x as a column-major n×p matrix; vector → n×1.
-void readObsMatrix(const Value &x, keel::Array<double> &out,
+[[maybe_unused]] void readObsMatrix(const Value &x, keel::Array<double> &out,
                     keel::usize &n, keel::usize &p)
 {
     if (x.isEmpty()) { n = p = 0; return; }
@@ -77,7 +77,7 @@ void readObsMatrix(const Value &x, keel::Array<double> &out,
 
 // Drop rows where any column has NaN. Compacts in place. Returns the
 // new row count.
-keel::usize dropNanRows(double *data, keel::usize n, keel::usize p)
+[[maybe_unused]] keel::usize dropNanRows(double *data, keel::usize n, keel::usize p)
 {
     keel::usize w = 0;
     for (keel::usize r = 0; r < n; ++r) {
@@ -101,7 +101,7 @@ keel::usize dropNanRows(double *data, keel::usize n, keel::usize p)
 // In-place column centering for an n_kept × p block stored with stride
 // n_orig (NOT compacted). To keep things simple we instead PACK the
 // kept rows into a fresh contiguous n_kept × p layout before centering.
-void packKeptRows(const double *src, keel::usize n_orig,
+[[maybe_unused]] void packKeptRows(const double *src, keel::usize n_orig,
                    keel::usize n_kept, keel::usize p, double *dst)
 {
     for (keel::usize c = 0; c < p; ++c)
@@ -109,7 +109,7 @@ void packKeptRows(const double *src, keel::usize n_orig,
             dst[c * n_kept + r] = src[c * n_orig + r];
 }
 
-void centerColumnsLocal(double *data, keel::usize n, keel::usize p)
+[[maybe_unused]] void centerColumnsLocal(double *data, keel::usize n, keel::usize p)
 {
     for (keel::usize c = 0; c < p; ++c) {
         double s = 0.0;
@@ -119,7 +119,7 @@ void centerColumnsLocal(double *data, keel::usize n, keel::usize p)
     }
 }
 
-Value covFromCenteredLocal(const double *X, keel::usize n,
+[[maybe_unused]] Value covFromCenteredLocal(const double *X, keel::usize n,
                             keel::usize p, double divisor,
                             keel::Allocator *mr)
 {

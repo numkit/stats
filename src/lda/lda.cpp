@@ -95,7 +95,7 @@ classify(const Value &sample, const Value &training, const Value &group, keel::S
     for (keel::usize i = 0; i < Ntr; ++i) labels.push_back(group.elemAsDouble(i));
     keel::Array<double> uniq = labels.clone();
     std::sort(uniq.begin(), uniq.end());
-    uniq.resize(static_cast<keel::usize>(std::unique(uniq.begin(), uniq.end()) - uniq.begin()));
+    uniq.resize(std::unique(uniq.begin(), uniq.end()) - uniq.begin());
     const keel::usize K = uniq.size();
 
     // Class counts and means.

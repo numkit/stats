@@ -146,7 +146,7 @@ grpstats(const Value &X, const Value &group, keel::ArrayRef<keel::String> fn_nam
     u_g.reserve(N);
     for (double v : g) if (!std::isnan(v)) u_g.push_back(v);
     std::sort(u_g.begin(), u_g.end());
-    u_g.resize(static_cast<keel::usize>(std::unique(u_g.begin(), u_g.end()) - u_g.begin()));
+    u_g.resize(std::unique(u_g.begin(), u_g.end()) - u_g.begin());
     const keel::usize Ng = u_g.size();
 
     // Collect fns; default mean.

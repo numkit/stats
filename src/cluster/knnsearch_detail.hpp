@@ -36,7 +36,7 @@ namespace {
 //   knnsearch(X, Y, 'Distance', metric, ...)
 struct KnnOpts { int K = 1; keel::String metric = keel::String::from("euclidean"); double p = 2.0; };
 
-KnnOpts parse_knn_args(keel::ArrayRef<Value> args, const char *fn)
+[[maybe_unused]] KnnOpts parse_knn_args(keel::ArrayRef<Value> args, const char *fn)
 {
     KnnOpts o;
     if (args.size() == 3 && args[2].isNumeric() && args[2].isScalar()) {

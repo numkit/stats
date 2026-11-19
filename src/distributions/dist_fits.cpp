@@ -418,10 +418,9 @@ Value betafit(const Value &x, keel::Allocator *mr)
             throw Error("betafit: all observations must be in (0, 1)",
                         0, 0, "betafit", "", "numkit:betafit:outOfRange");
     }
-    double sumX = 0.0, sum1mX = 0.0, sumLogX = 0.0, sumLog1mX = 0.0;
+    double sumX = 0.0, sumLogX = 0.0, sumLog1mX = 0.0;
     for (double v : xv) {
         sumX     += v;
-        sum1mX   += (1.0 - v);
         sumLogX  += std::log(v);
         sumLog1mX += std::log(1.0 - v);
     }
@@ -604,14 +603,13 @@ Value evfit(const Value &x, const Value &censoring, const Value &freq,
 
     // Effective weights / counts.
     double sum_fw = 0.0, sum_uw = 0.0;
-    double sum_fwx = 0.0, sum_uwx = 0.0;
+    double sum_uwx = 0.0;
     double sum_uwxx = 0.0;
     for (keel::usize i = 0; i < n; ++i) {
         const double f = wf[i];
         const double u = 1.0 - cens[i];
         sum_fw   += f;
         sum_uw   += f * u;
-        sum_fwx  += f * xv[i];
         sum_uwx  += f * u * xv[i];
         sum_uwxx += f * u * xv[i] * xv[i];
     }

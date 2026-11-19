@@ -28,7 +28,7 @@ void pdist2_argcheck(const Value &X, const Value &Y)
                     "numkit:pdist2:size");
 }
 
-void mahal_argcheck(const Value &Y, const Value &X)
+[[maybe_unused]] void mahal_argcheck(const Value &Y, const Value &X)
 {
     if (Y.dims().cols() != X.dims().cols())
         throw Error("mahal: Y and X must have same column count",

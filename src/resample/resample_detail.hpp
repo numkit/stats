@@ -32,7 +32,7 @@ namespace numkit::stats {
 namespace {
 
 // Sample K indices in [0..N-1] given (optional) weights.
-keel::Array<int> sample_indices(int N, int K, bool with_replacement,
+[[maybe_unused]] keel::Array<int> sample_indices(int N, int K, bool with_replacement,
                                 keel::ArrayRef<double> weights,
                                 numkit::ops::RngContext &rng)
 {
@@ -68,7 +68,7 @@ keel::Array<int> sample_indices(int N, int K, bool with_replacement,
             // in descending key order. Exact O(N log N) with zero rejection risk.
             std::exponential_distribution<double> expDist(1.0);
             keel::Array<std::pair<double, int>> keyed;
-            keyed.reserve(static_cast<keel::usize>(N));
+            keyed.reserve(N);
             for (int i = 0; i < N; ++i) {
                 const double w = weights[static_cast<keel::usize>(i)];
                 if (w > 0.0) {
@@ -86,7 +86,7 @@ keel::Array<int> sample_indices(int N, int K, bool with_replacement,
     return out;
 }
 
-keel::Array<double> read_vec(const Value &v) {
+[[maybe_unused]] keel::Array<double> read_vec(const Value &v) {
     const keel::usize n = v.numel();
     keel::Array<double> out(n);
     for (keel::usize i = 0; i < n; ++i) out[i] = v.elemAsDouble(i);
@@ -96,7 +96,7 @@ keel::Array<double> read_vec(const Value &v) {
 } // anonymous
 namespace {
 // Shared enumeration: combinations of `items` taken `K` at a time.
-Value combnkImpl(keel::ArrayRef<double> items, int K,
+[[maybe_unused]] Value combnkImpl(keel::ArrayRef<double> items, int K,
                  keel::Allocator *mr)
 {
     const int N = static_cast<int>(items.size());

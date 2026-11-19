@@ -387,8 +387,7 @@ Value mvtpdf(const Value &X, const Value &C, const Value &df,
     bool single = (X.type() == ValueType::SINGLE);
 
     // Row reinterpretation: vector X whose length matches rows(C).
-    const keel::usize cr = static_cast<keel::usize>(C.dims().dim(0));
-    const keel::usize cc = static_cast<keel::usize>(C.dims().dim(1));
+    const keel::usize cr = C.dims().dim(0);
     if (X.dims().isVector() && cr == n) {
         Value Xt = Value::matrix(1, n, ValueType::DOUBLE, mr);
         for (keel::usize k = 0; k < n; ++k)
@@ -421,7 +420,7 @@ Value mvtpdfCompute(const Value &X, const Value &C, const Value &df,
     if (df.isScalar()) {
         std::fill(dfv.begin(), dfv.end(), df.elemAsDouble(0));
     } else if (df.dims().isVector()
-               && df.numel() == static_cast<long long>(n)) {
+               && df.numel() == n) {
         for (keel::usize r = 0; r < n; ++r) dfv[r] = df.elemAsDouble(r);
     } else {
         throw Error("mvtpdf: DF must be a scalar or a vector with one "

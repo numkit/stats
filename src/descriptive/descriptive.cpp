@@ -68,13 +68,13 @@ void stdev_argcheck(int normFlag)
     validateNormFlag(normFlag, "std");
 }
 
-void cov_argcheck(const Value &x, int normFlag)
+[[maybe_unused]] void cov_argcheck(const Value &x, int normFlag)
 {
     validateNormFlagCov(normFlag, "cov");
     validateCovInputs(x, "cov");
 }
 
-void corrcoef_argcheck(const Value &x)
+[[maybe_unused]] void corrcoef_argcheck(const Value &x)
 {
     if (x.dims().ndim() > 2)
         throw Error("corrcoef: input must be 1D or 2D",

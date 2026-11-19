@@ -59,7 +59,7 @@ inline double gammainc_scalar(double xx, double a, keel::Allocator *mr)
     return ::numkit::builtin::gammainc(xv, av, mr).toScalar();
 }
 
-double ncx2cdf_one(double x, double k, double lambda, keel::Allocator *mr)
+[[maybe_unused]] double ncx2cdf_one(double x, double k, double lambda, keel::Allocator *mr)
 {
     if (x <= 0.0) return 0.0;
     if (lambda == 0.0) return gammainc_scalar(x / 2.0, k / 2.0, mr);

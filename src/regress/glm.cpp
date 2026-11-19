@@ -28,7 +28,7 @@
 namespace numkit::stats {
 
 namespace {
-void glmfit_argcheck(const Value &X, const Value &y, keel::usize n, keel::usize p)
+void glmfit_argcheck(const Value &X, const Value & /*y*/, keel::usize n, keel::usize p)
 {
     if (X.dims().rows() != n)
         throw Error("glmfit: rows(X) must equal length(y)",

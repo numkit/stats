@@ -954,7 +954,7 @@ fishertest(const Value &T, double alpha, TestTail tail, keel::Allocator *mr)
     const long long kobs = static_cast<long long>(a);
     const double logC_den = lb(Ntot, col1);
     const long long K = kmax - kmin + 1;
-    keel::Array<double> pmf(static_cast<keel::usize>(K));
+    keel::Array<double> pmf(K);
     for (long long k = kmin; k <= kmax; ++k) {
         const double lp = lb(row1, double(k))
                         + lb(Ntot - row1, col1 - double(k))
@@ -1494,7 +1494,7 @@ signrank(const Value &x, const Value &y_or_m, double alpha, TestTail tail, keel:
             rk2[k] = static_cast<long long>(std::llround(ranks[k] * 2.0));
             total2 += rk2[k];
         }
-        keel::Array<double> P(static_cast<keel::usize>(total2 + 1), 0.0);
+        keel::Array<double> P(total2 + 1, 0.0);
         P[0] = 1.0;
         long long cur = 0;
         for (keel::usize k = 0; k < n; ++k) {

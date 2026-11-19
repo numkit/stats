@@ -29,7 +29,7 @@ namespace {
 
 // Cholesky factor of d×d symmetric PSD matrix M (column-major)
 // into L (lower-triangular, column-major). Returns true on success.
-bool cholesky(const double *M, double *L, keel::usize d)
+[[maybe_unused]] bool cholesky(const double *M, double *L, keel::usize d)
 {
     for (keel::usize i = 0; i < d * d; ++i) L[i] = 0.0;
     for (keel::usize j = 0; j < d; ++j) {
@@ -48,7 +48,7 @@ bool cholesky(const double *M, double *L, keel::usize d)
 }
 
 // Solve L · z = b (forward substitution).
-void fwd_solve(const double *L, double *z, const double *b, keel::usize d)
+[[maybe_unused]] void fwd_solve(const double *L, double *z, const double *b, keel::usize d)
 {
     for (keel::usize i = 0; i < d; ++i) {
         double s = b[i];
@@ -58,7 +58,7 @@ void fwd_solve(const double *L, double *z, const double *b, keel::usize d)
 }
 
 // Solve L^T · x = z (backward substitution).
-void back_solve(const double *L, double *x, const double *z, keel::usize d)
+[[maybe_unused]] void back_solve(const double *L, double *x, const double *z, keel::usize d)
 {
     for (keel::usize i = d; i-- > 0;) {
         double s = z[i];

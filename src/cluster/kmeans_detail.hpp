@@ -38,7 +38,7 @@ inline double sq_dist(const double *a, const double *b, keel::usize D) {
 
 // k-means++ centroid initialisation. Returns K rows of D values each
 // (flattened K*D-length buffer).
-keel::Array<double> kmeanspp_init(const keel::Array<double> &X,
+[[maybe_unused]] keel::Array<double> kmeanspp_init(const keel::Array<double> &X,
                                  keel::usize N, keel::usize D, int K,
                                  numkit::ops::MatlabMT19937 &gen,
                                  keel::Allocator *scratch_mr)
@@ -95,7 +95,7 @@ struct LloydResult {
         : idx(scratch_mr), C(scratch_mr), sumd(scratch_mr) {}
 };
 
-LloydResult lloyd(const keel::Array<double> &X, keel::usize N, keel::usize D, int K,
+[[maybe_unused]] LloydResult lloyd(const keel::Array<double> &X, keel::usize N, keel::usize D, int K,
                   keel::Array<double> &&C0, int max_iter,
                   keel::Allocator *scratch_mr)
 {

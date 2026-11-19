@@ -194,13 +194,13 @@ Value varStdDispatch(keel::ArrayRef<Value> args, bool sqrtIt, const char *fn,
                 wLen = x.numel();
             } else if (!vecdimSet.empty()) {
                 for (int d : vecdimSet) {
-                    if (d >= 1 && static_cast<keel::usize>(d) <= x.dims().ndim())
-                        wLen *= x.dims().dim(static_cast<keel::usize>(d - 1));
+                    if (d >= 1 && d <= x.dims().ndim())
+                        wLen *= x.dims().dim(d - 1);
                 }
             } else {
                 const int effDim = (dim == 0) ? firstNonSingletonDim(x) : dim;
-                if (effDim >= 1 && static_cast<keel::usize>(effDim) <= x.dims().ndim())
-                    wLen = x.dims().dim(static_cast<keel::usize>(effDim - 1));
+                if (effDim >= 1 && effDim <= x.dims().ndim())
+                    wLen = x.dims().dim(effDim - 1);
             }
             Value wv = Value::matrix(1, wLen, ValueType::DOUBLE, mr);
             double *wd = wv.doubleDataMut();

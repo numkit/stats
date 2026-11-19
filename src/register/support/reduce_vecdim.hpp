@@ -96,7 +96,7 @@ inline Value collapseDims(const Value &x, keel::ArrayRef<int> set,
         if (d <= nd)
             listed[static_cast<keel::usize>(d)] = 1;
     keel::Array<int> order;          // non-listed first, listed last
-    order.reserve(static_cast<keel::usize>(nd));
+    order.reserve(nd);
     keel::usize red = 1;             // product of the listed real sizes
     for (int d = 1; d <= nd; ++d)
         if (!listed[static_cast<keel::usize>(d)])
@@ -166,7 +166,7 @@ inline void parseDimSlot(const Value &x, const Value &a, keel::StringRef fn,
             if (c >= 'A' && c <= 'Z') c = static_cast<char>(c + 32);
         if (s == "all") {
             const int rank = realRank(x);
-            vecdimSet.reserve(static_cast<keel::usize>(rank));
+            vecdimSet.reserve(rank);
             for (int d = 1; d <= rank; ++d)
                 vecdimSet.push_back(d);
             return;
@@ -195,15 +195,15 @@ inline Value uncollapseFull(Value collapsedOut, const Value &x,
         if (d <= nd)
             listed[static_cast<keel::usize>(d)] = 1;
     keel::Array<int> order;
-    order.reserve(static_cast<keel::usize>(nd));
+    order.reserve(nd);
     for (int d = 1; d <= nd; ++d)
         if (!listed[static_cast<keel::usize>(d)])
             order.push_back(d);
     for (int d = 1; d <= nd; ++d)
         if (listed[static_cast<keel::usize>(d)])
             order.push_back(d);
-    keel::Array<keel::usize> permShape(static_cast<keel::usize>(nd));
-    keel::Array<int> invOrder(static_cast<keel::usize>(nd));
+    keel::Array<keel::usize> permShape(nd);
+    keel::Array<int> invOrder(nd);
     for (int i = 0; i < nd; ++i) {
         permShape[static_cast<keel::usize>(i)] = x.dims().dim(order[static_cast<keel::usize>(i)] - 1);
         invOrder[static_cast<keel::usize>(order[static_cast<keel::usize>(i)] - 1)] = i + 1;
