@@ -3,8 +3,10 @@
 // CallContext register half of descriptive/normalize.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
+#include <keel/array.h>
 #include <keel/core.h>
 #include <keel/ref.h>
+#include <keel/string.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/descriptive/descriptive.hpp>
 #include <numkit/value/argcheck.hpp>
@@ -18,10 +20,8 @@
 #include <cctype>
 #include <cmath>
 #include <cstddef>
-#include <string>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -31,7 +31,7 @@ void normalize_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                    keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "normalize");  // no max: name-value tail in the reference
-    std::string method = "zscore";
+    keel::String method = keel::String::from("zscore");
     const Value *param = nullptr;
     if (args.size() >= 2 && !args[1].isEmpty()) {
         if (!args[1].isChar() && !args[1].isString())
@@ -76,7 +76,7 @@ void rescale_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
         if (!args[i].isChar() && !args[i].isString())
             throw Error("rescale: expected 'InputMin'/'InputMax'",
                         0, 0, "rescale", "", "numkit:rescale:badOpt");
-        std::string nm(args[i].toString().as_ref());
+        keel::String nm = args[i].toString();
         for (char &c : nm) if (c >= 'A' && c <= 'Z') c = char(c + 32);
         if      (nm == "inputmin") inputMin = args[i + 1].toScalar();
         else if (nm == "inputmax") inputMax = args[i + 1].toScalar();
@@ -92,7 +92,7 @@ void zscore_reg(keel::ArrayRef<Value> args, keel::usize nargout,
 {
     argcheck::checkNargin(args.size(), 1, 3, "zscore");
     int flag = 0, dim = 0;
-    std::vector<int> vecdimSet;
+    keel::Array<int> vecdimSet;
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const double fv = argcheck::expectedReal(args[1], 2, "flag", "zscore");
         argcheck::expectedFlag01(fv, 2, "flag", "zscore");

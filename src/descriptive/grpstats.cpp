@@ -17,8 +17,12 @@
 // Cell-of-string fn argument deferred until our cell-string handling
 // is uniform across libs.
 
+#include <keel/array.h>
 #include <keel/core.h>
+#include <keel/format.h>
 #include <keel/memory.h>
+#include <keel/ref.h>
+#include <keel/string.h>
 #include <numkit/stats/descriptive/descriptive.hpp>
 
 #include <numkit/value/value.hpp>
@@ -27,8 +31,6 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
-#include <string>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -37,7 +39,7 @@ namespace {
 // Aggregator IDs for the supported fn names.
 enum class Agg { Mean, Std, Sum, Numel, Min, Max, Var, Sem };
 
-Agg parseFnName(const std::string &name)
+Agg parseFnName(keel::StringRef name)
 {
     if (name == "mean")  return Agg::Mean;
     if (name == "std")   return Agg::Std;
@@ -47,16 +49,15 @@ Agg parseFnName(const std::string &name)
     if (name == "max")   return Agg::Max;
     if (name == "var")   return Agg::Var;
     if (name == "sem")   return Agg::Sem;
-    throw Error("grpstats: unsupported fn name (got '" + name
-                + "'); expected one of {mean,std,sum,numel,min,max,var,sem}",
+    throw Error(keel::format("grpstats: unsupported fn name (got '{}'); expected one of {{mean,std,sum,numel,min,max,var,sem}}", name),
                 0, 0, "grpstats", "", "numkit:grpstats:UnsupportedFn");
 }
 
 // Apply aggregator to a vector of values (NaN excluded).
-double aggregate(Agg fn, const std::vector<double> &vals)
+double aggregate(Agg fn, const keel::Array<double> &vals)
 {
     // Filter NaN.
-    std::vector<double> v;
+    keel::Array<double> v;
     v.reserve(vals.size());
     for (double x : vals) if (!std::isnan(x)) v.push_back(x);
     const keel::usize n = v.size();
@@ -125,8 +126,8 @@ void grpstats_argcheck(const Value &X, const Value &group)
 
 } // namespace
 
-std::vector<Value>
-grpstats(const Value &X, const Value &group, const std::vector<std::string> &fn_names, keel::Allocator *mr)
+keel::Array<Value>
+grpstats(const Value &X, const Value &group, keel::ArrayRef<keel::String> fn_names, keel::Allocator *mr)
 {
     grpstats_argcheck(X, group);
     const keel::usize Nrows = X.dims().rows();
@@ -139,17 +140,17 @@ grpstats(const Value &X, const Value &group, const std::vector<std::string> &fn_
     const keel::usize C = row_vec ? 1     : Ncols;
 
     // Find unique non-NaN groups (sorted ascending).
-    std::vector<double> g(N);
+    keel::Array<double> g(N);
     for (keel::usize i = 0; i < N; ++i) g[i] = group.elemAsDouble(i);
-    std::vector<double> u_g;
+    keel::Array<double> u_g;
     u_g.reserve(N);
     for (double v : g) if (!std::isnan(v)) u_g.push_back(v);
     std::sort(u_g.begin(), u_g.end());
-    u_g.erase(std::unique(u_g.begin(), u_g.end()), u_g.end());
+    u_g.resize(static_cast<keel::usize>(std::unique(u_g.begin(), u_g.end()) - u_g.begin()));
     const keel::usize Ng = u_g.size();
 
     // Collect fns; default mean.
-    std::vector<Agg> fns;
+    keel::Array<Agg> fns;
     if (fn_names.empty()) {
         fns.push_back(Agg::Mean);
     } else {
@@ -159,14 +160,14 @@ grpstats(const Value &X, const Value &group, const std::vector<std::string> &fn_
     const keel::usize F = fns.size();
 
     // Build outputs: F values, each (Ng × C).
-    std::vector<Value> outs;
+    keel::Array<Value> outs;
     outs.reserve(F);
     for (keel::usize f = 0; f < F; ++f) {
         outs.push_back(Value::matrix(Ng, C, ValueType::DOUBLE, mr));
     }
 
     // Aggregate per (group, column).
-    std::vector<double> bucket;
+    keel::Array<double> bucket;
     bucket.reserve(N);
     for (keel::usize k = 0; k < Ng; ++k) {
         const double gk = u_g[k];

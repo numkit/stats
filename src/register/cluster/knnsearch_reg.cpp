@@ -4,7 +4,9 @@
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
 #include <keel/core.h>
+#include <keel/format.h>
 #include <keel/ref.h>
+#include <keel/string.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/cluster/distance.hpp>
 #include <numkit/stats/cluster/knnsearch.hpp>
@@ -18,10 +20,8 @@
 #include <cctype>
 #include <cmath>
 #include <cstddef>
-#include <string>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -51,10 +51,10 @@ void rangesearch_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutA
             if (!args[i].isChar() && !args[i].isString())
                 throw Error("rangesearch: expected name-value pair",
                             0, 0, "rangesearch", "", "numkit:rangesearch:nvpair");
-            std::string name(args[i].toString().as_ref());
+            keel::String name = args[i].toString();
             for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
             if (i + 1 >= args.size())
-                throw Error("rangesearch: '" + name + "' missing value",
+                throw Error(keel::format("rangesearch: '{}' missing value", name),
                             0, 0, "rangesearch", "", "numkit:rangesearch:nvval");
             const Value &v = args[i + 1];
             if (name == "distance") {

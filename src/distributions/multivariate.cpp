@@ -28,7 +28,6 @@
 #include <limits>
 #include <mutex>
 #include <random>
-#include <vector>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -130,7 +129,7 @@ Value mvncdf(const Value &X, const Value &mu, const Value &Sigma,
                     0, 0, "mvncdf", "", "numkit:mvncdf:badX");
 
     // Resolve mu (default: zeros).
-    std::vector<double> muv(d, 0.0);
+    keel::Array<double> muv(d, 0.0);
     if (!mu.isEmpty()) {
         if (mu.numel() != d)
             throw Error("mvncdf: mu must have length d",
@@ -139,7 +138,7 @@ Value mvncdf(const Value &X, const Value &mu, const Value &Sigma,
     }
 
     // Resolve Sigma (default: identity). Store row-major Cholesky factor.
-    std::vector<double> L(d * d, 0.0);
+    keel::Array<double> L(d * d, 0.0);
     if (Sigma.isEmpty()) {
         for (keel::usize i = 0; i < d; ++i) L[i * d + i] = 1.0;
     } else {
@@ -147,12 +146,12 @@ Value mvncdf(const Value &X, const Value &mu, const Value &Sigma,
             throw Error("mvncdf: Sigma must be d × d",
                         0, 0, "mvncdf", "", "numkit:mvncdf:shapeSigma");
         // Copy col-major Sigma to row-major buffer.
-        std::vector<double> S(d * d);
+        keel::Array<double> S(d * d);
         for (keel::usize i = 0; i < d; ++i)
             for (keel::usize j = 0; j < d; ++j)
                 S[i * d + j] = Sigma.elemAsDouble(j * d + i);
         choleskyLowerInPlace(S.data(), d);
-        L = S;
+        L = std::move(S);
     }
 
     auto out = Value::matrix(n, 1, ValueType::DOUBLE, mr);
@@ -187,7 +186,7 @@ Value mvncdf(const Value &X, const Value &mu, const Value &Sigma,
 
     // d ≥ 3: Monte Carlo.
     std::mt19937 gen(12345);   // deterministic seed for reproducibility
-    std::vector<double> q(d);
+    keel::Array<double> q(d);
     for (keel::usize i = 0; i < n; ++i) {
         for (keel::usize j = 0; j < d; ++j)
             q[j] = X.elemAsDouble(j * n + i);
@@ -210,7 +209,7 @@ Value mvtrnd(::numkit::ops::RngContext &rng, const Value &C, double df, keel::us
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
 
     // Cholesky of correlation matrix.
-    std::vector<double> L(d * d);
+    keel::Array<double> L(d * d);
     for (keel::usize i = 0; i < d; ++i)
         for (keel::usize j = 0; j < d; ++j)
             L[i * d + j] = C.elemAsDouble(j * d + i);
@@ -222,7 +221,7 @@ Value mvtrnd(::numkit::ops::RngContext &rng, const Value &C, double df, keel::us
     std::normal_distribution<double> Nz(0.0, 1.0);
     std::chi_squared_distribution<double> Chi(df);
 
-    std::vector<double> z(d);
+    keel::Array<double> z(d);
     for (keel::usize r = 0; r < n; ++r) {
         for (keel::usize k = 0; k < d; ++k) z[k] = Nz(gen);
         const double scale = std::sqrt(df / Chi(gen));
@@ -243,7 +242,7 @@ Value mnrnd(::numkit::ops::RngContext &rng, keel::usize N, const Value &P, keel:
         throw Error("mnrnd: P must be a non-empty probability vector",
                     0, 0, "mnrnd", "", "numkit:mnrnd:emptyP");
     // Build cumulative probability table (renormalised).
-    std::vector<double> cdf(k);
+    keel::Array<double> cdf(k);
     double sumP = 0.0;
     bool anyNan = false;
     for (keel::usize i = 0; i < k; ++i) {
@@ -272,7 +271,7 @@ Value mnrnd(::numkit::ops::RngContext &rng, keel::usize N, const Value &P, keel:
     auto &gen = rng;
     std::uniform_real_distribution<double> U(0.0, 1.0);
 
-    std::vector<keel::usize> counts(k);
+    keel::Array<keel::usize> counts(k);
     for (keel::usize r = 0; r < m; ++r) {
         std::fill(counts.begin(), counts.end(), 0u);
         for (keel::usize t = 0; t < N; ++t) {
@@ -299,7 +298,7 @@ static void invertLowerTriInPlace(double *L, keel::usize d)
     //   X(i,j) = -(1/L(i,i)) · sum_{k=j..i-1} L(i,k) · X(k,j).
     // Easier: compute Linv ← I, then solve L · Linv = I in place,
     // writing each column.
-    std::vector<double> Linv(d * d, 0.0);
+    keel::Array<double> Linv(d * d, 0.0);
     for (keel::usize j = 0; j < d; ++j) {
         // Solve L · x = e_j for x.
         // x[j] = 1/L[j][j]
@@ -332,7 +331,7 @@ wishrnd_factor(::numkit::ops::RngContext &rng, const Value &Sigma, double df, co
 
     // L = chol(Sigma, 'lower'), row-major. If user supplied
     // D = chol(Sigma, 'upper'), transpose into L.
-    std::vector<double> L(d * d);
+    keel::Array<double> L(d * d);
     if (!D_in.isEmpty()) {
         if (D_in.dims().rows() != d || D_in.dims().cols() != d)
             throw Error("wishrnd: D must be p × p",
@@ -356,11 +355,11 @@ wishrnd_factor(::numkit::ops::RngContext &rng, const Value &Sigma, double df, co
         auto W = Value::matrix(d, d, ValueType::DOUBLE, mr);
         double *od = W.doubleDataMut();
         const keel::usize m = static_cast<keel::usize>(df);
-        std::vector<double> X(m * d);
+        keel::Array<double> X(m * d);
         for (keel::usize c = 0; c < d; ++c)
             for (keel::usize r = 0; r < m; ++r)
                 X[r * d + c] = rng.nextNormal();
-        std::vector<double> XD(m * d, 0.0);
+        keel::Array<double> XD(m * d, 0.0);
         for (keel::usize r = 0; r < m; ++r)
             for (keel::usize j = 0; j < d; ++j) {
                 double s = 0.0;
@@ -385,7 +384,7 @@ wishrnd_factor(::numkit::ops::RngContext &rng, const Value &Sigma, double df, co
     auto &gen = rng;
     std::normal_distribution<double> Nz(0.0, 1.0);
 
-    std::vector<double> B(d * d, 0.0);
+    keel::Array<double> B(d * d, 0.0);
     for (keel::usize i = 0; i < d; ++i) {
         const double dfi = df - static_cast<double>(i);
         std::chi_squared_distribution<double> Chi(dfi);
@@ -395,7 +394,7 @@ wishrnd_factor(::numkit::ops::RngContext &rng, const Value &Sigma, double df, co
     }
 
     // M = L · B (lower-tri).
-    std::vector<double> M(d * d, 0.0);
+    keel::Array<double> M(d * d, 0.0);
     for (keel::usize i = 0; i < d; ++i) {
         for (keel::usize j = 0; j <= i; ++j) {
             double s = 0.0;
@@ -452,7 +451,7 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, double df, con
     // Need L = chol(inv(Tau), 'lower') for Bartlett construction.
     // MATLAB convention: DI is the lower-triangular factor satisfying
     // DI' · DI = inv(Tau) — i.e. DI = chol(inv(Tau), 'lower'). So L = DI.
-    std::vector<double> L(d * d);   // row-major lower-tri
+    keel::Array<double> L(d * d);   // row-major lower-tri
     if (!DI_in.isEmpty()) {
         if (DI_in.dims().rows() != d || DI_in.dims().cols() != d)
             throw Error("iwishrnd: DI must be p × p",
@@ -465,14 +464,14 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, double df, con
         }
     } else {
         // Build inv(Tau) via L_T = chol(Tau, 'lower'), then chol(inv) lower.
-        std::vector<double> LT(d * d);
+        keel::Array<double> LT(d * d);
         for (keel::usize i = 0; i < d; ++i)
             for (keel::usize j = 0; j < d; ++j)
                 LT[i * d + j] = Tau.elemAsDouble(j * d + i);
         choleskyLowerInPlace(LT.data(), d);
-        std::vector<double> Linv = LT;
+        keel::Array<double> Linv = LT.clone();
         invertLowerTriInPlace(Linv.data(), d);
-        std::vector<double> invTau(d * d, 0.0);
+        keel::Array<double> invTau(d * d, 0.0);
         for (keel::usize i = 0; i < d; ++i) {
             for (keel::usize j = 0; j <= i; ++j) {
                 double s = 0.0;
@@ -482,19 +481,19 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, double df, con
                 if (i != j) invTau[j * d + i] = s;
             }
         }
-        L = invTau;
+        L = std::move(invTau);
         choleskyLowerInPlace(L.data(), d);
     }
 
     // Bartlett sample Y ~ W(inv(Tau), df), or Krzanowski X when df <= 81+d and integer.
-    std::vector<double> Y(d * d, 0.0);
+    keel::Array<double> Y(d * d, 0.0);
     if (df <= 81.0 + static_cast<double>(d) && df == std::floor(df)) {
         const keel::usize m = static_cast<keel::usize>(df);
-        std::vector<double> X(m * d);
+        keel::Array<double> X(m * d);
         for (keel::usize c = 0; c < d; ++c)
             for (keel::usize r = 0; r < m; ++r)
                 X[r * d + c] = rng.nextNormal();
-        std::vector<double> XL(m * d, 0.0);
+        keel::Array<double> XL(m * d, 0.0);
         for (keel::usize r = 0; r < m; ++r)
             for (keel::usize j = 0; j < d; ++j) {
                 double s = 0.0;
@@ -510,7 +509,7 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, double df, con
                 Y[i * d + j] = s;
             }
     } else {
-        std::vector<double> B(d * d, 0.0);
+        keel::Array<double> B(d * d, 0.0);
         for (keel::usize i = 0; i < d; ++i) {
             const double dfi = df - static_cast<double>(i);
             B[i * d + i] = std::sqrt(2.0 * randg(rng, dfi * 0.5, 1, 1, mr).toScalar());
@@ -518,7 +517,7 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, double df, con
         for (keel::usize j = 1; j < d; ++j)
             for (keel::usize i = 0; i < j; ++i)
                 B[j * d + i] = rng.nextNormal();
-        std::vector<double> M(d * d, 0.0);
+        keel::Array<double> M(d * d, 0.0);
         for (keel::usize i = 0; i < d; ++i)
             for (keel::usize j = 0; j <= i; ++j) {
                 double s = 0.0;
@@ -539,7 +538,7 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, double df, con
     auto &gen = rng;
     std::normal_distribution<double> Nz(0.0, 1.0);
 
-    std::vector<double> B(d * d, 0.0);
+    keel::Array<double> B(d * d, 0.0);
     for (keel::usize i = 0; i < d; ++i) {
         const double dfi = df - static_cast<double>(i);
         std::chi_squared_distribution<double> Chi(dfi);
@@ -547,7 +546,7 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, double df, con
         for (keel::usize j = 0; j < i; ++j)
             B[i * d + j] = Nz(gen);
     }
-    std::vector<double> M(d * d, 0.0);
+    keel::Array<double> M(d * d, 0.0);
     for (keel::usize i = 0; i < d; ++i) {
         for (keel::usize j = 0; j <= i; ++j) {
             double s = 0.0;
@@ -556,7 +555,7 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, double df, con
             M[i * d + j] = s;
         }
     }
-    std::vector<double> Y(d * d, 0.0);
+    keel::Array<double> Y(d * d, 0.0);
     for (keel::usize i = 0; i < d; ++i) {
         for (keel::usize j = 0; j < d; ++j) {
             double s = 0.0;
@@ -569,7 +568,7 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, double df, con
 
     }
     // W = inv(Y) via Cholesky.
-    std::vector<double> LY = Y;
+    keel::Array<double> LY = Y.clone();
     choleskyLowerInPlace(LY.data(), d);
     invertLowerTriInPlace(LY.data(), d);
     auto W = Value::matrix(d, d, ValueType::DOUBLE, mr);
@@ -628,7 +627,7 @@ Value mvtcdf(const Value &X, const Value &C, double df, double tol,
         return out;
     }
 
-    std::vector<double> L(d * d);
+    keel::Array<double> L(d * d);
     for (keel::usize i = 0; i < d; ++i)
         for (keel::usize j = 0; j < d; ++j)
             L[i * d + j] = C.elemAsDouble(j * d + i);
@@ -688,7 +687,7 @@ Value mvtcdf_box(const Value &Lb, const Value &Ub, const Value &C, double df,
         return out;
     }
 
-    std::vector<double> Lc(d * d);
+    keel::Array<double> Lc(d * d);
     for (keel::usize i = 0; i < d; ++i)
         for (keel::usize j = 0; j < d; ++j)
             Lc[i * d + j] = C.elemAsDouble(j * d + i);

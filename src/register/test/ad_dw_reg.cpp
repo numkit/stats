@@ -4,7 +4,9 @@
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
 #include <keel/core.h>
+#include <keel/format.h>
 #include <keel/ref.h>
+#include <keel/string.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/linalg/eig.hpp>   // eig_symmetric — exact DW p-value (Imhof)
 #include <numkit/stats/distributions/beta.hpp>
@@ -13,17 +15,14 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 #include "test/ad_dw_detail.hpp"
-#include <numkit/value/error.hpp>
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstddef>
-#include <string>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -50,7 +49,7 @@ void dwtest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     auto *mr = ctx.engine->allocator();
 
     auto toLowerAscii = [](keel::StringRef sv) {
-        std::string s(sv.data(), sv.size());
+        keel::String s = keel::String::from(sv);
         for (char &c : s) if (c >= 'A' && c <= 'Z') c = static_cast<char>(c + 32);
         return s;
     };
@@ -63,8 +62,10 @@ void dwtest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         if (!args[i].isChar() && !args[i].isString())
             throw Error("dwtest: expected option name (string)",
                         0, 0, "dwtest", "", "numkit:dwtest:badOption");
-        const std::string key = toLowerAscii(args[i].toString());
-        const std::string val = toLowerAscii(args[i + 1].toString());
+        const keel::String rawKey = args[i].toString();
+        const keel::String rawVal = args[i + 1].toString();
+        const keel::String key = toLowerAscii(rawKey.as_ref());
+        const keel::String val = toLowerAscii(rawVal.as_ref());
         if (key == "tail") {
             if (val == "both")       tail = 0;
             else if (val == "right") tail = 1;
@@ -77,7 +78,7 @@ void dwtest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             else throw Error("dwtest: Method must be 'exact' or 'approximate'",
                              0, 0, "dwtest", "", "numkit:dwtest:badOption");
         } else {
-            throw Error("dwtest: unsupported option '" + key + "'",
+            throw Error(keel::format("dwtest: unsupported option '{}'", key),
                         0, 0, "dwtest", "", "numkit:dwtest:badOption");
         }
     }

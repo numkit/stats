@@ -4,6 +4,8 @@
 #include <keel/memory.h>
 #include <keel/arena.h>
 #include <keel/array.h>
+#include <keel/ref.h>
+#include <keel/string.h>
 #include <numkit/stats/test/hypothesis.hpp>
 
 #include <numkit/stats/distributions/students_t.hpp>
@@ -16,12 +18,12 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdint>
 #include <limits>
 #include <numeric>
 #include <random>
-#include <vector>
 
 #include "hypothesis_detail.hpp"
 
@@ -148,7 +150,7 @@ ttest_1d(const Value &x, double m, double alpha, TestTail tail, keel::Allocator 
 }
 
 std::tuple<Value, Value, Value, Value>
-ttest2_1d(const Value &x, const Value &y, double alpha, TestTail tail, const std::string &vartype, keel::Allocator *mr)
+ttest2_1d(const Value &x, const Value &y, double alpha, TestTail tail, keel::StringRef vartype, keel::Allocator *mr)
 {
     ttest2_argcheck(x, y);
     if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
@@ -402,7 +404,7 @@ ttest(const Value &x, double m, double alpha, TestTail tail, keel::Allocator *mr
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value, Value>
-ttest2_dim(const Value &x, const Value &y, double alpha, TestTail tail, const std::string &vartype, int dim, keel::Allocator *mr)
+ttest2_dim(const Value &x, const Value &y, double alpha, TestTail tail, keel::StringRef vartype, int dim, keel::Allocator *mr)
 {
     ttest2_argcheck(x, y);
     const keel::usize Rx = x.dims().rows(), Cx = x.dims().cols();
@@ -484,7 +486,7 @@ ttest2_dim(const Value &x, const Value &y, double alpha, TestTail tail, const st
 }
 
 std::tuple<Value, Value, Value, Value>
-ttest2(const Value &x, const Value &y, double alpha, TestTail tail, const std::string &vartype, keel::Allocator *mr)
+ttest2(const Value &x, const Value &y, double alpha, TestTail tail, keel::StringRef vartype, keel::Allocator *mr)
 {
     ttest2_argcheck(x, y);
     return ttest2_dim(x, y, alpha, tail, vartype, 0, mr);
@@ -708,7 +710,7 @@ kstest(const Value &x, const Value &cdf, double alpha, TestTail tail, keel::Allo
     if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
     const keel::usize N = x.numel();
 
-    std::vector<double> xs(N);
+    keel::Array<double> xs(N);
     for (keel::usize i = 0; i < N; ++i) xs[i] = x.elemAsDouble(i);
     std::sort(xs.begin(), xs.end());
 
@@ -716,22 +718,22 @@ kstest(const Value &x, const Value &cdf, double alpha, TestTail tail, keel::Allo
     auto refF = [&](double v) {
         if (cdf.numel() >= 2) {
             const keel::usize rows = cdf.dims().rows();
-            std::vector<double> xg(rows), Fg(rows);
+            keel::Array<double> xg(rows), Fg(rows);
             for (keel::usize i = 0; i < rows; ++i) {
                 xg[i] = cdf.elemAsDouble(0 * rows + i);
                 Fg[i] = cdf.elemAsDouble(1 * rows + i);
             }
             // xg should already be sorted; if not, do a quick sort.
             if (!std::is_sorted(xg.begin(), xg.end())) {
-                std::vector<keel::usize> ord(rows);
+                keel::Array<keel::usize> ord(rows);
                 std::iota(ord.begin(), ord.end(), (keel::usize)0);
                 std::sort(ord.begin(), ord.end(),
                           [&](keel::usize a, keel::usize b){ return xg[a] < xg[b]; });
-                std::vector<double> xs2(rows), Fs2(rows);
+                keel::Array<double> xs2(rows), Fs2(rows);
                 for (keel::usize i = 0; i < rows; ++i) { xs2[i] = xg[ord[i]]; Fs2[i] = Fg[ord[i]]; }
-                xg = std::move(xs2); Fg = std::move(Fs2);
+                xg = keel::move(xs2); Fg = keel::move(Fs2);
             }
-            return interp_cdf(xg, Fg, v);
+            return interp_cdf(xg.as_ref(), Fg.as_ref(), v);
         }
         // Default: standard normal.
         Value s = Value::scalar(v, mr);
@@ -781,7 +783,7 @@ kstest2(const Value &x, const Value &y, double alpha, TestTail tail, keel::Alloc
         throw Error("kstest2: empty sample", 0, 0, "kstest2", "",
                     "numkit:kstest2:nsamples");
 
-    std::vector<double> xs(Nx), ys(Ny);
+    keel::Array<double> xs(Nx), ys(Ny);
     for (keel::usize i = 0; i < Nx; ++i) xs[i] = x.elemAsDouble(i);
     for (keel::usize i = 0; i < Ny; ++i) ys[i] = y.elemAsDouble(i);
     std::sort(xs.begin(), xs.end());
@@ -952,7 +954,7 @@ fishertest(const Value &T, double alpha, TestTail tail, keel::Allocator *mr)
     const long long kobs = static_cast<long long>(a);
     const double logC_den = lb(Ntot, col1);
     const long long K = kmax - kmin + 1;
-    std::vector<double> pmf(static_cast<keel::usize>(K));
+    keel::Array<double> pmf(static_cast<keel::usize>(K));
     for (long long k = kmin; k <= kmax; ++k) {
         const double lp = lb(row1, double(k))
                         + lb(Ntot - row1, col1 - double(k))
@@ -1173,14 +1175,14 @@ vartestn(const Value &x, const Value &group, double /*alpha*/, keel::Allocator *
 
 
 std::tuple<Value, Value, Value, Value, Value, Value>
-runstest(const Value &x, double v_in, double alpha, TestTail tail, const std::string &method_in, keel::Allocator *mr)
+runstest(const Value &x, double v_in, double alpha, TestTail tail, keel::StringRef method_in, keel::Allocator *mr)
 {
     const keel::usize Nx = x.numel();
 
     // Default v = median(x).
     double v = v_in;
     if (std::isnan(v_in)) {
-        std::vector<double> sorted;
+        keel::Array<double> sorted;
         sorted.reserve(Nx);
         for (keel::usize i = 0; i < Nx; ++i) {
             const double xi = x.elemAsDouble(i);
@@ -1194,7 +1196,7 @@ runstest(const Value &x, double v_in, double alpha, TestTail tail, const std::st
     }
 
     // Build binary sequence; drop values equal to v.
-    std::vector<int> bin;
+    keel::Array<int> bin;
     bin.reserve(Nx);
     for (keel::usize i = 0; i < Nx; ++i) {
         const double xi = x.elemAsDouble(i);
@@ -1219,7 +1221,7 @@ runstest(const Value &x, double v_in, double alpha, TestTail tail, const std::st
     };
     if (n1 == 0 || n0 == 0) return retNan();
 
-    std::string method = method_in;
+    keel::String method = keel::String::from(method_in);
     for (auto &c : method) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     bool exact;
     if      (method == "approximate") exact = false;
@@ -1274,7 +1276,7 @@ runstest(const Value &x, double v_in, double alpha, TestTail tail, const std::st
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value, Value>
-ranksum(const Value &x, const Value &y, double alpha, TestTail tail, const std::string &method_in, keel::Allocator *mr)
+ranksum(const Value &x, const Value &y, double alpha, TestTail tail, keel::StringRef method_in, keel::Allocator *mr)
 {
     const keel::usize nx = x.numel();
     const keel::usize ny = y.numel();
@@ -1288,7 +1290,7 @@ ranksum(const Value &x, const Value &y, double alpha, TestTail tail, const std::
 
     // Combine: store (value, is_x). NaN values are dropped.
     struct Item { double v; bool is_x; };
-    std::vector<Item> items;
+    keel::Array<Item> items;
     items.reserve(N);
     for (keel::usize i = 0; i < nx; ++i) {
         const double v = x.elemAsDouble(i);
@@ -1310,13 +1312,13 @@ ranksum(const Value &x, const Value &y, double alpha, TestTail tail, const std::
     }
 
     // Sort + assign mid-ranks.
-    std::vector<keel::usize> ord(Neff);
+    keel::Array<keel::usize> ord(Neff);
     for (keel::usize i = 0; i < Neff; ++i) ord[i] = i;
     std::sort(ord.begin(), ord.end(),
               [&](keel::usize a, keel::usize b) { return items[a].v < items[b].v; });
 
-    std::vector<double> ranks(Neff);
-    std::vector<keel::usize> tieGroupSizes;
+    keel::Array<double> ranks(Neff);
+    keel::Array<keel::usize> tieGroupSizes;
     keel::usize i = 0;
     while (i < Neff) {
         keel::usize j = i + 1;
@@ -1333,7 +1335,7 @@ ranksum(const Value &x, const Value &y, double alpha, TestTail tail, const std::
         if (items[k].is_x) Wx += ranks[k];
 
     // Choose method.
-    std::string method = method_in;
+    keel::String method = keel::String::from(method_in);
     for (auto &c : method) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     bool exact;
     if      (method == "exact")       exact = true;
@@ -1345,30 +1347,31 @@ ranksum(const Value &x, const Value &y, double alpha, TestTail tail, const std::
 
     if (exact) {
         // 2D DP: dp[k][s] = # size-k subsets of (2·ranks) summing to s.
-        std::vector<long long> rk2(Neff);
+        keel::Array<long long> rk2(Neff);
         long long total2 = 0;
         for (keel::usize k = 0; k < Neff; ++k) {
             rk2[k] = static_cast<long long>(std::llround(ranks[k] * 2.0));
             total2 += rk2[k];
         }
         const keel::usize S = static_cast<keel::usize>(total2 + 1);
-        std::vector<std::vector<double>> dp(nx_eff + 1, std::vector<double>(S, 0.0));
-        dp[0][0] = 1.0;
+        keel::Array<double> dp((nx_eff + 1) * S, 0.0);
+        dp[0] = 1.0;
         for (keel::usize k = 0; k < Neff; ++k) {
             const long long r = rk2[k];
             for (long long kk = static_cast<long long>(nx_eff) - 1; kk >= 0; --kk) {
                 for (long long s = static_cast<long long>(S) - 1; s >= r; --s)
-                    dp[kk + 1][s] += dp[kk][s - r];
+                    dp[static_cast<keel::usize>(kk + 1) * S + static_cast<keel::usize>(s)] +=
+                        dp[static_cast<keel::usize>(kk) * S + static_cast<keel::usize>(s - r)];
             }
         }
         const long long Wx2 = static_cast<long long>(std::llround(Wx * 2.0));
         double total = 0.0;
-        for (keel::usize s = 0; s < S; ++s) total += dp[nx_eff][s];
+        for (keel::usize s = 0; s < S; ++s) total += dp[nx_eff * S + s];
         double cdfLE = 0.0, cdfGE = 0.0;
         for (long long s = 0; s <= Wx2 && s < static_cast<long long>(S); ++s)
-            cdfLE += dp[nx_eff][s];
+            cdfLE += dp[nx_eff * S + static_cast<keel::usize>(s)];
         for (long long s = Wx2; s < static_cast<long long>(S); ++s)
-            cdfGE += dp[nx_eff][s];
+            cdfGE += dp[nx_eff * S + static_cast<keel::usize>(s)];
         cdfLE /= total;
         cdfGE /= total;
         switch (tail) {
@@ -1417,7 +1420,7 @@ ranksum(const Value &x, const Value &y, double alpha, TestTail tail, const std::
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value, Value>
-signrank(const Value &x, const Value &y_or_m, double alpha, TestTail tail, const std::string &method_in, keel::Allocator *mr)
+signrank(const Value &x, const Value &y_or_m, double alpha, TestTail tail, keel::StringRef method_in, keel::Allocator *mr)
 {
     const keel::usize Nx = x.numel();
     const bool paired = (!y_or_m.isEmpty() && !y_or_m.isScalar());
@@ -1428,7 +1431,7 @@ signrank(const Value &x, const Value &y_or_m, double alpha, TestTail tail, const
 
     // Collect (|d|, sign) for non-zero diffs.
     struct DSign { double absd; int sign; };
-    std::vector<DSign> ds;
+    keel::Array<DSign> ds;
     ds.reserve(Nx);
     for (keel::usize i = 0; i < Nx; ++i) {
         const double xi = x.elemAsDouble(i);
@@ -1449,13 +1452,13 @@ signrank(const Value &x, const Value &y_or_m, double alpha, TestTail tail, const
     }
 
     // Sort by |d| ascending; assign mid-ranks for ties.
-    std::vector<keel::usize> ord(n);
+    keel::Array<keel::usize> ord(n);
     for (keel::usize i = 0; i < n; ++i) ord[i] = i;
     std::sort(ord.begin(), ord.end(),
               [&](keel::usize a, keel::usize b) { return ds[a].absd < ds[b].absd; });
 
-    std::vector<double> ranks(n);
-    std::vector<keel::usize> tieGroupSizes;
+    keel::Array<double> ranks(n);
+    keel::Array<keel::usize> tieGroupSizes;
     keel::usize i = 0;
     while (i < n) {
         keel::usize j = i + 1;
@@ -1472,7 +1475,7 @@ signrank(const Value &x, const Value &y_or_m, double alpha, TestTail tail, const
         if (ds[k].sign > 0) Wplus += ranks[k];
 
     // Choose method.
-    std::string method = method_in;
+    keel::String method = keel::String::from(method_in);
     for (auto &c : method) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     bool exact;
     if      (method == "exact")       exact = true;
@@ -1485,13 +1488,13 @@ signrank(const Value &x, const Value &y_or_m, double alpha, TestTail tail, const
     if (exact) {
         // Convolve subset-sum count polynomial. Scale ranks by 2 so all
         // (mid-rank averaged) values are integers.
-        std::vector<long long> rk2(n);
+        keel::Array<long long> rk2(n);
         long long total2 = 0;
         for (keel::usize k = 0; k < n; ++k) {
             rk2[k] = static_cast<long long>(std::llround(ranks[k] * 2.0));
             total2 += rk2[k];
         }
-        std::vector<double> P(static_cast<keel::usize>(total2 + 1), 0.0);
+        keel::Array<double> P(static_cast<keel::usize>(total2 + 1), 0.0);
         P[0] = 1.0;
         long long cur = 0;
         for (keel::usize k = 0; k < n; ++k) {
@@ -1557,7 +1560,7 @@ ansaribradley(const Value &x, const Value &y, double alpha, TestTail tail,
 
     // Pool: store (value, is_x). Drop NaN.
     struct Item { double v; bool is_x; };
-    std::vector<Item> items;
+    keel::Array<Item> items;
     items.reserve(nx + ny);
     for (keel::usize i = 0; i < nx; ++i) {
         const double v = x.elemAsDouble(i);
@@ -1579,7 +1582,7 @@ ansaribradley(const Value &x, const Value &y, double alpha, TestTail tail,
     }
 
     // Sort pooled by value (ascending).
-    std::vector<keel::usize> ord(N);
+    keel::Array<keel::usize> ord(N);
     for (keel::usize i = 0; i < N; ++i) ord[i] = i;
     std::sort(ord.begin(), ord.end(),
               [&](keel::usize a, keel::usize b) { return items[a].v < items[b].v; });
@@ -1587,14 +1590,14 @@ ansaribradley(const Value &x, const Value &y, double alpha, TestTail tail,
     // Assign V-shaped Ansari rank to each sorted POSITION, then average
     // (mid-rank) across tied groups.
     // Raw position-rank: pos i (1..N) → min(i, N+1-i).
-    std::vector<double> rraw(N);
+    keel::Array<double> rraw(N);
     for (keel::usize i = 0; i < N; ++i) {
         const keel::usize pos = i + 1;             // 1-based
         const keel::usize alt = N + 1 - pos;
         rraw[i] = static_cast<double>(std::min(pos, alt));
     }
     // Walk in sorted order, distribute mean rank within each tie group.
-    std::vector<double> rsorted(N);
+    keel::Array<double> rsorted(N);
     {
         keel::usize i = 0;
         while (i < N) {
@@ -1610,7 +1613,7 @@ ansaribradley(const Value &x, const Value &y, double alpha, TestTail tail,
     }
 
     // W = sum of ranks for x (in original-pool order via ord^-1).
-    std::vector<double> ranks(N);
+    keel::Array<double> ranks(N);
     for (keel::usize k = 0; k < N; ++k) ranks[ord[k]] = rsorted[k];
     double W = 0.0;
     for (keel::usize k = 0; k < N; ++k)
@@ -1626,7 +1629,7 @@ ansaribradley(const Value &x, const Value &y, double alpha, TestTail tail,
     long long scale = 1;
     if (exact_path) {
         // Build set of unique tie-group sizes by walking sorted order.
-        std::vector<long long> grp_sizes;
+        keel::Array<long long> grp_sizes;
         keel::usize ii = 0;
         while (ii < N) {
             keel::usize jj = ii + 1;
@@ -1673,7 +1676,7 @@ ansaribradley(const Value &x, const Value &y, double alpha, TestTail tail,
     if (exact_path) {
         // Scale ranks by `scale` (LCM of tie-group sizes) for exact
         // integer DP.
-        std::vector<long long> rk2(N);
+        keel::Array<long long> rk2(N);
         long long total2 = 0;
         for (keel::usize k = 0; k < N; ++k) {
             rk2[k] = static_cast<long long>(
@@ -1681,24 +1684,25 @@ ansaribradley(const Value &x, const Value &y, double alpha, TestTail tail,
             total2 += rk2[k];
         }
         const keel::usize S = static_cast<keel::usize>(total2 + 1);
-        std::vector<std::vector<double>> dp(m + 1, std::vector<double>(S, 0.0));
-        dp[0][0] = 1.0;
+        keel::Array<double> dp((m + 1) * S, 0.0);
+        dp[0] = 1.0;
         for (keel::usize k = 0; k < N; ++k) {
             const long long r = rk2[k];
             for (long long kk = static_cast<long long>(m) - 1; kk >= 0; --kk) {
                 for (long long s = static_cast<long long>(S) - 1; s >= r; --s)
-                    dp[kk + 1][s] += dp[kk][s - r];
+                    dp[static_cast<keel::usize>(kk + 1) * S + static_cast<keel::usize>(s)] +=
+                        dp[static_cast<keel::usize>(kk) * S + static_cast<keel::usize>(s - r)];
             }
         }
         const long long W_scaled = static_cast<long long>(
             std::llround(W * static_cast<double>(scale)));
         double total = 0.0;
-        for (keel::usize s = 0; s < S; ++s) total += dp[m][s];
+        for (keel::usize s = 0; s < S; ++s) total += dp[m * S + s];
         double cdfLE = 0.0, cdfGE = 0.0;
         for (long long s = 0; s <= W_scaled && s < static_cast<long long>(S); ++s)
-            cdfLE += dp[m][s];
+            cdfLE += dp[m * S + static_cast<keel::usize>(s)];
         for (long long s = W_scaled; s < static_cast<long long>(S); ++s)
-            cdfGE += dp[m][s];
+            cdfGE += dp[m * S + static_cast<keel::usize>(s)];
         cdfLE /= total;
         cdfGE /= total;
         switch (tail) {

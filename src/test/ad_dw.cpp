@@ -5,8 +5,10 @@
 //   dwtest  — Durbin-Watson test for first-order autocorrelation in
 //             regression residuals
 
+#include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
+#include <keel/ref.h>
 #include <numkit/stats/test/hypothesis.hpp>
 
 #include <numkit/stats/distributions/normal.hpp>
@@ -19,7 +21,6 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
-#include <vector>
 
 #include "ad_dw_detail.hpp"
 
@@ -77,7 +78,7 @@ adtest(const Value &x, double alpha, keel::Allocator *mr)
 
     // Pull data as DOUBLE vector, drop NaNs.
     const keel::usize N = x.numel();
-    std::vector<double> v;
+    keel::Array<double> v;
     v.reserve(N);
     for (keel::usize i = 0; i < N; ++i) {
         const double xi = x.elemAsDouble(i);
@@ -105,7 +106,7 @@ adtest(const Value &x, double alpha, keel::Allocator *mr)
                     0, 0, "adtest", "", "numkit:adtest:zeroVar");
 
     // Standardise + sort.
-    std::vector<double> z = v;
+    keel::Array<double> z = v.clone();
     for (double &zi : z) zi = (zi - mean) / sd;
     std::sort(z.begin(), z.end());
 
@@ -152,9 +153,9 @@ constexpr double kPi = 3.141592653589793;
 
 // Invert a small D×D row-major matrix in place via Gauss-Jordan with partial
 // pivoting. Throws on (near-)singularity.
-void invertSmall(std::vector<double> &A, keel::usize D)
+void invertSmall(keel::Array<double> &A, keel::usize D)
 {
-    std::vector<double> aug(D * 2 * D, 0.0);
+    keel::Array<double> aug(D * 2 * D, 0.0);
     for (keel::usize r = 0; r < D; ++r) {
         for (keel::usize c = 0; c < D; ++c) aug[r * 2 * D + c] = A[r * D + c];
         aug[r * 2 * D + D + r] = 1.0;
@@ -190,7 +191,7 @@ void invertSmall(std::vector<double> &A, keel::usize D)
 // (Z_j iid N(0,1), each central χ²₁):
 //   θ(u) = ½ Σ atan(h_j u),  ρ(u) = Π (1 + h_j² u²)^{¼}.
 // The u→0 limit is ½ Σ h_j.
-double imhofIntegrand(double u, const std::vector<double> &h)
+double imhofIntegrand(double u, keel::ArrayRef<double> h)
 {
     if (u <= 0.0) {
         double s = 0.0; for (double hj : h) s += hj; return 0.5 * s;
@@ -209,7 +210,7 @@ double imhofIntegrand(double u, const std::vector<double> &h)
 //   P(Q < 0) = ½ − (1/π) ∫_0^∞ g(u) du.
 // The infinite tail is mapped to [0,1) with u = t/(1−t) (du = dt/(1−t)²) and
 // integrated with composite Simpson. Used as pLeft = P(DW < dw).
-double imhofPLeft(const std::vector<double> &h)
+double imhofPLeft(keel::ArrayRef<double> h)
 {
     const keel::usize m = h.size();
     if (m == 0) return 0.5;
@@ -244,7 +245,7 @@ double dwExactPLeft(const Value &X, keel::usize n, keel::usize k, double dw,
                     keel::Allocator *mr)
 {
     // X'X (k×k) and its inverse.
-    std::vector<double> XtX(k * k, 0.0);
+    keel::Array<double> XtX(k * k, 0.0);
     for (keel::usize a = 0; a < k; ++a)
         for (keel::usize b = 0; b < k; ++b) {
             double sab = 0.0;
@@ -255,7 +256,7 @@ double dwExactPLeft(const Value &X, keel::usize n, keel::usize k, double dw,
     invertSmall(XtX, k);
 
     // P = X · (X'X)⁻¹  (n×k, row-major): P[i,a] = Σ_b X[i,b] inv[b,a].
-    std::vector<double> P(n * k, 0.0);
+    keel::Array<double> P(n * k, 0.0);
     for (keel::usize i = 0; i < n; ++i)
         for (keel::usize a = 0; a < k; ++a) {
             double s = 0.0;
@@ -264,7 +265,7 @@ double dwExactPLeft(const Value &X, keel::usize n, keel::usize k, double dw,
             P[i * k + a] = s;
         }
     // M = I − P·X'  (n×n symmetric, row-major): M[i,j] = δij − Σ_a P[i,a] X[j,a].
-    std::vector<double> M(n * n, 0.0);
+    keel::Array<double> M(n * n, 0.0);
     for (keel::usize i = 0; i < n; ++i)
         for (keel::usize j = 0; j < n; ++j) {
             double s = 0.0;
@@ -273,7 +274,7 @@ double dwExactPLeft(const Value &X, keel::usize n, keel::usize k, double dw,
             M[i * n + j] = (i == j ? 1.0 : 0.0) - s;
         }
     // AM = A·M with A the DW tridiagonal applied row-wise (O(n²)).
-    std::vector<double> AM(n * n, 0.0);
+    keel::Array<double> AM(n * n, 0.0);
     for (keel::usize i = 0; i < n; ++i)
         for (keel::usize j = 0; j < n; ++j) {
             double v = (i == 0 || i + 1 == n ? 1.0 : 2.0) * M[i * n + j];
@@ -292,16 +293,16 @@ double dwExactPLeft(const Value &X, keel::usize n, keel::usize k, double dw,
         }
     auto [V, D] = ::numkit::linalg::eig_symmetric(S, mr);
     (void)V;
-    std::vector<double> eig(n);
+    keel::Array<double> eig(n);
     { const double *dd = D.doubleData();
       for (keel::usize i = 0; i < n; ++i) eig[i] = dd[i + i * n]; }
     std::sort(eig.begin(), eig.end());
     // Drop the k structural zeros (col(X) directions); keep the n−k residual-
     // space eigenvalues, then h_j = λ_j − dw.
-    std::vector<double> h;
+    keel::Array<double> h;
     h.reserve(n - k);
     for (keel::usize i = k; i < n; ++i) h.push_back(eig[i] - dw);
-    return imhofPLeft(h);
+    return imhofPLeft(h.as_ref());
 }
 
 // Approximate left-tail p (Durbin & Watson 1971 beta-on-[0,4] moment fit) —
@@ -325,7 +326,7 @@ double dwStatAndPLeft(const Value &r, const Value &X, bool exact,
     const keel::usize n = r.numel();
     const keel::usize k = X.dims().cols();
 
-    std::vector<double> rv(n);
+    keel::Array<double> rv(n);
     for (keel::usize i = 0; i < n; ++i) rv[i] = r.elemAsDouble(i);
     double num = 0.0, den = 0.0;
     for (keel::usize i = 0; i < n; ++i) den += rv[i] * rv[i];

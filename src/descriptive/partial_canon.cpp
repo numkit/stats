@@ -20,7 +20,6 @@
 #include <cmath>
 #include <cstring>
 #include <limits>
-#include <vector>
 
 namespace numkit::stats {
 

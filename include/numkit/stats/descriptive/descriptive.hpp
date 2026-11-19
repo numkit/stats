@@ -4,15 +4,16 @@
 
 #pragma once
 
+#include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
+#include <keel/ref.h>
+#include <keel/string.h>
 #include <numkit/value/value.hpp>
 
 #include <limits>
-#include <string>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -388,7 +389,7 @@ Value rmoutliers_of(const Value &x, keel::Allocator *mr = nullptr);
 /// @param mr        Memory resource (nullptr → process default).
 /// @return          Array with missing values filled.
 /// @see rmmissing_of, standardizeMissing_of
-Value fillmissing_of(const Value &x, const std::string &method, keel::f64 constVal = 0.0, keel::Allocator *mr = nullptr);
+Value fillmissing_of(const Value &x, keel::StringRef method, keel::f64 constVal = 0.0, keel::Allocator *mr = nullptr);
 
 /// @brief Remove rows / cols containing missing values
 /// (`y = rmmissing(x)`).
@@ -603,7 +604,7 @@ struct NormalizeResult {
 /// @param mr Memory resource for output allocation.
 /// @return NormalizeResult containing `{n, c, s}`.
 /// @see rescale, zscore
-NormalizeResult normalize(const Value &A, const std::string &method,
+NormalizeResult normalize(const Value &A, keel::StringRef method,
                           const Value &param = Value::Empty,
                           keel::Allocator *mr = nullptr);
 
@@ -769,8 +770,8 @@ crosstab(const Value &x, const Value &y_opt = Value::Empty,
 /// @param fn_names  Aggregator names; empty → defaults to `{ "mean" }`.
 /// @param mr        Memory resource (nullptr → process default).
 /// @return          Vector of result Values, one per aggregator.
-std::vector<Value>
-grpstats(const Value &X, const Value &group, const std::vector<std::string> &fn_names, keel::Allocator *mr = nullptr);
+keel::Array<Value>
+grpstats(const Value &X, const Value &group, keel::ArrayRef<keel::String> fn_names, keel::Allocator *mr = nullptr);
 
 /// @brief Nearest correlation matrix (`Y = nearcorr(A)`).
 ///
@@ -833,7 +834,7 @@ Grp2idxResult grp2idx(const Value &s, keel::Allocator *mr = nullptr);
 /// @throws Error if `findMethod` is unsupported by this C++ entry.
 /// @see isoutlier
 Value filloutliers(const Value &A, const Value &fillMethod,
-                   const std::string &findMethod = "median",
+                   keel::StringRef findMethod = "median",
                    keel::f64 thresholdFactor = std::numeric_limits<keel::f64>::quiet_NaN(),
                    keel::Allocator *mr = nullptr);
 

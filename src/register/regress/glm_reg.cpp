@@ -4,25 +4,24 @@
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
 #include <keel/core.h>
+#include <keel/format.h>
 #include <keel/memory.h>
 #include <keel/ref.h>
+#include <keel/string.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/distributions/normal.hpp>     // for probit via norminv/normcdf
 #include <numkit/stats/regress/regress.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 #include "regress/glm_detail.hpp"
-#include <numkit/value/error.hpp>
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstddef>
-#include <string>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -36,8 +35,8 @@ static GlmDistribution parseDistr(keel::StringRef s, const char *fn)
     if (s == "gamma")              return GlmDistribution::Gamma;
     if (s == "inverse gaussian"
         || s == "inversegaussian") return GlmDistribution::InverseGaussian;
-    throw Error(std::string(fn) + ": unknown distribution '" + std::string(s.data(), s.size()) + "'",
-                0, 0, fn, "", std::string("numkit:") + fn + ":badDistr");
+    throw Error(keel::format("{}: unknown distribution '{}'", fn, s),
+                0, 0, fn, "", keel::format("numkit:{}:badDistr", fn));
 }
 
 static GlmLink parseLink(keel::StringRef s, const char *fn)
@@ -48,8 +47,8 @@ static GlmLink parseLink(keel::StringRef s, const char *fn)
     if (s == "log")         return GlmLink::Log;
     if (s == "reciprocal")  return GlmLink::Reciprocal;
     if (s == "probit")      return GlmLink::Probit;
-    throw Error(std::string(fn) + ": unknown link '" + std::string(s.data(), s.size()) + "'",
-                0, 0, fn, "", std::string("numkit:") + fn + ":badLink");
+    throw Error(keel::format("{}: unknown link '{}'", fn, s),
+                0, 0, fn, "", keel::format("numkit:{}:badLink", fn));
 }
 
 void glmfit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
@@ -59,10 +58,13 @@ void glmfit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     if (!args[2].isChar() && !args[2].isString())
         throw Error("glmfit: distr must be a string",
                     0, 0, "glmfit", "", "numkit:glmfit:badDistr");
-    const GlmDistribution d = parseDistr(args[2].toString(), "glmfit");
+    const keel::String distrStr = args[2].toString();
+    const GlmDistribution d = parseDistr(distrStr.as_ref(), "glmfit");
     GlmLink link = GlmLink::Identity;
-    if (args.size() >= 4 && (args[3].isChar() || args[3].isString()))
-        link = parseLink(args[3].toString(), "glmfit");
+    if (args.size() >= 4 && (args[3].isChar() || args[3].isString())) {
+        const keel::String linkStr = args[3].toString();
+        link = parseLink(linkStr.as_ref(), "glmfit");
+    }
     auto r = glmfit(args[0], args[1], d, link, ctx.engine->allocator());
     outs[0] = std::move(r.b);
     if (nargout > 1) outs[1] = std::move(r.dev);

@@ -8,8 +8,11 @@
 //   cdf('Normal', x, mu, sigma)  ==  normcdf(x, mu, sigma)
 //   icdf(...)  -> <fam>inv ,  random(...) -> <fam>rnd .
 // bugs/stats/distribution-dispatchers.
+#include <keel/array.h>
 #include <keel/core.h>
+#include <keel/format.h>
 #include <keel/ref.h>
+#include <keel/string.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/builtin/datafun.hpp>
 #include "distributions/dist_helpers.hpp"
@@ -21,9 +24,6 @@
 #include <cctype>
 #include <cmath>
 #include <limits>
-#include <string>
-#include <unordered_map>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -33,41 +33,48 @@ namespace {
 
 // MATLAB distribution name (lower-cased) → nk family prefix. Covers every
 // family that ships <prefix>{cdf,pdf,inv,rnd}; canonical names + common aliases.
-const std::unordered_map<std::string, std::string> &distPrefixMap()
+struct DistPrefixEntry {
+    keel::StringRef name;
+    keel::StringRef prefix;
+};
+
+constexpr DistPrefixEntry kDistPrefixes[] = {
+    {"normal", "norm"}, {"norm", "norm"}, {"gaussian", "norm"},
+    {"poisson", "poiss"}, {"poiss", "poiss"},
+    {"binomial", "bino"}, {"bino", "bino"},
+    {"exponential", "exp"}, {"exp", "exp"},
+    {"gamma", "gam"}, {"gam", "gam"},
+    {"beta", "beta"},
+    {"uniform", "unif"}, {"unif", "unif"},
+    {"discrete uniform", "unid"}, {"unid", "unid"},
+    {"geometric", "geo"}, {"geo", "geo"},
+    {"negative binomial", "nbin"}, {"nbin", "nbin"},
+    {"hypergeometric", "hyge"}, {"hyge", "hyge"},
+    {"weibull", "wbl"}, {"wbl", "wbl"},
+    {"lognormal", "logn"}, {"logn", "logn"},
+    {"extreme value", "ev"}, {"ev", "ev"},
+    {"generalized extreme value", "gev"}, {"gev", "gev"},
+    {"generalized pareto", "gp"}, {"gp", "gp"},
+    {"rayleigh", "rayl"}, {"rayl", "rayl"},
+    {"nakagami", "naka"}, {"naka", "naka"},
+    {"rician", "rice"}, {"rice", "rice"},
+    {"chisquare", "chi2"}, {"chi-square", "chi2"}, {"chi2", "chi2"},
+    {"t", "t"}, {"students t", "t"},
+    {"f", "f"},
+    {"noncentral chi-square", "ncx2"}, {"ncx2", "ncx2"},
+};
+
+keel::StringRef lookupDistPrefix(keel::StringRef name)
 {
-    static const std::unordered_map<std::string, std::string> m = {
-        {"normal", "norm"}, {"norm", "norm"}, {"gaussian", "norm"},
-        {"poisson", "poiss"}, {"poiss", "poiss"},
-        {"binomial", "bino"}, {"bino", "bino"},
-        {"exponential", "exp"}, {"exp", "exp"},
-        {"gamma", "gam"}, {"gam", "gam"},
-        {"beta", "beta"},
-        {"uniform", "unif"}, {"unif", "unif"},
-        {"discrete uniform", "unid"}, {"unid", "unid"},
-        {"geometric", "geo"}, {"geo", "geo"},
-        {"negative binomial", "nbin"}, {"nbin", "nbin"},
-        {"hypergeometric", "hyge"}, {"hyge", "hyge"},
-        {"weibull", "wbl"}, {"wbl", "wbl"},
-        {"lognormal", "logn"}, {"logn", "logn"},
-        {"extreme value", "ev"}, {"ev", "ev"},
-        {"generalized extreme value", "gev"}, {"gev", "gev"},
-        {"generalized pareto", "gp"}, {"gp", "gp"},
-        {"rayleigh", "rayl"}, {"rayl", "rayl"},
-        {"nakagami", "naka"}, {"naka", "naka"},
-        {"rician", "rice"}, {"rice", "rice"},
-        {"chisquare", "chi2"}, {"chi-square", "chi2"}, {"chi2", "chi2"},
-        {"t", "t"}, {"students t", "t"},
-        {"f", "f"},
-        {"noncentral chi-square", "ncx2"}, {"ncx2", "ncx2"},
-    };
-    return m;
+    for (const auto &e : kDistPrefixes)
+        if (e.name == name) return e.prefix;
+    return {};
 }
 
-std::string toLowerStr(keel::StringRef sv)
+keel::String toLowerStr(keel::StringRef sv)
 {
-    std::string s(sv.data(), sv.size());
-    std::transform(s.begin(), s.end(), s.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    keel::String s = keel::String::from(sv);
+    for (char &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     return s;
 }
 
@@ -80,7 +87,7 @@ Value evalDistStructBase(const Value &pd, const char *suffix, const Value &xVal,
                          CallContext &ctx)
 {
     auto *mr = ctx.engine->allocator();
-    const std::string dist = toLowerStr(pd.field("DistributionName").toString());
+    const keel::String dist = toLowerStr(pd.field("DistributionName").toString());
     const int nparams = static_cast<int>(pd.field("__nparams").toScalar());
     const double p1 = (nparams >= 1) ? pd.field("p1").toScalar() : 0.0;
     const double p2 = (nparams >= 2) ? pd.field("p2").toScalar() : 1.0;
@@ -88,7 +95,7 @@ Value evalDistStructBase(const Value &pd, const char *suffix, const Value &xVal,
 
     if (dist == "tlocationscale") {
         // mu = p1, sigma = p2, nu = p3
-        const std::string sfx(suffix);
+        const keel::StringRef sfx(suffix);
         if (sfx == "pdf") {
             const ExternalFunc *fn = ctx.engine->findExternal("tpdf", ctx.env);
             if (!fn) throw Error("pdf: 'tpdf' is not available", 0, 0, "pdf", "", "numkit:pdf:missing");
@@ -127,17 +134,16 @@ Value evalDistStructBase(const Value &pd, const char *suffix, const Value &xVal,
         }
     }
 
-    const auto &m = distPrefixMap();
-    auto it = m.find(dist);
-    if (it == m.end())
-        throw Error(std::string(suffix) + ": unsupported distribution '" + dist + "'",
+    const keel::StringRef prefix = lookupDistPrefix(dist);
+    if (prefix.empty())
+        throw Error(keel::format("{}: unsupported distribution '{}'", suffix, dist),
                     0, 0, suffix, "", "numkit:dist:unsupported");
-    const std::string target = it->second + suffix;
+    const keel::String target = keel::format("{}{}", prefix, suffix);
     const ExternalFunc *fn = ctx.engine->findExternal(target, ctx.env);
     if (!fn)
-        throw Error(std::string(suffix) + ": '" + target + "' is not available",
+        throw Error(keel::format("{}: '{}' is not available", suffix, target),
                     0, 0, suffix, "", "numkit:dist:missing");
-    std::vector<Value> callArgs;
+    keel::Array<Value> callArgs;
     callArgs.push_back(xVal);
     if (nparams >= 1) callArgs.push_back(Value::scalar(p1, mr));
     if (nparams >= 2) callArgs.push_back(Value::scalar(p2, mr));
@@ -158,11 +164,11 @@ void dispatchDistStruct(const char *fnName, const char *suffix,
                                                  : -std::numeric_limits<double>::infinity();
     const double tHi = pd.hasField("TruncUpper") ? pd.field("TruncUpper").toScalar()
                                                  : std::numeric_limits<double>::infinity();
-    const std::string sfx(suffix);
+    const keel::StringRef sfx(suffix);
 
     if (sfx == "rnd") {
         if (!isTrunc) {
-            const std::string dist = toLowerStr(pd.field("DistributionName").toString());
+            const keel::String dist = toLowerStr(pd.field("DistributionName").toString());
             const int nparams = static_cast<int>(pd.field("__nparams").toScalar());
             const double p1 = (nparams >= 1) ? pd.field("p1").toScalar() : 0.0;
             const double p2 = (nparams >= 2) ? pd.field("p2").toScalar() : 1.0;
@@ -170,7 +176,7 @@ void dispatchDistStruct(const char *fnName, const char *suffix,
             if (dist == "tlocationscale") {
                 const ExternalFunc *fn = ctx.engine->findExternal("trnd", ctx.env);
                 if (!fn) throw Error("random: 'trnd' is not available", 0, 0, "random", "", "numkit:random:missing");
-                std::vector<Value> callArgs;
+                keel::Array<Value> callArgs;
                 callArgs.push_back(Value::scalar(p3, mr));
                 for (keel::usize i = 1; i < args.size(); ++i) callArgs.push_back(args[i]);
                 Value out;
@@ -180,16 +186,16 @@ void dispatchDistStruct(const char *fnName, const char *suffix,
                 outs[0] = std::move(out);
                 return;
             }
-            const auto &m = distPrefixMap();
-            auto it = m.find(dist);
-            if (it == m.end())
-                throw Error("random: unsupported distribution '" + dist + "'",
+            const keel::StringRef prefix = lookupDistPrefix(dist);
+            if (prefix.empty())
+                throw Error(keel::format("random: unsupported distribution '{}'", dist),
                             0, 0, "random", "", "numkit:random:dist");
-            const ExternalFunc *fn = ctx.engine->findExternal(it->second + "rnd", ctx.env);
+            const keel::String target = keel::format("{}rnd", prefix);
+            const ExternalFunc *fn = ctx.engine->findExternal(target, ctx.env);
             if (!fn)
-                throw Error("random: '" + it->second + "rnd' is not available",
+                throw Error(keel::format("random: '{}' is not available", target),
                             0, 0, "random", "", "numkit:random:missing");
-            std::vector<Value> callArgs;
+            keel::Array<Value> callArgs;
             if (nparams >= 1) callArgs.push_back(Value::scalar(p1, mr));
             if (nparams >= 2) callArgs.push_back(Value::scalar(p2, mr));
             if (nparams >= 3) callArgs.push_back(Value::scalar(p3, mr));
@@ -279,29 +285,30 @@ void dispatchDist(const char *fnName, const char *suffix,
         dispatchDistStruct(fnName, suffix, args, nargout, outs, ctx);
         return;
     }
-    const std::string fn = fnName;
     if (args.empty() || (!args[0].isChar() && !args[0].isString()))
-        throw Error(fn + ": first argument must be a distribution name or object",
-                    0, 0, fnName, "", "numkit:" + fn + ":name");
+        throw Error(keel::format("{}: first argument must be a distribution name or object", fnName),
+                    0, 0, fnName, "", keel::format("numkit:{}:name", fnName));
 
-    std::string name = toLowerStr(args[0].toString());
+    const keel::String rawName = args[0].toString();
+    const keel::String name = toLowerStr(rawName);
 
-    const auto &m = distPrefixMap();
-    auto it = m.find(name);
-    if (it == m.end())
-        throw Error(fn + ": unsupported distribution '" + std::string(args[0].toString().as_ref()) + "'",
-                    0, 0, fnName, "", "numkit:" + fn + ":dist");
+    const keel::StringRef prefix = lookupDistPrefix(name);
+    if (prefix.empty())
+        throw Error(keel::format("{}: unsupported distribution '{}'", fnName, rawName),
+                    0, 0, fnName, "", keel::format("numkit:{}:dist", fnName));
 
     // The bare-name resolver finds the function (e.g. "normcdf" →
     // stats.distributions.normcdf) without the removed compat.* prefix.
-    const std::string target = it->second + suffix;
+    const keel::String target = keel::format("{}{}", prefix, suffix);
     const ExternalFunc *target_fn = ctx.engine->findExternal(target, ctx.env);
     if (!target_fn)
-        throw Error(fn + ": '" + it->second + suffix + "' is not available",
-                    0, 0, fnName, "", "numkit:" + fn + ":missing");
+        throw Error(keel::format("{}: '{}' is not available", fnName, target),
+                    0, 0, fnName, "", keel::format("numkit:{}:missing", fnName));
 
-    if (it->second == "norm" && std::string(suffix) != "rnd" && args.size() < 4) {
-        std::vector<Value> padded(args.begin() + 1, args.end());
+    if (prefix == "norm" && keel::StringRef(suffix) != "rnd" && args.size() < 4) {
+        keel::Array<Value> padded;
+        padded.reserve(3);
+        for (keel::usize i = 1; i < args.size(); ++i) padded.push_back(args[i]);
         while (padded.size() < 3)
             padded.push_back(Value::scalar(0.0, ctx.engine->allocator()));
         (*target_fn)(keel::ArrayRef<Value>(padded.data(), padded.size()), nargout, outs, ctx);
@@ -320,12 +327,12 @@ void makedist_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mut
         throw Error("makedist: first argument must be a distribution name",
                     0, 0, "makedist", "", "numkit:makedist:name");
 
-    const std::string rawName(args[0].toString().as_ref());
-    const std::string dist = toLowerStr(rawName);
+    const keel::String rawName = args[0].toString();
+    const keel::String dist = toLowerStr(rawName);
 
     int nparams = 2;
     double p1 = 0.0, p2 = 1.0, p3 = 1.0;
-    std::string n1 = "p1", n2 = "p2", n3 = "p3";
+    keel::StringRef n1 = "p1", n2 = "p2", n3 = "p3";
 
     if (dist == "normal" || dist == "norm" || dist == "gaussian" || dist == "lognormal" || dist == "logn") {
         nparams = 2; p1 = 0.0; p2 = 1.0; n1 = "mu"; n2 = "sigma";
@@ -352,16 +359,15 @@ void makedist_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mut
     } else if (dist == "generalized pareto" || dist == "gp") {
         nparams = 3; p1 = 1.0; p2 = 1.0; p3 = 0.0; n1 = "k"; n2 = "sigma"; n3 = "theta";
     } else {
-        const auto &m = distPrefixMap();
-        if (m.find(dist) == m.end())
-            throw Error("makedist: unsupported distribution '" + rawName + "'",
+        if (lookupDistPrefix(dist).empty())
+            throw Error(keel::format("makedist: unsupported distribution '{}'", rawName),
                         0, 0, "makedist", "", "numkit:makedist:dist");
     }
 
     if (args.size() > 1) {
         if (args[1].isChar() || args[1].isString()) {
             for (keel::usize i = 1; i + 1 < args.size(); i += 2) {
-                const std::string k = toLowerStr(args[i].toString());
+                const keel::String k = toLowerStr(args[i].toString());
                 const double val = args[i + 1].toScalar();
                 if (k == toLowerStr(n1) || k == "p1") p1 = val;
                 else if (k == toLowerStr(n2) || k == "p2") p2 = val;

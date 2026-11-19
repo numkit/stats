@@ -5,6 +5,7 @@
 // 'NumLags'/'NumSTD' name-value pairs) and threads the 3 outputs by nargout.
 #include <keel/core.h>
 #include <keel/ref.h>
+#include <keel/string.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/descriptive/descriptive.hpp>
 #include <numkit/value/argcheck.hpp>
@@ -13,7 +14,6 @@
 
 #include <algorithm>
 #include <cctype>
-#include <string>
 #include <tuple>
 #include <utility>
 
@@ -31,9 +31,8 @@ void parseCorrOpts(keel::ArrayRef<Value> args, keel::usize start, int &numLags, 
 {
     for (keel::usize i = start; i < args.size(); ++i) {
         if (args[i].isChar()) {
-            std::string opt(args[i].toString().as_ref());
-            std::transform(opt.begin(), opt.end(), opt.begin(),
-                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            keel::String opt = args[i].toString();
+            for (char &c : opt) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
             if (i + 1 < args.size()) {
                 if (opt == "numlags") {
                     numLags = argcheck::expectedInteger(

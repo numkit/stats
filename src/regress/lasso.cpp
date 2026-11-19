@@ -3,6 +3,7 @@
 // LASSO / elastic-net (lasso) + LASSO-regularised GLM (lassoglm) via
 // cyclic coordinate descent on standardised predictors.
 
+#include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <numkit/stats/regress/regress.hpp>
@@ -14,7 +15,6 @@
 #include <cmath>
 #include <cstring>
 #include <limits>
-#include <vector>
 
 #include "lasso_detail.hpp"
 
@@ -46,20 +46,20 @@ LassoResult lasso(const Value &X, const Value &y, const Value &lambdas,
     const keel::usize nL = lambdas.numel();
 
     // Copy X (n×p, col-major) and standardise in place.
-    std::vector<double> Xs(n * p);
+    keel::Array<double> Xs(n * p);
     for (keel::usize i = 0; i < n * p; ++i) Xs[i] = X.elemAsDouble(i);
-    std::vector<double> mu_X, sd_X;
+    keel::Array<double> mu_X, sd_X;
     standardise(Xs.data(), n, p, mu_X, sd_X);
 
     // y centred.
-    std::vector<double> yc(n);
+    keel::Array<double> yc(n);
     double yMean = 0.0;
     for (keel::usize i = 0; i < n; ++i) yMean += y.elemAsDouble(i);
     yMean /= static_cast<double>(n);
     for (keel::usize i = 0; i < n; ++i) yc[i] = y.elemAsDouble(i) - yMean;
 
     // Pre-compute ||X_j||² for each (standardised) column = n.
-    std::vector<double> XjNormSq(p);
+    keel::Array<double> XjNormSq(p);
     for (keel::usize j = 0; j < p; ++j) {
         double s = 0.0;
         for (keel::usize i = 0; i < n; ++i)
@@ -77,14 +77,14 @@ LassoResult lasso(const Value &X, const Value &y, const Value &lambdas,
     double *lamD = lambdaOut.doubleDataMut();
 
     // Warm-start: walk λ values largest→smallest (typical lasso path).
-    std::vector<keel::usize> idx(nL);
+    keel::Array<keel::usize> idx(nL);
     for (keel::usize i = 0; i < nL; ++i) idx[i] = i;
     std::sort(idx.begin(), idx.end(), [&](keel::usize a, keel::usize b) {
         return lambdas.elemAsDouble(a) > lambdas.elemAsDouble(b);
     });
 
-    std::vector<double> beta(p, 0.0);
-    std::vector<double> r(yc);                  // residual on standardised X
+    keel::Array<double> beta(p, 0.0);
+    keel::Array<double> r = yc.clone();         // residual on standardised X
     const int maxIter = 1000;
     const double tol = 1e-7;
 
@@ -94,7 +94,7 @@ LassoResult lasso(const Value &X, const Value &y, const Value &lambdas,
         const double lambda_l2  = (1.0 - alpha) * lambda;
         for (int it = 0; it < maxIter; ++it) {
             if (coordDescentSweep(Xs.data(), n, p, yc.data(),
-                                   r, beta, XjNormSq,
+                                   r, beta, XjNormSq.as_ref(),
                                    lambda_eff, lambda_l2, tol)) {
                 break;
             }
@@ -136,12 +136,12 @@ LassoResult lassoglm(const Value &X, const Value &y,
 
     const LinkPair link = pickLink(distr);
 
-    std::vector<double> Xs(n * p);
+    keel::Array<double> Xs(n * p);
     for (keel::usize i = 0; i < n * p; ++i) Xs[i] = X.elemAsDouble(i);
-    std::vector<double> mu_X, sd_X;
+    keel::Array<double> mu_X, sd_X;
     standardise(Xs.data(), n, p, mu_X, sd_X);
 
-    std::vector<double> yv(n);
+    keel::Array<double> yv(n);
     for (keel::usize i = 0; i < n; ++i) yv[i] = y.elemAsDouble(i);
 
     auto Bout = Value::matrix(p, nL, ValueType::DOUBLE, mr);
@@ -152,16 +152,16 @@ LassoResult lassoglm(const Value &X, const Value &y,
     double *lamD = lambdaOut.doubleDataMut();
 
     // Lambda path largest → smallest.
-    std::vector<keel::usize> idx(nL);
+    keel::Array<keel::usize> idx(nL);
     for (keel::usize i = 0; i < nL; ++i) idx[i] = i;
     std::sort(idx.begin(), idx.end(), [&](keel::usize a, keel::usize b) {
         return lambdas.elemAsDouble(a) > lambdas.elemAsDouble(b);
     });
 
-    std::vector<double> beta(p, 0.0);
+    keel::Array<double> beta(p, 0.0);
     double b0 = 0.0;
     // Initialise eta = b0 + Xs · β = b0; mu = invLink(eta).
-    std::vector<double> mu(n), eta(n, 0.0);
+    keel::Array<double> mu(n), eta(n, 0.0);
     for (keel::usize i = 0; i < n; ++i) mu[i] = initMu(yv[i], distr);
     // Bootstrap eta from mu via family-appropriate transform.
     auto resetEta = [&]() {
@@ -187,7 +187,7 @@ LassoResult lassoglm(const Value &X, const Value &y,
         constexpr int outerIter = 25;
         for (int outer = 0; outer < outerIter; ++outer) {
             // Working response and weights.
-            std::vector<double> z(n), w(n);
+            keel::Array<double> z(n), w(n);
             for (keel::usize i = 0; i < n; ++i) {
                 const double dE = link.dEta(mu[i]);
                 const double V = varG(mu[i], distr);
@@ -198,26 +198,26 @@ LassoResult lassoglm(const Value &X, const Value &y,
             double wsum = 0.0, wz = 0.0;
             for (keel::usize i = 0; i < n; ++i) { wsum += w[i]; wz += w[i] * z[i]; }
             const double zMean = wz / std::max(wsum, 1e-30);
-            std::vector<double> zc(n);
+            keel::Array<double> zc(n);
             for (keel::usize i = 0; i < n; ++i) zc[i] = z[i] - zMean;
 
             // Weighted lasso inner coord descent. We absorb weights
             // into the variables: X_jw = sqrt(w) · X_j, z_w = sqrt(w) · z.
-            std::vector<double> Xw(n * p), zw(n);
+            keel::Array<double> Xw(n * p), zw(n);
             for (keel::usize i = 0; i < n; ++i) {
                 const double sw = std::sqrt(w[i]);
                 zw[i] = sw * zc[i];
                 for (keel::usize j = 0; j < p; ++j)
                     Xw[j * n + i] = sw * Xs[j * n + i];
             }
-            std::vector<double> XjNorm(p);
+            keel::Array<double> XjNorm(p);
             for (keel::usize j = 0; j < p; ++j) {
                 double s = 0.0;
                 for (keel::usize i = 0; i < n; ++i)
                     s += Xw[j * n + i] * Xw[j * n + i];
                 XjNorm[j] = s;
             }
-            std::vector<double> r(zw);
+            keel::Array<double> r = zw.clone();
             for (keel::usize i = 0; i < n; ++i)
                 for (keel::usize j = 0; j < p; ++j)
                     r[i] -= Xw[j * n + i] * beta[j];
@@ -226,7 +226,7 @@ LassoResult lassoglm(const Value &X, const Value &y,
             const double tol = 1e-6;
             for (int inner = 0; inner < innerIter; ++inner) {
                 if (coordDescentSweep(Xw.data(), n, p, zw.data(),
-                                       r, beta, XjNorm,
+                                       r, beta, XjNorm.as_ref(),
                                        lambda_eff, lambda_l2, tol)) {
                     break;
                 }

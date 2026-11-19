@@ -4,6 +4,7 @@
 // callback-driven adapters (bootstrp/bootci/crossval/datasample/jackknife/
 // randsample/combnk) + BootstrpCallbackBuiltin + registerBootstrpCallbackBuiltin.
 #include <keel/core.h>
+#include <keel/format.h>
 #include <keel/memory.h>
 #include <keel/ref.h>
 #include <keel/arena.h>
@@ -15,15 +16,12 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 #include "resample/resample_detail.hpp"
-#include <numkit/value/error.hpp>
 
 #include <algorithm>
 #include <cstring>
-#include <memory>
 #include <mutex>
 #include <numeric>
 #include <random>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -177,8 +175,8 @@ void crossval_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
                 argcheck::expectedReal(args[i + 1], int(i) + 2, "KFold", "crossval"),
                 int(i) + 2, "KFold", "crossval");
         else
-            throw Error("crossval: unknown option '" + std::string(opt.as_ref()) + "' (only "
-                        "'kfold' supported in this revision)",
+            throw Error(keel::format("crossval: unknown option '{}' (only "
+                                     "'kfold' supported in this revision)", opt),
                         0, 0, "crossval", "", "numkit:crossval:badOption");
     }
     if (K < 2 || K > static_cast<int>(m))
@@ -196,7 +194,7 @@ void crossval_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     const double *Yd = Y.doubleData();
 
     auto sliceRows = [&](const double *src, keel::usize rows_src,
-                         keel::usize cols, const std::vector<keel::usize> &rows) {
+                         keel::usize cols, keel::ArrayRef<keel::usize> rows) {
         Value v = Value::matrix(rows.size(), cols, ValueType::DOUBLE, mr);
         double *vd = v.doubleDataMut();
         const keel::usize nr = rows.size();
@@ -209,17 +207,17 @@ void crossval_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     for (int k = 0; k < K; ++k) {
         const keel::usize lo = (static_cast<keel::usize>(k) * m) / static_cast<keel::usize>(K);
         const keel::usize hi = (static_cast<keel::usize>(k + 1) * m) / static_cast<keel::usize>(K);
-        std::vector<keel::usize> testRows, trainRows;
+        keel::Array<keel::usize> testRows, trainRows;
         testRows.reserve(hi - lo);
         trainRows.reserve(m - (hi - lo));
         for (keel::usize i = 0; i < m; ++i) {
             if (i >= lo && i < hi) testRows.push_back(i);
             else                   trainRows.push_back(i);
         }
-        Value Xtr = sliceRows(Xd, m, pX, trainRows);
-        Value Ytr = sliceRows(Yd, m, pY, trainRows);
-        Value Xte = sliceRows(Xd, m, pX, testRows);
-        Value Yte = sliceRows(Yd, m, pY, testRows);
+        Value Xtr = sliceRows(Xd, m, pX, trainRows.as_ref());
+        Value Ytr = sliceRows(Yd, m, pY, trainRows.as_ref());
+        Value Xte = sliceRows(Xd, m, pX, testRows.as_ref());
+        Value Yte = sliceRows(Yd, m, pY, testRows.as_ref());
         Value callArgs[4] = { Xtr, Ytr, Xte, Yte };
         Value res = ctx.engine->callFunctionHandle(
             args[0], keel::ArrayRef<Value>(callArgs, 4), ctx.env);

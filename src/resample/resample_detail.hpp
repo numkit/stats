@@ -3,8 +3,10 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
+#include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
+#include <keel/ref.h>
 #include <numkit/value/value.hpp>
 #include <numkit/builtin/datafun.hpp>
 #include <numkit/ops/matlab_mt19937.hpp>
@@ -18,10 +20,8 @@
 #include <cstring>
 #include <limits>
 #include <numeric>
-#include <string>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -32,11 +32,11 @@ namespace numkit::stats {
 namespace {
 
 // Sample K indices in [0..N-1] given (optional) weights.
-std::vector<int> sample_indices(int N, int K, bool with_replacement,
-                                const std::vector<double> &weights,
+keel::Array<int> sample_indices(int N, int K, bool with_replacement,
+                                keel::ArrayRef<double> weights,
                                 numkit::ops::RngContext &rng)
 {
-    std::vector<int> out;
+    keel::Array<int> out;
     out.reserve((keel::usize)K);
 
     if (weights.empty()) {
@@ -67,7 +67,7 @@ std::vector<int> sample_indices(int N, int K, bool with_replacement,
             // equivalently log(u_i)/w_i = -Exp(1)/w_i; the top K keys are drawn
             // in descending key order. Exact O(N log N) with zero rejection risk.
             std::exponential_distribution<double> expDist(1.0);
-            std::vector<std::pair<double, int>> keyed;
+            keel::Array<std::pair<double, int>> keyed;
             keyed.reserve(static_cast<keel::usize>(N));
             for (int i = 0; i < N; ++i) {
                 const double w = weights[static_cast<keel::usize>(i)];
@@ -86,9 +86,9 @@ std::vector<int> sample_indices(int N, int K, bool with_replacement,
     return out;
 }
 
-std::vector<double> read_vec(const Value &v) {
+keel::Array<double> read_vec(const Value &v) {
     const keel::usize n = v.numel();
-    std::vector<double> out(n);
+    keel::Array<double> out(n);
     for (keel::usize i = 0; i < n; ++i) out[i] = v.elemAsDouble(i);
     return out;
 }
@@ -96,7 +96,7 @@ std::vector<double> read_vec(const Value &v) {
 } // anonymous
 namespace {
 // Shared enumeration: combinations of `items` taken `K` at a time.
-Value combnkImpl(const std::vector<double> &items, int K,
+Value combnkImpl(keel::ArrayRef<double> items, int K,
                  keel::Allocator *mr)
 {
     const int N = static_cast<int>(items.size());
@@ -119,7 +119,7 @@ Value combnkImpl(const std::vector<double> &items, int K,
     if (K == 0) return out;
 
     // Enumerate combinations in lex order by index recursion.
-    std::vector<int> idx((keel::usize)K);
+    keel::Array<int> idx((keel::usize)K);
     for (int i = 0; i < K; ++i) idx[(keel::usize)i] = i;
     long long row = 0;
     while (true) {

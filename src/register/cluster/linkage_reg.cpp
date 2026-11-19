@@ -5,6 +5,7 @@
 // compute API declared in the headers below. See project_layering_refactor.
 #include <keel/core.h>
 #include <keel/ref.h>
+#include <keel/string.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/cluster/distance.hpp>
 #include <numkit/stats/cluster/linkage.hpp>
@@ -18,10 +19,8 @@
 #include <cctype>
 #include <cmath>
 #include <cstddef>
-#include <string>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -67,11 +66,11 @@ void clusterdata_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     double cutoff = -1.0;
     int depth = 2;
     double p = 2.0;
-    std::string method     = "single";
-    std::string criterion  = "inconsistent";
-    std::string distance_metric = "euclidean";
+    keel::String method     = keel::String::from("single");
+    keel::String criterion  = keel::String::from("inconsistent");
+    keel::String distance_metric = keel::String::from("euclidean");
     auto lower = [](keel::StringRef sv) {
-        std::string s(sv.data(), sv.size());
+        keel::String s = keel::String::from(sv);
         for (auto &c : s) c = (char)std::tolower((unsigned char)c);
         return s;
     };

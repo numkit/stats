@@ -11,8 +11,6 @@
 #include <keel/ref.h>
 #include <numkit/value/value.hpp>
 
-#include <string>
-
 namespace numkit::stats {
 
 /// @addtogroup group_stats
@@ -38,7 +36,7 @@ namespace numkit::stats {
 /// @return        Column vector of silhouette coefficients in `[-1, 1]`.
 /// @see pdist, kmeans
 Value silhouette(const Value &X, const Value &clust,
-                 const std::string &metric = "sqeuclidean", keel::f64 p = 2.0,
+                 keel::StringRef metric = "sqeuclidean", keel::f64 p = 2.0,
                  keel::Allocator *mr = nullptr);
 
 /// @brief Full `silhouette` entry — the metric tail (default

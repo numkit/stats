@@ -4,6 +4,7 @@
 #include <keel/memory.h>
 #include <keel/arena.h>
 #include <keel/array.h>
+#include <keel/ref.h>
 #include <numkit/stats/cluster/linkage.hpp>
 
 #include <numkit/stats/cluster/distance.hpp>
@@ -14,7 +15,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
-#include <functional>
 #include <limits>
 
 #include "linkage_detail.hpp"
@@ -27,7 +27,7 @@ enum class LinkMethod {
     Single, Complete, Average, Weighted, Centroid, Median, Ward
 };
 
-LinkMethod parse_link(const std::string &s) {
+LinkMethod parse_link(keel::StringRef s) {
     if (s == "single")   return LinkMethod::Single;
     if (s == "complete") return LinkMethod::Complete;
     if (s == "average")  return LinkMethod::Average;
@@ -76,7 +76,7 @@ inline double lance_williams(LinkMethod m, double d_ak, double d_bk, double d_ab
 
 } // anonymous
 
-Value linkage(const Value &Y, const std::string &method, const std::string &metric, double p, keel::Allocator *mr)
+Value linkage(const Value &Y, keel::StringRef method, keel::StringRef metric, double p, keel::Allocator *mr)
 {
     const LinkMethod m = parse_link(method);
     keel::ArenaTemp scratch = keel::get_scratch(mr);
@@ -200,7 +200,7 @@ Value linkage(const Value &Y, const std::string &method, const std::string &metr
 }
 
 // Backward-compat 2-arg wrapper: defaults to euclidean.
-Value linkage(const Value &Y, const std::string &method, keel::Allocator *mr)
+Value linkage(const Value &Y, keel::StringRef method, keel::Allocator *mr)
 {
     return linkage(Y, method, "euclidean", 2.0, mr);
 }
@@ -242,7 +242,7 @@ void inconsistent_argcheck(const Value &Z)
 
 } // namespace
 
-Value cluster_from_linkage(const Value &Z, int maxclust, double cutoff, const std::string &criterion, int depth, keel::Allocator *mr)
+Value cluster_from_linkage(const Value &Z, int maxclust, double cutoff, keel::StringRef criterion, int depth, keel::Allocator *mr)
 {
     cluster_from_linkage_argcheck(Z);
     const keel::usize M = Z.dims().rows();
@@ -266,7 +266,7 @@ Value cluster_from_linkage(const Value &Z, int maxclust, double cutoff, const st
         // Union-find.
         keel::Array<int> parent(N + M, scratch.allocator());
         for (keel::usize i = 0; i < parent.size(); ++i) parent[i] = (int)i;
-        std::function<int(int)> find = [&](int x) {
+        auto find = [&](int x) -> int {
             while (parent[x] != x) { parent[x] = parent[parent[x]]; x = parent[x]; }
             return x;
         };
@@ -291,12 +291,12 @@ Value cluster_from_linkage(const Value &Z, int maxclust, double cutoff, const st
         // is <= cutoff. Walk top-down: at each node, if kept then collect
         // all leaves under it into one cluster; else recurse into children.
         int next_label = 0;
-        std::function<void(int, int)> assign = [&](int id, int lab) {
+        auto assign = [&](auto &&self, int id, int lab) -> void {
             if ((keel::usize)id < N) { labels[(keel::usize)id] = lab; return; }
-            assign(a[(keel::usize)id - N], lab);
-            assign(b[(keel::usize)id - N], lab);
+            self(self, a[(keel::usize)id - N], lab);
+            self(self, b[(keel::usize)id - N], lab);
         };
-        std::function<void(int)> walk = [&](int id) {
+        auto walk = [&](auto &&self, int id) -> void {
             if ((keel::usize)id < N) {
                 labels[(keel::usize)id] = ++next_label;
                 return;
@@ -304,13 +304,13 @@ Value cluster_from_linkage(const Value &Z, int maxclust, double cutoff, const st
             const keel::usize i = (keel::usize)id - N;
             if (d[i] <= cutoff) {
                 ++next_label;
-                assign(id, next_label);
+                assign(assign, id, next_label);
             } else {
-                walk(a[i]);
-                walk(b[i]);
+                self(self, a[i]);
+                self(self, b[i]);
             }
         };
-        walk((int)N + (int)M - 1);
+        walk(walk, (int)N + (int)M - 1);
     } else if (cutoff > 0.0) {
         // Inconsistency criterion (MATLAB default).
         Value Yinc = inconsistent(Z, depth, mr);
@@ -319,12 +319,12 @@ Value cluster_from_linkage(const Value &Z, int maxclust, double cutoff, const st
         keel::Array<double> inc(M, scratch.allocator());
         for (keel::usize i = 0; i < M; ++i) inc[i] = yi[3 * M + i];
         int next_label = 0;
-        std::function<void(int, int)> assign = [&](int id, int lab) {
+        auto assign = [&](auto &&self, int id, int lab) -> void {
             if ((keel::usize)id < N) { labels[(keel::usize)id] = lab; return; }
-            assign(a[(keel::usize)id - N], lab);
-            assign(b[(keel::usize)id - N], lab);
+            self(self, a[(keel::usize)id - N], lab);
+            self(self, b[(keel::usize)id - N], lab);
         };
-        std::function<void(int)> walk = [&](int id) {
+        auto walk = [&](auto &&self, int id) -> void {
             if ((keel::usize)id < N) {
                 labels[(keel::usize)id] = ++next_label;
                 return;
@@ -332,13 +332,13 @@ Value cluster_from_linkage(const Value &Z, int maxclust, double cutoff, const st
             const keel::usize i = (keel::usize)id - N;
             if (inc[i] <= cutoff) {
                 ++next_label;
-                assign(id, next_label);
+                assign(assign, id, next_label);
             } else {
-                walk(a[i]);
-                walk(b[i]);
+                self(self, a[i]);
+                self(self, b[i]);
             }
         };
-        walk((int)N + (int)M - 1);
+        walk(walk, (int)N + (int)M - 1);
     } else {
         // No criterion — every leaf is its own cluster.
         for (keel::usize i = 0; i < N; ++i) labels[i] = (int)i + 1;
@@ -360,24 +360,24 @@ Value cluster_from_linkage(const Value &Z, int maxclust, double cutoff, const st
 }
 
 // Backward-compat wrapper without depth.
-Value cluster_from_linkage(const Value &Z, int maxclust, double cutoff, const std::string &criterion, keel::Allocator *mr)
+Value cluster_from_linkage(const Value &Z, int maxclust, double cutoff, keel::StringRef criterion, keel::Allocator *mr)
 {
     return cluster_from_linkage(Z, maxclust, cutoff, criterion, 2, mr);
 }
 
-Value clusterdata(const Value &X, int maxclust, double cutoff, const std::string &linkage_method, const std::string &criterion, int depth, const std::string &distance_metric, double p, keel::Allocator *mr)
+Value clusterdata(const Value &X, int maxclust, double cutoff, keel::StringRef linkage_method, keel::StringRef criterion, int depth, keel::StringRef distance_metric, double p, keel::Allocator *mr)
 {
     Value Y = pdist(X, distance_metric, p, mr);
     Value Z = linkage(Y, linkage_method, mr);
     return cluster_from_linkage(Z, maxclust, cutoff, criterion, depth, mr);
 }
 
-Value clusterdata(const Value &X, int maxclust, double cutoff, const std::string &linkage_method, const std::string &criterion, int depth, keel::Allocator *mr)
+Value clusterdata(const Value &X, int maxclust, double cutoff, keel::StringRef linkage_method, keel::StringRef criterion, int depth, keel::Allocator *mr)
 {
     return clusterdata(X, maxclust, cutoff, linkage_method, criterion, depth, "euclidean", 2.0, mr);
 }
 
-Value clusterdata(const Value &X, int maxclust, double cutoff, const std::string &linkage_method, const std::string &criterion, keel::Allocator *mr)
+Value clusterdata(const Value &X, int maxclust, double cutoff, keel::StringRef linkage_method, keel::StringRef criterion, keel::Allocator *mr)
 {
     return clusterdata(X, maxclust, cutoff, linkage_method, criterion, 2, mr);
 }
@@ -488,13 +488,12 @@ Value inconsistent(const Value &Z, int depth, keel::Allocator *mr) {
 
     // For each merge node, walk down `depth` levels, collecting all link
     // distances; compute mean, std, count, inconsistency (= (d - mean)/std).
-    std::function<void(int, int, keel::Array<double>&)> collect =
-        [&](int id, int rem, keel::Array<double> &acc) {
+    auto collect = [&](auto &&self, int id, int rem, keel::Array<double> &acc) -> void {
         if ((keel::usize)id < N) return;
         if (rem == 0) return;
         acc.push_back(d[(keel::usize)id - N]);
-        collect(a[(keel::usize)id - N], rem - 1, acc);
-        collect(b[(keel::usize)id - N], rem - 1, acc);
+        self(self, a[(keel::usize)id - N], rem - 1, acc);
+        self(self, b[(keel::usize)id - N], rem - 1, acc);
     };
 
     Value out = Value::matrix(M, 4, ValueType::DOUBLE, mr);
@@ -502,7 +501,7 @@ Value inconsistent(const Value &Z, int depth, keel::Allocator *mr) {
 
     for (keel::usize i = 0; i < M; ++i) {
         keel::Array<double> ds(scratch.allocator());
-        collect((int)N + (int)i, depth, ds);
+        collect(collect, (int)N + (int)i, depth, ds);
         const double n = double(ds.size());
         double mu = 0.0; for (double v : ds) mu += v; mu /= n;
         double var = 0.0; for (double v : ds) var += (v - mu) * (v - mu);

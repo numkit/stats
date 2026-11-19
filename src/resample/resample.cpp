@@ -1,8 +1,11 @@
 // toolboxes/stats/src/resample/resample.cpp
 
+#include <keel/array.h>
 #include <keel/core.h>
+#include <keel/format.h>
 #include <keel/memory.h>
 #include <keel/ref.h>
+#include <keel/string.h>
 #include <numkit/stats/resample/resample.hpp>
 
 #include <numkit/builtin/datafun.hpp>
@@ -11,18 +14,18 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
+#include <cctype>
 #include <cstring>
 #include <mutex>
 #include <numeric>
 #include <random>
-#include <vector>
 
 #include "resample_detail.hpp"
 
 namespace numkit::stats {
 
 namespace {
-void randsample_argcheck(const std::vector<double> &w, int N)
+void randsample_argcheck(keel::ArrayRef<double> w, int N)
 {
     if (!w.empty() && static_cast<int>(w.size()) != N)
         throw Error("randsample: weights length must equal N",
@@ -35,13 +38,13 @@ Value randsample(::numkit::ops::RngContext &rng, int N, int K, bool with_replace
     if (N <= 0 || K <= 0)
         return Value::matrix(K > 0 ? K : 0, 1, ValueType::DOUBLE, mr);
 
-    std::vector<double> w;
+    keel::Array<double> w;
     if (weights.numel() > 0) w = read_vec(weights);
-    randsample_argcheck(w, N);
+    randsample_argcheck(w.as_ref(), N);
 
-    std::vector<int> idx;
+    keel::Array<int> idx;
     {
-        idx = sample_indices(N, K, with_replacement, w, rng);
+        idx = sample_indices(N, K, with_replacement, w.as_ref(), rng);
     }
     Value out = Value::matrix((keel::usize)idx.size(), 1, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
@@ -58,15 +61,15 @@ Value datasample(::numkit::ops::RngContext &rng, const Value &X, int K, int dim,
         throw Error("datasample: empty input", 0, 0, "datasample", "",
                     "numkit:datasample:empty");
 
-    std::vector<double> w;
+    keel::Array<double> w;
     if (weights.numel() > 0) w = read_vec(weights);
     if (!w.empty() && (int)w.size() != N)
         throw Error("datasample: weights length must equal sample-axis size",
                     0, 0, "datasample", "", "numkit:datasample:size");
 
-    std::vector<int> idx;
+    keel::Array<int> idx;
     {
-        idx = sample_indices(N, K, with_replacement, w, rng);
+        idx = sample_indices(N, K, with_replacement, w.as_ref(), rng);
     }
 
     if (dim == 2) {
@@ -97,15 +100,14 @@ Value combnk(int N, int K, keel::Allocator *mr)
     if (N < 0)
         throw Error("combnk: N must be non-negative", 0, 0, "combnk", "",
                     "numkit:combnk:badN");
-    std::vector<double> items((keel::usize)N);
+    keel::Array<double> items((keel::usize)N);
     for (int i = 0; i < N; ++i) items[(keel::usize)i] = double(i + 1);
-    return combnkImpl(items, K, mr);
+    return combnkImpl(items.as_ref(), K, mr);
 }
 
 Value combnk(keel::ArrayRef<double> v, int K, keel::Allocator *mr)
 {
-    std::vector<double> items(v.begin(), v.end());
-    return combnkImpl(items, K, mr);
+    return combnkImpl(v, K, mr);
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -125,40 +127,39 @@ bool parseReplaceFlag(const Value &v, const char *fn, const char *tag)
         const double b = v.elemAsDouble(0);
         if (b == 0.0 || b == 1.0) return b != 0.0;
     } else if (v.isChar() || v.isString()) {
-        std::string t(v.toString().as_ref());
+        keel::String t = v.toString();
         for (char &c : t) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         if (t == "true") return true;
         if (t == "false") return false;
     }
-    throw Error(std::string(fn) + ": REPLACE must be either true or false.",
+    throw Error(keel::format("{}: REPLACE must be either true or false.", fn),
                 0, 0, fn, "", tag);
 }
 
 // Weight vector: length-n, non-negative, positive sum (NaN caught by
 // the >= test).
-std::vector<double> parseWeightVector(const Value &w, keel::usize n,
+keel::Array<double> parseWeightVector(const Value &w, keel::usize n,
                                       const char *fn, const char *sizeTag,
                                       const char *badTag)
 {
-    std::vector<double> out;
+    keel::Array<double> out;
     if (w.isEmpty()) return out;
     if (!w.dims().isVector() || static_cast<keel::usize>(w.numel()) != n)
-        throw Error(std::string(fn) + ": W must have length "
-                    + std::to_string(n) + ".",
+        throw Error(keel::format("{}: W must have length {}.", fn, n),
                     0, 0, fn, "", sizeTag);
     out.resize(n);
     double sumw = 0.0;
     for (keel::usize i = 0; i < n; ++i) {
         out[i] = w.elemAsDouble(i);
         if (!(out[i] >= 0.0))
-            throw Error(std::string(fn) + ": W must contain non-negative "
-                        "values with at least one positive value.",
+            throw Error(keel::format("{}: W must contain non-negative "
+                                     "values with at least one positive value.", fn),
                         0, 0, fn, "", badTag);
         sumw += out[i];
     }
     if (!(sumw > 0.0))
-        throw Error(std::string(fn) + ": W must contain non-negative "
-                    "values with at least one positive value.",
+        throw Error(keel::format("{}: W must contain non-negative "
+                                 "values with at least one positive value.", fn),
                     0, 0, fn, "", badTag);
     return out;
 }
@@ -196,7 +197,7 @@ Value randsample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
     const bool replace = (args.size() >= 3 && !args[2].isEmpty())
         ? parseReplaceFlag(args[2], "randsample", "numkit:randsample:badReplaceValue")
         : false;
-    std::vector<double> w;
+    keel::Array<double> w;
     if (args.size() >= 4 && !args[3].isEmpty())
         w = parseWeightVector(args[3], N, "randsample",
                               "numkit:randsample:inputSizeMismatch",
@@ -204,9 +205,8 @@ Value randsample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
 
     if (!replace) {
         if (K > N)
-            throw Error("randsample: K must be less than or equal "
-                        + std::to_string(N) + " for sampling without "
-                        "replacement.",
+            throw Error(keel::format("randsample: K must be less than or equal "
+                                     "{} for sampling without replacement.", N),
                         0, 0, "randsample", "", "numkit:randsample:sampleTooLarge");
         if (!w.empty())
             throw Error("randsample: weighted sampling without replacement "
@@ -221,8 +221,8 @@ Value randsample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
                     0, 0, "randsample", "", "numkit:randsample:emptyPopulation");
     }
 
-    std::vector<int> idx = sample_indices(
-        static_cast<int>(N), static_cast<int>(K), replace, w, rng);
+    keel::Array<int> idx = sample_indices(
+        static_cast<int>(N), static_cast<int>(K), replace, w.as_ref(), rng);
 
     // Population form: index the population values (orientation kept —
     // a row population returns a row, probe S12); count form returns a
@@ -304,7 +304,7 @@ Value datasample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
     Value wRaw;
     for (keel::usize i = nvStart; i + 1 < args.size(); i += 2) {
         if (!(args[i].isChar() || args[i].isString())) continue;
-        std::string name(args[i].toString().as_ref());
+        keel::String name = args[i].toString();
         for (char &c : name)
             c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         if (name == "replace") {
@@ -318,7 +318,7 @@ Value datasample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
             wRaw = args[i + 1];
         }
     }
-    std::vector<double> w = parseWeightVector(
+    keel::Array<double> w = parseWeightVector(
         wRaw, n, "datasample", "numkit:datasample:inputSizeMismatch",
         "numkit:datasample:invalidWeights");
 
@@ -331,9 +331,8 @@ Value datasample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
         }
     } else {
         if (K > n)
-            throw Error("datasample: K must be less than or equal to the "
-                        "number of sampled elements (" + std::to_string(n)
-                        + ").",
+            throw Error(keel::format("datasample: K must be less than or equal to the "
+                                     "number of sampled elements ({}).", n),
                         0, 0, "datasample", "",
                         "numkit:datasample:sampleTooLarge");
         if (!w.empty()) {
@@ -347,8 +346,8 @@ Value datasample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
         }
     }
 
-    std::vector<int> idx = sample_indices(
-        static_cast<int>(n), static_cast<int>(K), replace, w, rng);
+    keel::Array<int> idx = sample_indices(
+        static_cast<int>(n), static_cast<int>(K), replace, w.as_ref(), rng);
 
     // Gather along dim (1 → rows, 2 → columns).
     if (dim == 1) {
@@ -406,13 +405,13 @@ Value datasample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
     }
     // dim ≥ 3: each output slice along dim copies the source slice at
     // the sampled index (reference: subs{dim} = i).
-    std::vector<keel::usize> od_(nd, 1);
+    keel::Array<keel::usize> od_(nd, 1);
     for (keel::usize d = 0; d < nd; ++d)
         od_[d] = static_cast<keel::usize>(X.dims().dim(static_cast<int>(d)));
     od_[dim - 1] = idx.size();
     Value out = Value::matrixND(od_.data(), static_cast<int>(nd),
                                 ValueType::DOUBLE, mr);
-    std::vector<keel::usize> sstride(nd, 1), ostride(nd, 1);
+    keel::Array<keel::usize> sstride(nd, 1), ostride(nd, 1);
     for (keel::usize d = 1; d < nd; ++d) {
         sstride[d] = sstride[d - 1]
             * static_cast<keel::usize>(X.dims().dim(static_cast<int>(d - 1)));
@@ -425,7 +424,7 @@ Value datasample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
                 t *= static_cast<keel::usize>(X.dims().dim(static_cast<int>(d)));
         return t;
     }();
-    std::vector<keel::usize> coord(nd, 0);
+    keel::Array<keel::usize> coord(nd, 0);
     for (keel::usize t = 0; t < totalOther; ++t) {
         // mixed-radix increment over the dims except `dim`.
         for (keel::usize k = 0; k < idx.size(); ++k) {

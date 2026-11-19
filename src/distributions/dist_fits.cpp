@@ -8,6 +8,7 @@
 //   evfit   — Type-I EV (Gumbel-min)      (1-D Newton, μ profiled)
 //   gpfit   — Generalised Pareto          (PWM / Hosking-Wallis)
 
+#include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <numkit/stats/distributions/gamma_dist.hpp>
@@ -27,7 +28,6 @@
 #include <cmath>
 #include <cstring>
 #include <limits>
-#include <vector>
 
 #include "dist_fits_detail.hpp"
 
@@ -40,9 +40,9 @@ namespace numkit::stats {
 // (gammainc(x, a) is the regularised LOWER incomplete gamma; survival
 //  is the upper tail = 1 - lower.)
 static double nll_gam_full(double a, double b,
-                           const std::vector<double> &xv,
-                           const std::vector<double> &cens,
-                           const std::vector<double> &freq,
+                           const keel::Array<double> &xv,
+                           const keel::Array<double> &cens,
+                           const keel::Array<double> &freq,
                            keel::Allocator *mr)
 {
     if (!(a > 0.0) || !(b > 0.0)) return std::numeric_limits<double>::infinity();
@@ -73,8 +73,8 @@ Value gamfit(const Value &x, keel::Allocator *mr)
 }
 
 namespace {
-void gamfit_argcheck(const std::vector<double> &xv, const Value &censoring, const Value &freq,
-                     std::vector<double> &cens, std::vector<double> &wf)
+void gamfit_argcheck(const keel::Array<double> &xv, const Value &censoring, const Value &freq,
+                     keel::Array<double> &cens, keel::Array<double> &wf)
 {
     const keel::usize n = xv.size();
     if (n < 2)
@@ -113,7 +113,7 @@ Value gamfit(const Value &x, const Value &censoring, const Value &freq,
 {
     auto xv = toFlat(x);
     const keel::usize n = xv.size();
-    std::vector<double> cens, wf;
+    keel::Array<double> cens, wf;
     gamfit_argcheck(xv, censoring, freq, cens, wf);
 
     bool freq_trivial = true;
@@ -226,9 +226,9 @@ Value gamfit(const Value &x, const Value &censoring, const Value &freq,
 // Weighted-censored NLL:
 //   Σ f_i u_i · [-log b + b log a - (b-1) log x_i] + Σ f_i (x_i/a)^b
 static double nll_wbl_full(double a, double b,
-                           const std::vector<double> &xv,
-                           const std::vector<double> &cens,
-                           const std::vector<double> &freq)
+                           const keel::Array<double> &xv,
+                           const keel::Array<double> &cens,
+                           const keel::Array<double> &freq)
 {
     if (!(a > 0.0) || !(b > 0.0)) return std::numeric_limits<double>::infinity();
     const keel::usize n = xv.size();
@@ -256,7 +256,7 @@ Value wblfit(const Value &x, const Value &censoring, const Value &freq,
             throw Error("wblfit: all observations must be positive",
                         0, 0, "wblfit", "", "numkit:wblfit:notPositive");
     }
-    std::vector<double> cens(n, 0.0), wf(n, 1.0);
+    keel::Array<double> cens(n, 0.0), wf(n, 1.0);
     if (!censoring.isEmpty()) {
         if (censoring.numel() != n)
             throw Error("wblfit: censoring length mismatch",
@@ -286,7 +286,7 @@ Value wblfit(const Value &x, const Value &censoring, const Value &freq,
 
     if (!has_cens && freq_trivial) {
         // Fast path: existing Newton on shape via profile σ.
-        std::vector<double> lx(n);
+        keel::Array<double> lx(n);
         double sumLog = 0.0;
         for (keel::usize i = 0; i < n; ++i) {
             lx[i] = std::log(xv[i]);
@@ -535,9 +535,9 @@ Value nbinfit(const Value &x, keel::Allocator *mr)
 // where t_i = (x_i − μ)/σ. Combined:
 //   NLL = (Σf_i (1−c_i)) · log σ − Σf_i (1−c_i) t_i + Σf_i exp(t_i).
 static double nll_ev_full(double mu, double sigma,
-                          const std::vector<double> &xv,
-                          const std::vector<double> &cens,
-                          const std::vector<double> &freq)
+                          const keel::Array<double> &xv,
+                          const keel::Array<double> &cens,
+                          const keel::Array<double> &freq)
 {
     if (!(sigma > 0.0)) return std::numeric_limits<double>::infinity();
     const keel::usize n = xv.size();
@@ -582,7 +582,7 @@ Value evfit(const Value &x, const Value &censoring, const Value &freq,
                         0, 0, "evfit", "", "numkit:evfit:notFinite");
     }
     // Parse censoring (zeros if empty) and freq (ones if empty).
-    std::vector<double> cens(n, 0.0), wf(n, 1.0);
+    keel::Array<double> cens(n, 0.0), wf(n, 1.0);
     if (!censoring.isEmpty()) {
         if (censoring.numel() != n)
             throw Error("evfit: censoring must match data length",
@@ -738,7 +738,7 @@ Value evfit(const Value &x, const Value &censoring, const Value &freq,
 // constraint (1 + k·x_i/σ > 0 for all i) is violated, allowing the
 // optimiser to reject infeasible steps via the line-search.
 static double gp_nll(double k, double sigma,
-                     const std::vector<double> &xv)
+                     const keel::Array<double> &xv)
 {
     if (!(sigma > 0.0)) return std::numeric_limits<double>::infinity();
     const keel::usize n = xv.size();
@@ -765,7 +765,7 @@ static double gp_nll(double k, double sigma,
 // requires a Taylor expansion); central FD captures the smooth surface
 // uniformly across the parameter space.
 static void gp_nll_grad(double k, double sigma,
-                        const std::vector<double> &xv,
+                        const keel::Array<double> &xv,
                         double &gk, double &gs)
 {
     const double hk = std::max(std::fabs(k), 1.0) * 1e-7;
@@ -789,7 +789,7 @@ Value gpfit(const Value &x, keel::Allocator *mr)
     }
 
     // ── Initial guess: PWM (Hosking-Wallis 1987, α-form) ──────────
-    std::vector<double> xs = xv;
+    keel::Array<double> xs = xv.clone();
     std::sort(xs.begin(), xs.end());
     double sumX = 0.0;
     for (double v : xs) sumX += v;
@@ -899,7 +899,7 @@ Value gamfit_ci(const Value &x, double alpha,
 {
     auto xv = toFlat(x);
     const keel::usize n = xv.size();
-    std::vector<double> cens(n, 0.0), wf(n, 1.0);
+    keel::Array<double> cens(n, 0.0), wf(n, 1.0);
     if (!censoring.isEmpty()) {
         for (keel::usize i = 0; i < n; ++i)
             cens[i] = censoring.elemAsDouble(i) ? 1.0 : 0.0;
@@ -934,7 +934,7 @@ Value wblfit_ci(const Value &x, double alpha,
 {
     auto xv = toFlat(x);
     const keel::usize n = xv.size();
-    std::vector<double> cens(n, 0.0), wf(n, 1.0);
+    keel::Array<double> cens(n, 0.0), wf(n, 1.0);
     if (!censoring.isEmpty()) {
         for (keel::usize i = 0; i < n; ++i)
             cens[i] = censoring.elemAsDouble(i) ? 1.0 : 0.0;
@@ -1021,7 +1021,7 @@ Value evfit_ci(const Value &x, double alpha,
 {
     auto xv = toFlat(x);
     const keel::usize n = xv.size();
-    std::vector<double> cens(n, 0.0), wf(n, 1.0);
+    keel::Array<double> cens(n, 0.0), wf(n, 1.0);
     if (!censoring.isEmpty()) {
         for (keel::usize i = 0; i < n; ++i)
             cens[i] = censoring.elemAsDouble(i) ? 1.0 : 0.0;
@@ -1060,7 +1060,7 @@ Value gpfit_ci(const Value &x, double alpha, keel::Allocator *mr)
 //     log f = -log σ - z - exp(-z)
 // Returns +Inf if any support is violated.
 static double nll_gev(double k, double sigma, double mu,
-                      const std::vector<double> &xv)
+                      const keel::Array<double> &xv)
 {
     if (!(sigma > 0.0)) return std::numeric_limits<double>::infinity();
     const keel::usize n = xv.size();
@@ -1098,7 +1098,7 @@ Value gevfit(const Value &x, keel::Allocator *mr)
     }
 
     // PWM initial guess (Hosking-Wallis-Wood 1985).
-    std::vector<double> xs = xv;
+    keel::Array<double> xs = xv.clone();
     std::sort(xs.begin(), xs.end());
     double b0 = 0.0, b1 = 0.0, b2 = 0.0;
     const double dN = static_cast<double>(n);

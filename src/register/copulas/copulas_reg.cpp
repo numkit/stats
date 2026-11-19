@@ -4,7 +4,9 @@
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
 #include <keel/core.h>
+#include <keel/format.h>
 #include <keel/ref.h>
+#include <keel/string.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/copulas/copulas.hpp>
 #include <numkit/stats/distributions/multivariate.hpp>
@@ -19,19 +21,17 @@
 #include <cctype>
 #include <cmath>
 #include <cstddef>
-#include <string>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 namespace numkit::stats {
 
 namespace detail {
 
 namespace {
-std::string family_lower(const Value &v)
+keel::String family_lower(const Value &v)
 {
-    std::string s(v.toString().as_ref());
+    keel::String s = v.toString();
     for (auto &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     return s;
 }
@@ -42,7 +42,7 @@ void copulapdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
 {
     argcheck::checkNargin(args.size(), 3, "copulapdf");  // no max: name-value tail in the reference
     auto *mr = ctx.engine->allocator();
-    const std::string fam = family_lower(args[0]);
+    const keel::String fam = family_lower(args[0]);
     if (fam == "gaussian") {
         outs[0] = copulapdf_gaussian(args[1], args[2], mr);
     } else if (fam == "t") {
@@ -57,7 +57,7 @@ void copulapdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     } else if (fam == "gumbel") {
         outs[0] = copulapdf_gumbel(args[1], args[2].toScalar(), mr);
     } else {
-        throw Error("copulapdf: unknown family '" + fam + "'",
+        throw Error(keel::format("copulapdf: unknown family '{}'", fam),
                     0, 0, "copulapdf", "", "numkit:copulapdf:badFamily");
     }
 }
@@ -67,7 +67,7 @@ void copulacdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
 {
     argcheck::checkNargin(args.size(), 3, "copulacdf");  // no max: name-value tail in the reference
     auto *mr = ctx.engine->allocator();
-    const std::string fam = family_lower(args[0]);
+    const keel::String fam = family_lower(args[0]);
     if (fam == "gaussian") {
         outs[0] = copulacdf_gaussian(args[1], args[2], mr);
     } else if (fam == "t") {
@@ -82,7 +82,7 @@ void copulacdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     } else if (fam == "gumbel") {
         outs[0] = copulacdf_gumbel(args[1], args[2].toScalar(), mr);
     } else {
-        throw Error("copulacdf: unknown family '" + fam + "'",
+        throw Error(keel::format("copulacdf: unknown family '{}'", fam),
                     0, 0, "copulacdf", "", "numkit:copulacdf:badFamily");
     }
 }

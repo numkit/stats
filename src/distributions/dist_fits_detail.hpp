@@ -9,6 +9,7 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
+#include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
@@ -21,7 +22,6 @@
 #include <limits>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -63,9 +63,9 @@ double trigamma(double x)
     return r + s;
 }
 
-std::vector<double> toFlat(const Value &x)
+keel::Array<double> toFlat(const Value &x)
 {
-    std::vector<double> v(x.numel());
+    keel::Array<double> v(x.numel());
     for (keel::usize i = 0; i < v.size(); ++i) v[i] = x.elemAsDouble(i);
     return v;
 }
@@ -207,7 +207,7 @@ namespace {
 
 // NLL definitions for each fit. Used by FD-Hessian Wald CI.
 
-double nll_gam(double a, double b, const std::vector<double> &xv)
+double nll_gam(double a, double b, const keel::Array<double> &xv)
 {
     if (!(a > 0.0) || !(b > 0.0)) return std::numeric_limits<double>::infinity();
     const double N = static_cast<double>(xv.size());
@@ -217,7 +217,7 @@ double nll_gam(double a, double b, const std::vector<double> &xv)
          - (a - 1.0) * slx + sx / b;
 }
 
-double nll_wbl(double a, double b, const std::vector<double> &xv)
+double nll_wbl(double a, double b, const keel::Array<double> &xv)
 {
     if (!(a > 0.0) || !(b > 0.0)) return std::numeric_limits<double>::infinity();
     const double N = static_cast<double>(xv.size());
@@ -230,7 +230,7 @@ double nll_wbl(double a, double b, const std::vector<double> &xv)
          - (b - 1.0) * slx + sw;
 }
 
-double nll_beta(double a, double b, const std::vector<double> &xv)
+double nll_beta(double a, double b, const keel::Array<double> &xv)
 {
     if (!(a > 0.0) || !(b > 0.0)) return std::numeric_limits<double>::infinity();
     const double N = static_cast<double>(xv.size());
@@ -243,7 +243,7 @@ double nll_beta(double a, double b, const std::vector<double> &xv)
          - (a - 1.0) * slx - (b - 1.0) * sl1mx;
 }
 
-double nll_nbin(double r, double p, const std::vector<double> &xv)
+double nll_nbin(double r, double p, const keel::Array<double> &xv)
 {
     if (!(r > 0.0) || !(p > 0.0) || !(p < 1.0))
         return std::numeric_limits<double>::infinity();
@@ -257,7 +257,7 @@ double nll_nbin(double r, double p, const std::vector<double> &xv)
     return term - N * r * std::log(p) - sx * std::log(1.0 - p);
 }
 
-double nll_ev(double mu, double sigma, const std::vector<double> &xv)
+double nll_ev(double mu, double sigma, const keel::Array<double> &xv)
 {
     if (!(sigma > 0.0)) return std::numeric_limits<double>::infinity();
     const double N = static_cast<double>(xv.size());

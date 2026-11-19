@@ -6,9 +6,9 @@
 
 #include <keel/core.h>
 #include <keel/memory.h>
+#include <keel/ref.h>
 #include <numkit/value/value.hpp>
 
-#include <string>
 #include <tuple>
 
 namespace numkit::stats {
@@ -61,7 +61,7 @@ ttest(const Value &x, keel::f64 m, keel::f64 alpha, TestTail tail,
 /// @see ttest, vartest2
 std::tuple<Value, Value, Value, Value>
 ttest2(const Value &x, const Value &y, keel::f64 alpha, TestTail tail,
-       const std::string &vartype, keel::Allocator *mr = nullptr);
+       keel::StringRef vartype, keel::Allocator *mr = nullptr);
 
 /// @brief Z-test with known σ (`[h, p, ci, z] = ztest(x, m, sigma, alpha, tail)`).
 ///
@@ -315,7 +315,7 @@ chi2gof(const Value &observed, const Value &expected, int nparams,
 /// @return        `(p, h, nruns, n1, n0, zval)`.
 std::tuple<Value, Value, Value, Value, Value, Value>
 runstest(const Value &x, keel::f64 v, keel::f64 alpha, TestTail tail,
-         const std::string &method, keel::Allocator *mr = nullptr);
+         keel::StringRef method, keel::Allocator *mr = nullptr);
 
 /// @brief Wilcoxon rank-sum (Mann-Whitney U) test
 /// (`[p, h, ranksum_x, zval] = ranksum(x, y, alpha, tail, method)`).
@@ -334,7 +334,7 @@ runstest(const Value &x, keel::f64 v, keel::f64 alpha, TestTail tail,
 /// @see signrank
 std::tuple<Value, Value, Value, Value>
 ranksum(const Value &x, const Value &y, keel::f64 alpha, TestTail tail,
-        const std::string &method, keel::Allocator *mr = nullptr);
+        keel::StringRef method, keel::Allocator *mr = nullptr);
 
 /// @brief Wilcoxon signed-rank test
 /// (`[p, h, signedrank, zval] = signrank(x, y_or_m, alpha, tail, method)`).
@@ -353,7 +353,7 @@ ranksum(const Value &x, const Value &y, keel::f64 alpha, TestTail tail,
 /// @see ranksum, signtest
 std::tuple<Value, Value, Value, Value>
 signrank(const Value &x, const Value &y_or_m, keel::f64 alpha, TestTail tail,
-         const std::string &method, keel::Allocator *mr = nullptr);
+         keel::StringRef method, keel::Allocator *mr = nullptr);
 
 /// @brief Ansari-Bradley two-sample scale (dispersion) test
 /// (`[h, p, W, Wstar] = ansaribradley(x, y, alpha, tail)`).

@@ -13,6 +13,7 @@
 // Off-diagonal divisions where the denominator is zero produce
 // NaN, matching MATLAB R2025b.
 
+#include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <numkit/stats/descriptive/descriptive.hpp>
@@ -22,7 +23,6 @@
 
 #include <cmath>
 #include <limits>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -47,7 +47,7 @@ corrcov(const Value &C, keel::Allocator *mr)
     const keel::usize R = C.dims().rows();
 
     // sigma(i) = sqrt(C(i, i)).
-    std::vector<double> sigma(R);
+    keel::Array<double> sigma(R);
     for (keel::usize i = 0; i < R; ++i) {
         const double v = C.elemAsDouble(i + i * R);   // column-major
         if (v < 0.0)

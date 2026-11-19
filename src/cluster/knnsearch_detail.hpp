@@ -4,21 +4,22 @@
 #pragma once
 
 #include <keel/core.h>
+#include <keel/format.h>
 #include <keel/ref.h>
+#include <keel/string.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <limits>
 #include <numeric>
-#include <string>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -33,7 +34,7 @@ namespace {
 //   knnsearch(X, Y, K)                  → K-NN, default metric
 //   knnsearch(X, Y, 'K', K, ...)        → name-value
 //   knnsearch(X, Y, 'Distance', metric, ...)
-struct KnnOpts { int K = 1; std::string metric = "euclidean"; double p = 2.0; };
+struct KnnOpts { int K = 1; keel::String metric = keel::String::from("euclidean"); double p = 2.0; };
 
 KnnOpts parse_knn_args(keel::ArrayRef<Value> args, const char *fn)
 {
@@ -47,19 +48,19 @@ KnnOpts parse_knn_args(keel::ArrayRef<Value> args, const char *fn)
     keel::usize i = 2;
     while (i < args.size()) {
         if (!args[i].isChar() && !args[i].isString())
-            throw Error(std::string(fn) + ": expected name-value pair",
+            throw Error(keel::format("{}: expected name-value pair", fn),
                         0, 0, fn, "", "numkit:knn:nvpair");
-        std::string name(args[i].toString().as_ref());
+        keel::String name = args[i].toString();
         for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         if (i + 1 >= args.size())
-            throw Error(std::string(fn) + ": '" + name + "' missing value",
+            throw Error(keel::format("{}: '{}' missing value", fn, name),
                         0, 0, fn, "", "numkit:knn:nvval");
         const Value &v = args[i + 1];
         if (name == "k") {
             o.K = static_cast<int>(v.toScalar());
         } else if (name == "distance") {
             if (!v.isChar() && !v.isString())
-                throw Error(std::string(fn) + ": Distance must be a string",
+                throw Error(keel::format("{}: Distance must be a string", fn),
                             0, 0, fn, "", "numkit:knn:dist");
             o.metric = v.toString();
         } else if (name == "p" || name == "minkowskiexponent") {

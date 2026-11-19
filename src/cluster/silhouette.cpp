@@ -4,8 +4,11 @@
 // Built on top of stats::pdist2 for the distance matrix; the rest
 // is a per-point average + per-cluster aggregation.
 
+#include <keel/array.h>
 #include <keel/core.h>
+#include <keel/hash_map.h>
 #include <keel/memory.h>
+#include <keel/ref.h>
 #include <numkit/stats/cluster/silhouette.hpp>
 #include <numkit/stats/cluster/distance.hpp>
 
@@ -14,8 +17,7 @@
 
 #include <algorithm>
 #include <cmath>
-#include <unordered_map>
-#include <vector>
+#include <limits>
 
 namespace numkit::stats {
 
@@ -30,7 +32,7 @@ void silhouette_argcheck(const Value &X, const Value &clust)
 
 } // namespace
 
-Value silhouette(const Value &X, const Value &clust, const std::string &metric, double p, keel::Allocator *mr)
+Value silhouette(const Value &X, const Value &clust, keel::StringRef metric, double p, keel::Allocator *mr)
 {
     silhouette_argcheck(X, clust);
     const auto &dx = X.dims();
@@ -40,14 +42,15 @@ Value silhouette(const Value &X, const Value &clust, const std::string &metric, 
 
     // Pull labels into int vector. The reference engine allows numeric or char/string —
     // we accept anything that elemAsDouble can read (round to int).
-    std::vector<int> lbl(N);
+    keel::Array<int> lbl(N);
     for (keel::usize i = 0; i < N; ++i)
         lbl[i] = static_cast<int>(std::lround(clust.elemAsDouble(i)));
 
     // Catalogue labels and their member indices.
-    std::unordered_map<int, std::vector<keel::usize>> groups;
+    keel::HashMap<int, keel::Array<keel::usize>> groups;
     groups.reserve(N);
-    for (keel::usize i = 0; i < N; ++i) groups[lbl[i]].push_back(i);
+    for (keel::usize i = 0; i < N; ++i)
+        groups.try_insert(lbl[i], keel::Array<keel::usize>{}).value->push_back(i);
 
     // N×N distance matrix from pdist2.
     Value D = pdist2(X, X, metric, p, mr);
@@ -61,7 +64,7 @@ Value silhouette(const Value &X, const Value &clust, const std::string &metric, 
 
     for (keel::usize i = 0; i < N; ++i) {
         const int k = lbl[i];
-        const auto &mine = groups[k];
+        const auto &mine = *groups.get(k);
 
         // a(i): mean distance to other points in same cluster.
         double a = 0.0;
@@ -76,11 +79,11 @@ Value silhouette(const Value &X, const Value &clust, const std::string &metric, 
 
         // b(i): min over other clusters of mean distance to that cluster.
         double b = std::numeric_limits<double>::infinity();
-        for (const auto &kv : groups) {
-            if (kv.first == k) continue;
+        for (auto [gk, members] : groups) {
+            if (gk == k) continue;
             double m = 0.0;
-            for (keel::usize j : kv.second) m += dd[i + j * N];
-            m /= static_cast<double>(kv.second.size());
+            for (keel::usize j : members) m += dd[i + j * N];
+            m /= static_cast<double>(members.size());
             if (m < b) b = m;
         }
         if (!std::isfinite(b)) {

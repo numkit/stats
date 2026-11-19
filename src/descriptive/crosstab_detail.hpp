@@ -3,7 +3,9 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
+#include <keel/array.h>
 #include <keel/core.h>
+#include <keel/string.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
@@ -11,13 +13,12 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <limits>
 #include <numeric>
-#include <string>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -28,10 +29,10 @@ namespace numkit::stats {
 namespace {
 
 // Sorted-unique values from x (NaN excluded).
-std::vector<double> sortedUniqueNoNaN(const Value &x)
+keel::Array<double> sortedUniqueNoNaN(const Value &x)
 {
     const keel::usize N = x.numel();
-    std::vector<double> v;
+    keel::Array<double> v;
     v.reserve(N);
     for (keel::usize i = 0; i < N; ++i) {
         const double xi = x.elemAsDouble(i);
@@ -39,12 +40,12 @@ std::vector<double> sortedUniqueNoNaN(const Value &x)
         v.push_back(xi);
     }
     std::sort(v.begin(), v.end());
-    v.erase(std::unique(v.begin(), v.end()), v.end());
+    v.resize(static_cast<keel::usize>(std::unique(v.begin(), v.end()) - v.begin()));
     return v;
 }
 
 // Find index of value in sorted unique list (binary search).
-keel::usize indexOf(const std::vector<double> &u, double val)
+keel::usize indexOf(const keel::Array<double> &u, double val)
 {
     auto it = std::lower_bound(u.begin(), u.end(), val);
     return static_cast<keel::usize>(it - u.begin());
@@ -54,14 +55,14 @@ keel::usize indexOf(const std::vector<double> &u, double val)
 // MATLAB crosstab's `labels` output. Integer values print without a
 // decimal point; non-integers fall back to %.5g (num2str's default
 // significant-digit count for the simple decimals seen in group ids).
-std::string labelString(double v)
+keel::String labelString(double v)
 {
     char buf[64];
     if (std::isfinite(v) && v == std::floor(v) && std::fabs(v) < 1e15)
         std::snprintf(buf, sizeof(buf), "%lld", static_cast<long long>(v));
     else
         std::snprintf(buf, sizeof(buf), "%.5g", v);
-    return std::string(buf);
+    return keel::String::from(buf);
 }
 
 } // namespace

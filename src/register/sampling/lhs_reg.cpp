@@ -4,7 +4,9 @@
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
 #include <keel/core.h>
+#include <keel/format.h>
 #include <keel/ref.h>
+#include <keel/string.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/builtin/datafun.hpp>
 #include <numkit/stats/distributions/normal.hpp>
@@ -12,16 +14,13 @@
 #include <numkit/value/argcheck.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstddef>
-#include <string>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -40,10 +39,10 @@ void lhsdesign_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mu
         if (!args[k].isChar() && !args[k].isString())
             throw Error("lhsdesign: name-value arguments expected",
                         0, 0, "lhsdesign", "", "numkit:lhsdesign:badNameValue");
-        std::string name(args[k].toString().as_ref());
+        keel::String name = args[k].toString();
         for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         if (name == "smooth") {
-            std::string v(args[k + 1].toString().as_ref());
+            keel::String v = args[k + 1].toString();
             for (auto &c : v) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
             smooth = (v != "off");
         } else if (name == "criterion") {
@@ -57,7 +56,7 @@ void lhsdesign_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mu
             iters = argcheck::roundLength(args[k + 1], static_cast<int>(k) + 3, "Iterations", "lhsdesign");
             if (iters < 1) iters = 1;
         } else {
-            throw Error("lhsdesign: unknown option '" + name + "'",
+            throw Error(keel::format("lhsdesign: unknown option '{}'", name),
                         0, 0, "lhsdesign", "", "numkit:lhsdesign:badOption");
         }
     }

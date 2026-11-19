@@ -3,10 +3,13 @@
 // CallContext register half of fit/fit.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
+#include <keel/array.h>
 #include <keel/core.h>
+#include <keel/format.h>
 #include <keel/memory.h>
 #include <keel/ref.h>
 #include <keel/math.h>
+#include <keel/string.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/distributions/beta.hpp>
 #include <numkit/stats/distributions/chi2.hpp>
@@ -22,10 +25,8 @@
 #include <cctype>
 #include <cmath>
 #include <cstddef>
-#include <string>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -229,7 +230,7 @@ static void fill_fd_avar3(double *p, double p0, double p1, double p2,
                       CallContext &ctx)
 {
     if (args.size() < 2 || args[0].numel() < 2)
-        throw Error(std::string(fn) + ": requires (params[2], data)",
+        throw Error(keel::format("{}: requires (params[2], data)", fn),
                     0, 0, fn, "", "numkit:like:nargin");
     const double p0 = args[0].elemAsDouble(0);
     const double p1 = args[0].elemAsDouble(1);
@@ -539,8 +540,8 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         throw Error("mle: need at least 2 observations",
                     0, 0, "mle", "", "numkit:mle:tooSmall");
 
-    std::string dist = "normal";
-    std::string custom_kind; // "pdf", "logpdf", or "nloglf"
+    keel::String dist = keel::String::from("normal");
+    keel::String custom_kind; // "pdf", "logpdf", or "nloglf"
     Value custom_fh;
     Value start_val;
     Value lower_val;
@@ -548,7 +549,8 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     Value cens_val;
     Value freq_val;
     double alpha = 0.05;   // 100·(1-alpha)% confidence for the 2nd output pci
-    auto toLower = [](std::string s) {
+    auto toLower = [](keel::StringRef raw) {
+        keel::String s = keel::String::from(raw);
         for (char &ch : s)
             ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
         return s;
@@ -557,8 +559,8 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         if (!args[i].isChar() && !args[i].isString())
             throw Error("mle: option name must be a string",
                         0, 0, "mle", "", "numkit:mle:badOption");
-        const std::string optRaw(args[i].toString().as_ref());
-        const std::string opt = toLower(optRaw);
+        const keel::String optRaw = args[i].toString();
+        const keel::String opt = toLower(optRaw);
         if (opt == "distribution")
             dist = args[i + 1].toString();
         else if (opt == "alpha") {
@@ -570,9 +572,9 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         else if (opt == "pdf" || opt == "logpdf" || opt == "nloglf") {
             const Value &fh = args[i + 1];
             if (!fh.isFuncHandle())
-                throw Error("mle: '" + optRaw + "' value must be a function handle",
+                throw Error(keel::format("mle: '{}' value must be a function handle", optRaw),
                             0, 0, "mle", "", "numkit:mle:badFuncHandle");
-            custom_kind = opt;
+            custom_kind = opt.clone();
             custom_fh = fh;
         }
         else if (opt == "start")      start_val = args[i + 1];
@@ -582,7 +584,7 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         else if (opt == "frequency")  freq_val  = args[i + 1];
         else if (opt == "options")    { /* options struct accepted */ }
         else
-            throw Error("mle: unknown option '" + optRaw + "'",
+            throw Error(keel::format("mle: unknown option '{}'", optRaw),
                         0, 0, "mle", "", "numkit:mle:badOption");
     }
 
@@ -602,10 +604,10 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
 
     if (!custom_kind.empty()) {
         if (start_val.isEmpty() || start_val.numel() == 0)
-            throw Error("mle: custom '" + custom_kind + "' requires a non-empty 'start' parameter vector",
+            throw Error(keel::format("mle: custom '{}' requires a non-empty 'start' parameter vector", custom_kind),
                         0, 0, "mle", "", "numkit:mle:missingStart");
         const keel::usize K = start_val.numel();
-        std::vector<double> p0(K), lb(K, -std::numeric_limits<double>::infinity()),
+        keel::Array<double> p0(K), lb(K, -std::numeric_limits<double>::infinity()),
                             ub(K,  std::numeric_limits<double>::infinity());
         for (keel::usize k = 0; k < K; ++k) p0[k] = start_val.elemAsDouble(k);
         if (!lower_val.isEmpty()) {
@@ -625,7 +627,7 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         }
 
         const double bigPen = 1e100;
-        auto evalNLL = [&](const std::vector<double> &theta) -> double {
+        auto evalNLL = [&](const keel::Array<double> &theta) -> double {
             for (keel::usize k = 0; k < K; ++k) {
                 if (!std::isfinite(theta[k]) || theta[k] < lb[k] || theta[k] > ub[k])
                     return bigPen;
@@ -648,7 +650,7 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                 // 'pdf' or 'logpdf': pass (x, p1, p2, ...), fallback to (x, pVec)
                 Value vals;
                 try {
-                    std::vector<Value> cargs;
+                    keel::Array<Value> cargs;
                     cargs.reserve(1 + K);
                     cargs.push_back(x);
                     for (keel::usize k = 0; k < K; ++k)
@@ -683,8 +685,10 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
 
         // Nelder-Mead simplex optimization over K parameters.
         const keel::usize nVerts = K + 1;
-        std::vector<std::vector<double>> simplex(nVerts, p0);
-        std::vector<double> fvals(nVerts);
+        keel::Array<keel::Array<double>> simplex;
+        simplex.reserve(nVerts);
+        for (keel::usize v = 0; v < nVerts; ++v) simplex.push_back(p0.clone());
+        keel::Array<double> fvals(nVerts);
         fvals[0] = evalNLL(simplex[0]);
         for (keel::usize k = 0; k < K; ++k) {
             double step = (keel::abs(p0[k]) > 1e-4) ? 0.05 * keel::abs(p0[k]) : 0.00025;
@@ -694,8 +698,8 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         }
 
         const keel::usize maxIter = 1000 * K;
-        std::vector<keel::usize> ord(nVerts);
-        std::vector<double> centroid(K), xr(K), xe(K), xc(K);
+        keel::Array<keel::usize> ord(nVerts);
+        keel::Array<double> centroid(K), xr(K), xe(K), xc(K);
         for (keel::usize iter = 0; iter < maxIter; ++iter) {
             for (keel::usize i = 0; i < nVerts; ++i) ord[i] = i;
             std::sort(ord.begin(), ord.end(), [&](keel::usize a, keel::usize b) {
@@ -722,10 +726,10 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                 for (keel::usize k = 0; k < K; ++k)
                     xe[k] = centroid[k] + 2.0 * (xr[k] - centroid[k]);
                 const double fe = evalNLL(xe);
-                if (fe < fr) { simplex[ord[K]] = xe; fvals[ord[K]] = fe; }
-                else         { simplex[ord[K]] = xr; fvals[ord[K]] = fr; }
+                if (fe < fr) { simplex[ord[K]].assign(xe.as_ref()); fvals[ord[K]] = fe; }
+                else         { simplex[ord[K]].assign(xr.as_ref()); fvals[ord[K]] = fr; }
             } else if (fr < fvals[ord[K - 1]]) {
-                simplex[ord[K]] = xr;
+                simplex[ord[K]].assign(xr.as_ref());
                 fvals[ord[K]] = fr;
             } else {
                 const bool outside = (fr < fvals[ord[K]]);
@@ -733,7 +737,7 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                     xc[k] = centroid[k] + 0.5 * ((outside ? xr[k] : worst[k]) - centroid[k]);
                 const double fc = evalNLL(xc);
                 if (fc <= (outside ? fr : fvals[ord[K]])) {
-                    simplex[ord[K]] = xc;
+                    simplex[ord[K]].assign(xc.as_ref());
                     fvals[ord[K]] = fc;
                 } else {
                     for (keel::usize i = 1; i <= K; ++i) {
@@ -756,17 +760,17 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         if (nargout >= 2) {
             // Finite-difference Hessian of NLL at phat for Wald CIs.
             const double f0 = fvals[bestIdx];
-            std::vector<double> hStep(K);
+            keel::Array<double> hStep(K);
             for (keel::usize k = 0; k < K; ++k)
                 hStep[k] = std::max(1e-5, 1e-4 * keel::abs(phat[k]));
-            std::vector<double> H(K * K, 0.0);
+            keel::Array<double> H(K * K, 0.0);
             for (keel::usize i = 0; i < K; ++i) {
-                auto tp = phat, tm = phat;
+                auto tp = phat.clone(), tm = phat.clone();
                 tp[i] += hStep[i]; tm[i] -= hStep[i];
                 const double fp = evalNLL(tp), fm = evalNLL(tm);
                 H[i + i * K] = (fp - 2.0 * f0 + fm) / (hStep[i] * hStep[i]);
                 for (keel::usize j = i + 1; j < K; ++j) {
-                    auto tpp = phat, tpm = phat, tmp = phat, tmm = phat;
+                    auto tpp = phat.clone(), tpm = phat.clone(), tmp = phat.clone(), tmm = phat.clone();
                     tpp[i] += hStep[i]; tpp[j] += hStep[j];
                     tpm[i] += hStep[i]; tpm[j] -= hStep[j];
                     tmp[i] -= hStep[i]; tmp[j] += hStep[j];
@@ -777,7 +781,7 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                 }
             }
             // Invert KxK Hessian via Gauss-Jordan with fallback to 1/H_kk.
-            std::vector<double> aug(K * 2 * K, 0.0);
+            keel::Array<double> aug(K * 2 * K, 0.0);
             for (keel::usize r = 0; r < K; ++r) {
                 for (keel::usize c = 0; c < K; ++c) aug[r * (2 * K) + c] = H[r + c * K];
                 aug[r * (2 * K) + (K + r)] = 1.0;
@@ -905,9 +909,9 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         }
         return;
     }
-    throw Error("mle: distribution '" + dist + "' not supported "
+    throw Error(keel::format("mle: distribution '{}' not supported "
                 "(supported: normal, exponential, poisson, lognormal). "
-                "Custom pdf/logpdf/nloglf via Nelder-Mead is deferred.",
+                "Custom pdf/logpdf/nloglf via Nelder-Mead is deferred.", dist),
                 0, 0, "mle", "", "numkit:mle:dist");
 }
 
@@ -951,13 +955,13 @@ void fitdist_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
         throw Error("fitdist: need at least 2 observations",
                     0, 0, "fitdist", "", "numkit:fitdist:tooSmall");
 
-    const std::string raw = (args.size() >= 2) ? std::string(args[1].toString().as_ref()) : std::string("Normal");
+    const keel::String raw = (args.size() >= 2) ? args[1].toString() : keel::String::from("Normal");
     // Canonicalise.
-    std::string name;
+    keel::String name;
     name.reserve(raw.size());
-    for (char c : raw) name += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    std::string canonical;
-    std::vector<std::string> param_names;
+    for (char c : raw) name.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+    keel::StringRef canonical;
+    keel::Array<keel::StringRef> param_names;
     if (name == "normal" || name == "norm") {
         canonical = "Normal";
         param_names = {"mu", "sigma"};
@@ -971,9 +975,9 @@ void fitdist_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
         canonical = "Lognormal";
         param_names = {"mu", "sigma"};
     } else {
-        throw Error("fitdist: distribution '" + raw + "' not supported "
+        throw Error(keel::format("fitdist: distribution '{}' not supported "
                     "(supported: 'Normal', 'Exponential', 'Poisson', "
-                    "'Lognormal'). Other reference distributions are deferred.",
+                    "'Lognormal'). Other reference distributions are deferred.", raw),
                     0, 0, "fitdist", "", "numkit:fitdist:dist");
     }
 

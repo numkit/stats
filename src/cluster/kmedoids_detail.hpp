@@ -4,9 +4,8 @@
 #pragma once
 
 #include <keel/memory.h>
+#include <keel/ref.h>
 #include <numkit/value/value.hpp>
-
-#include <string>
 
 namespace numkit { namespace ops { class RngContext; } }
 
@@ -23,7 +22,7 @@ struct KmedoidsResult {
 };
 
 KmedoidsResult kmedoids_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates,
-                             const std::string &metric_name,
+                             keel::StringRef metric_name,
                              keel::Allocator *mr);
 
 } // namespace numkit::stats

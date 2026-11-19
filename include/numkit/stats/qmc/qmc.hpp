@@ -7,9 +7,8 @@
 #pragma once
 
 #include <keel/memory.h>
+#include <keel/ref.h>
 #include <numkit/value/value.hpp>
-
-#include <string>
 
 namespace numkit::stats {
 
@@ -48,7 +47,7 @@ Value net(const Value &stream, long long n,
           keel::Allocator *mr = nullptr);
 
 /// @brief Apply scrambling to a quasi-random stream (`p = scramble(p, type)`).
-Value scramble(const Value &stream, const std::string &type,
+Value scramble(const Value &stream, keel::StringRef type,
                keel::Allocator *mr = nullptr);
 
 /// @}

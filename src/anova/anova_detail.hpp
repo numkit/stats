@@ -3,6 +3,7 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
+#include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
@@ -15,10 +16,8 @@
 #include <cstring>
 #include <limits>
 #include <numeric>
-#include <string>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -33,23 +32,27 @@ namespace {
 // matches, callers can sort labels first).
 struct Group {
     double label;
-    std::vector<double> values;
+    keel::Array<double> values;
 };
 
-std::vector<Group> bucket(const Value &y, const Value &group)
+keel::Array<Group> bucket(const Value &y, const Value &group)
 {
     const keel::usize N = y.numel();
     if (group.numel() != N)
         throw Error("anova1: y and group must be the same length",
                     0, 0, "anova1", "", "numkit:anova1:size");
-    std::vector<Group> g;
+    keel::Array<Group> g;
     for (keel::usize i = 0; i < N; ++i) {
         const double yi = y.elemAsDouble(i);
         const double li = group.elemAsDouble(i);
         if (std::isnan(yi) || std::isnan(li)) continue;
         bool found = false;
         for (auto &gg : g) if (gg.label == li) { gg.values.push_back(yi); found = true; break; }
-        if (!found) g.push_back({li, {yi}});
+        if (!found) {
+            Group ng{li, keel::Array<double>{}};
+            ng.values.push_back(yi);
+            g.push_back(std::move(ng));
+        }
     }
     // Sort by label ascending — matches MATLAB's anova1 default ordering.
     std::sort(g.begin(), g.end(),

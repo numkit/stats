@@ -11,7 +11,9 @@
 #include <keel/ref.h>
 #include <keel/arena.h>
 #include <keel/array.h>
+#include <keel/format.h>
 #include <keel/math.h>
+#include <keel/string.h>
 #include <numkit/stats/moving/moving.hpp>
 
 #include <numkit/value/value.hpp>
@@ -24,7 +26,6 @@
 #include <cctype>
 #include <cmath>
 #include <limits>
-#include <string>
 
 #include "moving_detail.hpp"
 
@@ -120,11 +121,11 @@ static Value smoothGaussianDim(const Value &x, const Window &w, double sigma,
 // is the Vandermonde of [-m..m] to degree `deg`. Row m is the steady-state
 // smoothing kernel; the boundary rows handle the F-point edge windows. Matches
 // MATLAB sgolay/sgolayfilt exactly.
-static void buildSGMatrix(int F, int deg, std::vector<double> &B)
+static void buildSGMatrix(int F, int deg, keel::Array<double> &B)
 {
     const int p1 = deg + 1;
     const int m  = (F - 1) / 2;
-    std::vector<double> AtA(static_cast<keel::usize>(p1) * p1, 0.0);
+    keel::Array<double> AtA(static_cast<keel::usize>(p1) * p1, 0.0);
     for (int a = 0; a < p1; ++a)
         for (int b = 0; b < p1; ++b) {
             double s = 0.0;
@@ -133,7 +134,7 @@ static void buildSGMatrix(int F, int deg, std::vector<double> &B)
         }
     // Invert AtA via Gauss-Jordan on [AtA | I].
     const int W = 2 * p1;
-    std::vector<double> aug(static_cast<keel::usize>(p1) * W, 0.0);
+    keel::Array<double> aug(static_cast<keel::usize>(p1) * W, 0.0);
     for (int i = 0; i < p1; ++i) { for (int j = 0; j < p1; ++j) aug[i * W + j] = AtA[i * p1 + j]; aug[i * W + p1 + i] = 1.0; }
     for (int col = 0; col < p1; ++col) {
         int piv = col; double best = std::fabs(aug[col * W + col]);
@@ -148,7 +149,7 @@ static void buildSGMatrix(int F, int deg, std::vector<double> &B)
             for (int j = 0; j < W; ++j) aug[r * W + j] -= f * aug[col * W + j];
         }
     }
-    B.assign(static_cast<keel::usize>(F) * F, 0.0);
+    B = keel::Array<double>(static_cast<keel::usize>(F) * F, 0.0);
     for (int i = 0; i < F; ++i)
         for (int j = 0; j < F; ++j) {
             double s = 0.0;
@@ -165,7 +166,7 @@ static void buildSGMatrix(int F, int deg, std::vector<double> &B)
 // the centre row; the first/last m samples use the boundary rows of the F-point
 // edge window. Matches MATLAB sgolayfilt's edge handling.
 static void sgolaySlice(const double *src, keel::usize n, keel::isize step, double *dst,
-                        const std::vector<double> &B, int F)
+                        keel::ArrayRef<double> B, int F)
 {
     const int N = static_cast<int>(n);
     const int m = (F - 1) / 2;
@@ -199,7 +200,7 @@ static Value smoothSGDim(const Value &x, int F, int deg, int dim, keel::Allocato
     if (Fe % 2 == 0) --Fe;                       // SG window must be odd
     if (Fe < deg + 1) Fe = deg + 1 | 1;          // need > degree (odd)
     if (Fe < 1) Fe = 1;
-    std::vector<double> B;
+    keel::Array<double> B;
     if (Fe >= deg + 1) buildSGMatrix(Fe, deg, B);
 
     auto perSlice = [&](const double *s, keel::usize nlen, keel::isize step, double *o) {
@@ -207,7 +208,7 @@ static Value smoothSGDim(const Value &x, int F, int deg, int dim, keel::Allocato
             for (keel::usize i = 0; i < nlen; ++i) o[i * step] = s[i * step];  // too short → passthrough
             return;
         }
-        sgolaySlice(s, nlen, step, o, B, Fe);
+        sgolaySlice(s, nlen, step, o, B.as_ref(), Fe);
     };
 
     if (d.isVector()) { perSlice(src, x.numel(), 1, dst); return out; }
@@ -337,15 +338,15 @@ static Value smoothLocalRegDim(const Value &x, int F, int deg, int dim, keel::Al
 
 namespace {
 
-void smoothdata_argcheck(const std::string &method)
+void smoothdata_argcheck(keel::StringRef method)
 {
-    std::string m = method;
+    keel::String m = keel::String::from(method);
     for (auto &c : m) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     if (!m.empty() && m != "movmean" && m != "movmedian" && m != "gaussian"
         && m != "sgolay" && m != "lowess" && m != "loess") {
-        throw Error("smoothdata: method '" + method + "' not supported "
-                     "(supported: 'movmean', 'movmedian', 'gaussian', 'sgolay', "
-                     "'lowess', 'loess')",
+        throw Error(keel::format("smoothdata: method '{}' not supported "
+                                 "(supported: 'movmean', 'movmedian', 'gaussian', 'sgolay', "
+                                 "'lowess', 'loess')", method),
                      0, 0, "smoothdata", "", "numkit:smoothdata:unsupportedMethod");
     }
 }
@@ -366,10 +367,10 @@ void hampel_argcheck(const Value &x, int k, double nsigmas)
 } // namespace
 
 // ── smoothdata ────────────────────────────────────────────────────────
-Value smoothdata(const Value &x, const std::string &method, int k, int dim, keel::Allocator *mr)
+Value smoothdata(const Value &x, keel::StringRef method, int k, int dim, keel::Allocator *mr)
 {
     smoothdata_argcheck(method);
-    std::string m = method;
+    keel::String m = keel::String::from(method);
     for (auto &c : m) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
 
     // Heuristic default window — the reference engine picks ~max(min(round(0.1*n), 10), 3).
@@ -412,9 +413,9 @@ Value smoothdata(const Value &x, const std::string &method, int k, int dim, keel
         const int d = resolveDim(x, dim, "smoothdata");
         return smoothLocalRegDim(x, k, m == "loess" ? 2 : 1, d, mr);
     }
-    throw Error("smoothdata: method '" + method + "' not supported "
-                 "(supported: 'movmean', 'movmedian', 'gaussian', 'sgolay', "
-                 "'lowess', 'loess')",
+    throw Error(keel::format("smoothdata: method '{}' not supported "
+                             "(supported: 'movmean', 'movmedian', 'gaussian', 'sgolay', "
+                             "'lowess', 'loess')", method),
                  0, 0, "smoothdata", "", "numkit:smoothdata:unsupportedMethod");
 }
 

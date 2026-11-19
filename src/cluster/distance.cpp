@@ -41,7 +41,7 @@ void mahal_argcheck(const Value &Y, const Value &X)
 
 } // namespace
 
-Value pdist(const Value &X, const std::string &metric, double p, const Value *C_opt, keel::Allocator *mr)
+Value pdist(const Value &X, keel::StringRef metric, double p, const Value *C_opt, keel::Allocator *mr)
 {
     const Metric m = parse_metric(metric);
     const keel::usize M = X.dims().rows();
@@ -134,12 +134,12 @@ Value pdist(const Value &X, const std::string &metric, double p, const Value *C_
 }
 
 // Backward-compat wrapper without C.
-Value pdist(const Value &X, const std::string &metric, double p, keel::Allocator *mr)
+Value pdist(const Value &X, keel::StringRef metric, double p, keel::Allocator *mr)
 {
     return pdist(X, metric, p, nullptr, mr);
 }
 
-Value pdist2(const Value &X, const Value &Y, const std::string &metric, double p, const Value *C_opt, keel::Allocator *mr)
+Value pdist2(const Value &X, const Value &Y, keel::StringRef metric, double p, const Value *C_opt, keel::Allocator *mr)
 {
     const Metric m = parse_metric(metric);
     pdist2_argcheck(X, Y);
@@ -232,7 +232,7 @@ Value pdist2(const Value &X, const Value &Y, const std::string &metric, double p
     return out;
 }
 
-Value pdist2(const Value &X, const Value &Y, const std::string &metric, double p, keel::Allocator *mr)
+Value pdist2(const Value &X, const Value &Y, keel::StringRef metric, double p, keel::Allocator *mr)
 {
     return pdist2(X, Y, metric, p, nullptr, mr);
 }
@@ -240,7 +240,7 @@ Value pdist2(const Value &X, const Value &Y, const std::string &metric, double p
 // pdist2 with per-column top-k selection ('Smallest' / 'Largest').
 // Returns D (k × My, sorted asc/desc) and I (k × My, 1-based row indices
 // into X). On exit, D and I are k × My or min(Mx,k) × My when Mx < k.
-void pdist2_topk(const Value &X, const Value &Y, const std::string &metric, double p, const Value *C_opt, keel::usize k, bool largest, Value &Dout, Value &Iout, keel::Allocator *mr)
+void pdist2_topk(const Value &X, const Value &Y, keel::StringRef metric, double p, const Value *C_opt, keel::usize k, bool largest, Value &Dout, Value &Iout, keel::Allocator *mr)
 {
     Value full = pdist2(X, Y, metric, p, C_opt, mr);
     const keel::usize Mx = X.dims().rows();

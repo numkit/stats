@@ -1,16 +1,19 @@
 // toolboxes/stats/src/lda/lda.cpp
 
+#include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
+#include <keel/ref.h>
+#include <keel/string.h>
 #include <numkit/stats/lda/lda.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <limits>
-#include <vector>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -53,7 +56,7 @@ void fwd_solve(const double *L, double *z, const double *b, keel::usize d)
 
 namespace {
 void classify_argcheck(const Value &sample, const Value &training, const Value &group,
-                       const std::string &type_in, std::string &type, bool &quadratic, bool &diagonal)
+                       keel::StringRef type_in, keel::String &type, bool &quadratic, bool &diagonal)
 {
     const keel::usize d   = training.dims().cols();
     const keel::usize Ntr = training.dims().rows();
@@ -64,9 +67,9 @@ void classify_argcheck(const Value &sample, const Value &training, const Value &
         throw Error("classify: group must have one entry per training row",
                     0, 0, "classify", "", "numkit:classify:group");
 
-    type = type_in;
+    type = keel::String::from(type_in);
     for (auto &c : type) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    if (type.empty()) type = "linear";
+    if (type.empty()) type = keel::String::from("linear");
     quadratic = (type == "quadratic" || type == "diagquadratic");
     diagonal  = (type == "diaglinear" || type == "diagquadratic");
     if (type != "linear" && type != "diaglinear"
@@ -77,27 +80,27 @@ void classify_argcheck(const Value &sample, const Value &training, const Value &
 } // namespace
 
 std::tuple<Value, Value, Value, Value>
-classify(const Value &sample, const Value &training, const Value &group, const std::string &type_in, keel::Allocator *mr)
+classify(const Value &sample, const Value &training, const Value &group, keel::StringRef type_in, keel::Allocator *mr)
 {
     const keel::usize d     = training.dims().cols();
     const keel::usize Ntr   = training.dims().rows();
     const keel::usize Nsamp = sample.dims().rows();
-    std::string type;
+    keel::String type;
     bool quadratic = false, diagonal = false;
     classify_argcheck(sample, training, group, type_in, type, quadratic, diagonal);
 
     // Identify unique group labels (sorted ascending).
-    std::vector<double> labels;
+    keel::Array<double> labels;
     labels.reserve(Ntr);
     for (keel::usize i = 0; i < Ntr; ++i) labels.push_back(group.elemAsDouble(i));
-    std::vector<double> uniq = labels;
+    keel::Array<double> uniq = labels.clone();
     std::sort(uniq.begin(), uniq.end());
-    uniq.erase(std::unique(uniq.begin(), uniq.end()), uniq.end());
+    uniq.resize(static_cast<keel::usize>(std::unique(uniq.begin(), uniq.end()) - uniq.begin()));
     const keel::usize K = uniq.size();
 
     // Class counts and means.
-    std::vector<keel::usize> n_k(K, 0);
-    std::vector<double> mu(K * d, 0.0);
+    keel::Array<keel::usize> n_k(K, 0);
+    keel::Array<double> mu(K * d, 0.0);
     for (keel::usize i = 0; i < Ntr; ++i) {
         const auto it = std::find(uniq.begin(), uniq.end(), labels[i]);
         const keel::usize k = static_cast<keel::usize>(it - uniq.begin());
@@ -110,7 +113,7 @@ classify(const Value &sample, const Value &training, const Value &group, const s
             mu[j + k * d] /= double(n_k[k]);
 
     // Covariance matrix/matrices (pooled or per-class).
-    std::vector<double> Sigma((quadratic ? K : 1) * d * d, 0.0);
+    keel::Array<double> Sigma((quadratic ? K : 1) * d * d, 0.0);
 
     auto sigBlock = [&](keel::usize k) -> double * {
         return Sigma.data() + (quadratic ? k * d * d : 0);
@@ -119,7 +122,7 @@ classify(const Value &sample, const Value &training, const Value &group, const s
     for (keel::usize i = 0; i < Ntr; ++i) {
         const auto it = std::find(uniq.begin(), uniq.end(), labels[i]);
         const keel::usize k = static_cast<keel::usize>(it - uniq.begin());
-        std::vector<double> diff(d);
+        keel::Array<double> diff(d);
         for (keel::usize j = 0; j < d; ++j)
             diff[j] = training.elemAsDouble(i + j * Ntr) - mu[j + k * d];
         double *S = sigBlock(k);
@@ -153,8 +156,8 @@ classify(const Value &sample, const Value &training, const Value &group, const s
 
     // Pre-factor each covariance block.
     const keel::usize blocks = quadratic ? K : 1;
-    std::vector<double> Lblocks(blocks * d * d, 0.0);
-    std::vector<double> sumLogDiag(blocks, 0.0);
+    keel::Array<double> Lblocks(blocks * d * d, 0.0);
+    keel::Array<double> sumLogDiag(blocks, 0.0);
     for (keel::usize k = 0; k < blocks; ++k) {
         double *L = Lblocks.data() + k * d * d;
         if (!cholesky(sigBlock(k), L, d))
@@ -166,7 +169,7 @@ classify(const Value &sample, const Value &training, const Value &group, const s
     }
 
     // Prior: empirical n_k / Ntr.
-    std::vector<double> logPrior(K);
+    keel::Array<double> logPrior(K);
     for (keel::usize k = 0; k < K; ++k) logPrior[k] = std::log(double(n_k[k]) / double(Ntr));
 
     // Iterate over sample rows; compute class log-likelihood, pick argmax.
@@ -177,7 +180,7 @@ classify(const Value &sample, const Value &training, const Value &group, const s
     double *pd = postV.doubleDataMut();
     double *lpd = logpV.doubleDataMut();
 
-    std::vector<double> lp(K), z(d), x(d);
+    keel::Array<double> lp(K), z(d), x(d);
     for (keel::usize r = 0; r < Nsamp; ++r) {
         for (keel::usize j = 0; j < d; ++j) x[j] = sample.elemAsDouble(r + j * Nsamp);
         double maxLp = -std::numeric_limits<double>::infinity();
@@ -185,7 +188,7 @@ classify(const Value &sample, const Value &training, const Value &group, const s
         for (keel::usize k = 0; k < K; ++k) {
             const double *L = Lblocks.data() + (quadratic ? k * d * d : 0);
             const double sld = quadratic ? sumLogDiag[k] : sumLogDiag[0];
-            std::vector<double> diff(d);
+            keel::Array<double> diff(d);
             for (keel::usize j = 0; j < d; ++j) diff[j] = x[j] - mu[j + k * d];
             fwd_solve(L, z.data(), diff.data(), d);
             double q = 0.0;
@@ -210,7 +213,7 @@ classify(const Value &sample, const Value &training, const Value &group, const s
     // Apparent training error rate.
     double mis = 0.0;
     {
-        std::vector<double> z2(d), x2(d);
+        keel::Array<double> z2(d), x2(d);
         for (keel::usize i = 0; i < Ntr; ++i) {
             for (keel::usize j = 0; j < d; ++j) x2[j] = training.elemAsDouble(i + j * Ntr);
             double maxLp = -std::numeric_limits<double>::infinity();
@@ -218,7 +221,7 @@ classify(const Value &sample, const Value &training, const Value &group, const s
             for (keel::usize k = 0; k < K; ++k) {
                 const double *L = Lblocks.data() + (quadratic ? k * d * d : 0);
                 const double sld = quadratic ? sumLogDiag[k] : sumLogDiag[0];
-                std::vector<double> diff(d);
+                keel::Array<double> diff(d);
                 for (keel::usize j = 0; j < d; ++j) diff[j] = x2[j] - mu[j + k * d];
                 fwd_solve(L, z2.data(), diff.data(), d);
                 double q = 0.0;

@@ -9,9 +9,12 @@
 
 #pragma once
 
+#include <keel/array.h>
 #include <keel/core.h>
+#include <keel/format.h>
 #include <keel/memory.h>
 #include <keel/ref.h>
+#include <keel/string.h>
 #include <numkit/builtin/elmat.hpp>
 #include <numkit/value/argcheck.hpp>
 #include <numkit/value/error.hpp>
@@ -20,7 +23,6 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <string>
 #include <tuple>
 #include <utility>
 
@@ -36,9 +38,8 @@ inline keel::usize stripUpperFlag(keel::ArrayRef<Value> args, bool &upper)
     if (args.empty()) return 0;
     const Value &last = args[args.size() - 1];
     if (!last.isChar() && !last.isString()) return args.size();
-    std::string s(last.toString().as_ref());
-    std::transform(s.begin(), s.end(), s.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    keel::String s = last.toString();
+    for (char &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     if (s == "upper") {
         upper = true;
         return args.size() - 1;
@@ -74,7 +75,7 @@ inline void emit_vec_stat_1arg(keel::ArrayRef<Value> args, keel::usize nargout,
                                 const char *fnName, Stat1 stat_impl)
 {
     if (args.empty())
-        throw Error(std::string(fnName) + ": requires 1 arg",
+        throw Error(keel::format("{}: requires 1 arg", fnName),
                     0, 0, fnName, "", "numkit:nargin");
     const Value &p = args[0];
     if (p.isScalar()) {
@@ -108,7 +109,7 @@ inline void emit_vec_stat_2arg(keel::ArrayRef<Value> args, keel::usize nargout,
                                 const char *fnName, Stat2 stat_impl)
 {
     if (args.size() < 2)
-        throw Error(std::string(fnName) + ": requires 2 args",
+        throw Error(keel::format("{}: requires 2 args", fnName),
                     0, 0, fnName, "", "numkit:nargin");
     const Value &av = args[0];
     const Value &bv = args[1];
@@ -121,7 +122,7 @@ inline void emit_vec_stat_2arg(keel::ArrayRef<Value> args, keel::usize nargout,
         return;
     }
     if (na > 1 && nb > 1 && na != nb)
-        throw Error(std::string(fnName) + ": args must be same size or scalar",
+        throw Error(keel::format("{}: args must be same size or scalar", fnName),
                     0, 0, fnName, "", "numkit:dim");
     const Value &ref = (na >= nb) ? av : bv;
     const auto &d = ref.dims();
@@ -151,7 +152,7 @@ inline void emit_vec_stat_3arg(keel::ArrayRef<Value> args, keel::usize nargout,
                                 const char *fnName, Stat3 stat_impl)
 {
     if (args.size() < 3)
-        throw Error(std::string(fnName) + ": requires 3 args",
+        throw Error(keel::format("{}: requires 3 args", fnName),
                     0, 0, fnName, "", "numkit:nargin");
     const Value &av = args[0];
     const Value &bv = args[1];
@@ -166,7 +167,7 @@ inline void emit_vec_stat_3arg(keel::ArrayRef<Value> args, keel::usize nargout,
     }
     auto sizeOK = [&](keel::usize n){ return n == 1 || n == nmax; };
     if (!sizeOK(na) || !sizeOK(nb) || !sizeOK(nc))
-        throw Error(std::string(fnName) + ": args must be same size or scalar",
+        throw Error(keel::format("{}: args must be same size or scalar", fnName),
                     0, 0, fnName, "", "numkit:dim");
     const Value &ref = (na == nmax) ? av : (nb == nmax ? bv : cv);
     const auto &d = ref.dims();
@@ -236,7 +237,7 @@ inline keel::usize dist_match_numel(std::initializer_list<keel::usize> sizes,
     for (keel::usize s : sizes) N = std::max(N, s);
     for (keel::usize s : sizes)
         if (s != 1 && s != N)
-            throw Error(std::string(fnName) + ": Non-scalar arguments must match in size.",
+            throw Error(keel::format("{}: Non-scalar arguments must match in size.", fnName),
                         0, 0, fnName, "", "numkit:dist:size");
     return N;
 }
@@ -253,7 +254,7 @@ inline Value broadcast_dist2(const Value &av, const Value &bv,
     if (na == 1 && nb == 1)
         return Value::scalar(kernel(av.toScalar(), bv.toScalar()), mr);
     if (na > 1 && nb > 1 && na != nb)
-        throw Error(std::string(fnName) + ": Non-scalar arguments must match in size.",
+        throw Error(keel::format("{}: Non-scalar arguments must match in size.", fnName),
                     0, 0, fnName, "", "numkit:dist:size");
     const Value &ref = (na >= nb) ? av : bv;
     const auto &d = ref.dims();
@@ -283,7 +284,7 @@ inline Value broadcast_dist3(const Value &av, const Value &bv, const Value &cv,
         return Value::scalar(kernel(av.toScalar(), bv.toScalar(), cv.toScalar()), mr);
     auto ok = [&](keel::usize k) { return k == 1 || k == nmax; };
     if (!ok(na) || !ok(nb) || !ok(nc))
-        throw Error(std::string(fnName) + ": Non-scalar arguments must match in size.",
+        throw Error(keel::format("{}: Non-scalar arguments must match in size.", fnName),
                     0, 0, fnName, "", "numkit:dist:size");
     const Value &ref = (na == nmax) ? av : (nb == nmax ? bv : cv);
     const auto &d = ref.dims();
@@ -315,7 +316,7 @@ inline Value broadcast_dist4(const Value &av, const Value &bv, const Value &cv,
             kernel(av.toScalar(), bv.toScalar(), cv.toScalar(), dv.toScalar()), mr);
     auto ok = [&](keel::usize k) { return k == 1 || k == nmax; };
     if (!ok(na) || !ok(nb) || !ok(nc) || !ok(nd))
-        throw Error(std::string(fnName) + ": Non-scalar arguments must match in size.",
+        throw Error(keel::format("{}: Non-scalar arguments must match in size.", fnName),
                     0, 0, fnName, "", "numkit:dist:size");
     const Value &ref = (na == nmax) ? av : (nb == nmax ? bv : (nc == nmax ? cv : dv));
     const auto &d = ref.dims();
@@ -356,9 +357,9 @@ inline void parse_rng_size(keel::ArrayRef<Value> args, keel::usize start,
     // Vector size form: numel > 1. Only valid when it is the sole size arg.
     if (a0.numel() > 1) {
         if (args.size() > start + 1)
-            throw Error(std::string(fn) + ": too many input arguments — a size "
-                        "vector cannot be followed by additional size inputs.",
-                        0, 0, fn, "", "numkit:" + std::string(fn) + ":maxnargin");
+            throw Error(keel::format("{}: too many input arguments — a size "
+                        "vector cannot be followed by additional size inputs.", fn),
+                        0, 0, fn, "", keel::format("numkit:{}:maxnargin", fn));
         argcheck::arrayDimReal(a0, fn);
         const keel::usize n = a0.numel();
         rows = argcheck::arrayDim(a0.elemAsDouble(0), fn);
@@ -381,9 +382,9 @@ inline void parse_rng_size(keel::ArrayRef<Value> args, keel::usize start,
     // dims[1..] into cols for the 2-D kernel.
     for (keel::usize i = start; i < args.size(); ++i) {
         if (args[i].numel() > 1)
-            throw Error(std::string(fn) + ": size inputs must be scalars when "
-                        "more than one size argument is supplied.",
-                        0, 0, fn, "", "numkit:" + std::string(fn) + ":sizeNotScalar");
+            throw Error(keel::format("{}: size inputs must be scalars when "
+                        "more than one size argument is supplied.", fn),
+                        0, 0, fn, "", keel::format("numkit:{}:sizeNotScalar", fn));
     }
     rows = a0.isEmpty() ? 0 : argcheck::arrayDim(a0, fn);
     cols = 1;
@@ -398,7 +399,7 @@ inline Value reshape_rng_nd(Value v, keel::ArrayRef<Value> args, keel::usize sta
 {
     if (args.size() <= start)
         return v;
-    std::vector<keel::usize> shape;
+    keel::Array<keel::usize> shape;
     if (args.size() == start + 1 && args[start].numel() > 1) {
         const keel::usize n = args[start].numel();
         shape.reserve(n);

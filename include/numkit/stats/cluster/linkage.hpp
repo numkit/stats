@@ -12,7 +12,6 @@
 #include <keel/ref.h>
 #include <numkit/value/value.hpp>
 
-#include <string>
 #include <tuple>
 
 namespace numkit::stats {
@@ -38,7 +37,7 @@ namespace numkit::stats {
 /// @return        (N−1)×3 linkage table.
 ///
 /// @see cluster_from_linkage, cophenet, inconsistent
-Value linkage(const Value &Y, const std::string &method,
+Value linkage(const Value &Y, keel::StringRef method,
               keel::Allocator *mr = nullptr);
 
 /// @brief 4-arg overload: when `Y` is a raw N×D data matrix,
@@ -51,8 +50,8 @@ Value linkage(const Value &Y, const std::string &method,
 /// @param mr      Memory resource (nullptr → process default).
 /// @return        (N−1)×3 linkage table.
 /// @see linkage
-Value linkage(const Value &Y, const std::string &method,
-              const std::string &metric, keel::f64 p,
+Value linkage(const Value &Y, keel::StringRef method,
+              keel::StringRef metric, keel::f64 p,
               keel::Allocator *mr = nullptr);
 
 /// Flatten a linkage tree into cluster labels
@@ -67,7 +66,7 @@ Value linkage(const Value &Y, const std::string &method,
 /// @param mr         Memory resource (nullptr → process default).
 /// @return           N×1 column of 1-based cluster labels.
 Value cluster_from_linkage(const Value &Z, int maxclust, keel::f64 cutoff,
-                           const std::string &criterion,
+                           keel::StringRef criterion,
                            keel::Allocator *mr = nullptr);
 
 /// @brief 5-arg overload of @ref cluster_from_linkage with explicit
@@ -82,7 +81,7 @@ Value cluster_from_linkage(const Value &Z, int maxclust, keel::f64 cutoff,
 /// @return           N×1 column of 1-based cluster labels.
 /// @see cluster_from_linkage, inconsistent
 Value cluster_from_linkage(const Value &Z, int maxclust, keel::f64 cutoff,
-                           const std::string &criterion, int depth,
+                           keel::StringRef criterion, int depth,
                            keel::Allocator *mr = nullptr);
 
 /// Convenience: pdist + linkage + cluster in one call (`clusterdata`).
@@ -95,8 +94,8 @@ Value cluster_from_linkage(const Value &Z, int maxclust, keel::f64 cutoff,
 /// @param mr               Memory resource (nullptr → process default).
 /// @return                 N×1 cluster labels.
 Value clusterdata(const Value &X, int maxclust, keel::f64 cutoff,
-                  const std::string &linkage_method,
-                  const std::string &criterion,
+                  keel::StringRef linkage_method,
+                  keel::StringRef criterion,
                   keel::Allocator *mr = nullptr);
 
 /// @brief 6-arg @ref clusterdata overload: explicit inconsistency
@@ -112,8 +111,8 @@ Value clusterdata(const Value &X, int maxclust, keel::f64 cutoff,
 /// @return                 N×1 cluster labels.
 /// @see clusterdata
 Value clusterdata(const Value &X, int maxclust, keel::f64 cutoff,
-                  const std::string &linkage_method,
-                  const std::string &criterion, int depth,
+                  keel::StringRef linkage_method,
+                  keel::StringRef criterion, int depth,
                   keel::Allocator *mr = nullptr);
 
 /// @brief 8-arg @ref clusterdata overload: explicit depth + custom
@@ -131,9 +130,9 @@ Value clusterdata(const Value &X, int maxclust, keel::f64 cutoff,
 /// @return                 N×1 cluster labels.
 /// @see clusterdata
 Value clusterdata(const Value &X, int maxclust, keel::f64 cutoff,
-                  const std::string &linkage_method,
-                  const std::string &criterion, int depth,
-                  const std::string &distance_metric, keel::f64 p,
+                  keel::StringRef linkage_method,
+                  keel::StringRef criterion, int depth,
+                  keel::StringRef distance_metric, keel::f64 p,
                   keel::Allocator *mr = nullptr);
 
 /// @brief Cophenetic correlation (`c = cophenet(Z, Y)`).

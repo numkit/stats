@@ -9,8 +9,6 @@
 #include <keel/ref.h>
 #include <numkit/value/value.hpp>
 
-#include <string>
-
 namespace numkit::stats {
 
 /// @addtogroup group_stats
@@ -179,7 +177,7 @@ Value movprod(const Value &x, keel::ArrayRef<keel::usize> k, int dim = 0,
 /// @return        Smoothed array, same shape as `x`.
 /// @throws Error  Unsupported method (`m:smoothdata:unsupportedMethod`).
 /// @see movmean, movmedian
-Value smoothdata(const Value &x, const std::string &method = "movmean",
+Value smoothdata(const Value &x, keel::StringRef method = "movmean",
                  int k = 0, int dim = 0,
                  keel::Allocator *mr = nullptr);
 

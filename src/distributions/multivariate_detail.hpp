@@ -9,7 +9,9 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
+#include <keel/array.h>
 #include <keel/core.h>
+#include <keel/format.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
@@ -20,7 +22,6 @@
 #include <limits>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -42,8 +43,8 @@ void choleskyLowerInPlace(double *S, keel::usize n)
         for (keel::usize k = 0; k < j; ++k)
             diag -= S[j * n + k] * S[j * n + k];
         if (diag <= 0.0)
-            throw Error("mvnrnd: Sigma must be positive definite "
-                        "(Cholesky failed at row " + std::to_string(j + 1) + ")",
+            throw Error(keel::format("mvnrnd: Sigma must be positive definite "
+                        "(Cholesky failed at row {})", j + 1),
                          0, 0, "mvnrnd", "", "numkit:mvnrnd:notPD");
         const double Ljj = std::sqrt(diag);
         S[j * n + j] = Ljj;
@@ -115,7 +116,7 @@ double monteCarloCdf(const double *L, keel::usize d,
 {
     std::normal_distribution<double> Nz(0.0, 1.0);
     keel::usize below = 0;
-    std::vector<double> z(d), sample(d);
+    keel::Array<double> z(d), sample(d);
     const keel::usize halfN = N / 2;
     for (keel::usize s = 0; s < halfN; ++s) {
         for (keel::usize k = 0; k < d; ++k) z[k] = Nz(gen);
@@ -193,7 +194,7 @@ inline double genzSovCdf(const double *L, keel::usize d,
         59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131
     };
     const keel::usize m = d - 1;
-    std::vector<double> alpha(m);
+    keel::Array<double> alpha(m);
     for (keel::usize k = 0; k < m; ++k) {
         const double pk = (k < 32) ? static_cast<double>(kPrimes[k])
                                    : static_cast<double>(137 + 2 * k);
@@ -201,8 +202,8 @@ inline double genzSovCdf(const double *L, keel::usize d,
         alpha[k] = rt - std::floor(rt);
     }
 
-    std::vector<double> y(m), w(m);
-    auto evalIntegrand = [&](const std::vector<double> &uvec) -> double {
+    keel::Array<double> y(m), w(m);
+    auto evalIntegrand = [&](const keel::Array<double> &uvec) -> double {
         double f = f0;
         double dp = d0, ep = e0;
         for (keel::usize i = 1; i < d; ++i) {
@@ -228,7 +229,7 @@ inline double genzSovCdf(const double *L, keel::usize d,
     const keel::usize pairsPerBatch = std::max<keel::usize>(64, maxEvals / (2 * nBatches));
     std::mt19937 shiftGen(5489u);
     std::uniform_real_distribution<double> U(0.0, 1.0);
-    std::vector<double> shift(m);
+    keel::Array<double> shift(m);
 
     double meanEst = 0.0;
     double m2 = 0.0;
@@ -268,23 +269,23 @@ std::pair<keel::usize, keel::usize>
 mvtcdf_shape_check(const Value &X, const Value &C, const char *fn)
 {
     if (C.dims().rows() != C.dims().cols())
-        throw Error(std::string(fn) + ": C must be square",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":notSquareC");
+        throw Error(keel::format("{}: C must be square", fn),
+                    0, 0, fn, "", keel::format("numkit:{}:notSquareC", fn));
     const keel::usize d = C.dims().rows();
     if (d == 0) return {0, 0};
     keel::usize n;
     if (X.isScalar()) {
         if (d != 1)
-            throw Error(std::string(fn) + ": X is scalar but d > 1",
-                        0, 0, fn, "", std::string("numkit:") + fn + ":shapeX");
+            throw Error(keel::format("{}: X is scalar but d > 1", fn),
+                        0, 0, fn, "", keel::format("numkit:{}:shapeX", fn));
         n = 1;
     } else if (X.dims().rows() == 1 && X.dims().cols() == d) {
         n = 1;
     } else if (X.dims().cols() == d) {
         n = X.dims().rows();
     } else {
-        throw Error(std::string(fn) + ": X must be 1×d or n×d",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":shapeX");
+        throw Error(keel::format("{}: X must be 1×d or n×d", fn),
+                    0, 0, fn, "", keel::format("numkit:{}:shapeX", fn));
     }
     return {d, n};
 }
@@ -304,13 +305,13 @@ int mvtcdf_N_from_tol(double tol)
 // Core MC: hits when L[row] < y < U[row] componentwise, antithetic.
 // Lvec / Uvec are length-d (-Inf / +Inf allowed). Returns probability.
 template <typename FetchLU>
-double mvtcdf_mc(const std::vector<double> &Lchol, keel::usize d,
+double mvtcdf_mc(const keel::Array<double> &Lchol, keel::usize d,
                  double df, int N, std::mt19937_64 &gen,
                  FetchLU &&fetch_LU /* (j) -> {Lj, Uj} */)
 {
     std::normal_distribution<double> Nz(0.0, 1.0);
     std::chi_squared_distribution<double> Chi(df);
-    std::vector<double> z(d), y(d), Lvec(d), Uvec(d);
+    keel::Array<double> z(d), y(d), Lvec(d), Uvec(d);
     for (keel::usize j = 0; j < d; ++j) {
         auto [lj, uj] = fetch_LU(j);
         Lvec[j] = lj; Uvec[j] = uj;

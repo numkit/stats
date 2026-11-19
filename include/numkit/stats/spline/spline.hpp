@@ -8,9 +8,9 @@
 
 #include <keel/core.h>
 #include <keel/memory.h>
+#include <keel/ref.h>
 #include <numkit/value/value.hpp>
 
-#include <string>
 #include <tuple>
 
 namespace numkit::stats {
@@ -144,7 +144,7 @@ Value csapi(const Value &x, const Value &y,
 /// @param mr    Memory resource (nullptr → process default).
 /// @return      Requested field as a Value.
 /// @throws Error  Unknown field name (`m:fnbrk:badPart`).
-Value fnbrk(const Value &pp, const std::string &part,
+Value fnbrk(const Value &pp, keel::StringRef part,
             keel::Allocator *mr = nullptr);
 
 /// @brief Combine pp-form splines linearly

@@ -4,7 +4,9 @@
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
 #include <keel/core.h>
+#include <keel/format.h>
 #include <keel/ref.h>
+#include <keel/string.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/builtin/datafun.hpp>
 #include <numkit/stats/cluster/kmeans.hpp>
@@ -18,10 +20,8 @@
 #include <cctype>
 #include <cmath>
 #include <cstddef>
-#include <string>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -35,28 +35,28 @@ void kmeans_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     int max_iter  = 100;
     int replicates = 1;
     auto lower = [](keel::StringRef sv) {
-        std::string s(sv.data(), sv.size());
+        keel::String s = keel::String::from(sv);
         for (auto &c : s) c = (char)std::tolower((unsigned char)c);
         return s;
     };
     for (keel::usize i = 2; i + 1 < args.size(); i += 2) {
         if (!(args[i].isChar() || args[i].isString())) continue;
-        const std::string key = lower(args[i].toString());
+        const keel::String key = lower(args[i].toString());
         const Value &v = args[i + 1];
         if      (key == "maxiter")    max_iter   = (int)v.toScalar();
         else if (key == "replicates") replicates = (int)v.toScalar();
         else if (key == "distance") {
-            const std::string dn = lower(v.toString());
+            const keel::String dn = lower(v.toString());
             if (dn != "sqeuclidean" && dn != "squaredeuclidean")
-                throw Error("kmeans: only Distance = 'sqeuclidean' is "
-                            "implemented (got '" + dn + "')",
+                throw Error(keel::format("kmeans: only Distance = 'sqeuclidean' is "
+                            "implemented (got '{}')", dn),
                             0, 0, "kmeans", "", "numkit:kmeans:distance");
         }
         else if (key == "start") {
-            const std::string sn = lower(v.toString());
+            const keel::String sn = lower(v.toString());
             if (sn != "plus")
-                throw Error("kmeans: only Start = 'plus' is implemented "
-                            "(got '" + sn + "')",
+                throw Error(keel::format("kmeans: only Start = 'plus' is implemented "
+                            "(got '{}')", sn),
                             0, 0, "kmeans", "", "numkit:kmeans:start");
         }
         // 'Display' / 'EmptyAction' / 'OnlinePhase' / 'Options' silently

@@ -2,6 +2,7 @@
 //
 // Latin Hypercube sampling (lhsdesign / lhsnorm).
 
+#include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <numkit/stats/sampling/lhs.hpp>
@@ -18,7 +19,6 @@
 #include <mutex>
 #include <numeric>
 #include <random>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -32,7 +32,7 @@ void buildOneLhs(double *od, keel::usize n, keel::usize p, bool smooth,
                  Rng &gen)
 {
     std::uniform_real_distribution<double> U(0.0, 1.0);
-    std::vector<keel::usize> perm(n);
+    keel::Array<keel::usize> perm(n);
     const double inv_n = 1.0 / static_cast<double>(n);
     for (keel::usize j = 0; j < p; ++j) {
         std::iota(perm.begin(), perm.end(), keel::usize(1));
@@ -73,7 +73,7 @@ double maxAbsColCorrelation(const double *X, keel::usize n, keel::usize p)
 {
     if (p < 2 || n < 2) return 0.0;
     // Compute column means and SDs.
-    std::vector<double> mu(p), sd(p);
+    keel::Array<double> mu(p), sd(p);
     for (keel::usize j = 0; j < p; ++j) {
         double s = 0.0;
         for (keel::usize i = 0; i < n; ++i) s += X[j * n + i];
@@ -130,7 +130,7 @@ Value lhsdesign(::numkit::ops::RngContext &rng, keel::usize n, keel::usize p,
     };
     best_score = score_of(od);
 
-    std::vector<double> trial(n * p);
+    keel::Array<double> trial(n * p);
     for (keel::usize it = 1; it < iterations; ++it) {
         buildOneLhs(trial.data(), n, p, smooth, gen);
         const double s = score_of(trial.data());
@@ -187,7 +187,7 @@ Value lhsnorm(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigm
 
     std::uniform_real_distribution<double> U(0.0, 1.0);
     const double invN = 1.0 / static_cast<double>(n);
-    std::vector<keel::usize> ord(n), rank(n);
+    keel::Array<keel::usize> ord(n), rank(n);
     Value uCol = Value::matrix(n, 1, ValueType::DOUBLE, mr);
     double *ud = uCol.doubleDataMut();
 

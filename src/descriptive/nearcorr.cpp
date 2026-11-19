@@ -45,9 +45,12 @@
 // iteration in single arithmetic; the fixed point agrees to single
 // precision but the iteration path may differ in the last digits).
 
+#include <keel/array.h>
 #include <keel/core.h>
+#include <keel/format.h>
 #include <keel/memory.h>
 #include <keel/ref.h>
+#include <keel/string.h>
 #include <numkit/stats/descriptive/descriptive.hpp>
 #include "descriptive/descriptive_extras_detail.hpp"
 
@@ -57,8 +60,8 @@
 #include <numkit/value/value.hpp>
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -74,11 +77,11 @@ inline constexpr argcheck::ClassMask kFloatReal =
 // Project onto PSD cone via symmetric eigendecomposition.
 // Symmetrise input first to guard against tiny asymmetry from the
 // previous iteration.
-std::vector<double>
-projPSD(const std::vector<double> &M, keel::usize n, keel::Allocator *mr)
+keel::Array<double>
+projPSD(const keel::Array<double> &M, keel::usize n, keel::Allocator *mr)
 {
     // Symmetrise: M_sym = (M + M') / 2
-    std::vector<double> Msym(n * n);
+    keel::Array<double> Msym(n * n);
     for (keel::usize j = 0; j < n; ++j)
         for (keel::usize i = 0; i < n; ++i)
             Msym[i + j * n] = 0.5 * (M[i + j * n] + M[j + i * n]);
@@ -90,17 +93,17 @@ projPSD(const std::vector<double> &M, keel::usize n, keel::Allocator *mr)
     const double *dd = D.doubleData();
 
     // Build sqrt(d_pos) and reconstruct V * diag(d_pos) * V'.
-    std::vector<double> sqrt_d(n);
+    keel::Array<double> sqrt_d(n);
     for (keel::usize i = 0; i < n; ++i)
         sqrt_d[i] = std::sqrt(std::max(dd[i + i * n], 0.0));
 
     // X = V * diag(d_pos) * V' = (V * diag(sqrt_d)) * (V * diag(sqrt_d))'
-    std::vector<double> VS(n * n);
+    keel::Array<double> VS(n * n);
     for (keel::usize j = 0; j < n; ++j)
         for (keel::usize i = 0; i < n; ++i)
             VS[i + j * n] = vd[i + j * n] * sqrt_d[j];
 
-    std::vector<double> X(n * n, 0.0);
+    keel::Array<double> X(n * n, 0.0);
     for (keel::usize i = 0; i < n; ++i)
         for (keel::usize j = 0; j < n; ++j) {
             double s = 0.0;
@@ -111,7 +114,7 @@ projPSD(const std::vector<double> &M, keel::usize n, keel::Allocator *mr)
     return X;
 }
 
-double frobNorm(const std::vector<double> &M)
+double frobNorm(const keel::Array<double> &M)
 {
     double s = 0.0;
     for (double v : M) s += v * v;
@@ -120,16 +123,16 @@ double frobNorm(const std::vector<double> &M)
 
 void nearcorr_argcheck(const Value &A)
 {
-    const auto rejectA = [&](const std::string &why) {
-        throw Error("nearcorr: invalid value of 'A'. Expected A to be a "
+    const auto rejectA = [&](keel::StringRef why) {
+        throw Error(keel::format("nearcorr: invalid value of 'A'. Expected A to be a "
                     "symmetric matrix with unit diagonal and entries in "
-                    "[-1,1] of double or single class (" + why + ").",
+                    "[-1,1] of double or single class ({}).", why),
                     0, 0, "nearcorr", "", "numkit:nearcorr:invalidInputA");
     };
     if (!A.isNumeric() || A.numel() == 0 || A.dims().ndim() > 2)
-        rejectA(std::string("got a ") + mtypeName(A.type())
-                    + (A.numel() == 0 ? " array, which is empty or not a matrix"
-                                      : " array, which is not a matrix"));
+        rejectA(keel::format("got a {}{}", mtypeName(A.type()),
+                    A.numel() == 0 ? " array, which is empty or not a matrix"
+                                   : " array, which is not a matrix"));
     if (!argcheck::maskAccepts(kFloatReal, argcheck::classBitOf(A.type())))
         rejectA("integer classes are not accepted; pass double or single");
     if (A.isComplex())
@@ -141,15 +144,13 @@ void nearcorr_argcheck(const Value &A)
         for (keel::usize i = 0; i < N; ++i) {
             const double v = A.elemAsDouble(i + j * N);
             if (v < -1.0 || v > 1.0)
-                rejectA("entry (" + std::to_string(i + 1) + ","
-                        + std::to_string(j + 1) + ") is outside [-1,1]");
+                rejectA(keel::format("entry ({},{}) is outside [-1,1]", i + 1, j + 1));
             if (i < j && v != A.elemAsDouble(j + i * N))
                 rejectA("the matrix is not symmetric");
         }
     for (keel::usize i = 0; i < N; ++i)
         if (A.elemAsDouble(i + i * N) != 1.0)
-            rejectA("diagonal entry (" + std::to_string(i + 1) + ","
-                    + std::to_string(i + 1) + ") is not 1");
+            rejectA(keel::format("diagonal entry ({},{}) is not 1", i + 1, i + 1));
 }
 
 } // namespace
@@ -165,16 +166,15 @@ Value nearcorr_full(const Value &A, keel::ArrayRef<Value> nv,
     double tol = 1e-6;
     double maxIterD = 200.0;
     bool hasWeights = false;
-    std::vector<double> wScale;
-    static constexpr std::string_view kNv[] = {"tolerance", "maxiterations",
-                                               "method", "weights"};
-    const auto badOpt = [&](const std::string &why) {
-        throw Error("nearcorr: error in optional input arguments (" + why
-                    + ").",
+    keel::Array<double> wScale;
+    static constexpr keel::StringRef kNv[] = {"tolerance", "maxiterations",
+                                              "method", "weights"};
+    const auto badOpt = [&](keel::StringRef why) {
+        throw Error(keel::format("nearcorr: error in optional input arguments ({}).", why),
                     0, 0, "nearcorr", "", "numkit:nearcorr:optionalInputError");
     };
     argcheck::forEachNvPair(
-        nv, 0, keel::ArrayRef<std::string_view>(kNv), "nearcorr",
+        nv, 0, keel::ArrayRef<keel::StringRef>(kNv), "nearcorr",
         "numkit:nearcorr:optionalInputError",
         [&](keel::usize hit, const Value &v) {
             switch (hit) {
@@ -183,8 +183,7 @@ Value nearcorr_full(const Value &A, keel::ArrayRef<Value> nv,
                     badOpt("'Tolerance' must be a double scalar");
                 const double t = v.toScalar();
                 if (!(t > 0.0))
-                    badOpt("'Tolerance' must be positive, got "
-                           + std::to_string(t));
+                    badOpt(keel::format("'Tolerance' must be positive, got {}", t));
                 tol = t;
                 break;
             }
@@ -193,19 +192,18 @@ Value nearcorr_full(const Value &A, keel::ArrayRef<Value> nv,
                     badOpt("'MaxIterations' must be a double scalar");
                 const double m = v.toScalar();
                 if (!(m > 0.0) || m != std::floor(m))
-                    badOpt("'MaxIterations' must be a positive integer, got "
-                           + std::to_string(m));
+                    badOpt(keel::format("'MaxIterations' must be a positive integer, got {}", m));
                 maxIterD = m;
                 break;
             }
             case 2: {  // Method: EXACT 'newton' | 'projection' (the
                        // reference validates with ismember, not a prefix)
-                std::string mv(v.toString().as_ref());
+                keel::String rawMv = v.toString();
+                keel::String mv = rawMv.clone();
                 for (char &c : mv)
                     c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
                 if (mv != "newton" && mv != "projection")
-                    badOpt("'Method' must be 'newton' or 'projection', got '"
-                           + std::string(v.toString().as_ref()) + "'");
+                    badOpt(keel::format("'Method' must be 'newton' or 'projection', got '{}'", rawMv));
                 break;  // both accepted — see the divergence note above
             }
             case 3: {  // Weights: positive length-N vector or symmetric positive N×N matrix
@@ -249,32 +247,32 @@ Value nearcorr_full(const Value &A, keel::ArrayRef<Value> nv,
                           : Value::scalar(1.0);
 
     // ── alternating projections with Dykstra's correction ───────────────
-    std::vector<double> Yold(N * N), Xold;
+    keel::Array<double> Yold(N * N), Xold;
     for (keel::usize k = 0; k < N * N; ++k) Yold[k] = A.elemAsDouble(k);
-    Xold = Yold;
-    std::vector<double> dS(N * N, 0.0), Y = Yold;
+    Xold = Yold.clone();
+    keel::Array<double> dS(N * N, 0.0), Y = Yold.clone();
 
     for (long it = 0; it <= maxIter; ++it) {
         // R = Yold - dS; X = proj_PSD_W(R); dS = X - R; Y = X, unit diag.
-        std::vector<double> R(N * N);
+        keel::Array<double> R(N * N);
         for (keel::usize k = 0; k < N * N; ++k) R[k] = Yold[k] - dS[k];
-        std::vector<double> X;
+        keel::Array<double> X;
         if (hasWeights) {
-            std::vector<double> Rw(N * N);
+            keel::Array<double> Rw(N * N);
             for (keel::usize k = 0; k < N * N; ++k) Rw[k] = R[k] * wScale[k];
-            std::vector<double> Xw = projPSD(Rw, N, mr);
+            keel::Array<double> Xw = projPSD(Rw, N, mr);
             X.resize(N * N);
             for (keel::usize k = 0; k < N * N; ++k) X[k] = Xw[k] / wScale[k];
         } else {
             X = projPSD(R, N, mr);
         }
         for (keel::usize k = 0; k < N * N; ++k) dS[k] = X[k] - R[k];
-        Y = X;
+        Y.assign(X.as_ref());
         for (keel::usize i = 0; i < N; ++i) Y[i + i * N] = 1.0;
 
         // Exit conditions (the reference checks all three).
         const double normY = frobNorm(Y);
-        std::vector<double> d1(N * N), d2(N * N), d3(N * N);
+        keel::Array<double> d1(N * N), d2(N * N), d3(N * N);
         for (keel::usize k = 0; k < N * N; ++k) {
             d1[k] = Y[k] - Yold[k];
             d2[k] = X[k] - Xold[k];
@@ -284,16 +282,16 @@ Value nearcorr_full(const Value &A, keel::ArrayRef<Value> nv,
         const double cond2 = frobNorm(d2) / frobNorm(X);
         const double cond3 = frobNorm(d3) / normY;
         if (std::max(cond1, std::max(cond2, cond3)) <= tol) {
-            Xold = X;
+            Xold = std::move(X);
             break;
         }
-        Yold = Y;
-        Xold = X;
+        Yold.assign(Y.as_ref());
+        Xold = std::move(X);
     }
 
     // Restore the unit diagonal: Y = X ./ sqrt(diag(X) * diag(X)'), then
     // symmetrise (small numerical drift is possible).
-    std::vector<double> dd(N);
+    keel::Array<double> dd(N);
     for (keel::usize i = 0; i < N; ++i) dd[i] = Xold[i + i * N];
     Value out = wantSingle ? Value::matrix(N, N, ValueType::SINGLE, mr)
                            : Value::matrix(N, N, ValueType::DOUBLE, mr);

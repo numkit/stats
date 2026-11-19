@@ -20,6 +20,7 @@
 // the ranking sequence (the non-NaN values are ranked among
 // themselves, then NaN slots are written back as NaN).
 
+#include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <numkit/stats/descriptive/descriptive.hpp>
@@ -31,7 +32,6 @@
 #include <cmath>
 #include <limits>
 #include <utility>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -43,7 +43,7 @@ double rankOneColumn(const double *col, keel::usize N, double *ranks)
 {
     // Build (value, original_index) pairs for non-NaN entries; NaN
     // gets NaN in the rank output and skipped in sorting.
-    std::vector<std::pair<double, keel::usize>> nz;
+    keel::Array<std::pair<double, keel::usize>> nz;
     nz.reserve(N);
     for (keel::usize i = 0; i < N; ++i) {
         if (std::isnan(col[i])) {
@@ -107,7 +107,7 @@ tiedrank(const Value &x, keel::Allocator *mr)
         const keel::usize N = x.numel();
         // Output ranks: same shape as x.
         Value r = Value::matrix(R, C, ValueType::DOUBLE, mr);
-        std::vector<double> col(N);
+        keel::Array<double> col(N);
         for (keel::usize i = 0; i < N; ++i) col[i] = x.elemAsDouble(i);
         const double tieadj = rankOneColumn(col.data(), N,
                                             r.doubleDataMut());
@@ -120,7 +120,7 @@ tiedrank(const Value &x, keel::Allocator *mr)
     Value ta = Value::matrix(1, C, ValueType::DOUBLE, mr);
     double *ro = r.doubleDataMut();
     double *to = ta.doubleDataMut();
-    std::vector<double> col(R);
+    keel::Array<double> col(R);
     for (keel::usize c = 0; c < C; ++c) {
         for (keel::usize i = 0; i < R; ++i)
             col[i] = x.elemAsDouble(c * R + i);

@@ -20,8 +20,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
-#include <string>
-#include <vector>
 
 #include "nan_aware_detail.hpp"
 

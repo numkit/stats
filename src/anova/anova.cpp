@@ -1,5 +1,6 @@
 // toolboxes/stats/src/anova/anova.cpp
 
+#include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <numkit/stats/anova/anova.hpp>
@@ -13,7 +14,6 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
-#include <vector>
 
 #include "anova_detail.hpp"
 
@@ -30,7 +30,7 @@ anova1(const Value &y, const Value &group, keel::Allocator *mr)
 
     keel::usize N = 0;
     double grandSum = 0.0;
-    std::vector<double> means(buckets.size());
+    keel::Array<double> means(buckets.size());
     for (keel::usize k = 0; k < buckets.size(); ++k) {
         const auto &v = buckets[k].values;
         double s = 0.0;
@@ -112,8 +112,8 @@ anova2(const Value &Y, keel::Allocator *mr)
     const double N = static_cast<double>(m * n);
 
     // Row means (size m), column means (size n), grand mean.
-    std::vector<double> rowSum(m, 0.0);
-    std::vector<double> colSum(n, 0.0);
+    keel::Array<double> rowSum(m, 0.0);
+    keel::Array<double> colSum(n, 0.0);
     double grandSum = 0.0;
     for (keel::usize j = 0; j < n; ++j)
         for (keel::usize i = 0; i < m; ++i) {
@@ -123,7 +123,7 @@ anova2(const Value &Y, keel::Allocator *mr)
             grandSum += v;
         }
     const double grandMean = grandSum / N;
-    std::vector<double> rowMean(m), colMean(n);
+    keel::Array<double> rowMean(m), colMean(n);
     for (keel::usize i = 0; i < m; ++i) rowMean[i] = rowSum[i] / static_cast<double>(n);
     for (keel::usize j = 0; j < n; ++j) colMean[j] = colSum[j] / static_cast<double>(m);
 
@@ -183,7 +183,7 @@ kruskalwallis(const Value &y, const Value &group, keel::Allocator *mr)
 
     // Flatten to single (value, group_idx) array for ranking.
     struct V { double val; keel::usize g; };
-    std::vector<V> all;
+    keel::Array<V> all;
     keel::usize N = 0;
     for (keel::usize k = 0; k < buckets.size(); ++k) {
         for (double v : buckets[k].values) all.push_back({v, k});
@@ -194,14 +194,14 @@ kruskalwallis(const Value &y, const Value &group, keel::Allocator *mr)
                                        Value::scalar(0.0, mr),
                                        Value::scalar(0.0, mr));
 
-    std::vector<keel::usize> ord(N);
+    keel::Array<keel::usize> ord(N);
     for (keel::usize i = 0; i < N; ++i) ord[i] = i;
     std::sort(ord.begin(), ord.end(),
               [&](keel::usize a, keel::usize b) { return all[a].val < all[b].val; });
 
     // Assign mid-ranks for ties.
-    std::vector<double> ranks(N);
-    std::vector<keel::usize> tieGroupSizes;
+    keel::Array<double> ranks(N);
+    keel::Array<keel::usize> tieGroupSizes;
     keel::usize i = 0;
     while (i < N) {
         keel::usize j = i + 1;
@@ -213,8 +213,8 @@ kruskalwallis(const Value &y, const Value &group, keel::Allocator *mr)
     }
 
     // Sum ranks by group.
-    std::vector<double> R(buckets.size(), 0.0);
-    std::vector<keel::usize> ng(buckets.size(), 0);
+    keel::Array<double> R(buckets.size(), 0.0);
+    keel::Array<keel::usize> ng(buckets.size(), 0);
     for (keel::usize k = 0; k < N; ++k) {
         R[all[k].g] += ranks[k];
         ng[all[k].g]++;
@@ -261,10 +261,10 @@ friedman(const Value &x, int reps, keel::Allocator *mr)
     const keel::usize n = nrows / R;   // blocks
     const keel::usize M = R * k;       // observations per block
 
-    std::vector<double> Rj(k, 0.0);      // column rank sums
+    keel::Array<double> Rj(k, 0.0);      // column rank sums
     double              tieTerm = 0.0;   // Σ (t³ − t) over every tie group in every block
-    std::vector<double> blkVals(M), rank(M);
-    std::vector<keel::usize> blkCols(M), ord(M);
+    keel::Array<double> blkVals(M), rank(M);
+    keel::Array<keel::usize> blkCols(M), ord(M);
     for (keel::usize b = 0; b < n; ++b) {
         keel::usize idx = 0;
         for (keel::usize c = 0; c < k; ++c) {
@@ -312,11 +312,11 @@ Value dummyvar(const Value &group, keel::Allocator *mr)
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
 
     // Find unique labels, sorted ascending (matches MATLAB).
-    std::vector<double> uniq;
+    keel::Array<double> uniq;
     uniq.reserve(N);
     for (keel::usize i = 0; i < N; ++i) uniq.push_back(group.elemAsDouble(i));
     std::sort(uniq.begin(), uniq.end());
-    uniq.erase(std::unique(uniq.begin(), uniq.end()), uniq.end());
+    uniq.resize(static_cast<keel::usize>(std::unique(uniq.begin(), uniq.end()) - uniq.begin()));
     const keel::usize K = uniq.size();
 
     Value out = Value::matrix(N, K, ValueType::DOUBLE, mr);

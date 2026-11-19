@@ -9,6 +9,8 @@
 #include <keel/arena.h>
 #include <keel/array.h>
 #include <keel/complex.h>
+#include <keel/format.h>
+#include <keel/string.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/descriptive/descriptive.hpp>
 #include <numkit/stats/distributions/normal.hpp>     // norminv for corrcoef conf bounds
@@ -25,14 +27,11 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <memory>
 #include <cctype>
 #include <cmath>
 #include <cstddef>
-#include <string>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -101,9 +100,9 @@ double scalarVarFlat(const double *x, keel::usize n, int normFlag,
 
 // Convert a Value to a flat row (used for 'all' / vecdim full-flatten /
 // weight-vector inputs). Skips no elements.
-std::vector<double> flatten(const Value &x)
+keel::Array<double> flatten(const Value &x)
 {
-    std::vector<double> out(x.numel());
+    keel::Array<double> out(x.numel());
     for (keel::usize i = 0; i < x.numel(); ++i) out[i] = x.elemAsDouble(i);
     return out;
 }
@@ -122,10 +121,10 @@ Value varStdDispatch(keel::ArrayRef<Value> args, bool sqrtIt, const char *fn,
     // Probed R2025b: the first input must be single or double
     // (logical, complex and even char pass â€” integers reject).
     if (isIntegerType(x.type()))
-        throw Error(std::string(fn) + ": invalid data type. First input "
-                    "argument must be single or double (got "
-                    + std::string(mtypeName(x.type())) + ").",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":integerClass");
+        throw Error(keel::format("{}: invalid data type. First input "
+                                 "argument must be single or double (got {}).",
+                                 fn, mtypeName(x.type())),
+                    0, 0, fn, "", keel::format("numkit:{}:integerClass", fn));
 
     // Parse args[1] (w) and args[2] (dim/'all'/vecdim) into a normalised
     // shape: scalar normFlag (0 or 1), or weight vector + flatten flag.
@@ -137,18 +136,17 @@ Value varStdDispatch(keel::ArrayRef<Value> args, bool sqrtIt, const char *fn,
         if (args[1].isChar() || args[1].isString())
             // var(X,'all') is NOT a form â€” flags only live in the dim
             // position (probed R2025b: unknownFlag).
-            throw Error(std::string(fn)
-                            + ": invalid option. Option must be 'omitnan', "
-                              "'includenan', or a weight vector.",
+            throw Error(keel::format("{}: invalid option. Option must be 'omitnan', "
+                                     "'includenan', or a weight vector.", fn),
                         0, 0, fn, "",
-                        std::string("numkit:") + fn + ":unknownFlag");
+                        keel::format("numkit:{}:unknownFlag", fn));
         if (args[1].numel() == 1 && args[1].isNumeric()) {
             const double wf = argcheck::expectedReal(args[1], 2, "w", fn);
             if (wf != 0.0 && wf != 1.0)
-                throw Error(std::string(fn) + ": W must be a double or "
-                            "single vector of nonnegative weights.",
+                throw Error(keel::format("{}: W must be a double or "
+                                         "single vector of nonnegative weights.", fn),
                             0, 0, fn, "",
-                            std::string("numkit:") + fn + ":invalidWgts");
+                            keel::format("numkit:{}:invalidWgts", fn));
             normFlag = static_cast<int>(wf);
         } else {
             isWeightVec = true;
@@ -158,30 +156,30 @@ Value varStdDispatch(keel::ArrayRef<Value> args, bool sqrtIt, const char *fn,
 
     int dim = 0;
     bool flattenAll = false;
-    std::vector<int> vecdimSet;
+    keel::Array<int> vecdimSet;
     if (n >= 3 && !args[2].isEmpty()) {
         const Value &a = args[2];
         if (a.isChar() || a.isString()) {
-            std::string s(a.toString().as_ref());
+            keel::String s = a.toString();
             std::transform(s.begin(), s.end(), s.begin(),
                            [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-            if (s == "all") flattenAll = true;
-            else throw Error(std::string(fn) + ": unknown dim flag '" + s + "'",
-                              0, 0, fn, "", std::string("numkit:") + fn + ":dim");
+            if (s.as_ref() == "all") flattenAll = true;
+            else throw Error(keel::format("{}: unknown dim flag '{}'", fn, s.as_ref()),
+                              0, 0, fn, "", keel::format("numkit:{}:dim", fn));
         } else if (a.numel() == 1) {
             dim = argcheck::dimArg(a, fn);
         } else {
             // vecdim: full coverage reduces like 'all'; a partial set
             // collapses the listed dims into one trailing dim below.
-            std::vector<int> set = vecdim::parseDimSet(a, fn);
+            keel::Array<int> set = vecdim::parseDimSet(a, fn);
             if (vecdim::coversAllDims(set, x))
                 flattenAll = true;
             else {
                 if (isWeightVec)
-                    throw Error(std::string(fn) + ": weight vector along a "
-                                "dimension set is supported for 2-D inputs "
-                                "only (N-D deferred)",
-                                0, 0, fn, "", std::string("numkit:") + fn + ":wND");
+                    throw Error(keel::format("{}: weight vector along a "
+                                             "dimension set is supported for 2-D inputs "
+                                             "only (N-D deferred)", fn),
+                                0, 0, fn, "", keel::format("numkit:{}:wND", fn));
                 vecdimSet = std::move(set);
             }
         }
@@ -220,9 +218,9 @@ Value varStdDispatch(keel::ArrayRef<Value> args, bool sqrtIt, const char *fn,
             auto xv = flatten(x);
             auto wv = flatten(*wVec);
             if (xv.size() != wv.size())
-                throw Error(std::string(fn) + ": weight vector length must "
-                            "match number of elements",
-                            0, 0, fn, "", std::string("numkit:") + fn + ":invalidSizeWgts");
+                throw Error(keel::format("{}: weight vector length must "
+                                         "match number of elements", fn),
+                            0, 0, fn, "", keel::format("numkit:{}:invalidSizeWgts", fn));
             const double v = weightedVarFlat(xv.data(), wv.data(),
                                              xv.size(), sqrtIt, omitNan);
             return Value::scalar(v, mr);
@@ -232,25 +230,25 @@ Value varStdDispatch(keel::ArrayRef<Value> args, bool sqrtIt, const char *fn,
         // slice. Weight length must equal size(x, dim). 2-D only (N-D
         // weighted reduction is deferred).
         if (x.dims().ndim() > 2)
-            throw Error(std::string(fn) + ": weight vector along a dimension "
-                        "is supported for 2-D inputs only (N-D deferred)",
-                        0, 0, fn, "", std::string("numkit:") + fn + ":wND");
+            throw Error(keel::format("{}: weight vector along a dimension "
+                                     "is supported for 2-D inputs only (N-D deferred)", fn),
+                        0, 0, fn, "", keel::format("numkit:{}:wND", fn));
         const int d = (dim == 0) ? firstNonSingletonDim(x) : dim;
         if (d != 1 && d != 2)
-            throw Error(std::string(fn) + ": dim out of range",
-                        0, 0, fn, "", std::string("numkit:") + fn + ":dim");
+            throw Error(keel::format("{}: dim out of range", fn),
+                        0, 0, fn, "", keel::format("numkit:{}:dim", fn));
         const keel::usize r = static_cast<keel::usize>(x.dims().dim(0));
         const keel::usize c = static_cast<keel::usize>(x.dims().dim(1));
         auto wv = flatten(*wVec);
         const keel::usize need = (d == 1) ? r : c;
         if (wv.size() != need)
-            throw Error(std::string(fn) + ": weight vector length must match "
-                        "the length of the operating dimension",
-                        0, 0, fn, "", std::string("numkit:") + fn + ":invalidSizeWgts");
+            throw Error(keel::format("{}: weight vector length must match "
+                                     "the length of the operating dimension", fn),
+                        0, 0, fn, "", keel::format("numkit:{}:invalidSizeWgts", fn));
         if (d == 1) {
             auto out = Value::matrix(1, c, ValueType::DOUBLE, mr);
             double *od = out.doubleDataMut();
-            std::vector<double> col(r);
+            keel::Array<double> col(r);
             for (keel::usize j = 0; j < c; ++j) {
                 for (keel::usize i = 0; i < r; ++i) col[i] = x.elemAsDouble(j * r + i);
                 od[j] = weightedVarFlat(col.data(), wv.data(), r, sqrtIt, omitNan);
@@ -259,7 +257,7 @@ Value varStdDispatch(keel::ArrayRef<Value> args, bool sqrtIt, const char *fn,
         }
         auto out = Value::matrix(r, 1, ValueType::DOUBLE, mr);
         double *od = out.doubleDataMut();
-        std::vector<double> row(c);
+        keel::Array<double> row(c);
         for (keel::usize i = 0; i < r; ++i) {
             for (keel::usize j = 0; j < c; ++j) row[j] = x.elemAsDouble(j * r + i);
             od[i] = weightedVarFlat(row.data(), wv.data(), c, sqrtIt, omitNan);
@@ -356,8 +354,10 @@ void median_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
     // narrowGuard above.
     struct LogicalGuard {
         Value *v;
+        bool active;
         ~LogicalGuard()
         {
+            if (!active) return;
             if (v->type() == ValueType::DOUBLE) {
                 Value lg = Value::matrix(v->dims().rows(), v->dims().cols(),
                                          ValueType::LOGICAL);
@@ -367,31 +367,27 @@ void median_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
                 *v = std::move(lg);
             }
         }
-    };
-    std::unique_ptr<LogicalGuard> logicalGuard;
-    if (args[0].type() == ValueType::LOGICAL)
-        logicalGuard = std::make_unique<LogicalGuard>(
-            LogicalGuard{&outs[0]});
+    } logicalGuard{&outs[0], args[0].type() == ValueType::LOGICAL};
     bool omitNan = false;
     keel::usize n = stripNanFlag(args, omitNan, "median");
     int dim = 0;
     bool isAll = false;
-    std::vector<int> vecdimSet;
+    keel::Array<int> vecdimSet;
     if (n >= 2 && !args[1].isEmpty()) {
         const Value &a = args[1];
         if (a.isChar() || a.isString()) {
-            std::string s(a.toString().as_ref());
+            keel::String s = a.toString();
             std::transform(s.begin(), s.end(), s.begin(),
                            [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-            if (s == "all") isAll = true;
-            else throw Error("median: unknown option '" + s + "'",
+            if (s.as_ref() == "all") isAll = true;
+            else throw Error(keel::format("median: unknown option '{}'", s.as_ref()),
                               0, 0, "median", "", "numkit:median:unknownOption");
         } else if (a.numel() == 1) {
             dim = argcheck::dimArg(a, "median");
         } else {
             // vecdim: full coverage reduces like 'all'; a partial set
             // collapses the listed dims into one trailing dim below.
-            std::vector<int> set = vecdim::parseDimSet(a, "median");
+            keel::Array<int> set = vecdim::parseDimSet(a, "median");
             if (vecdim::coversAllDims(set, args[0]))
                 isAll = true;
             else
@@ -489,33 +485,33 @@ QArgs parseQArgs(keel::ArrayRef<Value> args, keel::usize start, const Value &x,
             q.dim = argcheck::dimArg(args[i], "median");
         } else {
             // Vecdim: covers-all-dims â†’ flatten; otherwise error.
-            std::vector<int> dims;
+            keel::Array<int> dims;
             for (keel::usize j = 0; j < args[i].numel(); ++j)
                 dims.push_back(argcheck::dimArg(args[i].elemAsDouble(j), "median"));
             const int rank = x.dims().is3D() ? 3
                               : (x.dims().isVector() || x.isScalar() ? 1 : 2);
-            std::vector<bool> seen(rank + 1, false);
+            keel::Array<keel::u8> seen(static_cast<keel::usize>(rank) + 1, 0);
             for (int d : dims) {
                 if (d < 1 || d > rank)
-                    throw Error(std::string(fn) + ": vecdim entries out of range",
-                                0, 0, fn, "", std::string("numkit:") + fn + ":vecdim");
-                seen[d] = true;
+                    throw Error(keel::format("{}: vecdim entries out of range", fn),
+                                0, 0, fn, "", keel::format("numkit:{}:vecdim", fn));
+                seen[static_cast<keel::usize>(d)] = 1;
             }
             bool allCovered = true;
-            for (int d = 1; d <= rank; ++d) if (!seen[d]) allCovered = false;
+            for (int d = 1; d <= rank; ++d) if (!seen[static_cast<keel::usize>(d)]) allCovered = false;
             if (!allCovered)
-                throw Error(std::string(fn) + ": partial vecdim reduction is "
-                            "not yet supported in nk (only full-flatten "
-                            "vecdim like [1 2] or 'all')",
-                            0, 0, fn, "", std::string("numkit:") + fn + ":vecdim");
+                throw Error(keel::format("{}: partial vecdim reduction is "
+                                         "not yet supported in nk (only full-flatten "
+                                         "vecdim like [1 2] or 'all')", fn),
+                            0, 0, fn, "", keel::format("numkit:{}:vecdim", fn));
             q.flatten = true;
         }
         ++i;
     } else if (i < args.size() && (args[i].isChar() || args[i].isString())) {
-        std::string s(args[i].toString().as_ref());
+        keel::String s = args[i].toString();
         std::transform(s.begin(), s.end(), s.begin(),
                        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-        if (s == "all") {
+        if (s.as_ref() == "all") {
             q.flatten = true;
             ++i;
         }
@@ -524,34 +520,34 @@ QArgs parseQArgs(keel::ArrayRef<Value> args, keel::usize start, const Value &x,
 
     while (i + 1 < args.size()) {
         if (!args[i].isChar() && !args[i].isString())
-            throw Error(std::string(fn) + ": expected Name-Value pair",
-                        0, 0, fn, "", std::string("numkit:") + fn + ":nv");
-        std::string name(args[i].toString().as_ref());
+            throw Error(keel::format("{}: expected Name-Value pair", fn),
+                        0, 0, fn, "", keel::format("numkit:{}:nv", fn));
+        keel::String name = args[i].toString();
         std::transform(name.begin(), name.end(), name.begin(),
                        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-        if (name == "method") {
+        if (name.as_ref() == "method") {
             if (!args[i + 1].isChar() && !args[i + 1].isString())
-                throw Error(std::string(fn) + ": Method must be a string",
-                            0, 0, fn, "", std::string("numkit:") + fn + ":method");
-            std::string m(args[i + 1].toString().as_ref());
+                throw Error(keel::format("{}: Method must be a string", fn),
+                            0, 0, fn, "", keel::format("numkit:{}:method", fn));
+            keel::String m = args[i + 1].toString();
             std::transform(m.begin(), m.end(), m.begin(),
                            [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
             // MATLAB's documented values are 'exact' (default) and
             // 'approximate'. 'exact' is the linear-interpolation order-
             // statistic method, which is nk's Midpoint. The
             // midpoint/inclusive/exclusive names are kept for compatibility.
-            if      (m == "exact")       q.method = QMethod::Midpoint;
-            else if (m == "midpoint")    q.method = QMethod::Midpoint;
-            else if (m == "inclusive")   q.method = QMethod::Inclusive;
-            else if (m == "exclusive")   q.method = QMethod::Exclusive;
-            else if (m == "approximate") q.method = QMethod::Approximate;
+            if      (m.as_ref() == "exact")       q.method = QMethod::Midpoint;
+            else if (m.as_ref() == "midpoint")    q.method = QMethod::Midpoint;
+            else if (m.as_ref() == "inclusive")   q.method = QMethod::Inclusive;
+            else if (m.as_ref() == "exclusive")   q.method = QMethod::Exclusive;
+            else if (m.as_ref() == "approximate") q.method = QMethod::Approximate;
             else
-                throw Error(std::string(fn) + ": Method must be 'exact' or "
-                            "'approximate'",
-                            0, 0, fn, "", std::string("numkit:") + fn + ":method");
+                throw Error(keel::format("{}: Method must be 'exact' or "
+                                         "'approximate'", fn),
+                            0, 0, fn, "", keel::format("numkit:{}:method", fn));
         } else {
-            throw Error(std::string(fn) + ": unknown Name-Value '" + name + "'",
-                        0, 0, fn, "", std::string("numkit:") + fn + ":nv");
+            throw Error(keel::format("{}: unknown Name-Value '{}'", fn, name.as_ref()),
+                        0, 0, fn, "", keel::format("numkit:{}:nv", fn));
         }
         i += 2;
     }
@@ -586,7 +582,7 @@ Value computeModeCell(const Value &x, int dim, bool flatten,
                     "real double vector or 2-D matrix input",
                     0, 0, "mode", "", "numkit:mode:cellNd");
     auto tiedCol = [&](const double *s, keel::usize stride, keel::usize n) -> Value {
-        std::vector<double> v;
+        keel::Array<double> v;
         v.reserve(n);
         for (keel::usize k = 0; k < n; ++k) {
             const double d = s[k * stride];
@@ -601,7 +597,7 @@ Value computeModeCell(const Value &x, int dim, bool flatten,
             if (j - i > maxc) maxc = j - i;
             i = j;
         }
-        std::vector<double> tied;
+        keel::Array<double> tied;
         for (keel::usize i = 0; i < N;) {
             keel::usize j = i;
             while (j < N && v[j] == v[i]) ++j;
@@ -636,22 +632,22 @@ void mode_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef
     argcheck::checkNargin(args.size(), 1, 2, "mode");
     int dim = 0;
     bool flatten = false;
-    std::vector<int> vecdimSet;
+    keel::Array<int> vecdimSet;
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const Value &a = args[1];
         if (a.isChar() || a.isString()) {
-            std::string s(a.toString().as_ref());
+            keel::String s = a.toString();
             std::transform(s.begin(), s.end(), s.begin(),
                 [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
-            if (s == "all") flatten = true;
-            else throw Error("mode: unknown flag '" + s + "'",
+            if (s.as_ref() == "all") flatten = true;
+            else throw Error(keel::format("mode: unknown flag '{}'", s.as_ref()),
                               0, 0, "mode", "", "numkit:mode:badFlag");
         } else if (a.numel() == 1) {
             dim = argcheck::dimArg(a, "mode");
         } else {
             // vecdim: full coverage reduces like 'all'; a partial set
             // collapses the listed dims into one trailing dim below.
-            std::vector<int> set = vecdim::parseDimSet(a, "mode");
+            keel::Array<int> set = vecdim::parseDimSet(a, "mode");
             if (vecdim::coversAllDims(set, args[0]))
                 flatten = true;
             else

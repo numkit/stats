@@ -5,21 +5,19 @@
 // compute API declared in the headers below. See project_layering_refactor.
 #include <keel/core.h>
 #include <keel/ref.h>
+#include <keel/string.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/qmc/qmc.hpp>
 #include <numkit/value/argcheck.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstddef>
-#include <string>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -36,7 +34,7 @@ void haltonset_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     long long skip = 0, leap = 0;
     for (keel::usize i = 1; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar() && !args[i].isString()) break;
-        std::string name(args[i].toString().as_ref());
+        keel::String name = args[i].toString();
         for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         const Value &v = args[i + 1];
         if      (name == "skip") skip = static_cast<long long>(v.toScalar());
@@ -57,9 +55,9 @@ void scramble_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
                   keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "scramble");
-    std::string type = (args.size() >= 2 && (args[1].isChar() || args[1].isString()))
-                     ? std::string(args[1].toString().as_ref()) : std::string("RR2");
-    outs[0] = scramble(args[0], type, ctx.engine->allocator());
+    keel::String type = (args.size() >= 2 && (args[1].isChar() || args[1].isString()))
+                      ? args[1].toString() : keel::String::from("RR2");
+    outs[0] = scramble(args[0], type.as_ref(), ctx.engine->allocator());
 }
 
 } // namespace detail

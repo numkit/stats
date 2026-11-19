@@ -20,6 +20,7 @@
 // NaN values are excluded from the row/col index sets and from the
 // total N.
 
+#include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <numkit/stats/descriptive/descriptive.hpp>
@@ -31,9 +32,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
-#include <string>
 #include <utility>
-#include <vector>
 
 #include "crosstab_detail.hpp"
 
@@ -62,7 +61,7 @@ crosstab(const Value &x, const Value &y_opt, keel::Allocator *mr)
 
     if (!have_y) {
         // Single-arg form: column vector with frequency counts of unique x.
-        std::vector<keel::usize> count(R, 0);
+        keel::Array<keel::usize> count(R, 0);
         for (keel::usize k = 0; k < Nx; ++k) {
             const double xk = x.elemAsDouble(k);
             if (std::isnan(xk)) continue;
@@ -94,7 +93,7 @@ crosstab(const Value &x, const Value &y_opt, keel::Allocator *mr)
     }
 
     // Chi-square test.
-    std::vector<double> row_tot(R, 0.0), col_tot(C, 0.0);
+    keel::Array<double> row_tot(R, 0.0), col_tot(C, 0.0);
     for (keel::usize j = 0; j < C; ++j)
         for (keel::usize i = 0; i < R; ++i) {
             row_tot[i] += o[i + j * R];

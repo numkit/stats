@@ -4,6 +4,7 @@
 //   robustfit — IRLS regression with bisquare/Huber weighting
 //   robustcov — concentration-step (FAST-MCD-lite) robust covariance
 
+#include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <numkit/stats/regress/regress.hpp>
@@ -18,7 +19,6 @@
 #include <cmath>
 #include <cstring>
 #include <limits>
-#include <vector>
 
 #include "robust_detail.hpp"
 
@@ -47,27 +47,27 @@ RobustfitResult robustfit(const Value &X, const Value &y,
 
     if (std::isnan(tune)) tune = defaultTune(weight);
 
-    std::vector<double> Xv(n * p);
+    keel::Array<double> Xv(n * p);
     for (keel::usize i = 0; i < n * p; ++i) Xv[i] = X.elemAsDouble(i);
-    std::vector<double> yv(n);
+    keel::Array<double> yv(n);
     for (keel::usize i = 0; i < n; ++i) yv[i] = y.elemAsDouble(i);
 
     // Leverage adjustment (DuMouchel & O'Brien): radj = r / sqrt(1 - h),
     // h = hat-matrix diagonal. MATLAB statrobustfit.m.
-    const std::vector<double> h = leverage(Xv.data(), n, p);
-    std::vector<double> adj(n);
+    const keel::Array<double> h = leverage(Xv.data(), n, p);
+    keel::Array<double> adj(n);
     for (keel::usize i = 0; i < n; ++i)
         adj[i] = 1.0 / std::sqrt(1.0 - h[i]);
 
     // Floor on the scale estimate so a (near-)perfect fit can't drive s to 0.
-    double tiny_s = 1e-6 * sampleStd(yv);
+    double tiny_s = 1e-6 * sampleStd(yv.as_ref());
     if (!(tiny_s > 0.0)) tiny_s = 1.0;
 
     // Initial OLS (uniform weights).
-    std::vector<double> w(n, 1.0);
-    std::vector<double> beta = weightedLS(Xv.data(), n, p, yv.data(), w.data());
+    keel::Array<double> w(n, 1.0);
+    keel::Array<double> beta = weightedLS(Xv.data(), n, p, yv.data(), w.data());
 
-    std::vector<double> r(n), radj(n), beta_prev(p, 0.0);
+    keel::Array<double> r(n), radj(n), beta_prev(p, 0.0);
     const int maxIter = 50;
     const double D = 1.4901161193847656e-08;   // sqrt(eps)
     double s = 1.0;
@@ -80,14 +80,14 @@ RobustfitResult robustfit(const Value &X, const Value &y,
             r[i] = yv[i] - pred;
             radj[i] = r[i] * adj[i];
         }
-        s = madsigma(radj, p);
+        s = madsigma(radj.as_ref(), p);
         const double denom = std::max(s, tiny_s) * tune;
 
         // New weights from the standardised, leverage-adjusted residuals.
         for (keel::usize i = 0; i < n; ++i)
             w[i] = robustWeight(weight, radj[i] / denom);
 
-        beta_prev = beta;
+        beta_prev = keel::move(beta);
         beta = weightedLS(Xv.data(), n, p, yv.data(), w.data());
 
         // MATLAB: stop when no |b-b0| exceeds D*max(|b|,|b0|).
@@ -114,33 +114,35 @@ RobustcovResult robustcov(const Value &X, keel::Allocator *mr)
         throw Error("robustcov: need n > d + 1 observations",
                     0, 0, "robustcov", "", "numkit:robustcov:noDOF");
 
-    std::vector<double> Xv(n * d);
+    keel::Array<double> Xv(n * d);
     for (keel::usize i = 0; i < n * d; ++i) Xv[i] = X.elemAsDouble(i);
 
     // Start from classical mean / cov of all rows.
-    std::vector<keel::usize> keep(n);
+    keel::Array<keel::usize> keep(n);
     for (keel::usize i = 0; i < n; ++i) keep[i] = i;
-    std::vector<double> mu, C, invC;
-    meanCovSubset(Xv.data(), n, d, keep, mu, C);
+    keel::Array<double> mu, C, invC;
+    meanCovSubset(Xv.data(), n, d, keep.as_ref(), mu, C);
 
     const keel::usize h = static_cast<keel::usize>(
         std::ceil(0.75 * static_cast<double>(n)));
 
-    std::vector<keel::usize> prevKeep;
+    keel::Array<keel::usize> prevKeep;
     for (int it = 0; it < 30; ++it) {
-        if (!invertSPD(C, d, invC)) break;
+        if (!invertSPD(C.as_ref(), d, invC)) break;
         auto dist = mahalanobisDist(Xv.data(), n, d, mu.data(), invC.data());
         // Pick h rows with smallest distance.
-        std::vector<std::pair<double, keel::usize>> pairs(n);
+        keel::Array<std::pair<double, keel::usize>> pairs(n);
         for (keel::usize i = 0; i < n; ++i) pairs[i] = { dist[i], i };
         std::nth_element(pairs.begin(), pairs.begin() + h, pairs.end());
-        std::vector<keel::usize> newKeep(h);
+        keel::Array<keel::usize> newKeep(h);
         for (keel::usize i = 0; i < h; ++i) newKeep[i] = pairs[i].second;
         std::sort(newKeep.begin(), newKeep.end());
-        if (newKeep == prevKeep) break;
-        prevKeep = std::move(newKeep);
-        meanCovSubset(Xv.data(), n, d, prevKeep, mu, C);
-        keep = prevKeep;
+        if (newKeep.size() == prevKeep.size()
+            && std::equal(newKeep.begin(), newKeep.end(), prevKeep.begin()))
+            break;
+        prevKeep = keel::move(newKeep);
+        meanCovSubset(Xv.data(), n, d, prevKeep.as_ref(), mu, C);
+        keep = prevKeep.clone();
     }
 
     // Consistency correction (Pison-Van Aelst-Willems 2002):

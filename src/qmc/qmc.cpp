@@ -1,22 +1,23 @@
 // toolboxes/stats/src/qmc/qmc.cpp
 
+#include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
+#include <keel/ref.h>
+#include <keel/string.h>
 #include <numkit/stats/qmc/qmc.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
-
-#include <vector>
 
 namespace numkit::stats {
 
 namespace {
 
 // First d primes via simple sieve / trial division.
-std::vector<int> first_primes(keel::usize d)
+keel::Array<int> first_primes(keel::usize d)
 {
-    std::vector<int> ps;
+    keel::Array<int> ps;
     ps.reserve(d);
     int x = 2;
     while (ps.size() < d) {
@@ -34,12 +35,12 @@ std::vector<int> first_primes(keel::usize d)
 // Reverse-Radix-2 permutation pi_p of {0, ..., p-1}:
 // take smallest power of 2 >= p, bit-reverse j = 0 .. 2^k - 1 across k bits,
 // and keep values < p in order.
-std::vector<int> rr2_permutation(int p)
+keel::Array<int> rr2_permutation(int p)
 {
     int k = 1;
     while ((1 << k) < p) ++k;
     int m = (1 << k);
-    std::vector<int> perm;
+    keel::Array<int> perm;
     perm.reserve(static_cast<keel::usize>(p));
     for (int j = 0; j < m; ++j) {
         int rev = 0;
@@ -51,7 +52,7 @@ std::vector<int> rr2_permutation(int p)
     return perm;
 }
 
-double radical_inverse(long long i, int p, const std::vector<int> *perm = nullptr)
+double radical_inverse(long long i, int p, const keel::Array<int> *perm = nullptr)
 {
     double r = 0.0;
     double f = 1.0 / static_cast<double>(p);
@@ -88,7 +89,7 @@ Value haltonset(int d, long long skip, long long leap, keel::Allocator *mr)
     return s;
 }
 
-Value scramble(const Value &stream, const std::string &type, keel::Allocator *mr)
+Value scramble(const Value &stream, keel::StringRef type, keel::Allocator *mr)
 {
     if (!stream.isStruct() || !stream.hasField("kind"))
         throw Error("scramble: input must be a quasi-random stream struct",
@@ -113,16 +114,16 @@ Value net(const Value &stream, long long n, keel::Allocator *mr)
     const keel::usize d    = static_cast<keel::usize>(stream.field("dim").toScalar());
     const long long skip = static_cast<long long>(stream.field("skip").toScalar());
     const long long leap = static_cast<long long>(stream.field("leap").toScalar());
-    std::string scram;
+    keel::String scram;
     if (stream.hasField("scramble"))
         scram = stream.field("scramble").toString();
     bool useRR2 = (scram == "RR2" || scram == "rr2");
-    const std::vector<int> primes = first_primes(d);
-    std::vector<std::vector<int>> perms;
+    const keel::Array<int> primes = first_primes(d);
+    keel::Array<keel::Array<int>> perms;
     if (useRR2) {
-        perms.resize(d);
+        perms.reserve(d);
         for (keel::usize k = 0; k < d; ++k)
-            perms[k] = rr2_permutation(primes[k]);
+            perms.push_back(rr2_permutation(primes[k]));
     }
     const long long step = leap + 1;
     Value X = Value::matrix(static_cast<keel::usize>(n), d, ValueType::DOUBLE, mr);

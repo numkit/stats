@@ -3,6 +3,7 @@
 // CallContext register half of distributions/normal.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
+#include <keel/array.h>
 #include <keel/core.h>
 #include <keel/ref.h>
 #include <numkit/sys/plugin.hpp>
@@ -19,10 +20,8 @@
 #include <cctype>
 #include <cmath>
 #include <cstddef>
-#include <string>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -106,7 +105,7 @@ void normrnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
     } else {
         const Value &ref = (nmu >= nsig) ? muVal : sigVal;
         if (ref.dims().ndim() > 2) {
-            std::vector<keel::usize> shape(ref.dims().ndim());
+            keel::Array<keel::usize> shape(static_cast<keel::usize>(ref.dims().ndim()));
             for (int d = 0; d < ref.dims().ndim(); ++d)
                 shape[d] = ref.dims().dim(d);
             outs[0] = builtin::reshape(std::move(out), keel::ArrayRef<keel::usize>(shape.data(), shape.size()), mr);

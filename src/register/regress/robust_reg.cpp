@@ -5,23 +5,21 @@
 // compute API declared in the headers below. See project_layering_refactor.
 #include <keel/core.h>
 #include <keel/ref.h>
+#include <keel/string.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/distributions/chi2.hpp>      // chi2inv
 #include <numkit/stats/regress/regress.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 #include "regress/robust_detail.hpp"
-#include <numkit/value/error.hpp>
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstddef>
-#include <string>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -33,7 +31,7 @@ void robustfit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     argcheck::checkNargin(args.size(), 2, 7, "robustfit");
     RobustWeight w = RobustWeight::Bisquare;
     if (args.size() >= 3 && args[2].isChar()) {
-        std::string s(args[2].toString().as_ref());
+        keel::String s = args[2].toString();
         for (char &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         if      (s == "andrews")  w = RobustWeight::Andrews;
         else if (s == "bisquare") w = RobustWeight::Bisquare;

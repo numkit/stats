@@ -12,8 +12,6 @@
 #include <keel/ref.h>
 #include <numkit/value/value.hpp>
 
-#include <string>
-
 namespace numkit::stats {
 
 /// @addtogroup group_stats
@@ -46,7 +44,7 @@ namespace numkit::stats {
 /// @return        Row of length M(M-1)/2.
 ///
 /// @see pdist2, squareform
-Value pdist(const Value &X, const std::string &metric, keel::f64 p,
+Value pdist(const Value &X, keel::StringRef metric, keel::f64 p,
             keel::Allocator *mr = nullptr);
 
 /// @brief Cross-set pairwise distances
@@ -62,7 +60,7 @@ Value pdist(const Value &X, const std::string &metric, keel::f64 p,
 /// @param mr      Memory resource (nullptr → process default).
 /// @return        M×N distance matrix.
 /// @see pdist
-Value pdist2(const Value &X, const Value &Y, const std::string &metric, keel::f64 p,
+Value pdist2(const Value &X, const Value &Y, keel::StringRef metric, keel::f64 p,
              keel::Allocator *mr = nullptr);
 
 /// @brief Full `pdist` entry — the probed metric/p/covariance tail

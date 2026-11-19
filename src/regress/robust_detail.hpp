@@ -3,7 +3,9 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
+#include <keel/array.h>
 #include <keel/core.h>
+#include <keel/ref.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
@@ -15,10 +17,8 @@
 #include <cstring>
 #include <limits>
 #include <numeric>
-#include <string>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -64,11 +64,11 @@ bool gaussSolve(double *M, double *b, keel::usize p)
 
 // Weighted OLS: solve (X' · W · X) β = X' · W · y. X is n×p col-major,
 // y and w are length n. Returns β as length-p vector.
-std::vector<double> weightedLS(const double *X, keel::usize n, keel::usize p,
+keel::Array<double> weightedLS(const double *X, keel::usize n, keel::usize p,
                                 const double *y, const double *w)
 {
-    std::vector<double> M(p * p, 0.0);
-    std::vector<double> b(p, 0.0);
+    keel::Array<double> M(p * p, 0.0);
+    keel::Array<double> b(p, 0.0);
     for (keel::usize i = 0; i < p; ++i) {
         for (keel::usize j = 0; j < p; ++j) {
             double s = 0.0;
@@ -139,10 +139,11 @@ double defaultTune(RobustWeight wt)
 
 // MATLAB madsigma: sort |r| ascending, drop the smallest (p-1), take the
 // median of the rest, divide by 0.6745.
-double madsigma(std::vector<double> r, keel::usize p)
+double madsigma(keel::ArrayRef<double> r_in, keel::usize p)
 {
-    const keel::usize n = r.size();
-    for (double &v : r) v = std::fabs(v);
+    const keel::usize n = r_in.size();
+    keel::Array<double> r(n);
+    for (keel::usize i = 0; i < n; ++i) r[i] = std::fabs(r_in[i]);
     std::sort(r.begin(), r.end());
     const keel::usize start = (p >= 1) ? (p - 1) : 0;   // 0-based first kept
     const keel::usize m = (start < n) ? (n - start) : 0;
@@ -154,7 +155,7 @@ double madsigma(std::vector<double> r, keel::usize p)
 }
 
 // Sample standard deviation (N-1) used for tiny_s.
-double sampleStd(const std::vector<double> &v)
+double sampleStd(keel::ArrayRef<double> v)
 {
     const keel::usize n = v.size();
     if (n < 2) return 0.0;
@@ -168,9 +169,9 @@ double sampleStd(const std::vector<double> &v)
 
 // Hat-matrix (leverage) diagonal of X (col-major n×p) via (X'X)^-1.
 // h_i = x_i' (X'X)^-1 x_i. Returns NaN-free leverages clamped at 0.9999.
-std::vector<double> leverage(const double *X, keel::usize n, keel::usize p)
+keel::Array<double> leverage(const double *X, keel::usize n, keel::usize p)
 {
-    std::vector<double> XtX(p * p, 0.0);
+    keel::Array<double> XtX(p * p, 0.0);
     for (keel::usize j = 0; j < p; ++j)
         for (keel::usize k = 0; k < p; ++k) {
             double s = 0.0;
@@ -179,7 +180,7 @@ std::vector<double> leverage(const double *X, keel::usize n, keel::usize p)
             XtX[j * p + k] = s;
         }
     // Gauss-Jordan inverse of the p×p matrix.
-    std::vector<double> inv(p * p, 0.0);
+    keel::Array<double> inv(p * p, 0.0);
     for (keel::usize i = 0; i < p; ++i) inv[i * p + i] = 1.0;
     for (keel::usize col = 0; col < p; ++col) {
         keel::usize piv = col;
@@ -209,7 +210,7 @@ std::vector<double> leverage(const double *X, keel::usize n, keel::usize p)
             }
         }
     }
-    std::vector<double> h(n, 0.0);
+    keel::Array<double> h(n, 0.0);
     for (keel::usize i = 0; i < n; ++i) {
         double s = 0.0;
         for (keel::usize j = 0; j < p; ++j) {
@@ -228,12 +229,12 @@ namespace {
 
 // Compute Mahalanobis distances of rows of X (col-major n × d) w.r.t.
 // mean `mu` and the inverse covariance `invC`. Returns length-n vector.
-std::vector<double> mahalanobisDist(const double *X, keel::usize n,
+keel::Array<double> mahalanobisDist(const double *X, keel::usize n,
                                      keel::usize d,
                                      const double *mu, const double *invC)
 {
-    std::vector<double> out(n);
-    std::vector<double> diff(d);
+    keel::Array<double> out(n);
+    keel::Array<double> diff(d);
     for (keel::usize i = 0; i < n; ++i) {
         for (keel::usize j = 0; j < d; ++j)
             diff[j] = X[j * n + i] - mu[j];
@@ -249,18 +250,18 @@ std::vector<double> mahalanobisDist(const double *X, keel::usize n,
 // Compute mean / cov of a column-major n × d matrix, restricted to
 // rows in `keep` (sorted ascending). Returns mu (d), C (d × d row-major).
 void meanCovSubset(const double *X, keel::usize n_orig, keel::usize d,
-                   const std::vector<keel::usize> &keep,
-                   std::vector<double> &mu, std::vector<double> &C)
+                   keel::ArrayRef<keel::usize> keep,
+                   keel::Array<double> &mu, keel::Array<double> &C)
 {
     const keel::usize k = keep.size();
-    mu.assign(d, 0.0);
+    mu = keel::Array<double>(d, 0.0);
     for (keel::usize i : keep)
         for (keel::usize j = 0; j < d; ++j)
             mu[j] += X[j * n_orig + i];
     for (keel::usize j = 0; j < d; ++j) mu[j] /= static_cast<double>(k);
 
-    C.assign(d * d, 0.0);
-    std::vector<double> diff(d);
+    C = keel::Array<double>(d * d, 0.0);
+    keel::Array<double> diff(d);
     for (keel::usize i : keep) {
         for (keel::usize j = 0; j < d; ++j) diff[j] = X[j * n_orig + i] - mu[j];
         for (keel::usize a = 0; a < d; ++a)
@@ -273,10 +274,10 @@ void meanCovSubset(const double *X, keel::usize n_orig, keel::usize d,
 
 // Invert d×d row-major matrix via Gauss-Jordan. Returns inverse
 // row-major in `out`. Returns false on singularity.
-bool invertSPD(const std::vector<double> &C, keel::usize d,
-                std::vector<double> &out)
+bool invertSPD(keel::ArrayRef<double> C, keel::usize d,
+                keel::Array<double> &out)
 {
-    std::vector<double> A(d * 2 * d, 0.0);
+    keel::Array<double> A(d * 2 * d, 0.0);
     for (keel::usize i = 0; i < d; ++i)
         for (keel::usize j = 0; j < d; ++j)
             A[i * 2 * d + j] = C[i * d + j];
@@ -303,7 +304,7 @@ bool invertSPD(const std::vector<double> &C, keel::usize d,
                 A[rr * 2 * d + j] -= f * A[k * 2 * d + j];
         }
     }
-    out.assign(d * d, 0.0);
+    out = keel::Array<double>(d * d, 0.0);
     for (keel::usize i = 0; i < d; ++i)
         for (keel::usize j = 0; j < d; ++j)
             out[i * d + j] = A[i * 2 * d + (d + j)];

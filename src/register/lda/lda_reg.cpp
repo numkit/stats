@@ -5,6 +5,7 @@
 // compute API declared in the headers below. See project_layering_refactor.
 #include <keel/core.h>
 #include <keel/ref.h>
+#include <keel/string.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/lda/lda.hpp>
 #include <numkit/value/error.hpp>
@@ -16,10 +17,8 @@
 #include <cctype>
 #include <cmath>
 #include <cstddef>
-#include <string>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -29,7 +28,7 @@ void classify_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                   keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 3, 5, "classify");
-    std::string type;
+    keel::String type;
     if (args.size() >= 4 && (args[3].isChar() || args[3].isString()))
         type = args[3].toString();
     auto [c, err, post, logp] = classify(args[0], args[1], args[2], type, ctx.engine->allocator());

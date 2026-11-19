@@ -4,9 +4,12 @@
 // Operate column-wise on matrices, whole-vector on 1-D inputs (MATLAB
 // convention). Output is always DOUBLE regardless of input class.
 
+#include <keel/array.h>
 #include <keel/core.h>
+#include <keel/format.h>
 #include <keel/memory.h>
 #include <keel/ref.h>
+#include <keel/string.h>
 #include <numkit/stats/descriptive/descriptive.hpp>
 
 #include <numkit/value/value.hpp>
@@ -15,7 +18,6 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
-#include <vector>
 
 #include "normalize_detail.hpp"
 
@@ -32,7 +34,7 @@ void forEachColumn(const Value &A, Op op) {
     const keel::usize N = A.numel();
     if (N == H * W && (H == 1 || W == 1)) {
         // 1-D: pull whole vector as a single column.
-        std::vector<double> buf(N);
+        keel::Array<double> buf(N);
         for (keel::usize i = 0; i < N; ++i) buf[i] = A.elemAsDouble(i);
         op(0, buf.data(), N);
         return;
@@ -44,7 +46,7 @@ void forEachColumn(const Value &A, Op op) {
     if (N != H * W)
         throw Error("normalize/rescale/zscore: only 1-D or 2-D inputs supported",
                     0, 0, "normalize", "", "numkit:normalize:nd");
-    std::vector<double> buf(H);
+    keel::Array<double> buf(H);
     for (keel::usize j = 0; j < W; ++j) {
         for (keel::usize i = 0; i < H; ++i) buf[i] = A.elemAsDouble(j * H + i);
         op(j, buf.data(), H);
@@ -91,7 +93,7 @@ double colStdSample(const double *x, keel::usize n) {
     return std::sqrt(s / static_cast<double>(n - 1));
 }
 
-double colMedian(std::vector<double> v) {
+double colMedian(keel::Array<double> v) {
     std::sort(v.begin(), v.end());
     const keel::usize n = v.size();
     if (n == 0) return 0.0;
@@ -99,7 +101,7 @@ double colMedian(std::vector<double> v) {
                    : 0.5 * (v[n / 2 - 1] + v[n / 2]);
 }
 
-double colIQR(std::vector<double> v) {
+double colIQR(keel::Array<double> v) {
     std::sort(v.begin(), v.end());
     const keel::usize n = v.size();
     if (n < 2) return 0.0;
@@ -119,7 +121,7 @@ double colIQR(std::vector<double> v) {
     return q(0.75) - q(0.25);
 }
 
-bool methodMatches(const std::string &m, const char *want) {
+bool methodMatches(keel::StringRef m, const char *want) {
     if (m.size() != keel::StringRef(want).size()) return false;
     for (keel::usize i = 0; i < m.size(); ++i) {
         char a = m[i], b = want[i];
@@ -132,7 +134,7 @@ bool methodMatches(const std::string &m, const char *want) {
 
 } // anonymous
 
-NormalizeResult normalize(const Value &A, const std::string &method,
+NormalizeResult normalize(const Value &A, keel::StringRef method,
                           const Value &param, keel::Allocator *mr)
 {
     const keel::usize H = A.dims().rows();
@@ -155,13 +157,13 @@ NormalizeResult normalize(const Value &A, const std::string &method,
     double *cOutD = R.c.doubleDataMut();
     double *sOutD = R.s.doubleDataMut();
 
-    const std::string m = method.empty() ? std::string("zscore") : method;
+    const keel::StringRef m = method.empty() ? keel::StringRef("zscore") : method;
 
     // Decode the optional method parameter once. A string param (e.g.
     // 'first'/'median') vs a numeric param (range bounds / norm-p / divisor).
     const bool hasParam = !param.isEmpty();
     const bool paramIsStr = hasParam && (param.isChar() || param.isString());
-    std::string paramStr;
+    keel::String paramStr;
     if (paramIsStr) {
         paramStr = param.toString();
         for (char &c : paramStr) if (c >= 'A' && c <= 'Z') c = char(c + 32);
@@ -169,15 +171,15 @@ NormalizeResult normalize(const Value &A, const std::string &method,
     const double paramNum = (hasParam && !paramIsStr) ? param.elemAsDouble(0) : 0.0;
 
     forEachColumn(A, [&](keel::usize j, double *col, keel::usize n) {
-        std::vector<double> y(n);
+        keel::Array<double> y(n);
         double cVal = 0.0, sVal = 1.0;  // centering / scaling -> [N,C,S]
         if (methodMatches(m, "zscore")) {
             // Default 'std': centre by mean, scale by sample (N-1) std.
             // 'robust': centre by median, scale by the (raw) median absolute
             // deviation MAD = median(|x - median(x)|) — MATLAB R2025b.
             if (paramIsStr && paramStr == "robust") {
-                std::vector<double> tmp(col, col + n);
-                const double med = colMedian(tmp);
+                keel::Array<double> tmp(keel::ArrayRef<double>(col, n));
+                const double med = colMedian(tmp.clone());
                 for (double &v : tmp) v = std::fabs(v - med);
                 const double mad = colMedian(std::move(tmp));
                 const double inv = (mad != 0.0) ? 1.0 / mad : 0.0;
@@ -195,7 +197,7 @@ NormalizeResult normalize(const Value &A, const std::string &method,
             double c;
             if (hasParam && !paramIsStr)              c = paramNum;
             else if (paramIsStr && paramStr == "median") {
-                std::vector<double> tmp(col, col + n); c = colMedian(tmp);
+                keel::Array<double> tmp(keel::ArrayRef<double>(col, n)); c = colMedian(std::move(tmp));
             } else                                     c = colMean(col, n);
             cVal = c; sVal = 1.0;
             for (keel::usize i = 0; i < n; ++i) y[i] = col[i] - c;
@@ -205,12 +207,12 @@ NormalizeResult normalize(const Value &A, const std::string &method,
             if (hasParam && !paramIsStr)               sc = paramNum;
             else if (paramIsStr && paramStr == "first") sc = col[0];
             else if (paramIsStr && paramStr == "iqr") {
-                std::vector<double> tmp(col, col + n);  sc = colIQR(std::move(tmp));
+                keel::Array<double> tmp(keel::ArrayRef<double>(col, n));  sc = colIQR(std::move(tmp));
             } else if (paramIsStr && paramStr == "mad") {
-                std::vector<double> tmp(col, col + n);
-                const double med = colMedian(tmp);
+                keel::Array<double> tmp(keel::ArrayRef<double>(col, n));
+                const double med = colMedian(tmp.clone());
                 for (double &v : tmp) v = std::fabs(v - med);
-                sc = colMedian(tmp);
+                sc = colMedian(std::move(tmp));
             } else                                      sc = colStdSample(col, n);
             const double inv = (sc != 0.0) ? 1.0 / sc : 0.0;
             cVal = 0.0; sVal = sc;
@@ -258,14 +260,14 @@ NormalizeResult normalize(const Value &A, const std::string &method,
             cVal = 0.0; sVal = L;
             for (keel::usize i = 0; i < n; ++i) y[i] = col[i] * inv;
         } else if (methodMatches(m, "medianiqr")) {
-            std::vector<double> tmp(col, col + n);
-            const double med = colMedian(tmp);
+            keel::Array<double> tmp(keel::ArrayRef<double>(col, n));
+            const double med = colMedian(tmp.clone());
             const double iqr = colIQR(std::move(tmp));
             const double inv = (iqr != 0.0) ? 1.0 / iqr : 0.0;
             cVal = med; sVal = iqr;
             for (keel::usize i = 0; i < n; ++i) y[i] = (col[i] - med) * inv;
         } else {
-            throw Error("normalize: unknown method '" + m + "'",
+            throw Error(keel::format("normalize: unknown method '{}'", m),
                         0, 0, "normalize", "", "numkit:normalize:method");
         }
         if (cOutD) cOutD[j] = cVal;
@@ -312,7 +314,7 @@ Value rescale(const Value &A, double lo, double hi,
         if (haveImn) mn = inputMin;
         if (haveImx) mx = inputMax;
         const double r = mx - mn;
-        std::vector<double> y(n);
+        keel::Array<double> y(n);
         if (r == 0.0) {
             std::fill(y.begin(), y.end(), lo);
         } else {
@@ -358,7 +360,7 @@ Value zscoreCore(const Value &A, int flag, int dim,
         if (sigmaOut) *sigmaOut = Value::matrix(1, W, ValueType::DOUBLE, mr);
         double *mud = muOut ? muOut->doubleDataMut() : nullptr;
         double *sgd = sigmaOut ? sigmaOut->doubleDataMut() : nullptr;
-        std::vector<double> col(H);
+        keel::Array<double> col(H);
         for (keel::usize j = 0; j < W; ++j) {
             for (keel::usize i = 0; i < H; ++i) col[i] = A.elemAsDouble(j * H + i);
             const double mu = colMean(col.data(), H);
@@ -373,7 +375,7 @@ Value zscoreCore(const Value &A, int flag, int dim,
         if (sigmaOut) *sigmaOut = Value::matrix(H, 1, ValueType::DOUBLE, mr);
         double *mud = muOut ? muOut->doubleDataMut() : nullptr;
         double *sgd = sigmaOut ? sigmaOut->doubleDataMut() : nullptr;
-        std::vector<double> row(W);
+        keel::Array<double> row(W);
         for (keel::usize i = 0; i < H; ++i) {
             for (keel::usize j = 0; j < W; ++j) row[j] = A.elemAsDouble(j * H + i);
             const double mu = colMean(row.data(), W);

@@ -6,6 +6,7 @@
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <keel/ref.h>
+#include <keel/string.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/builtin/datafun.hpp>
 #include <numkit/stats/cluster/kmedoids.hpp>
@@ -19,10 +20,8 @@
 #include <cctype>
 #include <cmath>
 #include <cstddef>
-#include <string>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -36,17 +35,17 @@ void kmedoids_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     int max_iter  = 100;
     int replicates = 1;
     // MATLAB R2025b kmedoids default 'Distance' is 'sqeuclidean'.
-    std::string metric    = "sqeuclidean";
-    std::string algorithm = "pam";
-    std::string start     = "plus";
+    keel::String metric    = keel::String::from("sqeuclidean");
+    keel::String algorithm = keel::String::from("pam");
+    keel::String start     = keel::String::from("plus");
     auto lower = [](keel::StringRef sv) {
-        std::string s(sv.data(), sv.size());
+        keel::String s = keel::String::from(sv);
         for (auto &c : s) c = (char)std::tolower((unsigned char)c);
         return s;
     };
     for (keel::usize i = 2; i + 1 < args.size(); i += 2) {
         if (!(args[i].isChar() || args[i].isString())) continue;
-        const std::string key = lower(args[i].toString());
+        const keel::String key = lower(args[i].toString());
         const Value &v = args[i + 1];
         if      (key == "maxiter")    max_iter   = (int)v.toScalar();
         else if (key == "replicates") replicates = (int)v.toScalar();
@@ -79,10 +78,10 @@ void dbscan_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     argcheck::checkNargin(args.size(), 3, "dbscan");  // no max: name-value tail in the reference
     const double eps    = args[1].toScalar();
     const int    minpts = (int)args[2].toScalar();
-    std::string metric  = "euclidean";
+    keel::String metric  = keel::String::from("euclidean");
     double p = 2.0;
     auto lower = [](keel::StringRef sv) {
-        std::string s(sv.data(), sv.size());
+        keel::String s = keel::String::from(sv);
         for (auto &c : s) c = (char)std::tolower((unsigned char)c);
         return s;
     };
@@ -90,15 +89,15 @@ void dbscan_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     // string for backward compat with prior nk usage.
     keel::usize i = 3;
     if (i < args.size() && (args[i].isChar() || args[i].isString())) {
-        const std::string s = lower(args[i].toString());
+        keel::String s = lower(args[i].toString());
         if (s != "distance" && s != "p" && s != "cov" && s != "scale") {
-            metric = s;
+            metric = std::move(s);
             ++i;
         }
     }
     for (; i + 1 < args.size(); i += 2) {
         if (!(args[i].isChar() || args[i].isString())) continue;
-        const std::string key = lower(args[i].toString());
+        const keel::String key = lower(args[i].toString());
         const Value &val = args[i + 1];
         if      (key == "distance") metric = lower(val.toString());
         else if (key == "p")        p      = val.toScalar();

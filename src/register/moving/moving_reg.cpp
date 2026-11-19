@@ -6,6 +6,7 @@
 #include <keel/core.h>
 #include <keel/ref.h>
 #include <keel/arena.h>
+#include <keel/string.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/moving/moving.hpp>
 #include <numkit/value/argcheck.hpp>
@@ -14,16 +15,13 @@
 #include <numkit/ops/helpers.hpp>            // createLike, createForDims (toolboxes/builtin/src/)
 #include "moving/moving_detail.hpp"
 #include <numkit/ops/reductions.hpp>  // numkit::ops::firstNonSingletonDim, validateDim
-#include <numkit/value/error.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstddef>
-#include <string>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -143,7 +141,7 @@ void movmad_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
 void smoothdata_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "smoothdata");  // no max: name-value tail in the reference
-    std::string method = "movmean";
+    keel::String method = keel::String::from("movmean");
     int k = 0;
     if (args.size() >= 2) {
         if (args[1].isChar() || args[1].isString())
@@ -161,7 +159,7 @@ void smoothdata_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::M
                 3, "window", "smoothdata");
         }
     }
-    outs[0] = smoothdata(args[0], method, k, 0, ctx.engine->allocator());
+    outs[0] = smoothdata(args[0], method.as_ref(), k, 0, ctx.engine->allocator());
 }
 
 void hampel_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs, CallContext &ctx)

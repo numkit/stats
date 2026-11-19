@@ -10,10 +10,13 @@
 // correlation is legal) and a symmetry pre-check so nonsymmetric
 // matrices get the Sym rejection class rather than the Pos one.
 
+#include <keel/array.h>
 #include <keel/core.h>
+#include <keel/format.h>
 #include <keel/memory.h>
 #include <keel/ref.h>
 #include <keel/math.h>
+#include <keel/string.h>
 #include <numkit/stats/distributions/multivariate.hpp>
 
 #include <numkit/builtin/datafun.hpp>          // RngContext
@@ -24,10 +27,10 @@
 #include "multivariate_detail.hpp"         // phiCdf / bivariateCdf / monteCarloCdf
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <limits>
 #include <random>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -41,7 +44,7 @@ bool isMatrixValue(const Value &V)
     return V.dims().ndim() <= 2 && V.numel() > 0;
 }
 
-bool isSymmetric(const std::vector<double> &M, keel::usize d)
+bool isSymmetric(const keel::Array<double> &M, keel::usize d)
 {
     for (keel::usize j = 0; j < d; ++j)
         for (keel::usize i = j + 1; i < d; ++i)
@@ -53,15 +56,15 @@ bool isSymmetric(const std::vector<double> &M, keel::usize d)
 // Strictly PD → r = d and L is lower Cholesky.
 // Rank-deficient PSD → r < d and L has r columns V(:,j)*sqrt(λ_j) for λ_j > tol.
 // Returns false when Sigma has any eigenvalue < -tol.
-bool psdFactor(const std::vector<double> &Sig, keel::usize d,
-               std::vector<double> &T, std::vector<double> &eval,
-               std::vector<double> &evec, keel::Allocator *mr,
+bool psdFactor(const keel::Array<double> &Sig, keel::usize d,
+               keel::Array<double> &T, keel::Array<double> &eval,
+               keel::Array<double> &evec, keel::Allocator *mr,
                keel::usize *outRank = nullptr)
 {
     Value Mv = Value::matrix(d, d, ValueType::DOUBLE, mr);
     std::copy(Sig.begin(), Sig.end(), Mv.doubleDataMut());
     auto [V, D] = ::numkit::linalg::eig_symmetric(Mv, mr);
-    evec.assign(V.doubleData(), V.doubleData() + d * d);
+    evec.assign(keel::ArrayRef<double>(V.doubleData(), d * d));
     eval.assign(d, 0.0);
     double maxAbs = 0.0;
     for (keel::usize i = 0; i < d; ++i) {
@@ -98,7 +101,7 @@ bool psdFactor(const std::vector<double> &Sig, keel::usize d,
     }
     // Count positive eigenvalues and build d×r factor (descending eigenvalue order,
     // with cholcov sign convention: largest-magnitude element in each column positive).
-    std::vector<keel::usize> posCols;
+    keel::Array<keel::usize> posCols;
     for (keel::usize j = 0; j < d; ++j) {
         if (eval[j] > tol) posCols.push_back(j);
     }
@@ -218,9 +221,8 @@ MvnrndOut mvnrnd_reinterpreted(::numkit::ops::RngContext &rng, const Value &mu,
         } else if (n == 1) {
             n = static_cast<keel::usize>(std::max(casesN, 0LL));
         } else {
-            throw Error("mvnrnd: MU must be a row vector, or must have "
-                        "CASES rows (CASES is " + std::to_string(casesN)
-                        + ", MU has " + std::to_string(n) + " rows).",
+            throw Error(keel::format("mvnrnd: MU must be a row vector, or must have "
+                        "CASES rows (CASES is {}, MU has {} rows).", casesN, n),
                         0, 0, "mvnrnd", "", "numkit:mvnrnd:inputSizeMismatchMu");
         }
     }
@@ -246,23 +248,20 @@ MvnrndOut mvnrnd_reinterpreted(::numkit::ops::RngContext &rng, const Value &mu,
                   ? static_cast<keel::usize>(Sigma.dims().dim(2)) : 1;
     if (pages == 1) {
         if (sz1 != sz2)
-            throw Error("mvnrnd: SIGMA must be a square covariance matrix "
-                        "(got " + std::to_string(sz1) + "-by-"
-                        + std::to_string(sz2) + ").",
+            throw Error(keel::format("mvnrnd: SIGMA must be a square covariance matrix "
+                        "(got {}-by-{}).", sz1, sz2),
                         0, 0, "mvnrnd", "", "numkit:mvnrnd:badCovariance2DSize");
         if (sz1 != d)
-            throw Error("mvnrnd: SIGMA must be " + std::to_string(d)
-                        + "-by-" + std::to_string(d) + " to match MU.",
+            throw Error(keel::format("mvnrnd: SIGMA must be {}-by-{} to match MU.", d, d),
                         0, 0, "mvnrnd", "",
                         "numkit:mvnrnd:inputSizeMismatch2DSigma");
         if (sigmaIsDiag) {
-            std::vector<double> sd(d);
+            keel::Array<double> sd(d);
             for (keel::usize j = 0; j < d; ++j) {
                 const double v = Sigma.elemAsDouble(j);
                 if (v < 0.0)
-                    throw Error("mvnrnd: all elements of the diagonal "
-                                "SIGMA must be non-negative (got "
-                                + std::to_string(v) + ").",
+                    throw Error(keel::format("mvnrnd: all elements of the diagonal "
+                                "SIGMA must be non-negative (got {}).", v),
                                 0, 0, "mvnrnd", "",
                                 "numkit:mvnrnd:badDiagSigma");
                 sd[j] = std::sqrt(v);
@@ -272,7 +271,7 @@ MvnrndOut mvnrnd_reinterpreted(::numkit::ops::RngContext &rng, const Value &mu,
                 double *td = out.T.doubleDataMut();
                 for (keel::usize j = 0; j < d; ++j) td[j + j * d] = sd[j];
             }
-            std::vector<double> Z(n * d);
+            keel::Array<double> Z(n * d);
             for (keel::usize j = 0; j < d; ++j)
                 for (keel::usize r = 0; r < n; ++r)
                     Z[r + j * n] = Nz(gen);
@@ -282,7 +281,7 @@ MvnrndOut mvnrnd_reinterpreted(::numkit::ops::RngContext &rng, const Value &mu,
                         ? Z[r + j * n] * sd[j] + muAt(mu, r, j, muN)
                         : muAt(mu, r, j, muN);   // exact mean at zero var
         } else {
-            std::vector<double> Sig(d * d), T, eval, evec;
+            keel::Array<double> Sig(d * d), T, eval, evec;
             for (keel::usize k = 0; k < d * d; ++k)
                 Sig[k] = Sigma.elemAsDouble(k);
             if (!isSymmetric(Sig, d))
@@ -304,7 +303,7 @@ MvnrndOut mvnrnd_reinterpreted(::numkit::ops::RngContext &rng, const Value &mu,
                     for (keel::usize j = 0; j < d; ++j)
                         td[i + j * rank] = T[j + i * d];
             }
-            std::vector<double> Z(n * rank);
+            keel::Array<double> Z(n * rank);
             for (keel::usize k = 0; k < rank; ++k)
                 for (keel::usize r = 0; r < n; ++r)
                     Z[r + k * n] = Nz(gen);
@@ -329,20 +328,16 @@ MvnrndOut mvnrnd_reinterpreted(::numkit::ops::RngContext &rng, const Value &mu,
                         0, 0, "mvnrnd", "",
                         "numkit:mvnrnd:badCovariance3DSize");
         if (sz1 != d)
-            throw Error("mvnrnd: each SIGMA page must be "
-                        + std::to_string(d) + "-by-" + std::to_string(d)
-                        + " to match MU.",
+            throw Error(keel::format("mvnrnd: each SIGMA page must be {}-by-{} to match MU.", d, d),
                         0, 0, "mvnrnd", "",
                         "numkit:mvnrnd:inputSizeMismatch3DSigma");
         if (pages != n)
-            throw Error("mvnrnd: SIGMA must have CASES pages (CASES is "
-                        + std::to_string(n) + ", SIGMA has "
-                        + std::to_string(pages) + " pages).",
+            throw Error(keel::format("mvnrnd: SIGMA must have CASES pages (CASES is {}, SIGMA has {} pages).", n, pages),
                         0, 0, "mvnrnd", "",
                         "numkit:mvnrnd:inputSizeMismatchSigmaDimension");
         if (wantT)
             out.T = Value::matrix3d(d, d, pages, ValueType::DOUBLE, mr);
-        std::vector<double> Sig(d * d), T, eval, evec, z(d);
+        keel::Array<double> Sig(d * d), T, eval, evec, z(d);
         for (keel::usize p = 0; p < pages; ++p) {
             if (sigmaIsDiag) {
                 // 1×d×n diagonal stack: per-page standard deviations.
@@ -414,13 +409,11 @@ Value mvtrnd_full(::numkit::ops::RngContext &rng, const Value &C,
     const keel::usize m1 = static_cast<keel::usize>(C.dims().dim(0));
     const keel::usize m2 = static_cast<keel::usize>(C.dims().dim(1));
     if (m1 != m2)
-        throw Error("mvtrnd: the correlation matrix C must be square (got "
-                    + std::to_string(m1) + "-by-" + std::to_string(m2)
-                    + ").",
+        throw Error(keel::format("mvtrnd: the correlation matrix C must be square (got {}-by-{}).", m1, m2),
                     0, 0, "mvtrnd", "", "numkit:mvtrnd:badCorrelationNotSquare");
 
     // df: scalar, or one value per case.
-    std::vector<double> dfv(n);
+    keel::Array<double> dfv(n);
     if (df.isScalar()) {
         dfv.assign(n, df.elemAsDouble(0));
     } else if (df.dims().isVector()
@@ -433,15 +426,14 @@ Value mvtrnd_full(::numkit::ops::RngContext &rng, const Value &C,
     }
     for (double v : dfv)
         if (!(v > 0.0))
-            throw Error("mvtrnd: DF must be positive (got "
-                        + std::to_string(v) + ").",
+            throw Error(keel::format("mvtrnd: DF must be positive (got {}).", v),
                         0, 0, "mvtrnd", "", "numkit:mvtrnd:badDF");
 
     // Standardize C to a correlation matrix (silent, probe T06).
     const keel::usize d = m1;
-    std::vector<double> Cm(d * d, 0.0);
+    keel::Array<double> Cm(d * d, 0.0);
     for (keel::usize k = 0; k < d * d; ++k) Cm[k] = C.elemAsDouble(k);
-    std::vector<double> sq(d);
+    keel::Array<double> sq(d);
     bool unitDiag = true;
     for (keel::usize i = 0; i < d; ++i) {
         sq[i] = std::sqrt(Cm[i + i * d]);
@@ -455,7 +447,7 @@ Value mvtrnd_full(::numkit::ops::RngContext &rng, const Value &C,
         throw Error("mvtrnd: C must be a symmetric positive "
                     "semi-definite matrix.",
                     0, 0, "mvtrnd", "", "numkit:mvtrnd:badCorrelationSymPos");
-    std::vector<double> T, eval, evec;
+    keel::Array<double> T, eval, evec;
     keel::usize rank = d;
     if (!psdFactor(Cm, d, T, eval, evec, mr, &rank))
         throw Error("mvtrnd: C must be a symmetric positive "
@@ -491,11 +483,11 @@ Value mvtrnd_full(::numkit::ops::RngContext &rng, const Value &C,
     Value out = Value::matrix(n, d, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
     auto &gen = rng;
-    std::vector<double> Z(n * rank);
+    keel::Array<double> Z(n * rank);
     for (keel::usize k = 0; k < rank; ++k)
         for (keel::usize r = 0; r < n; ++r)
             Z[r + k * n] = gen.nextNormal();
-    std::vector<double> scale(n);
+    keel::Array<double> scale(n);
     for (keel::usize r = 0; r < n; ++r) {
         scale[r] = std::sqrt(dfv[r] / sampleChi2(gen, dfv[r]));
     }
@@ -525,7 +517,7 @@ Value mvncdf_full(keel::ArrayRef<Value> args, keel::Allocator *mr)
             const auto &fields = opts.structFields();
             auto getFieldCI = [&](const char *key) -> const Value * {
                 for (auto entry : fields) {
-                    std::string k(entry.key.as_ref());
+                    keel::String k = keel::String::from(entry.key.as_ref());
                     for (char &ch : k) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
                     if (k == key && !entry.value.isEmpty() && entry.value.isNumeric())
                         return fields.get(entry.key);
@@ -668,14 +660,13 @@ Value mvncdf_full(keel::ArrayRef<Value> args, keel::Allocator *mr)
             throw Error("mvncdf: SIGMA must be a square covariance matrix.",
                         0, 0, "mvncdf", "", "numkit:mvncdf:badCovariance");
         if (sz1 != d)
-            throw Error("mvncdf: SIGMA must be " + std::to_string(d)
-                        + "-by-" + std::to_string(d) + " to match X.",
+            throw Error(keel::format("mvncdf: SIGMA must be {}-by-{} to match X.", d, d),
                         0, 0, "mvncdf", "", "numkit:mvncdf:covSizeMismatch");
     }
 
     // Standard deviations (diag path) or correlation + factor (matrix).
-    std::vector<double> sd(d, 1.0);
-    std::vector<double> L;   // lower Cholesky row-major of correlation
+    keel::Array<double> sd(d, 1.0);
+    keel::Array<double> L;   // lower Cholesky row-major of correlation
     if (Sigma.isEmpty() || sigmaIsDiag) {
         if (!Sigma.isEmpty()) {
             for (keel::usize j = 0; j < d; ++j) {
@@ -691,7 +682,7 @@ Value mvncdf_full(keel::ArrayRef<Value> args, keel::Allocator *mr)
         L.assign(d * d, 0.0);
         for (keel::usize j = 0; j < d; ++j) L[j * d + j] = 1.0;
     } else {
-        std::vector<double> Sig(d * d), T, eval, evec;
+        keel::Array<double> Sig(d * d), T, eval, evec;
         for (keel::usize k = 0; k < d * d; ++k)
             Sig[k] = Sigma.elemAsDouble(k);
         if (!isSymmetric(Sig, d)
@@ -700,7 +691,7 @@ Value mvncdf_full(keel::ArrayRef<Value> args, keel::Allocator *mr)
                         "positive semi-definite matrix.",
                         0, 0, "mvncdf", "", "numkit:mvncdf:badMatrixSigma");
         // Standardize to a correlation and Cholesky it.
-        std::vector<double> rho(d * d, 0.0);
+        keel::Array<double> rho(d * d, 0.0);
         for (keel::usize j = 0; j < d; ++j) sd[j] = std::sqrt(Sig[j + j * d]);
         for (keel::usize j = 0; j < d; ++j)
             for (keel::usize i = 0; i < d; ++i)
@@ -778,7 +769,7 @@ Value mvncdf_full(keel::ArrayRef<Value> args, keel::Allocator *mr)
         // d ≥ 3: Genz (1992) Separation-of-Variables (SOV) quasi-Monte Carlo
         // over standardized lower/upper limits (handles both one-sided and box
         // forms directly without 2^d corner expansion).
-        std::vector<double> ql(d, -kInf), qu(d);
+        keel::Array<double> ql(d, -kInf), qu(d);
         for (keel::usize r = 0; r < n; ++r) {
             for (keel::usize j = 0; j < d; ++j) {
                 qu[j] = scaleRow(XU, r, j);

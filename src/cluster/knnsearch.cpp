@@ -2,8 +2,10 @@
 //
 // knnsearch / rangesearch — brute-force NN search via stats::pdist2.
 
+#include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
+#include <keel/ref.h>
 #include <numkit/stats/cluster/knnsearch.hpp>
 #include <numkit/stats/cluster/distance.hpp>
 
@@ -13,7 +15,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
-#include <vector>
 
 #include "knnsearch_detail.hpp"
 
@@ -44,7 +45,7 @@ void rangesearch_argcheck(const Value &X, const Value &Y, double r)
 } // namespace
 
 std::tuple<Value, Value>
-knnsearch(const Value &X, const Value &Y, int K, const std::string &metric, double p, keel::Allocator *mr)
+knnsearch(const Value &X, const Value &Y, int K, keel::StringRef metric, double p, keel::Allocator *mr)
 {
     knnsearch_argcheck(X, Y, K);
     const auto &dx = X.dims();
@@ -70,7 +71,7 @@ knnsearch(const Value &X, const Value &Y, int K, const std::string &metric, doub
                     0, 0, "knnsearch", "", "numkit:knnsearch:internal");
     const double *dd = D.doubleData();
 
-    std::vector<std::pair<double, keel::usize>> heap;
+    keel::Array<std::pair<double, keel::usize>> heap;
     heap.reserve(Nx);
     for (keel::usize q = 0; q < Ny; ++q) {
         // Collect (dist, index) for query q.
@@ -102,7 +103,7 @@ knnsearch(const Value &X, const Value &Y, int K, const std::string &metric, doub
 }
 
 std::tuple<Value, Value>
-rangesearch(const Value &X, const Value &Y, double r, const std::string &metric, double p, keel::Allocator *mr)
+rangesearch(const Value &X, const Value &Y, double r, keel::StringRef metric, double p, keel::Allocator *mr)
 {
     rangesearch_argcheck(X, Y, r);
     const auto &dx = X.dims();
@@ -117,7 +118,7 @@ rangesearch(const Value &X, const Value &Y, double r, const std::string &metric,
     Value D = pdist2(X, Y, metric, p, mr);
     const double *dd = D.doubleData();
 
-    std::vector<std::pair<double, keel::usize>> hits;
+    keel::Array<std::pair<double, keel::usize>> hits;
     for (keel::usize q = 0; q < Ny; ++q) {
         hits.clear();
         for (keel::usize i = 0; i < Nx; ++i) {

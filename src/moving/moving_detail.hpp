@@ -9,22 +9,23 @@
 #include <keel/arena.h>
 #include <keel/array.h>
 #include <keel/complex.h>
+#include <keel/format.h>
 #include <keel/math.h>
+#include <keel/string.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/ops/reductions.hpp>  // numkit::builtin::detail dim-infra (engine-free, ops re-export)
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <limits>
 #include <numeric>
-#include <string>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -49,10 +50,10 @@ struct Window {
 Window decodeWindow(keel::ArrayRef<keel::usize> k, const char *fn)
 {
     auto badK = [&]() {
-        throw Error(std::string(fn) + ": Window length must be a finite, "
-                    "positive, real scalar or 2-element vector of finite, "
-                    "nonnegative, real scalars.",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":badK");
+        throw Error(keel::format("{}: Window length must be a finite, "
+                                 "positive, real scalar or 2-element vector of finite, "
+                                 "nonnegative, real scalars.", fn),
+                    0, 0, fn, "", keel::format("numkit:{}:badK", fn));
     };
     if (k.size() == 1) {
         const keel::usize n = k[0];
@@ -77,10 +78,10 @@ keel::Array<keel::usize> decodeWindowValueToScratch(const Value &k, const char *
                                                const keel::ArenaTemp &scratch)
 {
     auto badK = [&]() {
-        throw Error(std::string(fn) + ": Window length must be a finite, "
-                    "positive, real scalar or 2-element vector of finite, "
-                    "nonnegative, real scalars.",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":badK");
+        throw Error(keel::format("{}: Window length must be a finite, "
+                                 "positive, real scalar or 2-element vector of finite, "
+                                 "nonnegative, real scalars.", fn),
+                    0, 0, fn, "", keel::format("numkit:{}:badK", fn));
     };
     keel::Array<keel::usize> out(scratch.allocator());
     if (k.isScalar()) {
@@ -117,15 +118,15 @@ struct MovOpts {
     EndpointMode ep = EndpointMode::Shrink;
     double ep_fill = std::numeric_limits<double>::quiet_NaN();
     bool has_sample_points = false;
-    std::vector<double> sample_points;
+    keel::Array<double> sample_points;
     double sp_kb = 0.0;
     double sp_kf = 0.0;
     const char *fn_name = "movmean";
 };
 
-inline std::string toLower(keel::StringRef sv)
+inline keel::String toLower(keel::StringRef sv)
 {
-    std::string s(sv.data(), sv.size());
+    keel::String s = keel::String::from(sv);
     for (auto &c : s)
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     return s;
@@ -147,7 +148,8 @@ MovOpts parseMovExtras(keel::ArrayRef<Value> args, keel::usize start, const char
 
     // Optional positional `nanflag`.
     if (i < args.size() && (args[i].isChar() || args[i].isString())) {
-        const std::string s = toLower(args[i].toString());
+        const keel::String raw = args[i].toString();
+        const keel::String s = toLower(raw.as_ref());
         if (s == "omitnan" || s == "omitmissing") {
             o.omit_nan = true; ++i;
         } else if (s == "includenan" || s == "includemissing") {
@@ -159,35 +161,37 @@ MovOpts parseMovExtras(keel::ArrayRef<Value> args, keel::usize start, const char
     // Name-Value pairs.
     while (i + 1 < args.size()) {
         if (!args[i].isChar() && !args[i].isString())
-            throw Error(std::string(fn) + ": expected a Name-Value pair",
-                        0, 0, fn, "", std::string("numkit:") + fn + ":nv");
-        const std::string name = toLower(args[i].toString());
+            throw Error(keel::format("{}: expected a Name-Value pair", fn),
+                        0, 0, fn, "", keel::format("numkit:{}:nv", fn));
+        const keel::String rawName = args[i].toString();
+        const keel::String name = toLower(rawName.as_ref());
         const Value &val = args[i + 1];
         if (name == "endpoints") {
             if (val.isChar() || val.isString()) {
-                const std::string s = toLower(val.toString());
+                const keel::String rawVal = val.toString();
+                const keel::String s = toLower(rawVal.as_ref());
                 if      (s == "shrink")  o.ep = EndpointMode::Shrink;
                 else if (s == "discard") o.ep = EndpointMode::Discard;
                 else if (s == "fill")    { o.ep = EndpointMode::Fill;
                                            o.ep_fill = std::numeric_limits<double>::quiet_NaN(); }
                 else
-                    throw Error(std::string(fn) + ": Endpoints must be "
-                                "'shrink', 'discard', 'fill' or a scalar",
-                                0, 0, fn, "", std::string("numkit:") + fn + ":ep");
+                    throw Error(keel::format("{}: Endpoints must be "
+                                             "'shrink', 'discard', 'fill' or a scalar", fn),
+                                0, 0, fn, "", keel::format("numkit:{}:ep", fn));
             } else if (val.isScalar()) {
                 o.ep = EndpointMode::Scalar;
                 o.ep_fill = val.toScalar();
             } else {
-                throw Error(std::string(fn) + ": Endpoints must be a string "
-                            "or numeric scalar",
-                            0, 0, fn, "", std::string("numkit:") + fn + ":ep");
+                throw Error(keel::format("{}: Endpoints must be a string "
+                                         "or numeric scalar", fn),
+                            0, 0, fn, "", keel::format("numkit:{}:ep", fn));
             }
         } else if (name == "samplepoints") {
             if (val.isEmpty() || (!val.dims().isVector() && !val.isScalar())
                 || val.isChar() || val.isString() || val.isCell() || val.isStruct()
                 || val.type() == ValueType::COMPLEX || val.type() == ValueType::LOGICAL) {
-                throw Error(std::string(fn) + ": 'SamplePoints' must be a non-empty real numeric vector of strictly increasing finite values",
-                            0, 0, fn, "", std::string("numkit:") + fn + ":samplePts");
+                throw Error(keel::format("{}: 'SamplePoints' must be a non-empty real numeric vector of strictly increasing finite values", fn),
+                            0, 0, fn, "", keel::format("numkit:{}:samplePts", fn));
             }
             const keel::usize nt = val.numel();
             o.sample_points.clear();
@@ -195,26 +199,25 @@ MovOpts parseMovExtras(keel::ArrayRef<Value> args, keel::usize start, const char
             for (keel::usize idx = 0; idx < nt; ++idx) {
                 const double tj = val.elemAsDouble(idx);
                 if (!std::isfinite(tj) || (idx > 0 && tj <= o.sample_points.back())) {
-                    throw Error(std::string(fn) + ": 'SamplePoints' must be strictly increasing and finite",
-                                0, 0, fn, "", std::string("numkit:") + fn + ":samplePts");
+                    throw Error(keel::format("{}: 'SamplePoints' must be strictly increasing and finite", fn),
+                                0, 0, fn, "", keel::format("numkit:{}:samplePts", fn));
                 }
                 o.sample_points.push_back(tj);
             }
             o.has_sample_points = true;
         } else if (name == "datavariables" || name == "replacevalues") {
-            throw Error(std::string(fn) + ": '" + name + "' is for table/"
-                        "timetable inputs (nk does not implement those)",
-                        0, 0, fn, "", std::string("numkit:") + fn + ":tableOnly");
+            throw Error(keel::format("{}: '{}' is for table/"
+                                     "timetable inputs (nk does not implement those)", fn, name),
+                        0, 0, fn, "", keel::format("numkit:{}:tableOnly", fn));
         } else {
-            throw Error(std::string(fn) + ": unknown Name-Value '" + name + "'",
-                        0, 0, fn, "", std::string("numkit:") + fn + ":nv");
+            throw Error(keel::format("{}: unknown Name-Value '{}'", fn, name),
+                        0, 0, fn, "", keel::format("numkit:{}:nv", fn));
         }
         i += 2;
     }
     if (i != args.size())
-        throw Error(std::string(fn) + ": dangling argument at position " +
-                    std::to_string(i + 1),
-                    0, 0, fn, "", std::string("numkit:") + fn + ":nargin");
+        throw Error(keel::format("{}: dangling argument at position {}", fn, i + 1),
+                    0, 0, fn, "", keel::format("numkit:{}:nargin", fn));
     return o;
 }
 
@@ -225,10 +228,10 @@ keel::Array<keel::usize> decodeWindowWithOpts(const Value &k, const char *fn,
         return decodeWindowValueToScratch(k, fn, scratch);
 
     auto badK = [&]() {
-        throw Error(std::string(fn) + ": Window length must be a finite, "
-                    "positive, real scalar or 2-element vector of finite, "
-                    "nonnegative, real scalars.",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":badK");
+        throw Error(keel::format("{}: Window length must be a finite, "
+                                 "positive, real scalar or 2-element vector of finite, "
+                                 "nonnegative, real scalars.", fn),
+                    0, 0, fn, "", keel::format("numkit:{}:badK", fn));
     };
     if (k.isEmpty() || k.isChar() || k.isString() || k.type() == ValueType::COMPLEX || k.type() == ValueType::LOGICAL)
         badK();
@@ -312,8 +315,8 @@ Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &o
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     if (x.isScalar()) {
         if (opt.has_sample_points && opt.sample_points.size() != 1) {
-            throw Error(std::string(opt.fn_name) + ": 'SamplePoints' length must match the operating dimension length",
-                        0, 0, opt.fn_name, "", std::string("numkit:") + opt.fn_name + ":samplePts");
+            throw Error(keel::format("{}: 'SamplePoints' length must match the operating dimension length", opt.fn_name),
+                        0, 0, opt.fn_name, "", keel::format("numkit:{}:samplePts", opt.fn_name));
         }
         auto out = Value::scalar(0.0, mr);
         const double v = x.toScalar();
@@ -421,8 +424,8 @@ Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &o
     if (x.dims().isVector()) {
         const keel::usize N = x.numel();
         if (opt.has_sample_points && opt.sample_points.size() != N) {
-            throw Error(std::string(opt.fn_name) + ": 'SamplePoints' length must match the operating dimension length",
-                        0, 0, opt.fn_name, "", std::string("numkit:") + opt.fn_name + ":samplePts");
+            throw Error(keel::format("{}: 'SamplePoints' length must match the operating dimension length", opt.fn_name),
+                        0, 0, opt.fn_name, "", keel::format("numkit:{}:samplePts", opt.fn_name));
         }
         keel::usize outN = N;
         if (opt.ep == EndpointMode::Discard) outN = reducedLen(N);
@@ -450,8 +453,8 @@ Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &o
     if (opt.has_sample_points) {
         const keel::usize expectedLen = (dim == 1) ? R : (dim == 2 ? C : (dim == 3 && d.is3D() ? P : 1));
         if (opt.sample_points.size() != expectedLen) {
-            throw Error(std::string(opt.fn_name) + ": 'SamplePoints' length must match the operating dimension length",
-                        0, 0, opt.fn_name, "", std::string("numkit:") + opt.fn_name + ":samplePts");
+            throw Error(keel::format("{}: 'SamplePoints' length must match the operating dimension length", opt.fn_name),
+                        0, 0, opt.fn_name, "", keel::format("numkit:{}:samplePts", opt.fn_name));
         }
     }
 
@@ -726,7 +729,8 @@ Value movmedian_impl(const Value &x, keel::ArrayRef<keel::usize> k, const MovOpt
                 std::copy(win, win + n, tmp);
                 return winMedianInPlace(tmp, n);
             }
-            std::vector<double> heap(win, win + n);
+            keel::Array<double> heap(n);
+            std::copy(win, win + n, heap.data());
             return winMedianInPlace(heap.data(), n);
         }, mr);
     if (isIntegerType(ot)) {

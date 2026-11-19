@@ -4,6 +4,7 @@
 //   glmfit — IRLS GLM fitting (normal / binomial / poisson / gamma)
 //   glmval — predict from fitted coefficients
 
+#include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <numkit/stats/regress/regress.hpp>
@@ -17,7 +18,6 @@
 #include <cmath>
 #include <cstring>
 #include <limits>
-#include <vector>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -56,17 +56,17 @@ GlmfitResult glmfit(const Value &X, const Value &y,
     const LinkFn fn = makeLink(link);
 
     // Build design matrix Xb = [1, X] column-major.
-    std::vector<double> Xb(n * p, 0.0);
+    keel::Array<double> Xb(n * p, 0.0);
     for (keel::usize i = 0; i < n; ++i) Xb[0 * n + i] = 1.0;
     for (keel::usize j = 0; j < p_in; ++j)
         for (keel::usize i = 0; i < n; ++i)
             Xb[(j + 1) * n + i] = X.elemAsDouble(j * n + i);
 
-    std::vector<double> yv(n);
+    keel::Array<double> yv(n);
     for (keel::usize i = 0; i < n; ++i) yv[i] = y.elemAsDouble(i);
 
     // Initial mu and eta.
-    std::vector<double> mu(n), eta(n);
+    keel::Array<double> mu(n), eta(n);
     for (keel::usize i = 0; i < n; ++i) {
         mu[i] = initialMu(yv[i], distr);
         // eta = g(mu) — compute via numerical inverse:
@@ -87,13 +87,13 @@ GlmfitResult glmfit(const Value &X, const Value &y,
         }
     }
 
-    std::vector<double> beta(p, 0.0), beta_prev(p, 0.0);
+    keel::Array<double> beta(p, 0.0), beta_prev(p, 0.0);
     const int maxIter = 100;
     const double tol = 1e-8;
     double dev = 0.0;
     for (int it = 0; it < maxIter; ++it) {
         // Working response z = eta + (y - mu) * dEta/dMu, weight = 1 / (V(mu) * (dEta/dMu)²).
-        std::vector<double> z(n), w(n);
+        keel::Array<double> z(n), w(n);
         for (keel::usize i = 0; i < n; ++i) {
             const double dE = fn.deta_dmu(mu[i]);
             const double V = varianceFn(mu[i], distr);
@@ -102,7 +102,7 @@ GlmfitResult glmfit(const Value &X, const Value &y,
         }
 
         // Solve weighted least squares: (X' W X) β = X' W z.
-        std::vector<double> M(p * p, 0.0), b(p, 0.0);
+        keel::Array<double> M(p * p, 0.0), b(p, 0.0);
         for (keel::usize i = 0; i < p; ++i) {
             for (keel::usize j = 0; j < p; ++j) {
                 double s = 0.0;
@@ -120,8 +120,8 @@ GlmfitResult glmfit(const Value &X, const Value &y,
             break;
         }
 
-        beta_prev = beta;
-        beta = b;
+        beta_prev = keel::move(beta);
+        beta = keel::move(b);
 
         // Update eta = X·β, then mu.
         for (keel::usize i = 0; i < n; ++i) {
@@ -144,7 +144,7 @@ GlmfitResult glmfit(const Value &X, const Value &y,
     // Deviance and final working weights / covariance.
     dev = 0.0;
     double pearsonChi2 = 0.0;
-    std::vector<double> wFinal(n, 0.0);
+    keel::Array<double> wFinal(n, 0.0);
     for (keel::usize i = 0; i < n; ++i) {
         dev += devTerm(yv[i], mu[i], distr);
         const double dE = fn.deta_dmu(mu[i]);
@@ -165,7 +165,7 @@ GlmfitResult glmfit(const Value &X, const Value &y,
                               : std::sqrt(pearsonChi2 / dfe));
 
     // Invert J = Xb' * W * Xb to obtain covb = s^2 * J^{-1}.
-    std::vector<double> J(p * p, 0.0);
+    keel::Array<double> J(p * p, 0.0);
     for (keel::usize i = 0; i < p; ++i)
         for (keel::usize j = 0; j < p; ++j) {
             double acc = 0.0;
@@ -176,8 +176,8 @@ GlmfitResult glmfit(const Value &X, const Value &y,
     Value covb = Value::matrix(p, p, ValueType::DOUBLE, mr);
     double *covbD = covb.doubleDataMut();
     for (keel::usize col = 0; col < p; ++col) {
-        std::vector<double> M = J;
-        std::vector<double> rhs(p, 0.0);
+        keel::Array<double> M = J.clone();
+        keel::Array<double> rhs(p, 0.0);
         rhs[col] = 1.0;
         if (gaussSolve(M.data(), rhs.data(), p)) {
             for (keel::usize row = 0; row < p; ++row)
@@ -238,7 +238,7 @@ Value glmval(const Value &b, const Value &X, GlmLink link,
                     0, 0, "glmval", "", "numkit:glmval:shapeMismatch");
 
     const LinkFn fn = makeLink(link);
-    std::vector<double> bv(p);
+    keel::Array<double> bv(p);
     for (keel::usize i = 0; i < p; ++i) bv[i] = b.elemAsDouble(i);
 
     auto out = Value::matrix(m, 1, ValueType::DOUBLE, mr);

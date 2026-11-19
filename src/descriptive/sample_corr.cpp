@@ -11,6 +11,7 @@
 // rank-robust least-squares path — deferred to its own change. See
 // bugs/stats/autocorr.md.
 
+#include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <keel/math.h>
@@ -21,7 +22,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -35,7 +35,7 @@ keel::usize defaultNumLags(keel::usize N)
 }
 
 // Centred copy of a (vector) Value's data: out[i] = v[i] - mean(v).
-void centred(const Value &v, std::vector<double> &out, double &c0)
+void centred(const Value &v, keel::Array<double> &out, double &c0)
 {
     const keel::usize n = v.numel();
     out.resize(n);
@@ -50,7 +50,7 @@ void centred(const Value &v, std::vector<double> &out, double &c0)
     c0 /= static_cast<double>(n);   // biased variance
 }
 
-Value colVec(const std::vector<double> &v, keel::Allocator *mr)
+Value colVec(const keel::Array<double> &v, keel::Allocator *mr)
 {
     Value out = Value::matrix(v.size(), 1, ValueType::DOUBLE, mr);
     double *d = out.doubleDataMut();
@@ -61,7 +61,7 @@ Value colVec(const std::vector<double> &v, keel::Allocator *mr)
 // Solve the n×n system A·x = b in place (row-major A, Gaussian elimination with
 // partial pivoting). Returns false on a near-singular pivot; on success the
 // solution overwrites b. Used for the per-lag OLS normal equations in parcorr.
-bool solveDense(std::vector<double> &A, std::vector<double> &b, keel::usize n)
+bool solveDense(keel::Array<double> &A, keel::Array<double> &b, keel::usize n)
 {
     for (keel::usize col = 0; col < n; ++col) {
         keel::usize piv = col;
@@ -106,11 +106,11 @@ autocorr(const Value &y, int numLags, double numSTD, keel::Allocator *mr)
     const keel::usize N = y.numel();
     const keel::usize K = (numLags >= 0) ? static_cast<keel::usize>(numLags) : defaultNumLags(N);
 
-    std::vector<double> yc;
+    keel::Array<double> yc;
     double c0 = 0.0;
     centred(y, yc, c0);
 
-    std::vector<double> acf(K + 1), lags(K + 1);
+    keel::Array<double> acf(K + 1), lags(K + 1);
     for (keel::usize k = 0; k <= K; ++k) {
         double ck = 0.0;
         for (keel::usize t = 0; t + k < N; ++t)
@@ -121,7 +121,7 @@ autocorr(const Value &y, int numLags, double numSTD, keel::Allocator *mr)
     }
 
     const double b = (N > 0) ? numSTD / std::sqrt(static_cast<double>(N)) : 0.0;
-    std::vector<double> bounds = { b, -b };
+    keel::Array<double> bounds = { b, -b };
     return std::make_tuple(colVec(acf, mr), colVec(lags, mr), colVec(bounds, mr));
 }
 
@@ -133,7 +133,7 @@ crosscorr(const Value &y1, const Value &y2, int numLags, double numSTD,
     const keel::usize N = y1.numel();
     const keel::usize K = (numLags >= 0) ? static_cast<keel::usize>(numLags) : defaultNumLags(N);
 
-    std::vector<double> c1, c2;
+    keel::Array<double> c1, c2;
     double v1 = 0.0, v2 = 0.0;
     centred(y1, c1, v1);
     centred(y2, c2, v2);
@@ -141,7 +141,7 @@ crosscorr(const Value &y1, const Value &y2, int numLags, double numSTD,
 
     // xcf at lag k = (1/N) Σ_t c1[t]·c2[t+k] / √(c1(0)·c2(0)), k = -K..K.
     const long Kl = static_cast<long>(K), Nl = static_cast<long>(N);
-    std::vector<double> xcf(2 * K + 1), lags(2 * K + 1);
+    keel::Array<double> xcf(2 * K + 1), lags(2 * K + 1);
     for (long k = -Kl; k <= Kl; ++k) {
         double s = 0.0;
         const long t0 = std::max(0L, -k), t1 = std::min(Nl, Nl - k);
@@ -154,7 +154,7 @@ crosscorr(const Value &y1, const Value &y2, int numLags, double numSTD,
     }
 
     const double b = (N > 0) ? numSTD / std::sqrt(static_cast<double>(N)) : 0.0;
-    std::vector<double> bounds = { b, -b };
+    keel::Array<double> bounds = { b, -b };
     return std::make_tuple(colVec(xcf, mr), colVec(lags, mr), colVec(bounds, mr));
 }
 
@@ -164,22 +164,22 @@ parcorr(const Value &y, int numLags, double numSTD, keel::Allocator *mr)
     const keel::usize N = y.numel();
     const keel::usize K = (numLags >= 0) ? static_cast<keel::usize>(numLags) : defaultNumLags(N);
 
-    std::vector<double> yv(N);
+    keel::Array<double> yv(N);
     for (keel::usize i = 0; i < N; ++i) yv[i] = y.elemAsDouble(i);
 
-    std::vector<double> pacf(K + 1, 0.0), lags(K + 1, 0.0);
+    keel::Array<double> pacf(K + 1, 0.0), lags(K + 1, 0.0);
     pacf[0] = 1.0;   // lag 0
     // MATLAB's default parcorr Method is OLS: for each lag k fit the AR(k)
     // model y_t = c + Σ_{j=1..k} φ_j·y_{t-j} on observations t = k+1..N and take
     // PACF(k) = φ_k (the deepest-lag coefficient). Normal equations reproduce
     // MATLAB's QR to full precision on well-conditioned lags (N-k ≥ k+1);
     // deeper, rank-deficient lags are unstable in both engines.
-    std::vector<double> xr;   // predictor row, reused
+    keel::Array<double> xr;   // predictor row, reused
     for (keel::usize k = 1; k <= K; ++k) {
         lags[k] = static_cast<double>(k);
         if (N <= k) continue;                 // no observations → leave 0
         const keel::usize p = k + 1;               // intercept + k lags
-        std::vector<double> A(p * p, 0.0), bb(p, 0.0);
+        keel::Array<double> A(p * p, 0.0), bb(p, 0.0);
         xr.assign(p, 0.0);
         for (keel::usize t = k; t < N; ++t) {
             xr[0] = 1.0;
@@ -193,7 +193,7 @@ parcorr(const Value &y, int numLags, double numSTD, keel::Allocator *mr)
     }
 
     const double bnd = (N > 0) ? numSTD / std::sqrt(static_cast<double>(N)) : 0.0;
-    std::vector<double> bounds = { bnd, -bnd };
+    keel::Array<double> bounds = { bnd, -bnd };
     return std::make_tuple(colVec(pacf, mr), colVec(lags, mr), colVec(bounds, mr));
 }
 

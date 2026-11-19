@@ -4,23 +4,25 @@
 #pragma once
 
 #include <keel/core.h>
+#include <keel/format.h>
 #include <keel/memory.h>
 #include <keel/array.h>
+#include <keel/ref.h>
+#include <keel/string.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <limits>
 #include <numeric>
-#include <string>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -35,10 +37,10 @@ enum class Metric { Euclidean, SqEuclidean, Cityblock, Chebychev, Minkowski,
                     Cosine, Correlation, Hamming, Jaccard, Mahalanobis,
                     Seuclidean, Spearman };
 
-Metric parse_metric(const std::string &raw) {
+Metric parse_metric(keel::StringRef raw) {
     // Case-insensitive + accept MATLAB-style aliases (e.g. 'sqEuclidean'
     // for squared-euclidean).
-    std::string s; s.reserve(raw.size());
+    keel::String s; s.reserve(raw.size());
     for (char c : raw) s.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
     if (s == "euclidean")        return Metric::Euclidean;
     if (s == "squaredeuclidean" ||
@@ -53,7 +55,7 @@ Metric parse_metric(const std::string &raw) {
     if (s == "mahalanobis")      return Metric::Mahalanobis;
     if (s == "seuclidean")       return Metric::Seuclidean;
     if (s == "spearman")         return Metric::Spearman;
-    throw Error("pdist: unknown metric '" + raw + "'", 0, 0, "pdist", "",
+    throw Error(keel::format("pdist: unknown metric '{}'", raw), 0, 0, "pdist", "",
                 "numkit:pdist:badmetric");
 }
 
@@ -314,11 +316,11 @@ inline void tiedrank_rows(const Value &X, double *R,
 
 // Internal pdist/pdist2 overloads (with optional Mahalanobis covariance C_opt)
 // + the top-k variant, used by the reg adapters. Defs in distance.cpp (external).
-Value pdist(const Value &X, const std::string &metric, double p,
+Value pdist(const Value &X, keel::StringRef metric, double p,
             const Value *C_opt, keel::Allocator *mr);
-Value pdist2(const Value &X, const Value &Y, const std::string &metric, double p,
+Value pdist2(const Value &X, const Value &Y, keel::StringRef metric, double p,
              const Value *C_opt, keel::Allocator *mr);
-void pdist2_topk(const Value &X, const Value &Y, const std::string &metric,
+void pdist2_topk(const Value &X, const Value &Y, keel::StringRef metric,
                  double p, const Value *C_opt, keel::usize k, bool largest,
                  Value &Dout, Value &Iout, keel::Allocator *mr);
 

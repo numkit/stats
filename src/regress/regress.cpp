@@ -1,5 +1,6 @@
 // toolboxes/stats/src/regress/regress.cpp
 
+#include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <numkit/stats/regress/regress.hpp>
@@ -12,7 +13,6 @@
 
 #include <cmath>
 #include <limits>
-#include <vector>
 
 #include "regress_detail.hpp"
 
@@ -69,8 +69,8 @@ regress_full(const Value &y, const Value &X, double alpha, keel::Allocator *mr)
     const keel::usize p = X.dims().cols();
 
     // Build XtX (p×p) and Xty (p×1) using column-major X.
-    std::vector<double> XtX(p * p, 0.0);
-    std::vector<double> Xty(p, 0.0);
+    keel::Array<double> XtX(p * p, 0.0);
+    keel::Array<double> Xty(p, 0.0);
     for (keel::usize j = 0; j < p; ++j) {
         for (keel::usize i = 0; i < N; ++i) {
             const double xij = X.elemAsDouble(i + j * N);
@@ -87,18 +87,18 @@ regress_full(const Value &y, const Value &X, double alpha, keel::Allocator *mr)
             XtX[k + j * p] = XtX[j + k * p];
 
     // Cholesky factor.
-    std::vector<double> L(p * p, 0.0);
+    keel::Array<double> L(p * p, 0.0);
     if (!cholesky(XtX.data(), L.data(), p))
         throw Error("regress: design matrix is rank-deficient",
                     0, 0, "regress", "", "numkit:regress:rank");
 
     // Solve XtX β = Xty:  L z = Xty,  L^T β = z.
-    std::vector<double> beta(p), z(p);
+    keel::Array<double> beta(p), z(p);
     fwd_solve(L.data(), z.data(), Xty.data(), p);
     back_solve(L.data(), beta.data(), z.data(), p);
 
     // Residuals r = y - X β.
-    std::vector<double> r(N);
+    keel::Array<double> r(N);
     double SSR = 0.0;
     for (keel::usize i = 0; i < N; ++i) {
         double pred = 0.0;
@@ -114,10 +114,10 @@ regress_full(const Value &y, const Value &X, double alpha, keel::Allocator *mr)
     // Compute the FULL (XtX)^{-1} (p×p, column-major) so we can compute
     // both the diagonal (for bint SE) and the leverage h_ii = X·M·X'
     // for rint.
-    std::vector<double> invMat(p * p, 0.0);
-    std::vector<double> invDiag(p, 0.0);
+    keel::Array<double> invMat(p * p, 0.0);
+    keel::Array<double> invDiag(p, 0.0);
     {
-        std::vector<double> ej(p), zj(p), mj(p);
+        keel::Array<double> ej(p), zj(p), mj(p);
         for (keel::usize j = 0; j < p; ++j) {
             std::fill(ej.begin(), ej.end(), 0.0);
             ej[j] = 1.0;
@@ -243,13 +243,13 @@ lscov(const Value &A, const Value &b, const Value &w, keel::Allocator *mr)
     const bool weighted = !w.isEmpty();
     const bool fullCov = weighted && (w.dims().rows() == N && w.dims().cols() == N && N > 1);
 
-    std::vector<double> XtWX(p * p, 0.0);
-    std::vector<double> XtWy(p, 0.0);
-    std::vector<double> Atilde;
-    std::vector<double> btilde;
+    keel::Array<double> XtWX(p * p, 0.0);
+    keel::Array<double> XtWy(p, 0.0);
+    keel::Array<double> Atilde;
+    keel::Array<double> btilde;
 
     if (fullCov) {
-        std::vector<double> V(N * N, 0.0);
+        keel::Array<double> V(N * N, 0.0);
         for (keel::usize j = 0; j < N; ++j) {
             for (keel::usize i = 0; i < N; ++i) {
                 const double vij = w.elemAsDouble(i + j * N);
@@ -260,15 +260,15 @@ lscov(const Value &A, const Value &b, const Value &w, keel::Allocator *mr)
                 V[i + j * N] = 0.5 * (vij + vji);
             }
         }
-        std::vector<double> LV(N * N, 0.0);
+        keel::Array<double> LV(N * N, 0.0);
         if (!cholesky(V.data(), LV.data(), N))
             throw Error("lscov: covariance matrix V must be symmetric positive definite",
                         0, 0, "lscov", "", "numkit:lscov:covNotSPD");
 
         // Whiten A and b: solve LV * Atilde(:,j) = A(:,j), LV * btilde = b.
-        Atilde.resize(N * p, 0.0);
-        btilde.resize(N, 0.0);
-        std::vector<double> colIn(N);
+        Atilde = keel::Array<double>(N * p, 0.0);
+        btilde = keel::Array<double>(N, 0.0);
+        keel::Array<double> colIn(N);
         for (keel::usize j = 0; j < p; ++j) {
             for (keel::usize i = 0; i < N; ++i) colIn[i] = A.elemAsDouble(i + j * N);
             fwd_solve(LV.data(), Atilde.data() + j * N, colIn.data(), N);
@@ -310,12 +310,12 @@ lscov(const Value &A, const Value &b, const Value &w, keel::Allocator *mr)
         for (keel::usize k = 0; k < j; ++k)
             XtWX[k + j * p] = XtWX[j + k * p];
 
-    std::vector<double> L(p * p, 0.0);
+    keel::Array<double> L(p * p, 0.0);
     if (!cholesky(XtWX.data(), L.data(), p))
         throw Error("lscov: design matrix is rank-deficient",
                     0, 0, "lscov", "", "numkit:lscov:rank");
 
-    std::vector<double> beta(p), z(p);
+    keel::Array<double> beta(p), z(p);
     fwd_solve(L.data(), z.data(), XtWy.data(), p);
     back_solve(L.data(), beta.data(), z.data(), p);
 
@@ -342,9 +342,9 @@ lscov(const Value &A, const Value &b, const Value &w, keel::Allocator *mr)
                                      : std::numeric_limits<double>::quiet_NaN();
 
     // (XtWX)⁻¹ then S = mse · (XtWX)⁻¹
-    std::vector<double> Sm(p * p, 0.0);
+    keel::Array<double> Sm(p * p, 0.0);
     {
-        std::vector<double> ej(p), zj(p), mj(p);
+        keel::Array<double> ej(p), zj(p), mj(p);
         for (keel::usize j = 0; j < p; ++j) {
             std::fill(ej.begin(), ej.end(), 0.0);
             ej[j] = 1.0;
@@ -382,15 +382,15 @@ Value ridge(const Value &y, const Value &X, const Value &kVec, bool scaled, keel
     double yMean = 0.0;
     for (keel::usize i = 0; i < N; ++i) yMean += y.elemAsDouble(i);
     yMean /= double(N);
-    std::vector<double> yc(N);
+    keel::Array<double> yc(N);
     for (keel::usize i = 0; i < N; ++i) yc[i] = y.elemAsDouble(i) - yMean;
 
-    std::vector<double> xMean(p, 0.0), xStd(p, 0.0);
+    keel::Array<double> xMean(p, 0.0), xStd(p, 0.0);
     for (keel::usize j = 0; j < p; ++j) {
         for (keel::usize i = 0; i < N; ++i) xMean[j] += X.elemAsDouble(i + j * N);
         xMean[j] /= double(N);
     }
-    std::vector<double> Xs(N * p);
+    keel::Array<double> Xs(N * p);
     for (keel::usize j = 0; j < p; ++j) {
         double sq = 0.0;
         for (keel::usize i = 0; i < N; ++i) {
@@ -406,8 +406,8 @@ Value ridge(const Value &y, const Value &X, const Value &kVec, bool scaled, keel
     }
 
     // X_s' X_s and X_s' y_c.
-    std::vector<double> XtX(p * p, 0.0);
-    std::vector<double> Xty(p, 0.0);
+    keel::Array<double> XtX(p * p, 0.0);
+    keel::Array<double> Xty(p, 0.0);
     for (keel::usize i = 0; i < N; ++i) {
         const double yi = yc[i];
         for (keel::usize j = 0; j < p; ++j) {
@@ -428,7 +428,7 @@ Value ridge(const Value &y, const Value &X, const Value &kVec, bool scaled, keel
     Value B = Value::matrix(outRows, Nk, ValueType::DOUBLE, mr);
     double *Bd = B.doubleDataMut();
 
-    std::vector<double> M(p * p), L(p * p), beta(p), z(p);
+    keel::Array<double> M(p * p), L(p * p), beta(p), z(p);
     for (keel::usize kIdx = 0; kIdx < Nk; ++kIdx) {
         const double k = kVec.elemAsDouble(kIdx);
         // M = XtX + k*I

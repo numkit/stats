@@ -45,6 +45,9 @@
 #include <keel/arena.h>
 #include <keel/array.h>
 #include <keel/complex.h>
+#include <keel/format.h>
+#include <keel/function_ref.h>
+#include <keel/string.h>
 #include <numkit/stats/descriptive/descriptive.hpp>
 #include <numkit/builtin/datatypes.hpp>   // standardizeMissing (live bare-name impl)
 #include <numkit/stats/distributions/normal.hpp>     // norminv (via descriptive_detail.hpp)
@@ -61,8 +64,6 @@
 
 #include <cmath>
 #include <limits>
-#include <string>
-#include <vector>
 
 #include "descriptive_extras_detail.hpp"
 #include "descriptive_detail.hpp"   // narrowToSingle
@@ -70,12 +71,17 @@
 namespace numkit::stats {
 namespace {
 
-std::string lowerCopy(keel::StringRef sv)
+keel::String lowerCopy(keel::StringRef sv)
 {
-    std::string s(sv.data(), sv.size());
+    keel::String s = keel::String::from(sv);
     for (char &c : s)
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     return s;
+}
+
+bool startsWith(keel::StringRef text, keel::StringRef prefix)
+{
+    return prefix.size() <= text.size() && text.substr(0, prefix.size()) == prefix;
 }
 
 bool isStringValue(const Value &v) { return v.isChar() || v.isString(); }
@@ -105,10 +111,10 @@ void parseWindowHalfSpans(const Value &wl, const char *fn, long &hb, long &hf,
 {
     const bool numeric = wl.isNumeric() && !wl.isComplex();
     auto bad = [&]() {
-        throw Error(std::string(fn) + ": window length must be a positive "
-                    "scalar or a 2-element nonnegative [back forward] "
-                    "vector of finite values",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":invalidWindow");
+        throw Error(keel::format("{}: window length must be a positive "
+                                 "scalar or a 2-element nonnegative [back forward] "
+                                 "vector of finite values", fn),
+                    0, 0, fn, "", keel::format("numkit:{}:invalidWindow", fn));
     };
     if (!(numeric || wl.isLogical())) bad();
     if (wl.numel() == 1) {
@@ -133,56 +139,54 @@ void parseWindowHalfSpans(const Value &wl, const char *fn, long &hb, long &hf,
     }
 }
 
-std::vector<double> validateSamplePoints(const Value &sp, keel::usize expectedLen,
+keel::Array<double> validateSamplePoints(const Value &sp, keel::usize expectedLen,
                                          bool arrayIsEmpty, bool floatOnly,
                                          const char *fn)
 {
     const bool isFloat = (sp.type() == ValueType::DOUBLE ||
                           sp.type() == ValueType::SINGLE);
     if (floatOnly && !isFloat)
-        throw Error(std::string(fn) + ": 'SamplePoints' must be a floating-point vector",
+        throw Error(keel::format("{}: 'SamplePoints' must be a floating-point vector", fn),
                     0, 0, fn, "",
-                    std::string("numkit:") + fn + ":samplePointsInvalidDatatype");
+                    keel::format("numkit:{}:samplePointsInvalidDatatype", fn));
     if (arrayIsEmpty) {
         if (sp.isNumeric() && !sp.isEmpty())
-            throw Error(std::string(fn) + ": 'SamplePoints' length must match the operating dimension",
+            throw Error(keel::format("{}: 'SamplePoints' length must match the operating dimension", fn),
                         0, 0, fn, "",
-                        std::string("numkit:") + fn + ":samplePointsLength");
+                        keel::format("numkit:{}:samplePointsLength", fn));
         return {};
     }
     if ((!sp.dims().isVector() && !sp.isEmpty()) || !sp.isNumeric())
-        throw Error(std::string(fn) + ": 'SamplePoints' must be a numeric vector",
+        throw Error(keel::format("{}: 'SamplePoints' must be a numeric vector", fn),
                     0, 0, fn, "",
-                    std::string("numkit:") + fn + ":samplePointsInvalidDatatype");
+                    keel::format("numkit:{}:samplePointsInvalidDatatype", fn));
     if (sp.numel() != expectedLen)
-        throw Error(std::string(fn) + ": 'SamplePoints' length (" +
-                    std::to_string(sp.numel()) +
-                    ") must match the operating dimension (" +
-                    std::to_string(expectedLen) + ")",
+        throw Error(keel::format("{}: 'SamplePoints' length ({}) must match the operating dimension ({})",
+                                 fn, sp.numel(), expectedLen),
                     0, 0, fn, "",
-                    std::string("numkit:") + fn + ":samplePointsLength");
+                    keel::format("numkit:{}:samplePointsLength", fn));
     if (sp.isComplex())
-        throw Error(std::string(fn) + ": 'SamplePoints' must be real",
+        throw Error(keel::format("{}: 'SamplePoints' must be real", fn),
                     0, 0, fn, "",
-                    std::string("numkit:") + fn + ":samplePointsComplex");
-    std::vector<double> out(expectedLen);
+                    keel::format("numkit:{}:samplePointsComplex", fn));
+    keel::Array<double> out(expectedLen);
     for (keel::usize j = 0; j < expectedLen; ++j) {
         const double v = sp.elemAsDouble(j);
         if (!std::isfinite(v))
-            throw Error(std::string(fn) + ": 'SamplePoints' must contain finite values",
+            throw Error(keel::format("{}: 'SamplePoints' must contain finite values", fn),
                         0, 0, fn, "",
-                        std::string("numkit:") + fn + ":samplePointsNonFinite");
+                        keel::format("numkit:{}:samplePointsNonFinite", fn));
         out[j] = v;
     }
     for (keel::usize j = 1; j < expectedLen; ++j) {
         if (out[j] == out[j - 1])
-            throw Error(std::string(fn) + ": 'SamplePoints' must contain unique values",
+            throw Error(keel::format("{}: 'SamplePoints' must contain unique values", fn),
                         0, 0, fn, "",
-                        std::string("numkit:") + fn + ":samplePointsDuplicate");
+                        keel::format("numkit:{}:samplePointsDuplicate", fn));
         if (out[j] < out[j - 1])
-            throw Error(std::string(fn) + ": 'SamplePoints' must be sorted in strictly increasing order",
+            throw Error(keel::format("{}: 'SamplePoints' must be sorted in strictly increasing order", fn),
                         0, 0, fn, "",
-                        std::string("numkit:") + fn + ":samplePointsSorted");
+                        keel::format("numkit:{}:samplePointsSorted", fn));
     }
     return out;
 }
@@ -190,7 +194,7 @@ std::vector<double> validateSamplePoints(const Value &sp, keel::usize expectedLe
 // ── outlier detection (mirrors locateoutliers.m) ──────────────────────
 
 struct ColStats {
-    std::vector<keel::u8> mask;
+    keel::Array<keel::u8> mask;
     double center = std::numeric_limits<double>::quiet_NaN();
     double lo = -std::numeric_limits<double>::infinity();
     double hi = std::numeric_limits<double>::infinity();
@@ -204,8 +208,8 @@ ColStats grubbsColumn(const double *x, keel::usize n, double alpha,
 {
     ColStats r;
     r.mask.assign(n, 0);
-    std::vector<keel::usize> idx;
-    std::vector<double> v;
+    keel::Array<keel::usize> idx;
+    keel::Array<double> v;
     idx.reserve(n); v.reserve(n);
     for (keel::usize i = 0; i < n; ++i)
         if (!std::isnan(x[i])) { v.push_back(x[i]); idx.push_back(i); }
@@ -231,8 +235,8 @@ ColStats grubbsColumn(const double *x, keel::usize n, double alpha,
         thr = ((double(m) - 1.0) / std::sqrt(double(m))) *
               std::fabs(t) / std::sqrt(dof + t * t);
         if (amax / astd > thr) {
-            v.erase(v.begin() + static_cast<keel::isize>(jmax));
-            idx.erase(idx.begin() + static_cast<keel::isize>(jmax));
+            v.remove_at(jmax);
+            idx.remove_at(jmax);
         } else {
             break;
         }
@@ -254,7 +258,7 @@ ColStats gesdColumn(const double *x, keel::usize n, double alpha,
 {
     ColStats r;
     r.mask.assign(n, 0);
-    std::vector<double> v;
+    keel::Array<double> v;
     v.reserve(n);
     for (keel::usize i = 0; i < n; ++i)
         if (!std::isnan(x[i])) v.push_back(x[i]);
@@ -264,7 +268,7 @@ ColStats gesdColumn(const double *x, keel::usize n, double alpha,
         ? static_cast<keel::usize>(maxOutArg)
         : static_cast<keel::usize>(std::ceil(0.1 * double(N)));
     const keel::usize rounds = std::min(N, maxo);
-    std::vector<double> amean(rounds, 0.0), astd(rounds, 0.0),
+    keel::Array<double> amean(rounds, 0.0), astd(rounds, 0.0),
                         lam(rounds, 0.0), R(rounds, 0.0);
     for (keel::usize it = 0; it < rounds; ++it) {
         const keel::usize m = v.size();
@@ -282,7 +286,7 @@ ColStats gesdColumn(const double *x, keel::usize n, double alpha,
         }
         R[it] = (astd[it] > 0.0) ? amax / astd[it]
                                 : std::numeric_limits<double>::infinity();
-        v.erase(v.begin() + static_cast<keel::isize>(jmax));
+        v.remove_at(jmax);
         const double dof = double(N) - double(it) - 1.0;   // n-i-1
         const double pp = 1.0 - alpha / (2.0 * double(nm1));
         const double t = tinv(Value::scalar(pp, mr), dof, mr).toScalar();
@@ -306,10 +310,10 @@ ColStats gesdColumn(const double *x, keel::usize n, double alpha,
 
 // One detection run. Moving methods fill per-element center/lo/hi
 // arrays instead of the scalar bounds.
-ColStats detectRun(const std::vector<double> &x, const std::string &method,
+ColStats detectRun(keel::ArrayRef<double> x, keel::StringRef method,
                    double tf, long hb, long hf, double loP, double hiP,
-                   long maxOut, std::vector<double> *movCenter,
-                   std::vector<double> *movLo, std::vector<double> *movHi,
+                   long maxOut, keel::Array<double> *movCenter,
+                   keel::Array<double> *movLo, keel::Array<double> *movHi,
                    keel::Allocator *mr,
                    const double *sp = nullptr, double hbSpan = 0.0,
                    double hfSpan = 0.0, bool winTwoElem = false)
@@ -333,11 +337,11 @@ ColStats detectRun(const std::vector<double> &x, const std::string &method,
             movLo->assign(n, nanv);
             movHi->assign(n, nanv);
         }
-        auto medOf = [](std::vector<double> &w) {
+        auto medOf = [](const keel::Array<double> &w) {
             const keel::usize k = w.size();
             return (k % 2 == 1) ? w[k / 2] : 0.5 * (w[k / 2 - 1] + w[k / 2]);
         };
-        std::vector<double> win, dev, sorted;
+        keel::Array<double> win, dev, sorted;
         for (keel::usize i = 0; i < n; ++i) {
             win.clear();
             if (sp) {
@@ -360,7 +364,7 @@ ColStats detectRun(const std::vector<double> &x, const std::string &method,
             if (win.empty()) continue;
             double center, scale;
             if (isMed) {
-                sorted = win;
+                sorted.assign(win.as_ref());
                 std::sort(sorted.begin(), sorted.end());
                 center = medOf(sorted);
                 dev.clear();
@@ -410,43 +414,43 @@ namespace {
 void isoutlierParse(const Value &A, keel::ArrayRef<Value> in, bool forRmoutliers,
                     IsOutlierPlan &p, const Value *&outlierLocations)
 {
-    static constexpr std::string_view kMethods[] = {
+    static constexpr keel::StringRef kMethods[] = {
         "median", "mean", "quartiles", "grubbs", "gesd",
         "movmedian", "movmean", "percentiles"};
-    static constexpr std::string_view kNvRm[] = {
+    static constexpr keel::StringRef kNvRm[] = {
         "samplepoints", "datavariables", "thresholdfactor",
         "outlierlocations", "maxnumoutliers", "minnumoutliers"};
-    static constexpr std::string_view kNvIso[] = {
+    static constexpr keel::StringRef kNvIso[] = {
         "samplepoints", "datavariables", "thresholdfactor",
         "maxnumoutliers", "outputformat"};
-    const keel::ArrayRef<std::string_view> nvNames =
-        forRmoutliers ? keel::ArrayRef<std::string_view>(kNvRm)
-                      : keel::ArrayRef<std::string_view>(kNvIso);
+    const keel::ArrayRef<keel::StringRef> nvNames =
+        forRmoutliers ? keel::ArrayRef<keel::StringRef>(kNvRm)
+                      : keel::ArrayRef<keel::StringRef>(kNvIso);
     keel::usize i = 0;
     if (!in.empty() && isStringValue(in[0])) {
-        std::vector<std::string_view> all(std::begin(kMethods),
-                                          std::end(kMethods));
-        all.insert(all.end(), nvNames.begin(), nvNames.end());
-        const int hit = argcheck::matchStringChoice(
-            in[0], keel::ArrayRef<std::string_view>(all));
-        if (hit < 0)
-            throw Error("isoutlier: unrecognized method or parameter name '" +
-                        std::string(in[0].toString().as_ref()) + "' (expected median, mean, "
-                        "quartiles, grubbs, gesd, movmedian, movmean, or "
-                        "percentiles)",
+        keel::Array<keel::StringRef> all;
+        all.reserve(std::size(kMethods) + nvNames.size());
+        for (keel::StringRef s : kMethods) all.push_back(s);
+        for (keel::StringRef s : nvNames) all.push_back(s);
+        const int hit = argcheck::matchStringChoice(in[0], all.as_ref());
+        if (hit < 0) {
+            keel::String in0Str = in[0].toString();
+            throw Error(keel::format("isoutlier: unrecognized method or parameter name '{}' "
+                                     "(expected median, mean, quartiles, grubbs, gesd, "
+                                     "movmedian, movmean, or percentiles)", in0Str.as_ref()),
                         0, 0, "isoutlier", "", "numkit:isoutlier:badMethod");
-        const std::string_view m = all[static_cast<keel::usize>(hit)];
+        }
+        const keel::StringRef m = all[static_cast<keel::usize>(hit)];
         if (m == "movmedian" || m == "movmean") {
-            p.method = m;
+            p.method.assign(m);
             if (in.size() < 2)
-                throw Error("isoutlier: specify a window length after '" +
-                            std::string(m) + "'",
+                throw Error(keel::format("isoutlier: specify a window length after '{}'", m),
                             0, 0, "isoutlier", "", "numkit:isoutlier:missingWindow");
             parseWindowHalfSpans(in[1], "isoutlier", p.hb, p.hf,
                                  &p.hbSpan, &p.hfSpan, &p.winTwoElem);
             i = 2;
         } else if (m == "percentiles") {
-            p.method = "percentiles";
+            p.method.assign("percentiles");
             const Value &lu = in[1];
             const bool row2 = lu.isNumeric() && !lu.isComplex() &&
                               lu.dims().ndim() <= 2 && lu.dims().dim(0) == 1 &&
@@ -468,7 +472,7 @@ void isoutlierParse(const Value &A, keel::ArrayRef<Value> in, bool forRmoutliers
                    m != "thresholdfactor" && m != "maxnumoutliers" &&
                    m != "minnumoutliers" && m != "outlierlocations" &&
                    m != "outputformat") {
-            p.method = m;
+            p.method.assign(m);
             i = 1;
         }
         // else: an NV name — keep i = 0 so the NV loop sees it.
@@ -497,16 +501,17 @@ void isoutlierParse(const Value &A, keel::ArrayRef<Value> in, bool forRmoutliers
                     0, 0, "isoutlier", "", "numkit:isoutlier:nvMismatch");
     for (; i + 1 < in.size(); i += 2) {
         if (!isStringValue(in[i])) continue;
-        const int hit = argcheck::matchStringChoice(
-            in[i], keel::ArrayRef<std::string_view>(nvNames));
-        if (hit < 0)
-            throw Error("isoutlier: unrecognized parameter name '" +
-                        std::string(in[i].toString().as_ref()) + "'",
+        const int hit = argcheck::matchStringChoice(in[i], nvNames);
+        if (hit < 0) {
+            keel::String iniStr = in[i].toString();
+            throw Error(keel::format("isoutlier: unrecognized parameter name '{}'",
+                                     iniStr.as_ref()),
                         0, 0, "isoutlier", "", "numkit:isoutlier:badParam");
-        const std::string_view name = nvNames[static_cast<keel::usize>(hit)];
+        }
+        const keel::StringRef name = nvNames[static_cast<keel::usize>(hit)];
         const Value &v = in[i + 1];
         if (name == "thresholdfactor") {
-            if (p.method == "percentiles")
+            if (p.method.as_ref() == "percentiles")
                 throw Error("isoutlier: 'ThresholdFactor' is not supported "
                             "with the 'percentiles' method",
                             0, 0, "isoutlier", "",
@@ -520,8 +525,8 @@ void isoutlierParse(const Value &A, keel::ArrayRef<Value> in, bool forRmoutliers
                 throw Error("isoutlier: ThresholdFactor must not be NaN",
                             0, 0, "isoutlier", "", "numkit:isoutlier:tfNaN");
             if (v.elemAsDouble(0) < 0.0)
-                throw Error("isoutlier: ThresholdFactor must be nonnegative "
-                            "(got " + std::to_string(v.elemAsDouble(0)) + ")",
+                throw Error(keel::format("isoutlier: ThresholdFactor must be nonnegative "
+                                         "(got {})", v.elemAsDouble(0)),
                             0, 0, "isoutlier", "", "numkit:isoutlier:tfNonneg");
             p.tf = v.elemAsDouble(0);
             p.haveTf = true;
@@ -563,18 +568,19 @@ void isoutlierParse(const Value &A, keel::ArrayRef<Value> in, bool forRmoutliers
 
 void isoutlierApplyTfDefaults(IsOutlierPlan &p, const Value &A)
 {
+    const keel::StringRef mref = p.method.as_ref();
     if (!p.haveTf) {
-        if (p.method == "quartiles") p.tf = 1.5;
-        else if (p.method == "grubbs" || p.method == "gesd") p.tf = 0.05;
+        if (mref == "quartiles") p.tf = 1.5;
+        else if (mref == "grubbs" || mref == "gesd") p.tf = 0.05;
         else p.tf = 3.0;
-    } else if (p.method == "grubbs" || p.method == "gesd") {
+    } else if (mref == "grubbs" || mref == "gesd") {
         if (p.tf > 1.0)
-            throw Error("isoutlier: 'ThresholdFactor' value must be between "
-                        "0 and 1 when the method is '" + p.method + "'",
+            throw Error(keel::format("isoutlier: 'ThresholdFactor' value must be between "
+                                     "0 and 1 when the method is '{}'", mref),
                         0, 0, "isoutlier", "", "numkit:isoutlier:alphaRange");
     }
     if (p.maxOut >= 0) {
-        if (p.method != "gesd")
+        if (mref != "gesd")
             throw Error("isoutlier: 'MaxNumOutliers' is supported only for "
                         "the 'gesd' method",
                         0, 0, "isoutlier", "", "numkit:isoutlier:maxNumGesdOnly");
@@ -659,7 +665,7 @@ IsOutlierOut isoutlier_full(const Value &A, keel::ArrayRef<Value> in,
     Value mask = Value::matrix(r, cols, ValueType::LOGICAL, mr);
     keel::u8 *md = mask.logicalDataMut();
 
-    const bool isMoving = (p.method == "movmedian" || p.method == "movmean");
+    const bool isMoving = (p.method.as_ref() == "movmedian" || p.method.as_ref() == "movmean");
     Value loM, hiM, ceM;
     double *lod = nullptr, *hid = nullptr, *ced = nullptr;
     if (wantThresholds) {
@@ -679,12 +685,12 @@ IsOutlierOut isoutlier_full(const Value &A, keel::ArrayRef<Value> in,
     }
 
     const double *spPtr = p.samplePoints.empty() ? nullptr : p.samplePoints.data();
-    std::vector<double> run(runLen);
-    std::vector<double> movC, movL, movH;
+    keel::Array<double> run(runLen);
+    keel::Array<double> movC, movL, movH;
     for (keel::usize k = 0; k < nRuns; ++k) {
         for (keel::usize j = 0; j < runLen; ++j)
             run[j] = A.elemAsDouble(along2 ? k + j * r : k * runLen + j);
-        ColStats st = detectRun(run, p.method, p.tf, p.hb, p.hf, p.loP, p.hiP,
+        ColStats st = detectRun(run.as_ref(), p.method.as_ref(), p.tf, p.hb, p.hf, p.loP, p.hiP,
                                 p.maxOut,
                                 isMoving ? &movC : nullptr,
                                 isMoving ? &movL : nullptr,
@@ -758,14 +764,14 @@ RmOutliersOut rmoutliers_full(const Value &A, keel::ArrayRef<Value> in,
     } else {
         // Detection sees the SAME tail minus the rmoutliers-only NV
         // pairs (isoutlier's own parse rejects those names).
-        std::vector<Value> filtered;
+        keel::Array<Value> filtered;
         keel::ArrayRef<Value> detect = in;
         if (!p.dropIdx.empty()) {
             filtered.reserve(in.size() - p.dropIdx.size());
             for (keel::usize q = 0; q < in.size(); ++q)
                 if (!std::count(p.dropIdx.begin(), p.dropIdx.end(), q))
                     filtered.push_back(in[q]);
-            detect = keel::ArrayRef<Value>(filtered.data(), filtered.size());
+            detect = filtered.as_ref();
         }
         iso = isoutlier_full(A, detect, true, mr);
         map = std::move(iso.tf);
@@ -809,11 +815,11 @@ RmOutliersOut rmoutliers_full(const Value &A, keel::ArrayRef<Value> in,
     }
 
     if (dim == 1) {
-        std::vector<keel::usize> cnt(r, 0);
+        keel::Array<keel::usize> cnt(r, 0);
         for (keel::usize col = 0; col < c; ++col)
             for (keel::usize i = 0; i < r; ++i)
                 if (m[col * r + i]) ++cnt[i];
-        std::vector<keel::u8> rm(r, 0);
+        keel::Array<keel::u8> rm(r, 0);
         keel::usize kept = 0;
         for (keel::usize i = 0; i < r; ++i) {
             rm[i] = (cnt[i] >= static_cast<keel::usize>(minNum)) ? 1 : 0;
@@ -839,11 +845,11 @@ RmOutliersOut rmoutliers_full(const Value &A, keel::ArrayRef<Value> in,
         return out;
     }
     // dim == 2: remove columns.
-    std::vector<keel::usize> cnt(c, 0);
+    keel::Array<keel::usize> cnt(c, 0);
     for (keel::usize col = 0; col < c; ++col)
         for (keel::usize i = 0; i < r; ++i)
             if (m[col * r + i]) ++cnt[col];
-    std::vector<keel::u8> rm(c, 0);
+    keel::Array<keel::u8> rm(c, 0);
     keel::usize kept = 0;
     for (keel::usize col = 0; col < c; ++col) {
         rm[col] = (cnt[col] >= static_cast<keel::usize>(minNum)) ? 1 : 0;
@@ -877,10 +883,9 @@ RmMissingOut rmmissing_full(const Value &A, keel::ArrayRef<Value> in,
     // and cells are a voiced gap — the reference supports them).
     const ValueType t = A.type();
     if (!(A.isNumeric() || A.isLogical() || t == ValueType::CHAR))
-        throw Error("rmmissing: unsupported input type " +
-                    std::string(mtypeName(t)) +
-                    " (string and cell inputs are not supported in this "
-                    "revision)",
+        throw Error(keel::format("rmmissing: unsupported input type {} "
+                                 "(string and cell inputs are not supported in this revision)",
+                                 mtypeName(t)),
                     0, 0, "rmmissing", "", "numkit:rmmissing:typeUnsupported");
     if (A.dims().ndim() > 2)
         throw Error("rmmissing: N-D arrays are not supported",
@@ -901,10 +906,10 @@ RmMissingOut rmmissing_full(const Value &A, keel::ArrayRef<Value> in,
                              ? 0 : 1;
          i + 1 < in.size() || (i + 1 == in.size() && false); i += 2) {
         if (i >= in.size() || !isStringValue(in[i])) continue;
-        static constexpr std::string_view kRmNv[] = {"minnummissing",
-                                                     "datavariables"};
+        static constexpr keel::StringRef kRmNv[] = {"minnummissing",
+                                                    "datavariables"};
         const int hit = argcheck::matchStringChoice(
-            in[i], keel::ArrayRef<std::string_view>(kRmNv));
+            in[i], keel::ArrayRef<keel::StringRef>(kRmNv));
         if (hit == 0) {
             const Value &v = in[i + 1];
             const double mo = (v.isNumeric() && !v.isComplex() && v.numel() == 1)
@@ -919,8 +924,9 @@ RmMissingOut rmmissing_full(const Value &A, keel::ArrayRef<Value> in,
                         "table inputs",
                         0, 0, "rmmissing", "", "numkit:rmmissing:dataVariables");
         } else {
-            throw Error("rmmissing: unrecognized parameter name '" +
-                        std::string(in[i].toString().as_ref()) + "'",
+            keel::String iniStr = in[i].toString();
+            throw Error(keel::format("rmmissing: unrecognized parameter name '{}'",
+                                     iniStr.as_ref()),
                         0, 0, "rmmissing", "", "numkit:rmmissing:badParam");
         }
     }
@@ -950,7 +956,7 @@ RmMissingOut rmmissing_full(const Value &A, keel::ArrayRef<Value> in,
     }
 
     // NaN map (complex: NaN in either part).
-    std::vector<keel::u8> miss(A.numel(), 0);
+    keel::Array<keel::u8> miss(A.numel(), 0);
     if (t == ValueType::COMPLEX) {
         const keel::c64 *z = A.complexData();
         for (keel::usize i = 0; i < A.numel(); ++i)
@@ -979,7 +985,7 @@ RmMissingOut rmmissing_full(const Value &A, keel::ArrayRef<Value> in,
     const auto outT = t;
     if (isVec) {
         const keel::usize n = A.numel();
-        std::vector<keel::usize> keep;
+        keel::Array<keel::usize> keep;
         keep.reserve(n);
         for (keel::usize i = 0; i < n; ++i)
             if (!miss[i]) keep.push_back(i);
@@ -996,12 +1002,12 @@ RmMissingOut rmmissing_full(const Value &A, keel::ArrayRef<Value> in,
     }
 
     if (byRows) {
-        std::vector<keel::usize> cnt(r, 0);
+        keel::Array<keel::usize> cnt(r, 0);
         for (keel::usize col = 0; col < c; ++col)
             for (keel::usize i = 0; i < r; ++i)
                 if (miss[col * r + i]) ++cnt[i];
-        std::vector<keel::u8> rm(r, 0);
-        std::vector<keel::usize> keep;
+        keel::Array<keel::u8> rm(r, 0);
+        keel::Array<keel::usize> keep;
         for (keel::usize i = 0; i < r; ++i) {
             rm[i] = (cnt[i] >= static_cast<keel::usize>(minNum)) ? 1 : 0;
             if (!rm[i]) keep.push_back(i);
@@ -1016,12 +1022,12 @@ RmMissingOut rmmissing_full(const Value &A, keel::ArrayRef<Value> in,
         out.ind = std::move(ind);
         return out;
     }
-    std::vector<keel::usize> cnt(c, 0);
+    keel::Array<keel::usize> cnt(c, 0);
     for (keel::usize col = 0; col < c; ++col)
         for (keel::usize i = 0; i < r; ++i)
             if (miss[col * r + i]) ++cnt[col];
-    std::vector<keel::u8> rm(c, 0);
-    std::vector<keel::usize> keep;
+    keel::Array<keel::u8> rm(c, 0);
+    keel::Array<keel::usize> keep;
     for (keel::usize col = 0; col < c; ++col) {
         rm[col] = (cnt[col] >= static_cast<keel::usize>(minNum)) ? 1 : 0;
         if (!rm[col]) keep.push_back(col);
@@ -1054,23 +1060,23 @@ Value standardizeMissing_full(const Value &A, const Value &indicators,
 namespace {
 
 // Numeric scalar / per-slice vector constant (checkConstantsSize).
-std::vector<double> parseConstants(const Value &C, keel::usize nVects,
+keel::Array<double> parseConstants(const Value &C, keel::usize nVects,
                                    const char *fn, const char *eidSuffix,
-                                   std::vector<double> *imagParts = nullptr)
+                                   keel::Array<double> *imagParts = nullptr)
 {
     if (!C.isNumeric())
-        throw Error(std::string(fn) + ": fill constant must be numeric "
-                    "(got " + mtypeName(C.type()) + ")",
+        throw Error(keel::format("{}: fill constant must be numeric (got {})",
+                                 fn, mtypeName(C.type())),
                     0, 0, fn, "",
-                    std::string("numkit:") + fn + ":constantNumeric");
+                    keel::format("numkit:{}:constantNumeric", fn));
     // Complex constants are legal for complex inputs (the parts fill
     // the real / imaginary buffers separately).
     const bool cplx = C.isComplex();
     if (cplx && !imagParts)
-        throw Error(std::string(fn) + ": complex fill constants are "
-                    "supported only for complex inputs",
+        throw Error(keel::format("{}: complex fill constants are "
+                                 "supported only for complex inputs", fn),
                     0, 0, fn, "",
-                    std::string("numkit:") + fn + ":constantNumeric");
+                    keel::format("numkit:{}:constantNumeric", fn));
     auto partOf = [&](keel::usize i) {
         if (!cplx) return C.elemAsDouble(i);
         const keel::c64 z = C.complexData()[i];
@@ -1079,16 +1085,19 @@ std::vector<double> parseConstants(const Value &C, keel::usize nVects,
     };
     if (C.numel() == 1) {
         if (imagParts && imagParts->size() < 1) imagParts->resize(1, 0.0);
-        return {partOf(0)};
+        keel::Array<double> one(1);
+        one[0] = partOf(0);
+        return one;
     }
     if (C.numel() != nVects)
-        throw Error(std::string(fn) + ": fill constant must be a scalar or "
-                    "a " + std::to_string(nVects) + "-element vector" +
-                    (nVects <= 1 ? "" : " (one per slice)"),
+        throw Error(keel::format("{}: fill constant must be a scalar or "
+                                 "a {}-element vector{}",
+                                 fn, nVects,
+                                 nVects <= 1 ? "" : " (one per slice)"),
                     0, 0, fn, "",
-                    std::string("numkit:") + fn + ":SizeConstant" + eidSuffix);
+                    keel::format("numkit:{}:SizeConstant{}", fn, eidSuffix));
     if (imagParts) imagParts->resize(C.numel(), 0.0);
-    std::vector<double> v(C.numel());
+    keel::Array<double> v(C.numel());
     for (keel::usize i = 0; i < C.numel(); ++i) v[i] = partOf(i);
     return v;
 }
@@ -1098,34 +1107,34 @@ std::vector<double> parseConstants(const Value &C, keel::usize nVects,
 FillMissingOut fillmissing_full(
     const Value &A, keel::ArrayRef<Value> in, bool wantFilled,
     keel::Allocator *mr,
-    std::function<Value(const Value &, keel::ArrayRef<Value>)> callFn)
+    keel::FunctionRef<Value(const Value &, keel::ArrayRef<Value>)> callFn)
 {
     // fillmissingFull_argcheck: supported-array gate + method contract.
     const char *fn = "fillmissing";
     const ValueType at = A.type();
     if (!(A.isNumeric() || A.isLogical() || at == ValueType::CHAR))
-        throw Error(std::string(fn) + ": unsupported input type " +
-                    std::string(mtypeName(at)) + " (string and cell inputs "
-                    "are not supported in this revision)",
-                    0, 0, fn, std::string("numkit:") + fn + ":firstInputInvalid");
+        throw Error(keel::format("{}: unsupported input type {} "
+                                 "(string and cell inputs are not supported in this revision)",
+                                 fn, mtypeName(at)),
+                    0, 0, fn, keel::format("numkit:{}:firstInputInvalid", fn));
     if (A.dims().ndim() > 2)
-        throw Error(std::string(fn) + ": N-D arrays are not supported",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":ndArrays");
+        throw Error(keel::format("{}: N-D arrays are not supported", fn),
+                    0, 0, fn, "", keel::format("numkit:{}:ndArrays", fn));
 
-    static constexpr std::string_view kFmMethods[] = {
+    static constexpr keel::StringRef kFmMethods[] = {
         "constant", "previous", "next", "nearest", "linear",
         "spline", "pchip", "movmean", "movmedian", "makima", "knn"};
-    const keel::ArrayRef<std::string_view> methods =
-        keel::ArrayRef<std::string_view>(kFmMethods);
+    const keel::ArrayRef<keel::StringRef> methods =
+        keel::ArrayRef<keel::StringRef>(kFmMethods);
     if (in.empty())
-        throw Error(std::string(fn) + ": specify a fill method",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":methodInvalid");
+        throw Error(keel::format("{}: specify a fill method", fn),
+                    0, 0, fn, "", keel::format("numkit:{}:methodInvalid", fn));
 
     bool isFnHandle = false;
     const Value *fhVal = nullptr;
     double fhA = 0.0, fhB = 0.0;
     bool fhTwoElem = false;
-    std::string m;
+    keel::String m;
     long hb = 0, hf = 0;
     double hbSpan = 0.0, hfSpan = 0.0;
     bool winTwoElem = false;
@@ -1136,10 +1145,10 @@ FillMissingOut fillmissing_full(
         isFnHandle = true;
         fhVal = &in[0];
         if (in.size() < 2)
-            throw Error(std::string(fn) + ": specify a window length after "
-                        "the function handle",
+            throw Error(keel::format("{}: specify a window length after "
+                                     "the function handle", fn),
                         0, 0, fn, "",
-                        std::string("numkit:") + fn + ":functionHandleInput");
+                        keel::format("numkit:{}:functionHandleInput", fn));
         const Value &wl = in[1];
         const bool okNum = wl.isNumeric() && !wl.isComplex() &&
                            (wl.numel() == 1 || wl.numel() == 2);
@@ -1154,10 +1163,10 @@ FillMissingOut fillmissing_full(
             if (!anyPos) okVal = false;
         }
         if (!okVal)
-            throw Error(std::string(fn) + ": function-handle window must be "
-                        "a positive scalar or 2-element nonnegative finite vector",
+            throw Error(keel::format("{}: function-handle window must be "
+                                     "a positive scalar or 2-element nonnegative finite vector", fn),
                         0, 0, fn, "",
-                        std::string("numkit:") + fn + ":functionHandleInvalidWindow");
+                        keel::format("numkit:{}:functionHandleInvalidWindow", fn));
         if (wl.numel() == 2) {
             fhA = wl.elemAsDouble(0);
             fhB = wl.elemAsDouble(1);
@@ -1169,43 +1178,45 @@ FillMissingOut fillmissing_full(
         i = 2;
     } else if (isStringValue(in[0])) {
         const int mhit = argcheck::matchStringChoice(in[0], methods);
-        if (mhit < 0)
-            throw Error(std::string(fn) + ": fill method must be one of "
-                        "'constant', 'previous', 'next', 'nearest', 'linear', "
-                        "'spline', 'pchip', 'makima', 'movmean', 'movmedian', "
-                        "'knn', or a function handle (got '" +
-                        std::string(in[0].toString().as_ref()) + "'; ambiguous or unrecognized)",
-                        0, 0, fn, "", std::string("numkit:") + fn + ":methodInvalid");
-        m = std::string(methods[static_cast<keel::usize>(mhit)]);
-        if (m == "constant") {
+        if (mhit < 0) {
+            keel::String in0Str = in[0].toString();
+            throw Error(keel::format("{}: fill method must be one of "
+                                     "'constant', 'previous', 'next', 'nearest', 'linear', "
+                                     "'spline', 'pchip', 'makima', 'movmean', 'movmedian', "
+                                     "'knn', or a function handle (got '{}'; ambiguous or unrecognized)",
+                                     fn, in0Str.as_ref()),
+                        0, 0, fn, "", keel::format("numkit:{}:methodInvalid", fn));
+        }
+        m.assign(methods[static_cast<keel::usize>(mhit)]);
+        if (m.as_ref() == "constant") {
             if (in.size() < 2)
-                throw Error(std::string(fn) + ": specify a fill value after the "
-                            "'constant' method",
-                            0, 0, fn, "", std::string("numkit:") + fn + ":constantInput");
+                throw Error(keel::format("{}: specify a fill value after the "
+                                         "'constant' method", fn),
+                            0, 0, fn, "", keel::format("numkit:{}:constantInput", fn));
             ++i;
-        } else if (m == "movmean" || m == "movmedian") {
+        } else if (m.as_ref() == "movmean" || m.as_ref() == "movmedian") {
             if (in.size() < 2)
-                throw Error(std::string(fn) + ": specify a window length after "
-                            "the '" + m + "' method",
-                            0, 0, fn, "", std::string("numkit:") + fn + ":windowInput");
+                throw Error(keel::format("{}: specify a window length after "
+                                         "the '{}' method", fn, m.as_ref()),
+                            0, 0, fn, "", keel::format("numkit:{}:windowInput", fn));
             parseWindowHalfSpans(in[1], fn, hb, hf, &hbSpan, &hfSpan, &winTwoElem);
             ++i;
-        } else if (m == "knn") {
+        } else if (m.as_ref() == "knn") {
             if (in.size() >= 2 && in[1].isNumeric()) {
                 const Value &kv = in[1];
                 const double kd = (kv.numel() == 1 && !kv.isComplex())
                                       ? kv.elemAsDouble(0) : -1.0;
                 if (!(kd >= 1.0) || std::floor(kd) != kd || !std::isfinite(kd))
-                    throw Error(std::string(fn) + ": number of nearest neighbors k "
-                                "must be a positive integer scalar",
-                                0, 0, fn, "", std::string("numkit:") + fn + ":invalidK");
+                    throw Error(keel::format("{}: number of nearest neighbors k "
+                                             "must be a positive integer scalar", fn),
+                                0, 0, fn, "", keel::format("numkit:{}:invalidK", fn));
                 knnK = static_cast<keel::usize>(kd);
                 ++i;
             }
         }
     } else {
-        throw Error(std::string(fn) + ": fill method must be a string or function handle",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":methodInvalid");
+        throw Error(keel::format("{}: fill method must be a string or function handle", fn),
+                    0, 0, fn, "", keel::format("numkit:{}:methodInvalid", fn));
     }
 
     // Optional positional dim.
@@ -1216,21 +1227,21 @@ FillMissingOut fillmissing_full(
         const double dd = (dv.numel() == 1 && !dv.isComplex())
                               ? dv.elemAsDouble(0) : 0.0;
         if (std::floor(dd) != dd || !(dd >= 1.0) || !std::isfinite(dd))
-            throw Error(std::string(fn) + ": dimension must be a positive "
-                        "integer scalar",
+            throw Error(keel::format("{}: dimension must be a positive "
+                                     "integer scalar", fn),
                         0, 0, fn, "",
-                        std::string("numkit:") + fn + ":dimensionInvalid");
+                        keel::format("numkit:{}:dimensionInvalid", fn));
         dim = static_cast<int>(dd);
         ++i;
     }
 
     // Name-value tail.
-    static constexpr std::string_view kFmNv[] = {
+    static constexpr keel::StringRef kFmNv[] = {
         "endvalues", "datavariables", "replacevalues", "samplepoints",
         "missinglocations", "maxgap", "distance"};
-    const keel::ArrayRef<std::string_view> nvNames =
-        keel::ArrayRef<std::string_view>(kFmNv);
-    const Value *constRaw = (m == "constant") ? &in[1] : nullptr;
+    const keel::ArrayRef<keel::StringRef> nvNames =
+        keel::ArrayRef<keel::StringRef>(kFmNv);
+    const Value *constRaw = (m.as_ref() == "constant") ? &in[1] : nullptr;
     const Value *endRaw = nullptr;
     int endMode = 0;   // 0 extrap / 1 none / 2 nearest / 3 prevEnd / 4 nextEnd / 5 const
     bool haveEnd = false;
@@ -1239,43 +1250,44 @@ FillMissingOut fillmissing_full(
     const Value *samplePointsRaw = nullptr;
     double maxGap = std::numeric_limits<double>::infinity();
     bool hasMaxGap = false;
-    std::string knnDist = "euclidean";
+    keel::String knnDist = keel::String::from("euclidean");
     const Value *distFnVal = nullptr;
 
     if ((in.size() - i) % 2 != 0)
-        throw Error(std::string(fn) + ": each parameter name needs a value "
-                    "(unmatched value in the name-value list)",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":nameValuePairs");
+        throw Error(keel::format("{}: each parameter name needs a value "
+                                 "(unmatched value in the name-value list)", fn),
+                    0, 0, fn, "", keel::format("numkit:{}:nameValuePairs", fn));
     for (; i + 1 < in.size(); i += 2) {
         if (!isStringValue(in[i]))
-            throw Error(std::string(fn) + ": expected a parameter name",
-                        0, 0, fn, "", std::string("numkit:") + fn + ":nameValuePairs");
-        const int hit = argcheck::matchStringChoice(
-            in[i], keel::ArrayRef<std::string_view>(nvNames));
-        if (hit < 0)
-            throw Error(std::string(fn) + ": unrecognized parameter name '" +
-                        std::string(in[i].toString().as_ref()) + "'",
-                        0, 0, fn, "", std::string("numkit:") + fn + ":nameValueNames");
-        const std::string_view name = nvNames[static_cast<keel::usize>(hit)];
+            throw Error(keel::format("{}: expected a parameter name", fn),
+                        0, 0, fn, "", keel::format("numkit:{}:nameValuePairs", fn));
+        const int hit = argcheck::matchStringChoice(in[i], nvNames);
+        if (hit < 0) {
+            keel::String iniStr = in[i].toString();
+            throw Error(keel::format("{}: unrecognized parameter name '{}'",
+                                     fn, iniStr.as_ref()),
+                        0, 0, fn, "", keel::format("numkit:{}:nameValueNames", fn));
+        }
+        const keel::StringRef name = nvNames[static_cast<keel::usize>(hit)];
         const Value &v = in[i + 1];
         if (name == "endvalues") {
-            if (m == "knn")
-                throw Error(std::string(fn) + ": 'EndValues' is not supported "
-                            "for the 'knn' method",
+            if (m.as_ref() == "knn")
+                throw Error(keel::format("{}: 'EndValues' is not supported "
+                                         "for the 'knn' method", fn),
                             0, 0, fn, "",
-                            std::string("numkit:") + fn + ":unsupportedNVPair");
+                            keel::format("numkit:{}:unsupportedNVPair", fn));
             haveEnd = true;
             if (isStringValue(v)) {
-                static constexpr std::string_view kEndModes[] = {
+                static constexpr keel::StringRef kEndModes[] = {
                     "extrap", "previous", "next", "nearest", "none"};
                 const int eh = argcheck::matchStringChoice(
-                    v, keel::ArrayRef<std::string_view>(kEndModes));
+                    v, keel::ArrayRef<keel::StringRef>(kEndModes));
                 if (eh < 0)
-                    throw Error(std::string(fn) + ": 'EndValues' must be "
-                                "'extrap', 'previous', 'next', 'nearest', "
-                                "'none', or a numeric constant",
+                    throw Error(keel::format("{}: 'EndValues' must be "
+                                             "'extrap', 'previous', 'next', 'nearest', "
+                                             "'none', or a numeric constant", fn),
                                 0, 0, fn, "",
-                                std::string("numkit:") + fn + ":endValuesInvalid");
+                                keel::format("numkit:{}:endValuesInvalid", fn));
                 endMode = (eh == 0) ? 0 : (eh == 4) ? 1 : (eh == 3) ? 2
                           : (eh == 1) ? 3 : 4;
             } else {
@@ -1285,70 +1297,70 @@ FillMissingOut fillmissing_full(
         } else if (name == "missinglocations") {
             if (!v.isLogical() || v.numel() != A.numel() ||
                 v.dims().dim(0) != A.dims().dim(0))
-                throw Error(std::string(fn) + ": 'MissingLocations' must be "
-                            "a logical array the same size as the input",
+                throw Error(keel::format("{}: 'MissingLocations' must be "
+                                         "a logical array the same size as the input", fn),
                             0, 0, fn, "",
-                            std::string("numkit:") + fn + ":badMissingLocations");
+                            keel::format("numkit:{}:badMissingLocations", fn));
             missingLocations = &v;
         } else if (name == "samplepoints") {
-            if (m == "knn")
-                throw Error(std::string(fn) + ": 'SamplePoints' is not supported "
-                            "for the 'knn' method",
+            if (m.as_ref() == "knn")
+                throw Error(keel::format("{}: 'SamplePoints' is not supported "
+                                         "for the 'knn' method", fn),
                             0, 0, fn, "",
-                            std::string("numkit:") + fn + ":unsupportedNVPair");
+                            keel::format("numkit:{}:unsupportedNVPair", fn));
             samplePointsRaw = &v;
         } else if (name == "maxgap") {
-            if (m == "knn")
-                throw Error(std::string(fn) + ": 'MaxGap' is not supported "
-                            "for the 'knn' method",
+            if (m.as_ref() == "knn")
+                throw Error(keel::format("{}: 'MaxGap' is not supported "
+                                         "for the 'knn' method", fn),
                             0, 0, fn, "",
-                            std::string("numkit:") + fn + ":unsupportedNVPair");
+                            keel::format("numkit:{}:unsupportedNVPair", fn));
             if (!v.isNumeric() || v.isComplex() || v.numel() != 1 ||
                 std::isnan(v.elemAsDouble(0)) || !(v.elemAsDouble(0) > 0.0))
-                throw Error(std::string(fn) + ": 'MaxGap' must be a positive "
-                            "real scalar",
+                throw Error(keel::format("{}: 'MaxGap' must be a positive "
+                                         "real scalar", fn),
                             0, 0, fn, "",
-                            std::string("numkit:") + fn + ":maxGapInvalid");
+                            keel::format("numkit:{}:maxGapInvalid", fn));
             maxGap = v.elemAsDouble(0);
             hasMaxGap = true;
         } else if (name == "distance") {
-            if (m != "knn")
-                throw Error(std::string(fn) + ": 'Distance' is supported only "
-                            "for the 'knn' method",
+            if (m.as_ref() != "knn")
+                throw Error(keel::format("{}: 'Distance' is supported only "
+                                         "for the 'knn' method", fn),
                             0, 0, fn, "",
-                            std::string("numkit:") + fn + ":distanceNonKNNMethod");
+                            keel::format("numkit:{}:distanceNonKNNMethod", fn));
             if (isStringValue(v)) {
-                static constexpr std::string_view kDist[] = {
+                static constexpr keel::StringRef kDist[] = {
                     "euclidean", "seuclidean"};
                 const int dh = argcheck::matchStringChoice(
-                    v, keel::ArrayRef<std::string_view>(kDist));
+                    v, keel::ArrayRef<keel::StringRef>(kDist));
                 if (dh < 0)
-                    throw Error(std::string(fn) + ": 'Distance' must be "
-                                "'euclidean', 'seuclidean', or a function handle",
+                    throw Error(keel::format("{}: 'Distance' must be "
+                                             "'euclidean', 'seuclidean', or a function handle", fn),
                                 0, 0, fn, "",
-                                std::string("numkit:") + fn + ":invalidDistance");
-                knnDist = std::string(kDist[static_cast<keel::usize>(dh)]);
+                                keel::format("numkit:{}:invalidDistance", fn));
+                knnDist.assign(kDist[static_cast<keel::usize>(dh)]);
                 distFnVal = nullptr;
             } else if (v.isFuncHandle()) {
                 distFnVal = &v;
             } else {
-                throw Error(std::string(fn) + ": 'Distance' must be "
-                            "'euclidean', 'seuclidean', or a function handle",
+                throw Error(keel::format("{}: 'Distance' must be "
+                                         "'euclidean', 'seuclidean', or a function handle", fn),
                             0, 0, fn, "",
-                            std::string("numkit:") + fn + ":invalidDistance");
+                            keel::format("numkit:{}:invalidDistance", fn));
             }
         } else {
-            throw Error(std::string(fn) + ": '" + std::string(name) +
-                        "' is supported only for table inputs",
-                        0, 0, fn, "", std::string("numkit:") + fn + ":tableOnly");
+            throw Error(keel::format("{}: '{}' is supported only for table inputs",
+                                     fn, name),
+                        0, 0, fn, "", keel::format("numkit:{}:tableOnly", fn));
         }
     }
 
     if (missingLocations && hasMaxGap)
-        throw Error(std::string(fn) + ": 'MaxGap' and 'MissingLocations' "
-                    "cannot be specified together",
+        throw Error(keel::format("{}: 'MaxGap' and 'MissingLocations' "
+                                 "cannot be specified together", fn),
                     0, 0, fn, "",
-                    std::string("numkit:") + fn + ":maxGapMissingLocations");
+                    keel::format("numkit:{}:maxGapMissingLocations", fn));
 
     // Direction: default = first non-singleton (row vectors along 2).
     if (dim == 0) {
@@ -1364,7 +1376,7 @@ FillMissingOut fillmissing_full(
     const keel::usize runLen = along2 ? c : r;
     const keel::usize nRuns = along2 ? r : c;
 
-    std::vector<double> samplePoints;
+    keel::Array<double> samplePoints;
     if (samplePointsRaw) {
         samplePoints = validateSamplePoints(
             *samplePointsRaw, runLen, A.numel() == 0, false, fn);
@@ -1374,13 +1386,13 @@ FillMissingOut fillmissing_full(
     const bool outComplex = complex ||
                             (constRaw && constRaw->isComplex()) ||
                             (endRaw && endRaw->isComplex());
-    std::vector<double> constVals, constImag;
+    keel::Array<double> constVals, constImag;
     if (constRaw) {
         if (outComplex) constImag.resize(1, 0.0);
         constVals = parseConstants(*constRaw, nRuns, fn, "",
                                    outComplex ? &constImag : nullptr);
     }
-    std::vector<double> endVals, endImag;
+    keel::Array<double> endVals, endImag;
     if (endRaw) {
         if (outComplex) endImag.resize(1, 0.0);
         endVals = parseConstants(*endRaw, nRuns, fn, "Extrap",
@@ -1392,11 +1404,11 @@ FillMissingOut fillmissing_full(
     // unless MissingLocations is explicitly provided or knn rejects non-float.
     const bool floaty = (at == ValueType::DOUBLE || at == ValueType::SINGLE ||
                          at == ValueType::COMPLEX);
-    if (m == "knn" && !floaty && !distFnVal)
-        throw Error(std::string(fn) + ": built-in 'knn' distances require "
-                    "floating-point input",
+    if (m.as_ref() == "knn" && !floaty && !distFnVal)
+        throw Error(keel::format("{}: built-in 'knn' distances require "
+                                 "floating-point input", fn),
                     0, 0, fn, "",
-                    std::string("numkit:") + fn + ":distanceNonFloatsNotSupported");
+                    keel::format("numkit:{}:distanceNonFloatsNotSupported", fn));
     FillMissingOut out;
     if (!floaty || A.numel() == 0) {
         out.B = A;
@@ -1418,7 +1430,7 @@ FillMissingOut fillmissing_full(
     if (fmd) std::fill_n(fmd, A.numel(), keel::u8{0});
 
     // Original missing map (or the explicit override).
-    std::vector<keel::u8> missMap(A.numel(), 0);
+    keel::Array<keel::u8> missMap(A.numel(), 0);
     if (missingLocations) {
         const keel::u8 *lm = missingLocations->logicalData();
         std::copy(lm, lm + A.numel(), missMap.begin());
@@ -1433,7 +1445,7 @@ FillMissingOut fillmissing_full(
     }
 
     // ── knn fill path ─────────────────────────────────────────────────
-    if (m == "knn") {
+    if (m.as_ref() == "knn") {
         // Initialize B from A.
         for (keel::usize j = 0; j < A.numel(); ++j) {
             if (outComplex) {
@@ -1467,8 +1479,8 @@ FillMissingOut fillmissing_full(
             return A.complexData()[linAt(row, col)].imag();
         };
 
-        std::vector<double> scale(N, 1.0);
-        if (!distFnVal && knnDist == "seuclidean") {
+        keel::Array<double> scale(N, 1.0);
+        if (!distFnVal && knnDist.as_ref() == "seuclidean") {
             for (keel::usize col = 0; col < N; ++col) {
                 double mRe = 0.0, mIm = 0.0;
                 keel::usize cnt = 0;
@@ -1498,8 +1510,8 @@ FillMissingOut fillmissing_full(
         }
 
         const double nanv = std::numeric_limits<double>::quiet_NaN();
-        std::vector<double> dists(M, nanv);
-        std::vector<keel::usize> ord(M);
+        keel::Array<double> dists(M, nanv);
+        keel::Array<keel::usize> ord(M);
         for (keel::usize ii = 0; ii < M; ++ii) {
             bool anyMiss = false, allMiss = true;
             for (keel::usize col = 0; col < N; ++col) {
@@ -1515,10 +1527,10 @@ FillMissingOut fillmissing_full(
                 }
                 if (distFnVal) {
                     if (!callFn)
-                        throw Error(std::string(fn) + ": custom distance function "
-                                    "handle requires an execution context",
+                        throw Error(keel::format("{}: custom distance function "
+                                                 "handle requires an execution context", fn),
                                     0, 0, fn, "",
-                                    std::string("numkit:") + fn + ":invalidCustomDistance");
+                                    keel::format("numkit:{}:invalidCustomDistance", fn));
                     Value X2 = outComplex ? Value::matrix(2, N, ValueType::COMPLEX, mr)
                                           : Value::matrix(2, N, ValueType::DOUBLE, mr);
                     Value M2 = Value::matrix(2, N, ValueType::LOGICAL, mr);
@@ -1538,10 +1550,10 @@ FillMissingOut fillmissing_full(
                     Value fargs[2] = {std::move(X2), std::move(M2)};
                     Value dv = callFn(*distFnVal, keel::ArrayRef<Value>(fargs, 2));
                     if (!dv.isNumeric() || dv.isComplex() || dv.numel() != 1)
-                        throw Error(std::string(fn) + ": custom distance function "
-                                    "must return a real scalar",
+                        throw Error(keel::format("{}: custom distance function "
+                                                 "must return a real scalar", fn),
                                     0, 0, fn, "",
-                                    std::string("numkit:") + fn + ":invalidCustomDistance");
+                                    keel::format("numkit:{}:invalidCustomDistance", fn));
                     dists[jj] = dv.elemAsDouble(0);
                 } else {
                     double sumSq = 0.0;
@@ -1554,7 +1566,7 @@ FillMissingOut fillmissing_full(
                         const double dr = reAt(ii, col) - reAt(jj, col);
                         const double di = imAt(ii, col) - imAt(jj, col);
                         const double d2 = dr * dr + di * di;
-                        if (knnDist == "seuclidean") {
+                        if (knnDist.as_ref() == "seuclidean") {
                             const double sc = scale[col];
                             sumSq += d2 / (sc * sc);
                         } else {
@@ -1608,15 +1620,15 @@ FillMissingOut fillmissing_full(
     // ── standard 1-D slice fill path ──────────────────────────────────
     const double nanv = std::numeric_limits<double>::quiet_NaN();
     const bool useSp = !samplePoints.empty();
-    std::vector<double> sVec(runLen);
+    keel::Array<double> sVec(runLen);
     for (keel::usize j = 0; j < runLen; ++j)
         sVec[j] = useSp ? samplePoints[j] : static_cast<double>(j + 1);
     const double *spPtr = useSp ? sVec.data() : nullptr;
 
-    std::vector<double> re(runLen), im(runLen, 0.0), origRe(runLen), origIm(runLen, 0.0);
-    std::vector<keel::u8> ma(runLen), maBeforeInterp(runLen), origMiss(runLen);
+    keel::Array<double> re(runLen), im(runLen, 0.0), origRe(runLen), origIm(runLen, 0.0);
+    keel::Array<keel::u8> ma(runLen), maBeforeInterp(runLen), origMiss(runLen);
 
-    auto removeLargeGapsSlice = [&](std::vector<keel::u8> &mask) {
+    auto removeLargeGapsSlice = [&](keel::Array<keel::u8> &mask) {
         if (!std::isfinite(maxGap) || runLen == 0) return;
         keel::usize j = 0;
         while (j < runLen) {
@@ -1682,17 +1694,17 @@ FillMissingOut fillmissing_full(
                             if (ytmp.isComplex()) im[j] = ytmp.complexData()[yi].imag();
                         }
                     } else {
-                        throw Error(std::string(fn) + ": function handle output "
-                                    "must be a scalar or a vector matching the gap length",
+                        throw Error(keel::format("{}: function handle output "
+                                                 "must be a scalar or a vector matching the gap length", fn),
                                     0, 0, fn, "",
-                                    std::string("numkit:") + fn + ":functionHandleInvalidOutputSize");
+                                    keel::format("numkit:{}:functionHandleInvalidOutputSize", fn));
                     }
                 } else if (endMode == 5) {
                     for (keel::usize j = 0; j < runLen; ++j) {
                         re[j] = evRe;
                         im[j] = evIm;
                     }
-                } else if (m == "constant" && endMode == 0) {
+                } else if (m.as_ref() == "constant" && endMode == 0) {
                     for (keel::usize j = 0; j < runLen; ++j) {
                         re[j] = cv;
                         im[j] = cim;
@@ -1723,7 +1735,7 @@ FillMissingOut fillmissing_full(
 
         // Ignore gaps larger than MaxGap.
         removeLargeGapsSlice(ma);
-        maBeforeInterp = ma;
+        maBeforeInterp.assign(ma.as_ref());
 
         // Find leading/trailing gap boundaries from maBeforeInterp.
         keel::usize indBeg = 0;
@@ -1737,10 +1749,10 @@ FillMissingOut fillmissing_full(
 
         if (isFnHandle) {
             if (!callFn)
-                throw Error(std::string(fn) + ": function handle fill requires "
-                            "an execution context",
+                throw Error(keel::format("{}: function handle fill requires "
+                                         "an execution context", fn),
                             0, 0, fn, "",
-                            std::string("numkit:") + fn + ":functionHandleInput");
+                            keel::format("numkit:{}:functionHandleInput", fn));
             const bool isExtrap = (endMode == 0);
             if (!isExtrap) {
                 for (keel::usize j = 0; j < indBeg; ++j) ma[j] = 0;
@@ -1753,7 +1765,7 @@ FillMissingOut fillmissing_full(
                 if (!ma[j0]) { ++j0; continue; }
                 keel::usize j1 = j0;
                 while (j1 + 1 < runLen && ma[j1 + 1]) ++j1;
-                std::vector<keel::usize> ind;
+                keel::Array<keel::usize> ind;
                 for (keel::usize q = 0; q < runLen; ++q) {
                     if (origMiss[q]) continue;
                     bool inW = false;
@@ -1787,10 +1799,10 @@ FillMissingOut fillmissing_full(
                 Value ytmp = callFn(*fhVal, keel::ArrayRef<Value>(fargs, 3));
                 if (!(ytmp.numel() == 1 ||
                       (ytmp.dims().isVector() && ytmp.numel() == gapLen)))
-                    throw Error(std::string(fn) + ": function handle output "
-                                "must be a scalar or a vector matching the gap length",
+                    throw Error(keel::format("{}: function handle output "
+                                             "must be a scalar or a vector matching the gap length", fn),
                                 0, 0, fn, "",
-                                std::string("numkit:") + fn + ":functionHandleInvalidOutputSize");
+                                keel::format("numkit:{}:functionHandleInvalidOutputSize", fn));
                 for (keel::usize q = 0; q < gapLen; ++q) {
                     const keel::usize yi = (ytmp.numel() == 1) ? 0 : q;
                     re[j0 + q] = ytmp.elemAsDouble(yi);
@@ -1799,19 +1811,19 @@ FillMissingOut fillmissing_full(
                 }
                 j0 = j1 + 1;
             }
-        } else if (m == "constant") {
+        } else if (m.as_ref() == "constant") {
             for (keel::usize j = 0; j < runLen; ++j) {
                 if (ma[j]) {
                     re[j] = cv;
                     im[j] = cim;
                 }
             }
-        } else if (m == "movmean" || m == "movmedian") {
+        } else if (m.as_ref() == "movmean" || m.as_ref() == "movmedian") {
             // The moving statistic is computed on the ORIGINAL data
             // (NaN-omitted shrunk windows) — earlier fills must not
             // feed later windows.
-            const bool isMean = (m == "movmean");
-            std::vector<double> winRe, winIm;
+            const bool isMean = (m.as_ref() == "movmean");
+            keel::Array<double> winRe, winIm;
             for (keel::usize j = 0; j < runLen; ++j) {
                 if (!ma[j]) continue;
                 winRe.clear();
@@ -1867,14 +1879,14 @@ FillMissingOut fillmissing_full(
             // Prepare working copy where origMiss positions are NaN so
             // fill_one_column sees true known points, then copy back only
             // at ma[j] == 1 (respecting MaxGap).
-            std::vector<double> workRe(runLen), workIm(runLen, 0.0);
+            keel::Array<double> workRe(runLen), workIm(runLen, 0.0);
             for (keel::usize j = 0; j < runLen; ++j) {
                 workRe[j] = origMiss[j] ? nanv : origRe[j];
                 if (outComplex) workIm[j] = origMiss[j] ? nanv : origIm[j];
             }
-            fill_one_column(workRe.data(), runLen, m, 0.0, spPtr, mr);
+            fill_one_column(workRe.data(), runLen, m.as_ref(), 0.0, spPtr, mr);
             if (outComplex)
-                fill_one_column(workIm.data(), runLen, m, 0.0, spPtr, mr);
+                fill_one_column(workIm.data(), runLen, m.as_ref(), 0.0, spPtr, mr);
             for (keel::usize j = 0; j < runLen; ++j) {
                 if (ma[j]) {
                     re[j] = workRe[j];
@@ -1973,7 +1985,7 @@ void detrendDesignFit(const double *W, keel::usize n, keel::usize k,
         rhs[a] = s;
     }
     // Gaussian elimination; a zero pivot pins that variable to 0.
-    std::vector<char> freeVar(k, 0);
+    keel::Array<char> freeVar(k, 0, sc.allocator());
     for (keel::usize col = 0; col < k; ++col) {
         keel::usize piv = col;
         double best = std::fabs(G[col * k + col]);
@@ -2019,9 +2031,9 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
     argcheck::requireClassSet(x, kFloatComplex, "detrend");
 
     int polyDeg = 1;
-    std::vector<double> bp;                  // sample-axis positions (raw)
+    keel::Array<double> bp;                  // sample-axis positions (raw)
     bool bpLogical = false;
-    std::vector<keel::usize> bpLogIdx;
+    keel::Array<keel::usize> bpLogIdx;
     bool omitNan = false;
     bool continuity = true;
     const Value *samplePointsRaw = nullptr;
@@ -2030,12 +2042,12 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
     if (!in.empty()) {
         const Value &a0 = in[0];
         if (isStringValue(a0)) {
-            const std::string low = lowerCopy(a0.toString());
-            if (low.size() >= 4 && std::string("constant").rfind(low, 0) == 0) {
+            const keel::String lowStr = lowerCopy(a0.toString().as_ref());
+            const keel::StringRef low = lowStr.as_ref();
+            if (low.size() >= 4 && startsWith("constant", low)) {
                 polyDeg = 0;
                 i = 1;
-            } else if (!low.empty() &&
-                       std::string("linear").rfind(low, 0) == 0) {
+            } else if (!low.empty() && startsWith("linear", low)) {
                 polyDeg = 1;
                 i = 1;
             }
@@ -2076,13 +2088,12 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
         ++i;
     }
     if (i < in.size() && isStringValue(in[i])) {
-        const std::string f = lowerCopy(in[i].toString());
-        if (std::string("omitnan").rfind(f, 0) == 0 ||
-            std::string("omitmissing").rfind(f, 0) == 0) {
+        const keel::String fStr = lowerCopy(in[i].toString().as_ref());
+        const keel::StringRef f = fStr.as_ref();
+        if (startsWith("omitnan", f) || startsWith("omitmissing", f)) {
             omitNan = true;
             ++i;
-        } else if (std::string("includenan").rfind(f, 0) == 0 ||
-                   std::string("includemissing").rfind(f, 0) == 0) {
+        } else if (startsWith("includenan", f) || startsWith("includemissing", f)) {
             ++i;
         }
     }
@@ -2095,21 +2106,23 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
         if (!isStringValue(in[i]))
             throw Error("detrend: each parameter name needs a value",
                         0, 0, "detrend", "", "numkit:detrend:keyWithoutValue");
-        const std::string nm = lowerCopy(in[i].toString());
+        const keel::String rawNm = in[i].toString();
+        const keel::String nmStr = lowerCopy(rawNm.as_ref());
+        const keel::StringRef nm = nmStr.as_ref();
         const Value &v = in[i + 1];
-        if (nm.size() >= 4 && std::string("continuous").rfind(nm, 0) == 0) {
+        if (nm.size() >= 4 && startsWith("continuous", nm)) {
             continuity = !((v.isLogical() || v.isNumeric()) && v.numel() == 1 &&
                            v.elemAsDouble(0) == 0.0);
-        } else if (!nm.empty() && std::string("samplepoints").rfind(nm, 0) == 0) {
+        } else if (!nm.empty() && startsWith("samplepoints", nm)) {
             samplePointsRaw = &v;
-        } else if ((!nm.empty() && std::string("datavariables").rfind(nm, 0) == 0) ||
-                   (!nm.empty() && std::string("replacevalues").rfind(nm, 0) == 0)) {
-            throw Error("detrend: '" + std::string(in[i].toString().as_ref()) + "' is supported "
-                        "only for table inputs",
+        } else if ((!nm.empty() && startsWith("datavariables", nm)) ||
+                   (!nm.empty() && startsWith("replacevalues", nm))) {
+            throw Error(keel::format("detrend: '{}' is supported only for table inputs",
+                                     rawNm.as_ref()),
                         0, 0, "detrend", "", "numkit:detrend:tableOnly");
         } else {
-            throw Error("detrend: unrecognized parameter name '" +
-                        std::string(in[i].toString().as_ref()) + "'",
+            throw Error(keel::format("detrend: unrecognized parameter name '{}'",
+                                     rawNm.as_ref()),
                         0, 0, "detrend", "", "numkit:detrend:parseFlags");
         }
     }
@@ -2124,10 +2137,10 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
     const bool single = (x.type() == ValueType::SINGLE);
     const bool complex = (x.type() == ValueType::COMPLEX);
 
-    std::vector<double> sVec(N);
+    keel::Array<double> sVec(N);
     double minS = 1.0;
     if (samplePointsRaw) {
-        std::vector<double> sp = validateSamplePoints(
+        keel::Array<double> sp = validateSamplePoints(
             *samplePointsRaw, N, x.isEmpty(), true, "detrend");
         minS = sp.empty() ? 0.0 : sp[0];
         for (keel::usize j = 0; j < N; ++j) sVec[j] = sp[j] - minS;
@@ -2139,7 +2152,7 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
         const double nanv = std::numeric_limits<double>::quiet_NaN();
         if (n == 0) return;
         // Knots on the centered abscissa sVec (0..sVec.back()).
-        std::vector<double> knots;
+        keel::Array<double> knots;
         if (bpLogical) {
             for (keel::usize j : bpLogIdx)
                 if (j < n) knots.push_back(sVec[j]);
@@ -2148,17 +2161,17 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
         }
         knots.push_back(0.0);                               // bookend s(1)
         if (n > 1) {
-            std::vector<double> keep;
+            keel::Array<double> keep;
             for (double v : knots)
                 if (v >= 0.0 && v < sVec[n - 1]) keep.push_back(v);
-            knots = keep;
+            knots = std::move(keep);
         }
         std::sort(knots.begin(), knots.end());
-        knots.erase(std::unique(knots.begin(), knots.end()), knots.end());
+        knots.resize(static_cast<keel::usize>(std::unique(knots.begin(), knots.end()) - knots.begin()));
 
         // NaN policy.
-        std::vector<keel::usize> orig;
-        std::vector<double> xs, ys;
+        keel::Array<keel::usize> orig;
+        keel::Array<double> xs, ys;
         for (keel::usize j = 0; j < n; ++j) dst[j] = nanv;
         {
             bool anyNaN = false;
@@ -2196,7 +2209,7 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
                         std::pow(a, double(pw));
                 V[static_cast<keel::usize>(polyDeg) * m + j] = 1.0;
             }
-            std::vector<double> fitted(m);
+            keel::Array<double> fitted(m, sc.allocator());
             detrendDesignFit(V.data(), m, nb, ys.data(), fitted.data(), mr);
             for (keel::usize j = 0; j < m; ++j) dst[orig[j]] = fitted[j];
             return;
@@ -2209,7 +2222,7 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
                 const double lo = knots[k];
                 const double hi = (k + 1 < knots.size())
                                       ? knots[k + 1] : (sVec.back() + 1.0);
-                std::vector<keel::usize> seg;
+                keel::Array<keel::usize> seg;
                 for (keel::usize j = 0; j < m; ++j)
                     if (xs[j] >= lo && xs[j] < hi) seg.push_back(j);
                 if (seg.empty()) continue;
@@ -2229,7 +2242,7 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
                 const keel::usize nb = static_cast<keel::usize>(polyDeg) + 1;
                 keel::ArenaTemp sc = keel::get_scratch(mr);
                 keel::Array<double> V(seg.size() * nb, 0.0, sc.allocator());
-                std::vector<double> yseg(seg.size());
+                keel::Array<double> yseg(seg.size(), sc.allocator());
                 for (keel::usize q = 0; q < seg.size(); ++q) {
                     const double a = (sd > 0.0) ? (xs[seg[q]] - ms) / sd : 0.0;
                     for (int pw = polyDeg; pw >= 1; --pw)
@@ -2238,7 +2251,7 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
                     V[static_cast<keel::usize>(polyDeg) * seg.size() + q] = 1.0;
                     yseg[q] = ys[seg[q]];
                 }
-                std::vector<double> fitted(seg.size());
+                keel::Array<double> fitted(seg.size(), sc.allocator());
                 detrendDesignFit(V.data(), seg.size(), nb, yseg.data(),
                                  fitted.data(), mr);
                 for (keel::usize q = 0; q < seg.size(); ++q)
@@ -2286,7 +2299,7 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
             }
         }
         for (keel::usize j = 0; j < m; ++j) W[(nb - 1) * m + j] = 1.0;
-        std::vector<double> fitted(m);
+        keel::Array<double> fitted(m, sc.allocator());
         detrendDesignFit(W.data(), m, nb, ys.data(), fitted.data(), mr);
         for (keel::usize j = 0; j < m; ++j) dst[orig[j]] = fitted[j];
     };
@@ -2295,7 +2308,7 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
                                 : single ? ValueType::SINGLE
                                          : ValueType::DOUBLE, mr);
 
-    std::vector<double> re(N), im, dst(N);
+    keel::Array<double> re(N), im, dst(N);
     if (complex) im.resize(N);
     const keel::usize nRuns = isRow ? 1 : ncols;
     for (keel::usize k = 0; k < nRuns; ++k) {
@@ -2311,7 +2324,7 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
         }
         detrendRun(re.data(), dst.data(), N);
         if (complex) {
-            std::vector<double> dst2(N);
+            keel::Array<double> dst2(N);
             detrendRun(im.data(), dst2.data(), N);
             keel::c64 *od = out.complexDataMut() + (isRow ? 0 : k * N);
             for (keel::usize j = 0; j < N; ++j) od[j] = keel::c64(dst[j], dst2[j]);

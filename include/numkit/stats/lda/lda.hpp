@@ -7,9 +7,9 @@
 #pragma once
 
 #include <keel/memory.h>
+#include <keel/ref.h>
 #include <numkit/value/value.hpp>
 
-#include <string>
 #include <tuple>
 
 namespace numkit::stats {
@@ -44,7 +44,7 @@ namespace numkit::stats {
 /// @see pca
 std::tuple<Value, Value, Value, Value>
 classify(const Value &sample, const Value &training, const Value &group,
-         const std::string &type,
+         keel::StringRef type,
          keel::Allocator *mr = nullptr);
 
 

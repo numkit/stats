@@ -3,7 +3,9 @@
 // Phase 2b compute/register split — see project_layering_refactor memory.
 #pragma once
 
+#include <keel/array.h>
 #include <keel/core.h>
+#include <keel/ref.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
@@ -15,10 +17,8 @@
 #include <cstring>
 #include <limits>
 #include <numeric>
-#include <string>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -39,10 +39,10 @@ double softThreshold(double z, double g)
 // Standardise X (n×p column-major) in-place: each column has mean 0,
 // std 1 (population std, divides by sqrt(n)). Returns (mu, sd) vectors.
 void standardise(double *X, keel::usize n, keel::usize p,
-                  std::vector<double> &mu, std::vector<double> &sd)
+                  keel::Array<double> &mu, keel::Array<double> &sd)
 {
-    mu.assign(p, 0.0);
-    sd.assign(p, 1.0);
+    mu = keel::Array<double>(p, 0.0);
+    sd = keel::Array<double>(p, 1.0);
     for (keel::usize j = 0; j < p; ++j) {
         double s = 0.0;
         for (keel::usize i = 0; i < n; ++i) s += X[j * n + i];
@@ -63,8 +63,8 @@ void standardise(double *X, keel::usize n, keel::usize p,
 // Returns true if max coefficient change < tol.
 bool coordDescentSweep(const double *Xs, keel::usize n, keel::usize p,
                         const double *y,
-                        std::vector<double> &r, std::vector<double> &beta,
-                        const std::vector<double> &XjNormSq,
+                        keel::Array<double> &r, keel::Array<double> &beta,
+                        keel::ArrayRef<double> XjNormSq,
                         double lambda_eff, double lambda_l2,
                         double tol)
 {

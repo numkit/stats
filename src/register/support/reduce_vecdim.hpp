@@ -18,13 +18,13 @@
 
 #pragma once
 
+#include <keel/array.h>
 #include <keel/core.h>
+#include <keel/format.h>
 #include <keel/memory.h>
 #include <keel/ref.h>
+#include <keel/string.h>
 #include <algorithm>
-#include <string>
-#include <string_view>
-#include <vector>
 
 #include <numkit/builtin/elmat.hpp>
 #include <numkit/value/argcheck.hpp>
@@ -37,27 +37,28 @@ namespace numkit::vecdim {
 // Entries beyond the input's rank are kept (they reduce as singletons);
 // duplicates and non-vector shapes are rejected here, non-positive /
 // fractional entries by argcheck::dimArg per element.
-inline std::vector<int> parseDimSet(const Value &a, std::string_view fn)
+inline keel::Array<int> parseDimSet(const Value &a, keel::StringRef fn)
 {
     if (!a.dims().isVector())
-        throw Error(std::string(fn) + ": dimension argument must be a "
-                    "scalar or a vector of unique positive integers "
-                    "(argument is " + argcheck::detail::dimsStr(a).c_str() + ").",
-                    0, 0, std::string(fn), "",
-                    "numkit:" + std::string(fn) + ":dimNotVector");
-    std::vector<int> set;
+        throw Error(keel::format("{}: dimension argument must be a "
+                                 "scalar or a vector of unique positive integers "
+                                 "(argument is {}).",
+                                 fn, argcheck::detail::dimsStr(a)),
+                    0, 0, fn, "",
+                    keel::format("numkit:{}:dimNotVector", fn));
+    keel::Array<int> set;
     set.reserve(a.numel());
     for (keel::usize i = 0; i < a.numel(); ++i)
         set.push_back(argcheck::dimArg(a.elemAsDouble(i), fn));
-    std::vector<int> sorted = set;
+    keel::Array<int> sorted = set.clone();
     std::sort(sorted.begin(), sorted.end());
     for (keel::usize i = 1; i < sorted.size(); ++i)
         if (sorted[i] == sorted[i - 1])
-            throw Error(std::string(fn) + ": dimension vector entries "
-                        "must be unique (" + std::to_string(sorted[i]) +
-                        " repeats).",
-                        0, 0, std::string(fn), "",
-                        "numkit:" + std::string(fn) + ":dimNotUnique");
+            throw Error(keel::format("{}: dimension vector entries "
+                                     "must be unique ({} repeats).",
+                                     fn, sorted[i]),
+                        0, 0, fn, "",
+                        keel::format("numkit:{}:dimNotUnique", fn));
     return set;
 }
 
@@ -73,7 +74,7 @@ inline int realRank(const Value &x)
 inline bool coversAllDims(keel::ArrayRef<int> set, const Value &x)
 {
     const int rank = realRank(x);
-    std::vector<char> seen(static_cast<keel::usize>(rank) + 1, 0);
+    keel::Array<char> seen(static_cast<keel::usize>(rank) + 1, 0);
     for (int d : set)
         if (d <= rank)
             seen[static_cast<keel::usize>(d)] = 1;
@@ -90,13 +91,13 @@ inline Value collapseDims(const Value &x, keel::ArrayRef<int> set,
                           keel::Allocator *mr)
 {
     const int nd = x.dims().ndim();
-    std::vector<char> listed(static_cast<keel::usize>(nd) + 1, 0);
+    keel::Array<char> listed(static_cast<keel::usize>(nd) + 1, 0);
     for (int d : set)
         if (d <= nd)
             listed[static_cast<keel::usize>(d)] = 1;
-    std::vector<int> order;          // non-listed first, listed last
+    keel::Array<int> order;          // non-listed first, listed last
     order.reserve(static_cast<keel::usize>(nd));
-    keel::usize red = 1;                  // product of the listed real sizes
+    keel::usize red = 1;             // product of the listed real sizes
     for (int d = 1; d <= nd; ++d)
         if (!listed[static_cast<keel::usize>(d)])
             order.push_back(d);
@@ -106,15 +107,20 @@ inline Value collapseDims(const Value &x, keel::ArrayRef<int> set,
     for (int d = 1; d <= nd; ++d)
         if (listed[static_cast<keel::usize>(d)])
             order.push_back(d);
-    Value p = builtin::permute(x, keel::ArrayRef<int>(order.data(), order.size()), mr);
-    std::vector<keel::usize> shape;
-    for (int d = 1; d <= nd; ++d)
-        if (!listed[static_cast<keel::usize>(d)])
+    Value p = builtin::permute(x, order.as_ref(), mr);
+    keel::Array<keel::usize> shape;
+    shape.reserve(static_cast<keel::usize>(nd) + 1);
+    bool anyUnlisted = false;
+    for (int d = 1; d <= nd; ++d) {
+        if (!listed[static_cast<keel::usize>(d)]) {
             shape.push_back(x.dims().dim(d - 1));
+            anyUnlisted = true;
+        }
+    }
+    if (!anyUnlisted)                // every real dim listed
+        shape.push_back(1);
     shape.push_back(red);
-    if (shape.size() == 1)           // every real dim listed
-        shape.insert(shape.begin(), 1);
-    return builtin::reshape(std::move(p), keel::ArrayRef<keel::usize>(shape.data(), shape.size()), mr);
+    return builtin::reshape(keel::move(p), shape.as_ref(), mr);
 }
 
 // Reshape a reduction RESULT of the collapsed array back to the
@@ -127,34 +133,35 @@ inline Value expandReduced(Value reduced, const Value &x, keel::ArrayRef<int> se
                            keel::Allocator *mr)
 {
     const int nd = x.dims().ndim();
-    std::vector<char> listed(static_cast<keel::usize>(nd) + 1, 0);
+    keel::Array<char> listed(static_cast<keel::usize>(nd) + 1, 0);
     for (int d : set)
         if (d <= nd)
             listed[static_cast<keel::usize>(d)] = 1;
-    std::vector<keel::usize> shape;
+    keel::Array<keel::usize> shape;
+    shape.reserve(static_cast<keel::usize>(nd) + 1);
     for (int d = 1; d <= nd; ++d)
         shape.push_back(listed[static_cast<keel::usize>(d)] ? 1 : x.dims().dim(d - 1));
     while (shape.size() > 2 && shape.back() == 1)
         shape.pop_back();
     if (shape.size() == 1)
         shape.push_back(1);
-    return builtin::reshape(std::move(reduced),
-                            keel::ArrayRef<keel::usize>(shape.data(), shape.size()), mr);
+    return builtin::reshape(keel::move(reduced), shape.as_ref(), mr);
 }
 
 // Parse a dim slot that accepts a positive integer scalar, a vecdim
 // vector of unique positive integers, or 'all'. When 'all' or a vecdim
 // is supplied, `vecdimSet` is non-empty; otherwise `dim` holds the
 // scalar dimension (or 0 if `a` is empty).
-inline void parseDimSlot(const Value &x, const Value &a, std::string_view fn,
-                         int &dim, std::vector<int> &vecdimSet)
+inline void parseDimSlot(const Value &x, const Value &a, keel::StringRef fn,
+                         int &dim, keel::Array<int> &vecdimSet)
 {
     dim = 0;
     vecdimSet.clear();
     if (a.isEmpty())
         return;
     if (a.isChar() || a.isString()) {
-        std::string s(a.toString().as_ref());
+        keel::String raw = a.toString();
+        keel::String s = raw.clone();
         for (char &c : s)
             if (c >= 'A' && c <= 'Z') c = static_cast<char>(c + 32);
         if (s == "all") {
@@ -164,9 +171,9 @@ inline void parseDimSlot(const Value &x, const Value &a, std::string_view fn,
                 vecdimSet.push_back(d);
             return;
         }
-        throw Error(std::string(fn) + ": unknown flag '" + std::string(a.toString().as_ref()) + "'",
-                    0, 0, std::string(fn), "",
-                    "numkit:" + std::string(fn) + ":unknownFlag");
+        throw Error(keel::format("{}: unknown flag '{}'", fn, raw),
+                    0, 0, fn, "",
+                    keel::format("numkit:{}:unknownFlag", fn));
     }
     if (a.numel() == 1) {
         dim = argcheck::dimArg(a, fn);
@@ -183,11 +190,11 @@ inline Value uncollapseFull(Value collapsedOut, const Value &x,
                             keel::Allocator *mr)
 {
     const int nd = x.dims().ndim();
-    std::vector<char> listed(static_cast<keel::usize>(nd) + 1, 0);
+    keel::Array<char> listed(static_cast<keel::usize>(nd) + 1, 0);
     for (int d : set)
         if (d <= nd)
             listed[static_cast<keel::usize>(d)] = 1;
-    std::vector<int> order;
+    keel::Array<int> order;
     order.reserve(static_cast<keel::usize>(nd));
     for (int d = 1; d <= nd; ++d)
         if (!listed[static_cast<keel::usize>(d)])
@@ -195,15 +202,14 @@ inline Value uncollapseFull(Value collapsedOut, const Value &x,
     for (int d = 1; d <= nd; ++d)
         if (listed[static_cast<keel::usize>(d)])
             order.push_back(d);
-    std::vector<keel::usize> permShape(static_cast<keel::usize>(nd));
-    std::vector<int> invOrder(static_cast<keel::usize>(nd));
+    keel::Array<keel::usize> permShape(static_cast<keel::usize>(nd));
+    keel::Array<int> invOrder(static_cast<keel::usize>(nd));
     for (int i = 0; i < nd; ++i) {
         permShape[static_cast<keel::usize>(i)] = x.dims().dim(order[static_cast<keel::usize>(i)] - 1);
         invOrder[static_cast<keel::usize>(order[static_cast<keel::usize>(i)] - 1)] = i + 1;
     }
-    Value r = builtin::reshape(std::move(collapsedOut),
-                               keel::ArrayRef<keel::usize>(permShape.data(), permShape.size()), mr);
-    return builtin::permute(r, keel::ArrayRef<int>(invOrder.data(), invOrder.size()), mr);
+    Value r = builtin::reshape(keel::move(collapsedOut), permShape.as_ref(), mr);
+    return builtin::permute(r, invOrder.as_ref(), mr);
 }
 
 } // namespace numkit::vecdim

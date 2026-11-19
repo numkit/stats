@@ -13,9 +13,12 @@
 //   * single inputs produce single outputs (compute runs in double,
 //     cast down — the reference runs single arithmetic, O(1e-7) tail).
 
+#include <keel/array.h>
 #include <keel/core.h>
+#include <keel/format.h>
 #include <keel/memory.h>
 #include <keel/math.h>
+#include <keel/ref.h>
 #include <numkit/stats/mvdist/mvdist.hpp>
 
 #include <numkit/linalg/eig.hpp>             // eig_symmetric
@@ -25,7 +28,6 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
-#include <vector>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -46,8 +48,8 @@ bool isMatrixValue(const Value &V)
 // Symmetric eigendecomposition of a d×d column-major matrix read via
 // elemAsDouble. Eigenvalues ascend in `eval`; eigenvectors are the
 // columns of `evec` (column-major d×d).
-void eigSymmetric(const std::vector<double> &M, keel::usize d,
-                  std::vector<double> &eval, std::vector<double> &evec,
+void eigSymmetric(keel::ArrayRef<double> M, keel::usize d,
+                  keel::Array<double> &eval, keel::Array<double> &evec,
                   keel::Allocator *mr)
 {
     Value Mv = Value::matrix(d, d, ValueType::DOUBLE, mr);
@@ -67,11 +69,11 @@ void eigSymmetric(const std::vector<double> &M, keel::usize d,
 // fills Σ log(sqrt(λi)) over ALL eigenvalues — a zero eigenvalue gives
 // -Inf, which drives a degenerate density to 0 (probe P15).
 bool psdQuadForms(const Value &X0, keel::usize n, keel::usize d,
-                  const std::vector<double> &Sig,
-                  std::vector<double> &quad, double &logHalfDet,
+                  keel::ArrayRef<double> Sig,
+                  keel::Array<double> &quad, double &logHalfDet,
                   keel::Allocator *mr, bool *degenerate = nullptr)
 {
-    std::vector<double> eval, evec;
+    keel::Array<double> eval, evec;
     eigSymmetric(Sig, d, eval, evec, mr);
     double maxAbs = 0.0;
     for (double e : eval) maxAbs = std::max(maxAbs, keel::abs(e));
@@ -85,8 +87,7 @@ bool psdQuadForms(const Value &X0, keel::usize n, keel::usize d,
         if (e <= tol && degenerate) *degenerate = true;
         logHalfDet += 0.5 * std::log(std::max(e, 0.0));   // 0 → -Inf
     }
-    quad.assign(n, 0.0);
-    std::vector<double> proj(d);
+    quad = keel::Array<double>(n, 0.0);
     for (keel::usize i = 0; i < d; ++i) {
         if (eval[i] <= tol) continue;                     // null direction
         for (keel::usize r = 0; r < n; ++r) {
@@ -101,12 +102,12 @@ bool psdQuadForms(const Value &X0, keel::usize n, keel::usize d,
 
 // Diagonal-sigma quadratic forms + log half determinant.
 void diagQuadForms(const Value &X0, keel::usize n, keel::usize d,
-                   const std::vector<double> &sd,
-                   std::vector<double> &quad, double &logHalfDet)
+                   keel::ArrayRef<double> sd,
+                   keel::Array<double> &quad, double &logHalfDet)
 {
     logHalfDet = 0.0;
     for (keel::usize j = 0; j < d; ++j) logHalfDet += std::log(sd[j]);
-    quad.assign(n, 0.0);
+    quad = keel::Array<double>(n, 0.0);
     for (keel::usize r = 0; r < n; ++r) {
         double q = 0.0;
         for (keel::usize j = 0; j < d; ++j) {
@@ -135,8 +136,8 @@ namespace {
 void mvnpdf_argcheck(const Value &X)
 {
     if (!isMatrixValue(X))
-        throw Error("mvnpdf: X must be a non-empty matrix (got a "
-                    + std::string(mtypeName(X.type())) + " array).",
+        throw Error(keel::format("mvnpdf: X must be a non-empty matrix (got a {} array).",
+                                 mtypeName(X.type())),
                     0, 0, "mvnpdf", "", "numkit:mvnpdf:invalidData");
     const keel::usize d = static_cast<keel::usize>(X.dims().dim(1));
     if (d < 1)
@@ -167,9 +168,8 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
         const keel::usize n2 = static_cast<keel::usize>(mu.dims().dim(0));
         const keel::usize d2 = static_cast<keel::usize>(mu.dims().dim(1));
         if (d2 != d)
-            throw Error("mvnpdf: X and MU must have the same number of "
-                        "columns (X has " + std::to_string(d) + ", MU has "
-                        + std::to_string(d2) + ").",
+            throw Error(keel::format("mvnpdf: X and MU must have the same number of "
+                                     "columns (X has {}, MU has {}).", d, d2),
                         0, 0, "mvnpdf", "", "numkit:mvnpdf:colSizeMismatch");
         if (n2 == 1 || n2 == n) {
             X0 = Value::matrix(n, d, ValueType::DOUBLE, mr);
@@ -186,9 +186,8 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
                     X0.doubleDataMut()[r + j * n] =
                         X.elemAsDouble(j * 1) - mu.elemAsDouble(r + j * n);
         } else {
-            throw Error("mvnpdf: MU must be a row vector or have one row "
-                        "per X row (X has " + std::to_string(n)
-                        + " rows, MU has " + std::to_string(n2) + ").",
+            throw Error(keel::format("mvnpdf: MU must be a row vector or have one row "
+                                     "per X row (X has {} rows, MU has {}).", n, n2),
                         0, 0, "mvnpdf", "", "numkit:mvnpdf:rowSizeMismatch");
         }
     } else {
@@ -200,9 +199,9 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
     // ── Sigma: empty | 1×k diag row | d×d matrix | d×d×n stack ──────
     keel::usize pages = 1;
     bool sigmaIsDiag = false;
-    std::vector<double> sd;                    // diag form: sqrt entries
-    std::vector<double> Sig;                   // matrix form, column-major
-    std::vector<std::vector<double>> pageSig;  // stack form
+    keel::Array<double> sd;                        // diag form: sqrt entries
+    keel::Array<double> Sig;                       // matrix form, column-major
+    keel::Array<keel::Array<double>> pageSig;      // stack form
     keel::usize sz1 = 0, sz2 = 0;
     if (Sigma.isEmpty()) {
         // No Sigma: a column X is one d = n observation row.
@@ -215,7 +214,7 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
             n = 1;
         }
         sigmaIsDiag = true;
-        sd.assign(d, 1.0);
+        sd = keel::Array<double>(d, 1.0);
     } else {
         sz1 = static_cast<keel::usize>(Sigma.dims().dim(0));
         sz2 = static_cast<keel::usize>(Sigma.dims().dim(1));
@@ -242,26 +241,23 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
                             "or a stack of matrices.",
                             0, 0, "mvnpdf", "", "numkit:mvnpdf:badCovariance");
             if (sz1 != d)
-                throw Error("mvnpdf: SIGMA must be " + std::to_string(d)
-                            + "-by-" + std::to_string(d) + " to match X "
-                            "(got " + std::to_string(sz1) + "-by-"
-                            + std::to_string(sz2) + ").",
+                throw Error(keel::format("mvnpdf: SIGMA must be {}-by-{} to match X "
+                                         "(got {}-by-{}).", d, d, sz1, sz2),
                             0, 0, "mvnpdf", "", "numkit:mvnpdf:covSizeMismatch");
             if (sigmaIsDiag) {
-                sd.assign(d, 0.0);
+                sd = keel::Array<double>(d, 0.0);
                 for (keel::usize j = 0; j < d; ++j) {
                     const double v = Sigma.elemAsDouble(j);
                     if (!(v > 0.0))
-                        throw Error("mvnpdf: all elements of the diagonal "
-                                    "SIGMA must be positive (got "
-                                    + std::to_string(v) + " at position "
-                                    + std::to_string(j + 1) + ").",
+                        throw Error(keel::format("mvnpdf: all elements of the diagonal "
+                                                 "SIGMA must be positive (got {} at position {}).",
+                                                 v, j + 1),
                                     0, 0, "mvnpdf", "",
                                     "numkit:mvnpdf:badDiagSigma");
                     sd[j] = std::sqrt(v);
                 }
             } else {
-                Sig.assign(d * d, 0.0);
+                Sig = keel::Array<double>(d * d, 0.0);
                 for (keel::usize k = 0; k < d * d; ++k)
                     Sig[k] = Sigma.elemAsDouble(k);
             }
@@ -282,15 +278,13 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
                             0, 0, "mvnpdf", "",
                             "numkit:mvnpdf:badCovarianceMultiple");
             if (sz1 != d)
-                throw Error("mvnpdf: each SIGMA page must be "
-                            + std::to_string(d) + "-by-" + std::to_string(d)
-                            + " to match X.",
+                throw Error(keel::format("mvnpdf: each SIGMA page must be {}-by-{} to match X.",
+                                         d, d),
                             0, 0, "mvnpdf", "",
                             "numkit:mvnpdf:covSizeMismatchMultiple");
             if (pages != n)
-                throw Error("mvnpdf: SIGMA must have one page per X row "
-                            "(X has " + std::to_string(n) + " rows, SIGMA "
-                            "has " + std::to_string(pages) + " pages).",
+                throw Error(keel::format("mvnpdf: SIGMA must have one page per X row "
+                                         "(X has {} rows, SIGMA has {} pages).", n, pages),
                             0, 0, "mvnpdf", "",
                             "numkit:mvnpdf:covSizeMismatchPages");
             if (sigmaIsDiag) {
@@ -306,11 +300,12 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
                     }
                 }
             } else {
-                pageSig.resize(pages);
+                pageSig.reserve(pages);
                 for (keel::usize p = 0; p < pages; ++p) {
-                    pageSig[p].assign(d * d, 0.0);
+                    keel::Array<double> mat(d * d, 0.0);
                     for (keel::usize k = 0; k < d * d; ++k)
-                        pageSig[p][k] = Sigma.elemAsDouble(k + p * d * d);
+                        mat[k] = Sigma.elemAsDouble(k + p * d * d);
+                    pageSig.push_back(keel::move(mat));
                 }
             }
         }
@@ -320,17 +315,17 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
     Value out = Value::matrix(n, 1, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
     const double base = -0.5 * static_cast<double>(d) * kLog2Pi;
-    auto fillRows = [&](const std::vector<double> &quad, double logHalfDet) {
+    auto fillRows = [&](keel::ArrayRef<double> quad, double logHalfDet) {
         for (keel::usize r = 0; r < n; ++r)
             od[r] = std::exp(base - logHalfDet - 0.5 * quad[r]);
     };
     if (pages == 1) {
-        std::vector<double> quad;
+        keel::Array<double> quad;
         double logHalfDet = 0.0;
         bool degenerate = false;
         if (sigmaIsDiag) {
-            diagQuadForms(X0, n, d, sd, quad, logHalfDet);
-        } else if (!psdQuadForms(X0, n, d, Sig, quad, logHalfDet, mr,
+            diagQuadForms(X0, n, d, sd.as_ref(), quad, logHalfDet);
+        } else if (!psdQuadForms(X0, n, d, Sig.as_ref(), quad, logHalfDet, mr,
                                  &degenerate)) {
             throw Error("mvnpdf: SIGMA must be a square, symmetric, "
                         "positive semi-definite matrix.",
@@ -339,7 +334,7 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
         if (degenerate) {
             for (keel::usize r = 0; r < n; ++r) od[r] = 0.0;
         } else {
-            fillRows(quad, logHalfDet);
+            fillRows(quad.as_ref(), logHalfDet);
         }
     } else if (sigmaIsDiag) {
         // Per-page diagonal densities.
@@ -359,10 +354,10 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
             Value Xrow = Value::matrix(1, d, ValueType::DOUBLE, mr);
             for (keel::usize j = 0; j < d; ++j)
                 Xrow.doubleDataMut()[j] = X0.elemAsDouble(r + j * n);
-            std::vector<double> quad;
+            keel::Array<double> quad;
             double logHalfDet = 0.0;
             bool degenerate = false;
-            if (!psdQuadForms(Xrow, 1, d, pageSig[r], quad, logHalfDet, mr,
+            if (!psdQuadForms(Xrow, 1, d, pageSig[r].as_ref(), quad, logHalfDet, mr,
                               &degenerate))
                 throw Error("mvnpdf: SIGMA must be a square, symmetric, "
                             "positive semi-definite matrix.",
@@ -412,23 +407,19 @@ Value mvtpdfCompute(const Value &X, const Value &C, const Value &df,
     const keel::usize cr = static_cast<keel::usize>(C.dims().dim(0));
     const keel::usize cc = static_cast<keel::usize>(C.dims().dim(1));
     if (cr != cc)
-        throw Error("mvtpdf: C must be a square matrix (got "
-                    + std::to_string(cr) + "-by-" + std::to_string(cc)
-                    + ").",
+        throw Error(keel::format("mvtpdf: C must be a square matrix (got {}-by-{}).", cr, cc),
                     0, 0, "mvtpdf", "", "numkit:mvtpdf:badCorrelationNotSquare");
     if (cr != d)
-        throw Error("mvtpdf: C must be a square matrix with size equal to "
-                    "the number of columns of X (" + std::to_string(d)
-                    + "-by-" + std::to_string(d) + ", got "
-                    + std::to_string(cr) + "-by-" + std::to_string(cc)
-                    + ").",
+        throw Error(keel::format("mvtpdf: C must be a square matrix with size equal to "
+                                 "the number of columns of X ({}-by-{}, got {}-by-{}).",
+                                 d, d, cr, cc),
                     0, 0, "mvtpdf", "", "numkit:mvtpdf:inputSizeMismatchC");
     single = single || (C.type() == ValueType::SINGLE);
 
     // df: scalar, or one per row.
-    std::vector<double> dfv(n);
+    keel::Array<double> dfv(n);
     if (df.isScalar()) {
-        dfv.assign(n, df.elemAsDouble(0));
+        std::fill(dfv.begin(), dfv.end(), df.elemAsDouble(0));
     } else if (df.dims().isVector()
                && df.numel() == static_cast<long long>(n)) {
         for (keel::usize r = 0; r < n; ++r) dfv[r] = df.elemAsDouble(r);
@@ -439,16 +430,15 @@ Value mvtpdfCompute(const Value &X, const Value &C, const Value &df,
     }
     for (double v : dfv)
         if (!(v > 0.0))
-            throw Error("mvtpdf: DF must be positive (got "
-                        + std::to_string(v) + ").",
+            throw Error(keel::format("mvtpdf: DF must be positive (got {}).", v),
                         0, 0, "mvtpdf", "", "numkit:mvtpdf:invalidDF");
     single = single || (df.type() == ValueType::SINGLE);
 
     // Standardize C to a correlation matrix (the reference does this
     // silently; probe T06/T10).
-    std::vector<double> Cm(d * d, 0.0);
+    keel::Array<double> Cm(d * d, 0.0);
     for (keel::usize k = 0; k < d * d; ++k) Cm[k] = C.elemAsDouble(k);
-    std::vector<double> sq(d);
+    keel::Array<double> sq(d);
     bool unitDiag = true;
     for (keel::usize i = 0; i < d; ++i) {
         sq[i] = std::sqrt(Cm[i + i * d]);
@@ -459,9 +449,9 @@ Value mvtpdfCompute(const Value &X, const Value &C, const Value &df,
             for (keel::usize i = 0; i < d; ++i)
                 Cm[i + j * d] /= sq[i] * sq[j];
 
-    std::vector<double> quad;
+    keel::Array<double> quad;
     double logHalfDet = 0.0;
-    if (!psdQuadForms(X, n, d, Cm, quad, logHalfDet, mr))
+    if (!psdQuadForms(X, n, d, Cm.as_ref(), quad, logHalfDet, mr))
         throw Error("mvtpdf: C must be a symmetric positive "
                     "(semi-)definite matrix.",
                     0, 0, "mvtpdf", "", "numkit:mvtpdf:badCorrelationSymPos");
@@ -517,9 +507,8 @@ Value mnpdf(const Value &X, const Value &P, keel::Allocator *mr)
     const keel::usize mm = static_cast<keel::usize>(p.dims().dim(0));
     const keel::usize kk = static_cast<keel::usize>(p.dims().dim(1));
     if (kk != k)
-        throw Error("mnpdf: P and X must have the same number of columns "
-                    "(X has " + std::to_string(k) + ", P has "
-                    + std::to_string(kk) + ").",
+        throw Error(keel::format("mnpdf: P and X must have the same number of columns "
+                                 "(X has {}, P has {}).", k, kk),
                     0, 0, "mnpdf", "", "numkit:mnpdf:colSizeMismatch");
 
     Value out = Value::matrix(m, 1, ValueType::DOUBLE, mr);
@@ -577,9 +566,8 @@ Value mnpdf(const Value &X, const Value &P, keel::Allocator *mr)
             od[r] = std::exp(lp);
         }
     } else {
-        throw Error("mnpdf: P and X must have the same number of rows "
-                    "(X has " + std::to_string(m) + ", P has "
-                    + std::to_string(mm) + ").",
+        throw Error(keel::format("mnpdf: P and X must have the same number of rows "
+                                 "(X has {}, P has {}).", m, mm),
                     0, 0, "mnpdf", "", "numkit:mnpdf:rowSizeMismatch");
     }
     return castDown(out, single, mr);

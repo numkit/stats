@@ -13,9 +13,12 @@
 // unknown pdist2 DISTANCE argument is UnrecognizedDistance, an unknown
 // linkage METHOD / cluster Criterion is the value-list class.
 
+#include <keel/array.h>
 #include <keel/core.h>
+#include <keel/format.h>
 #include <keel/memory.h>
 #include <keel/ref.h>
+#include <keel/string.h>
 #include <numkit/stats/cluster/distance.hpp>
 #include <numkit/stats/cluster/linkage.hpp>
 #include <numkit/stats/cluster/silhouette.hpp>
@@ -28,16 +31,14 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <string>
-#include <vector>
 
 namespace numkit::stats {
 
 namespace {
 
-std::string lowerCopy(keel::StringRef sv)
+keel::String lowerCopy(keel::StringRef sv)
 {
-    std::string s(sv.data(), sv.size());
+    keel::String s = keel::String::from(sv);
     for (char &c : s)
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     return s;
@@ -45,21 +46,21 @@ std::string lowerCopy(keel::StringRef sv)
 
 // The distance-metric name table shared by pdist / pdist2 /
 // silhouette (validatestring prefix semantics via matchStringChoice).
-constexpr std::string_view kMetrics[] = {
+constexpr keel::StringRef kMetrics[] = {
     "euclidean", "squaredeuclidean", "seuclidean", "cityblock",
     "chebychev", "minkowski", "cosine", "correlation", "hamming",
     "jaccard", "mahalanobis", "spearman",
 };
-constexpr std::string_view kLinkMethods[] = {
+constexpr keel::StringRef kLinkMethods[] = {
     "single", "complete", "average", "weighted", "centroid", "median",
     "ward",
 };
-constexpr std::string_view kCriteria[] = {
+constexpr keel::StringRef kCriteria[] = {
     "inconsistent", "distance", "threshold",
 };
 
 struct ClusterOpts {
-    std::string metric;
+    keel::String metric;
     double p = 2.0;
     const Value *C = nullptr;   // Mahalanobis covariance
 };
@@ -70,18 +71,17 @@ struct ClusterOpts {
 ClusterOpts pdist_argcheck(keel::ArrayRef<Value> tail, const char *fn,
                            const char *badMetricTag)
 {
-    ClusterOpts o{"euclidean", 2.0, nullptr};
+    ClusterOpts o{keel::String::from("euclidean"), 2.0, nullptr};
     for (keel::usize i = 0; i < tail.size(); ++i) {
         const Value &v = tail[i];
         if (v.isChar() || v.isString()) {
-            const std::string m = lowerCopy(v.toString());
+            const keel::String raw = v.toString();
             const int hit = argcheck::matchStringChoice(
-                v, keel::ArrayRef<std::string_view>(kMetrics));
+                v, keel::ArrayRef<keel::StringRef>(kMetrics));
             if (hit < 0)
-                throw Error(std::string(fn) + ": the distance function '"
-                            + std::string(v.toString().as_ref()) + "' was not found.",
+                throw Error(keel::format("{}: the distance function '{}' was not found.", fn, raw),
                             0, 0, fn, "", badMetricTag);
-            o.metric = std::string(
+            o.metric = keel::String::from(
                 kMetrics[static_cast<keel::usize>(hit)]);
         } else if (v.numel() == 1) {
             o.p = v.elemAsDouble(0);
@@ -126,18 +126,17 @@ Pdist2Out pdist2_full(const Value &X, const Value &Y, keel::ArrayRef<Value> tail
     // through to pdist_argcheck and raises unrecognizedDistance (probe P09).
     bool topk = false, largest = false;
     keel::usize k = 0;
-    std::vector<Value> rest;
+    keel::Array<Value> rest;
     for (keel::usize i = 0; i < tail.size(); ++i) {
         if (i >= 1 && (tail[i].isChar() || tail[i].isString())
             && i + 1 < tail.size()) {
-            const std::string s = lowerCopy(tail[i].toString());
+            const keel::String s = lowerCopy(tail[i].toString());
             if (s == "smallest" || s == "largest") {
                 const double kv = argcheck::expectedReal(
                     tail[i + 1], 4, "k", "pdist2");
                 if (!(kv >= 1.0 && kv == std::floor(kv)))
-                    throw Error("pdist2: the 'Smallest'/'Largest' count "
-                                "must be a positive integer scalar (got "
-                                + std::to_string(kv) + ").",
+                    throw Error(keel::format("pdist2: the 'Smallest'/'Largest' count "
+                                "must be a positive integer scalar (got {}).", kv),
                                 0, 0, "pdist2", "", "numkit:pdist2:badK");
                 topk = true;
                 largest = (s == "largest");
@@ -166,24 +165,24 @@ Pdist2Out pdist2_full(const Value &X, const Value &Y, keel::ArrayRef<Value> tail
 Value linkage_full(const Value &Y, keel::ArrayRef<Value> tail,
                    keel::Allocator *mr)
 {
-    std::string method = "single";
-    std::string metric = "euclidean";
+    keel::String method = keel::String::from("single");
+    keel::String metric = keel::String::from("euclidean");
     double p = 2.0;
     // Method: a string 2nd argument (validatestring against the
     // linkage methods — the reference's getParamVal class).
     if (!tail.empty() && (tail[0].isChar() || tail[0].isString())) {
         const int hit = argcheck::matchStringChoice(
-            tail[0], keel::ArrayRef<std::string_view>(kLinkMethods));
+            tail[0], keel::ArrayRef<keel::StringRef>(kLinkMethods));
         if (hit < 0)
-            throw Error("linkage: '" + std::string(tail[0].toString().as_ref())
-                        + "' is not a valid value for the METHOD argument.",
+            throw Error(keel::format("linkage: '{}' is not a valid value for the METHOD argument.",
+                                     tail[0].toString()),
                         0, 0, "linkage", "", "numkit:linkage:badMethod");
-        method = std::string(
+        method = keel::String::from(
             kLinkMethods[static_cast<keel::usize>(hit)]);
     } else if (!tail.empty()) {
-        throw Error("linkage: METHOD must be one of: single, complete, "
-                    "average, weighted, centroid, median, ward (got a "
-                    + std::string(mtypeName(tail[0].type())) + ").",
+        throw Error(keel::format("linkage: METHOD must be one of: single, complete, "
+                    "average, weighted, centroid, median, ward (got a {}).",
+                    mtypeName(tail[0].type())),
                     0, 0, "linkage", "", "numkit:linkage:badMethod");
     }
     // Metric (implicit pdist) + Minkowski exponent.
@@ -195,16 +194,14 @@ Value linkage_full(const Value &Y, keel::ArrayRef<Value> tail,
                 throw Error("linkage: unexpected extra argument.",
                             0, 0, "linkage", "", "numkit:linkage:nargin");
             const int hit = argcheck::matchStringChoice(
-                v, keel::ArrayRef<std::string_view>(kMetrics));
+                v, keel::ArrayRef<keel::StringRef>(kMetrics));
             if (hit < 0)
-                throw Error("linkage: the distance function '"
-                            + std::string(v.toString().as_ref()) + "' was not found.",
+                throw Error(keel::format("linkage: the distance function '{}' was not found.",
+                                         v.toString()),
                             0, 0, "linkage", "",
                             "numkit:linkage:distanceFunctionNotFound");
-            metric = std::string(
-                kMetrics[static_cast<keel::usize>(
-                    argcheck::matchStringChoice(
-                        v, keel::ArrayRef<std::string_view>(kMetrics)))]);
+            metric = keel::String::from(
+                kMetrics[static_cast<keel::usize>(hit)]);
             haveMetric = true;
         } else if (v.numel() == 1) {
             p = v.elemAsDouble(0);
@@ -224,7 +221,7 @@ Value cluster_full(const Value &Z, keel::ArrayRef<Value> tail,
     int maxclust = -1;
     double cutoff = -1.0;
     int depth = 2;
-    std::string criterion = "inconsistent";
+    keel::String criterion = keel::String::from("inconsistent");
     for (keel::usize i = 0; i < tail.size(); ++i) {
         if (!(tail[i].isChar() || tail[i].isString())) {
             if (i == 0) {
@@ -238,26 +235,26 @@ Value cluster_full(const Value &Z, keel::ArrayRef<Value> tail,
         if (i + 1 >= tail.size())
             throw Error("cluster: each parameter name needs a value.",
                         0, 0, "cluster", "", "numkit:cluster:nvMismatch");
-        const std::string name = lowerCopy(tail[i].toString());
+        const keel::String rawName = tail[i].toString();
+        const keel::String name = lowerCopy(rawName);
         const Value &v = tail[i + 1];
         if      (name == "maxclust")  maxclust = static_cast<int>(v.elemAsDouble(0));
         else if (name == "cutoff")    cutoff = v.elemAsDouble(0);
         else if (name == "depth")     depth = static_cast<int>(v.elemAsDouble(0));
         else if (name == "criterion") {
             const int hit = argcheck::matchStringChoice(
-                v, keel::ArrayRef<std::string_view>(kCriteria));
+                v, keel::ArrayRef<keel::StringRef>(kCriteria));
             if (hit < 0)
-                throw Error("cluster: '" + std::string(v.toString().as_ref()) + "' is not a "
+                throw Error(keel::format("cluster: '{}' is not a "
                             "valid value for the Criterion argument. "
                             "Valid values are 'inconsistent', 'distance', "
-                            "and 'threshold'.",
+                            "and 'threshold'.", v.toString()),
                             0, 0, "cluster", "",
                             "numkit:cluster:badCriterion");
-            criterion = std::string(
+            criterion = keel::String::from(
                 kCriteria[static_cast<keel::usize>(hit)]);
         } else {
-            throw Error("cluster: unrecognized parameter name '"
-                        + std::string(tail[i].toString().as_ref()) + "'.",
+            throw Error(keel::format("cluster: unrecognized parameter name '{}'.", rawName),
                         0, 0, "cluster", "", "numkit:cluster:badParamName");
         }
         ++i;   // consume the value
@@ -277,8 +274,8 @@ Value inconsistent_full(const Value &Z, keel::ArrayRef<Value> tail,
     if (!tail.empty()) {
         const double d = tail[0].elemAsDouble(0);
         if (!(d >= 1.0 && d == std::floor(d)))
-            throw Error("inconsistent: depth must be a positive integer "
-                        "scalar (got " + std::to_string(d) + ").",
+            throw Error(keel::format("inconsistent: depth must be a positive integer "
+                        "scalar (got {}).", d),
                         0, 0, "inconsistent", "", "numkit:inconsistent:badDepth");
         depth = static_cast<int>(d);
     }
@@ -290,15 +287,15 @@ Value inconsistent_full(const Value &Z, keel::ArrayRef<Value> tail,
 Value silhouette_full(const Value &X, const Value &clust,
                       keel::ArrayRef<Value> tail, keel::Allocator *mr)
 {
-    ClusterOpts o{"sqeuclidean", 2.0, nullptr};   // silhouette default
+    ClusterOpts o{keel::String::from("sqeuclidean"), 2.0, nullptr};   // silhouette default
     for (keel::usize i = 0; i < tail.size(); ++i) {
         const Value &v = tail[i];
         if (v.isChar() || v.isString()) {
             const int hit = argcheck::matchStringChoice(
-                v, keel::ArrayRef<std::string_view>(kMetrics));
+                v, keel::ArrayRef<keel::StringRef>(kMetrics));
             if (hit < 0)
-                throw Error("silhouette: the distance function '"
-                            + std::string(v.toString().as_ref()) + "' was not found.",
+                throw Error(keel::format("silhouette: the distance function '{}' was not found.",
+                                         v.toString()),
                             0, 0, "silhouette", "",
                             "numkit:silhouette:distanceFunctionNotFound");
             o.metric = lowerCopy(v.toString());

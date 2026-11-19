@@ -8,10 +8,11 @@
 // compat.* alias layer used to duplicate every registration).
 
 #include <keel/core.h>
+#include <keel/format.h>
 #include <keel/ref.h>
+#include <keel/string.h>
 #include <numkit/stats/library.hpp>
 
-#include <numkit/sys/plugin.hpp>
 #include <numkit/sys/plugin.hpp>
 
 namespace numkit::stats::detail {
@@ -447,7 +448,8 @@ void StatsLibrary::install(PluginContext &engine)
     // Local helper: stats is a MATLAB-mirror library, every function
     // gets registered under stats.<sub>.<name> AND aliased into compat.<name>.
     auto reg = [&](const char *sub, const char *name, ExternalFunc fn) {
-        engine.registerFunction(std::string("stats.") + sub, name, std::move(fn));
+        keel::String ns = keel::format("stats.{}", sub);
+        engine.registerFunction(ns.as_ref(), name, std::move(fn));
         // compat.* registration removed — bare-name resolver replaces it
     };
 

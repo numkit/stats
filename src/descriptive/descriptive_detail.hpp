@@ -9,7 +9,9 @@
 #include <keel/arena.h>
 #include <keel/array.h>
 #include <keel/complex.h>
+#include <keel/format.h>
 #include <keel/math.h>
+#include <keel/string.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/ops/helpers.hpp>            // createForDims/createMatrix/DimsArg (engine-free)
@@ -17,16 +19,15 @@
 #include <numkit/builtin/detail/datafun/var_reduction.hpp> // varianceTwoPass (engine-free)
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <limits>
 #include <numeric>
-#include <string>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -46,8 +47,8 @@ namespace {
 void validateNormFlag(int w, const char *fn)
 {
     if (w != 0 && w != 1)
-        throw Error(std::string(fn) + ": normalization flag must be 0 or 1",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":badFlag");
+        throw Error(keel::format("{}: normalization flag must be 0 or 1", fn),
+                     0, 0, fn, "", keel::format("numkit:{}:badFlag", fn));
 }
 
 // Cast a DOUBLE result to SINGLE in place. Used to preserve SINGLE
@@ -368,8 +369,8 @@ double quantileFromSortedSlice(const double *sorted, keel::usize n, double p,
 Value quantileImpl(const Value &x, const Value &p, int dim, double pScale, QMethod method, const char *fn, keel::Allocator *mr)
 {
     if (p.numel() == 0)
-        throw Error(std::string(fn) + ": p must be non-empty",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":emptyP");
+        throw Error(keel::format("{}: p must be non-empty", fn),
+                     0, 0, fn, "", keel::format("numkit:{}:emptyP", fn));
 
     keel::ArenaTemp scratch = keel::get_scratch(mr);
 
@@ -379,8 +380,8 @@ Value quantileImpl(const Value &x, const Value &p, int dim, double pScale, QMeth
     for (keel::usize i = 0; i < p.numel(); ++i) {
         probs[i] = p.doubleData()[i] * pScale;
         if (!(probs[i] >= 0.0 && probs[i] <= 1.0))
-            throw Error(std::string(fn) + ": probabilities out of range",
-                         0, 0, fn, "", std::string("numkit:") + fn + ":badProb");
+            throw Error(keel::format("{}: probabilities out of range", fn),
+                         0, 0, fn, "", keel::format("numkit:{}:badProb", fn));
     }
 
     const keel::usize k = probs.size();
@@ -419,7 +420,7 @@ Value quantileImpl(const Value &x, const Value &p, int dim, double pScale, QMeth
     // Build output shape: same as input but the reduced dim has size k.
     const auto &dd = x.dims();
     const int nd = std::max(dd.ndim(), d);
-    std::vector<keel::usize> outShape(nd);
+    keel::Array<keel::usize> outShape(static_cast<keel::usize>(nd), scratch.allocator());
     for (int i = 0; i < nd; ++i)
         outShape[i] = (i == d - 1) ? k : ((i < dd.ndim()) ? dd.dim(i) : 1);
     Value out = (nd <= 2) ? Value::matrix(outShape[0], outShape[1], ValueType::DOUBLE, mr)
@@ -686,11 +687,11 @@ dispatchMode(const Value &x, int dim, keel::Allocator *mr, const char *fn)
     case ValueType::LOGICAL: return run(keel::u8 {}, ValueType::LOGICAL);
     case ValueType::CHAR:    return run(char    {}, ValueType::CHAR);
     case ValueType::COMPLEX:
-        throw Error(std::string(fn) + ": not defined for complex inputs",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":complex");
+        throw Error(keel::format("{}: not defined for complex inputs", fn),
+                     0, 0, fn, "", keel::format("numkit:{}:complex", fn));
     default:
-        throw Error(std::string(fn) + ": unsupported input type",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":type");
+        throw Error(keel::format("{}: unsupported input type", fn),
+                     0, 0, fn, "", keel::format("numkit:{}:type", fn));
     }
 }
 
@@ -700,18 +701,18 @@ namespace {
 void validateCovInputs(const Value &x, const char *fn)
 {
     if (x.type() == ValueType::COMPLEX)
-        throw Error(std::string(fn) + ": complex inputs are not supported",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":complex");
+        throw Error(keel::format("{}: complex inputs are not supported", fn),
+                     0, 0, fn, "", keel::format("numkit:{}:complex", fn));
     if (x.dims().is3D() || x.dims().ndim() > 2)
-        throw Error(std::string(fn) + ": only vector and 2D matrix inputs are supported",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":rank");
+        throw Error(keel::format("{}: only vector and 2D matrix inputs are supported", fn),
+                     0, 0, fn, "", keel::format("numkit:{}:rank", fn));
 }
 
 void validateNormFlagCov(int w, const char *fn)
 {
     if (w != 0 && w != 1)
-        throw Error(std::string(fn) + ": normalization flag must be 0 or 1",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":badFlag");
+        throw Error(keel::format("{}: normalization flag must be 0 or 1", fn),
+                     0, 0, fn, "", keel::format("numkit:{}:badFlag", fn));
 }
 
 // Build an nÃ—p column-major DOUBLE buffer from x. Vector input is
@@ -776,12 +777,12 @@ enum class CovNan { Include, Omitrows, Partialrows };
 bool parseCovNanFlag(const Value &v, CovNan &mode)
 {
     if (!v.isChar() && !v.isString()) return false;
-    std::string s(v.toString().as_ref());
+    keel::String s = v.toString();
     for (auto &c : s)
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    if (s == "includenan")  { mode = CovNan::Include;     return true; }
-    if (s == "omitrows")    { mode = CovNan::Omitrows;    return true; }
-    if (s == "partialrows") { mode = CovNan::Partialrows; return true; }
+    if (s.as_ref() == "includenan")  { mode = CovNan::Include;     return true; }
+    if (s.as_ref() == "omitrows")    { mode = CovNan::Omitrows;    return true; }
+    if (s.as_ref() == "partialrows") { mode = CovNan::Partialrows; return true; }
     return false;
 }
 
@@ -908,11 +909,12 @@ CorrcoefRows parseCorrcoefRows(keel::ArrayRef<Value> args, keel::usize start)
     // lone unmatched value string is unmatchedPVPair.
     for (keel::usize i = start; i < args.size(); ++i) {
         if (!(args[i].isChar() || args[i].isString())) continue;
-        std::string probe(args[i].toString().as_ref());
+        keel::String probe = args[i].toString();
         for (char &c : probe) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-        const bool isName = probe == "rows" || probe == "alpha"
-            || std::string("rows").rfind(probe, 0) == 0
-            || std::string("alpha").rfind(probe, 0) == 0;
+        const keel::StringRef pr = probe.as_ref();
+        const bool isName = pr == "rows" || pr == "alpha"
+            || (pr.size() <= 4 && keel::StringRef("rows").substr(0, pr.size()) == pr)
+            || (pr.size() <= 5 && keel::StringRef("alpha").substr(0, pr.size()) == pr);
         if (!isName) {
             if (i + 1 < args.size() && (args[i + 1].isChar() || args[i + 1].isString()))
                 throw Error("corrcoef: Valid parameters are 'alpha' and 'rows'.",
@@ -924,14 +926,14 @@ CorrcoefRows parseCorrcoefRows(keel::ArrayRef<Value> args, keel::usize start)
     }
     for (keel::usize i = start; i + 1 < args.size(); i += 2) {
         if (!(args[i].isChar() || args[i].isString())) continue;
-        std::string name(args[i].toString().as_ref());
+        keel::String name = args[i].toString();
         for (char &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-        if (name == "rows") {
-            std::string v(args[i + 1].toString().as_ref());
+        if (name.as_ref() == "rows") {
+            keel::String v = args[i + 1].toString();
             for (char &c : v) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-            if (v == "all")      return CorrcoefRows::All;
-            if (v == "complete") return CorrcoefRows::Complete;
-            if (v == "pairwise") return CorrcoefRows::Pairwise;
+            if (v.as_ref() == "all")      return CorrcoefRows::All;
+            if (v.as_ref() == "complete") return CorrcoefRows::Complete;
+            if (v.as_ref() == "pairwise") return CorrcoefRows::Pairwise;
             throw Error("corrcoef: Valid row choices are 'all', 'complete', "
                         "and 'pairwise'.",
                         0, 0, "corrcoef", "", "numkit:corrcoef:invalidRowChoice");
@@ -946,9 +948,9 @@ double parseCorrcoefAlpha(keel::ArrayRef<Value> args, keel::usize start)
 {
     for (keel::usize i = start; i + 1 < args.size(); i += 2) {
         if (!(args[i].isChar() || args[i].isString())) continue;
-        std::string name(args[i].toString().as_ref());
+        keel::String name = args[i].toString();
         for (char &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-        if (name == "alpha") {
+        if (name.as_ref() == "alpha") {
             const double a = args[i + 1].toScalar();
             if (!(a > 0.0 && a < 1.0))
                 throw Error("corrcoef: Alpha must be in the interval (0,1)",
@@ -1272,11 +1274,11 @@ keel::usize stripNanFlag(keel::ArrayRef<Value> args, bool &omitNan, const char *
     if (args.empty()) return 0;
     const Value &last = args[args.size() - 1];
     if (last.type() != ValueType::CHAR) return args.size();
-    std::string s(last.toString().as_ref());
+    keel::String s = last.toString();
     std::transform(s.begin(), s.end(), s.begin(),
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    if (s == "omitnan" || s == "omitmissing") { omitNan = true; return args.size() - 1; }
-    if (s == "includenan" || s == "includemissing")                 return args.size() - 1;
+    if (s.as_ref() == "omitnan" || s.as_ref() == "omitmissing") { omitNan = true; return args.size() - 1; }
+    if (s.as_ref() == "includenan" || s.as_ref() == "includemissing") return args.size() - 1;
     // Not a nan flag â€” leave it to the caller to handle (e.g. 'all').
     return args.size();
 }
@@ -1284,8 +1286,8 @@ keel::usize stripNanFlag(keel::ArrayRef<Value> args, bool &omitNan, const char *
 inline void rejectComplexOmitNan(const Value &x, const char *fn)
 {
     if (x.type() == ValueType::COMPLEX)
-        throw Error(std::string(fn) + ": 'omitnan' for complex input is not supported",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":complexOmitNan");
+        throw Error(keel::format("{}: 'omitnan' for complex input is not supported", fn),
+                     0, 0, fn, "", keel::format("numkit:{}:complexOmitNan", fn));
 }
 
 } // namespace

@@ -4,6 +4,7 @@
 // covariance matrix. Self-contained — no dependence on a linalg
 // SVD/eig infrastructure (which is still deferred at the runtime level).
 
+#include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <numkit/stats/dim/pca.hpp>
@@ -14,7 +15,6 @@
 #include <algorithm>
 #include <cmath>
 #include <numeric>
-#include <vector>
 
 #include "pca_detail.hpp"
 
@@ -23,10 +23,10 @@ namespace numkit::stats {
 namespace {
 
 // Read X (N×D, column-major) into a flat row-major buffer.
-std::vector<double> read_rows(const Value &X) {
+keel::Array<double> read_rows(const Value &X) {
     const keel::usize N = X.dims().rows();
     const keel::usize D = X.dims().cols();
-    std::vector<double> out(N * D);
+    keel::Array<double> out(N * D);
     for (keel::usize r = 0; r < N; ++r)
         for (keel::usize c = 0; c < D; ++c)
             out[r * D + c] = X.elemAsDouble(c * N + r);
@@ -37,7 +37,7 @@ std::vector<double> read_rows(const Value &X) {
 //   A holds the eigenvalues on its diagonal (off-diagonals near zero)
 //   V is D×D orthogonal whose columns are the eigenvectors.
 // Both stored row-major.
-void jacobi(std::vector<double> &A, std::vector<double> &V, keel::usize D) {
+void jacobi(keel::Array<double> &A, keel::Array<double> &V, keel::usize D) {
     V.assign(D * D, 0.0);
     for (keel::usize i = 0; i < D; ++i) V[i * D + i] = 1.0;
 
@@ -114,21 +114,21 @@ pca(const Value &X, keel::Allocator *mr)
     const keel::usize N = X.dims().rows();
     const keel::usize D = X.dims().cols();
 
-    std::vector<double> Xv = read_rows(X);
+    keel::Array<double> Xv = read_rows(X);
 
     // Mean of each column.
-    std::vector<double> mu(D, 0.0);
+    keel::Array<double> mu(D, 0.0);
     for (keel::usize r = 0; r < N; ++r)
         for (keel::usize c = 0; c < D; ++c) mu[c] += Xv[r * D + c];
     for (auto &m : mu) m /= double(N);
 
     // Centred X.
-    std::vector<double> Xc(N * D);
+    keel::Array<double> Xc(N * D);
     for (keel::usize r = 0; r < N; ++r)
         for (keel::usize c = 0; c < D; ++c) Xc[r * D + c] = Xv[r * D + c] - mu[c];
 
     // Sample covariance (D×D, divisor n-1).
-    std::vector<double> C(D * D, 0.0);
+    keel::Array<double> C(D * D, 0.0);
     for (keel::usize r = 0; r < N; ++r) {
         for (keel::usize a = 0; a < D; ++a)
             for (keel::usize b = 0; b < D; ++b)
@@ -138,19 +138,19 @@ pca(const Value &X, keel::Allocator *mr)
     for (auto &c : C) c *= inv_n;
 
     // Jacobi eigendecomposition: A·V = V·Λ.
-    std::vector<double> Vmat;
+    keel::Array<double> Vmat;
     jacobi(C, Vmat, D);
 
     // Extract eigenvalues from C diagonal; sort descending.
-    std::vector<double> latent(D);
-    std::vector<int> order(D);
+    keel::Array<double> latent(D);
+    keel::Array<int> order(D);
     for (keel::usize i = 0; i < D; ++i) { latent[i] = C[i * D + i]; order[i] = (int)i; }
     std::sort(order.begin(), order.end(),
               [&](int a, int b) { return latent[a] > latent[b]; });
 
     // Reorder eigenvalues + eigenvectors.
-    std::vector<double> latent_s(D);
-    std::vector<double> coeff(D * D, 0.0);  // D×D row-major; cols = eigenvectors
+    keel::Array<double> latent_s(D);
+    keel::Array<double> coeff(D * D, 0.0);  // D×D row-major; cols = eigenvectors
     for (keel::usize i = 0; i < D; ++i) {
         const int src = order[i];
         latent_s[i] = latent[src];
@@ -158,7 +158,7 @@ pca(const Value &X, keel::Allocator *mr)
     }
 
     // score = Xc · coeff (N×D × D×D = N×D)
-    std::vector<double> score(N * D, 0.0);
+    keel::Array<double> score(N * D, 0.0);
     for (keel::usize r = 0; r < N; ++r)
         for (keel::usize k = 0; k < D; ++k) {
             double s = 0.0;
@@ -168,12 +168,12 @@ pca(const Value &X, keel::Allocator *mr)
 
     // explained: percent of variance.
     double total = 0.0; for (double v : latent_s) total += v;
-    std::vector<double> explained(D, 0.0);
+    keel::Array<double> explained(D, 0.0);
     if (total > 0.0)
         for (keel::usize i = 0; i < D; ++i) explained[i] = 100.0 * latent_s[i] / total;
 
     // tsquared: Hotelling's T² = Σ_k (score_ik² / latent_k) per row.
-    std::vector<double> tsq(N, 0.0);
+    keel::Array<double> tsq(N, 0.0);
     for (keel::usize r = 0; r < N; ++r) {
         double s = 0.0;
         for (keel::usize k = 0; k < D; ++k)
@@ -183,7 +183,7 @@ pca(const Value &X, keel::Allocator *mr)
     }
 
     // Pack outputs (column-major).
-    auto pack_NxM = [&](const std::vector<double> &src, keel::usize rows, keel::usize cols) {
+    auto pack_NxM = [&](const keel::Array<double> &src, keel::usize rows, keel::usize cols) {
         Value v = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
         double *p = v.doubleDataMut();
         for (keel::usize r = 0; r < rows; ++r)
@@ -214,21 +214,21 @@ pcacov(const Value &C, keel::Allocator *mr) {
         throw Error("pcacov: C must be square", 0, 0, "pcacov", "",
                     "numkit:pcacov:size");
 
-    std::vector<double> A(D * D);
+    keel::Array<double> A(D * D);
     for (keel::usize r = 0; r < D; ++r)
         for (keel::usize c = 0; c < D; ++c) A[r * D + c] = C.elemAsDouble(c * D + r);
 
-    std::vector<double> V;
+    keel::Array<double> V;
     jacobi(A, V, D);
 
-    std::vector<double> latent(D);
-    std::vector<int> order(D);
+    keel::Array<double> latent(D);
+    keel::Array<int> order(D);
     for (keel::usize i = 0; i < D; ++i) { latent[i] = A[i * D + i]; order[i] = (int)i; }
     std::sort(order.begin(), order.end(),
               [&](int a, int b) { return latent[a] > latent[b]; });
 
-    std::vector<double> latent_s(D);
-    std::vector<double> coeff(D * D, 0.0);
+    keel::Array<double> latent_s(D);
+    keel::Array<double> coeff(D * D, 0.0);
     for (keel::usize i = 0; i < D; ++i) {
         const int src = order[i];
         latent_s[i] = latent[src];
@@ -236,7 +236,7 @@ pcacov(const Value &C, keel::Allocator *mr) {
     }
 
     double total = 0.0; for (double v : latent_s) total += v;
-    std::vector<double> explained(D, 0.0);
+    keel::Array<double> explained(D, 0.0);
     if (total > 0.0)
         for (keel::usize i = 0; i < D; ++i) explained[i] = 100.0 * latent_s[i] / total;
 

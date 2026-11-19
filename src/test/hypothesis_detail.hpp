@@ -6,6 +6,7 @@
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <keel/array.h>
+#include <keel/ref.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
@@ -18,10 +19,8 @@
 #include <limits>
 #include <numeric>
 #include <random>
-#include <string>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -92,8 +91,8 @@ namespace {
 // the Birnbaum-Tingey (1951) closed form. Two-sample uses Stephens' corrected
 // asymptotic. Critical values come from inverting the matching p-function.
 
-void mMultiply(const std::vector<double> &A, const std::vector<double> &B,
-               std::vector<double> &C, int m) {
+void mMultiply(keel::ArrayRef<double> A, keel::ArrayRef<double> B,
+               keel::Array<double> &C, int m) {
     for (int i = 0; i < m; ++i)
         for (int j = 0; j < m; ++j) {
             double s = 0.0;
@@ -103,15 +102,20 @@ void mMultiply(const std::vector<double> &A, const std::vector<double> &B,
 }
 
 // V = A^n with an explicit base-10 exponent eV (rescaled to dodge overflow).
-void mPower(const std::vector<double> &A, int eA, std::vector<double> &V,
+void mPower(keel::ArrayRef<double> A, int eA, keel::Array<double> &V,
             int &eV, int m, int n) {
-    if (n == 1) { V = A; eV = eA; return; }
+    if (n == 1) {
+        V.resize(A.size());
+        std::copy(A.begin(), A.end(), V.begin());
+        eV = eA;
+        return;
+    }
     mPower(A, eA, V, eV, m, n / 2);
-    std::vector<double> B(m * m);
-    mMultiply(V, V, B, m);
+    keel::Array<double> B(static_cast<keel::usize>(m) * m);
+    mMultiply(V.as_ref(), V.as_ref(), B, m);
     int eB = 2 * eV;
-    if (n % 2 == 0) { V = B; eV = eB; }
-    else { mMultiply(A, B, V, m); eV = eA + eB; }
+    if (n % 2 == 0) { V = keel::move(B); eV = eB; }
+    else { mMultiply(A, B.as_ref(), V, m); eV = eA + eB; }
     if (V[(m/2)*m + (m/2)] > 1e140) {
         for (double &x : V) x *= 1e-140;
         eV += 140;
@@ -126,7 +130,7 @@ double marsagliaK(int n, double d) {
     const int k = static_cast<int>(nd) + 1;
     const int m = 2 * k - 1;
     const double h = k - nd;
-    std::vector<double> H(m * m), Q(m * m, 0.0);
+    keel::Array<double> H(static_cast<keel::usize>(m) * m), Q(static_cast<keel::usize>(m) * m, 0.0);
     for (int i = 0; i < m; ++i)
         for (int j = 0; j < m; ++j)
             H[i*m+j] = (i - j + 1 < 0) ? 0.0 : 1.0;
@@ -140,7 +144,7 @@ double marsagliaK(int n, double d) {
             if (i - j + 1 > 0)
                 for (int g = 1; g <= i - j + 1; ++g) H[i*m+j] /= g;
     int eQ = 0;
-    mPower(H, 0, Q, eQ, m, n);
+    mPower(H.as_ref(), 0, Q, eQ, m, n);
     double s = Q[(k-1)*m + (k-1)];
     for (int i = 1; i <= n; ++i) {
         s = s * i / n;
@@ -210,8 +214,8 @@ double ksCriticalValue(PFn pfn, double alpha) {
 
 // Evaluate a piecewise-linear empirical CDF at point x given a sorted
 // reference grid (x_grid, F_grid). Outside the grid, clamp to 0 / 1.
-double interp_cdf(const std::vector<double> &xg,
-                  const std::vector<double> &Fg, double x) {
+double interp_cdf(keel::ArrayRef<double> xg,
+                  keel::ArrayRef<double> Fg, double x) {
     if (xg.empty()) return 0.0;
     if (x <= xg.front()) return Fg.front();
     if (x >= xg.back())  return Fg.back();
@@ -258,8 +262,8 @@ JBMCResult jb_montecarlo(keel::usize N, double JB_obs, double alpha, double mcto
 
     std::mt19937_64 gen(12345ULL);  // deterministic
     std::normal_distribution<double> nd(0.0, 1.0);
-    std::vector<double> buf(N);
-    std::vector<double> JB_h0;
+    keel::Array<double> buf(N);
+    keel::Array<double> JB_h0;
     JB_h0.reserve(batch);
 
     keel::usize total = 0, exceeds = 0;
@@ -442,7 +446,7 @@ ttest_dim(const Value &x, double m, double alpha, TestTail tail, int dim,
 
 std::tuple<Value, Value, Value, Value>
 ttest2_dim(const Value &x, const Value &y, double alpha, TestTail tail,
-           const std::string &vartype, int dim,
+           keel::StringRef vartype, int dim,
            keel::Allocator *mr);
 
 std::tuple<Value, Value, Value, Value>

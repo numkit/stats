@@ -3,6 +3,7 @@
 // CallContext register half of anova/anova.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
+#include <keel/array.h>
 #include <keel/core.h>
 #include <keel/ref.h>
 #include <numkit/sys/plugin.hpp>
@@ -19,10 +20,9 @@
 #include <cctype>
 #include <cmath>
 #include <cstddef>
-#include <string>
+#include <cstdio>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -227,7 +227,7 @@ void kruskalwallis_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         // struct shape {gnames, n, source, meanranks, sumt}.
         const keel::usize N = yArg.numel();
         struct Pair { double v; keel::usize idx; double g; };
-        std::vector<Pair> all;
+        keel::Array<Pair> all;
         all.reserve(N);
         for (keel::usize i = 0; i < N; ++i) {
             const double v = yArg.elemAsDouble(i);
@@ -236,12 +236,12 @@ void kruskalwallis_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             all.push_back({v, i, g});
         }
         const keel::usize M = all.size();
-        std::vector<keel::usize> ord(M);
+        keel::Array<keel::usize> ord(M);
         for (keel::usize i = 0; i < M; ++i) ord[i] = i;
         std::sort(ord.begin(), ord.end(),
                   [&](keel::usize a, keel::usize b){ return all[a].v < all[b].v; });
-        std::vector<double> rk(M);
-        std::vector<keel::usize> tieSizes;
+        keel::Array<double> rk(M);
+        keel::Array<keel::usize> tieSizes;
         keel::usize i = 0;
         while (i < M) {
             keel::usize j = i + 1;
@@ -252,14 +252,14 @@ void kruskalwallis_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             i = j;
         }
         // Bucket per group label (sorted unique).
-        std::vector<double> uniq;
+        keel::Array<double> uniq;
         uniq.reserve(M);
         for (auto &p : all) uniq.push_back(p.g);
         std::sort(uniq.begin(), uniq.end());
-        uniq.erase(std::unique(uniq.begin(), uniq.end()), uniq.end());
+        uniq.resize(static_cast<keel::usize>(std::unique(uniq.begin(), uniq.end()) - uniq.begin()));
         const keel::usize K = uniq.size();
-        std::vector<keel::usize> n(K, 0);
-        std::vector<double> sumR(K, 0.0);
+        keel::Array<keel::usize> n(K, 0);
+        keel::Array<double> sumR(K, 0.0);
         for (keel::usize k = 0; k < M; ++k) {
             auto it = std::lower_bound(uniq.begin(), uniq.end(), all[k].g);
             const keel::usize gi = static_cast<keel::usize>(it - uniq.begin());
@@ -332,7 +332,7 @@ void anova2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     double dfC = 0.0, dfR = 0.0, dfI = 0.0, dfE = 0.0;
     double ssC = 0.0, ssR = 0.0, ssI = 0.0, ssE = 0.0;
 
-    std::vector<double> rowMean(r, 0.0), colMean(c, 0.0);
+    keel::Array<double> rowMean(r, 0.0), colMean(c, 0.0);
     double grandSum = 0.0;
     for (keel::usize j = 0; j < c; ++j) {
         for (keel::usize i = 0; i < r; ++i) {
@@ -355,7 +355,7 @@ void anova2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         std::tie(pCols, pRows, Fc, Fr, dfC, dfR, dfE, ssC, ssR, ssE) =
             anova2(Y, mr);
     } else {
-        std::vector<double> cellMean(r * c, 0.0);
+        keel::Array<double> cellMean(r * c, 0.0);
         for (keel::usize j = 0; j < c; ++j) {
             for (keel::usize i = 0; i < r; ++i) {
                 double s = 0.0;

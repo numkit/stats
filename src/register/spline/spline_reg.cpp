@@ -5,21 +5,19 @@
 // compute API declared in the headers below. See project_layering_refactor.
 #include <keel/core.h>
 #include <keel/ref.h>
+#include <keel/string.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/spline/spline.hpp>
 #include <numkit/value/argcheck.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
-#include <numkit/value/error.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstddef>
-#include <string>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -125,7 +123,8 @@ void fnbrk_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     if (!args[1].isChar() && !args[1].isString())
         throw Error("fnbrk: numkit only supports the named-part form",
                     0, 0, "fnbrk", "", "numkit:fnbrk:type");
-    outs[0] = fnbrk(args[0], std::string(args[1].toString().as_ref()), ctx.engine->allocator());
+    keel::String part = args[1].toString();
+    outs[0] = fnbrk(args[0], part.as_ref(), ctx.engine->allocator());
 }
 
 void knt2brk_reg(keel::ArrayRef<Value> args, keel::usize nargout,

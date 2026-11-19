@@ -3,6 +3,7 @@
 // CallContext register half of descriptive/crosstab.cpp (Phase 2b compute/register split).
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
+#include <keel/array.h>
 #include <keel/core.h>
 #include <keel/ref.h>
 #include <numkit/sys/plugin.hpp>
@@ -18,10 +19,8 @@
 #include <cctype>
 #include <cmath>
 #include <cstddef>
-#include <string>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -42,7 +41,7 @@ void crosstab_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         // each sorted-unique value of variable j (char row); rows beyond
         // a variable's category count are padded with [] (empty double),
         // matching MATLAB R2025b.
-        std::vector<std::vector<double>> uniques;
+        keel::Array<keel::Array<double>> uniques;
         uniques.push_back(sortedUniqueNoNaN(args[0]));
         if (!y_opt.isEmpty())
             uniques.push_back(sortedUniqueNoNaN(y_opt));

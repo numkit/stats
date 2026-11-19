@@ -4,6 +4,8 @@
 #include <keel/memory.h>
 #include <keel/arena.h>
 #include <keel/array.h>
+#include <keel/ref.h>
+#include <keel/string.h>
 #include <numkit/stats/cluster/kmedoids.hpp>
 
 #include <numkit/builtin/datafun.hpp>
@@ -13,6 +15,7 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdint>
 #include <limits>
@@ -28,8 +31,8 @@ namespace {
 enum class Metric { Euclidean, SqEuclidean, Cityblock, Chebychev,
                     Minkowski, Cosine, Hamming, Jaccard, Precomputed };
 
-Metric parse_metric(const std::string &s) {
-    std::string sl; sl.reserve(s.size());
+Metric parse_metric(keel::StringRef s) {
+    keel::String sl; sl.reserve(s.size());
     for (char c : s) sl.push_back((char)std::tolower((unsigned char)c));
     if (sl == "euclidean")        return Metric::Euclidean;
     if (sl == "squaredeuclidean" ||
@@ -142,7 +145,7 @@ void dbscan_argcheck(double eps)
 // `info` (the 6th output) is built by the adapter via Value::structure.
 
 KmedoidsResult
-kmedoids_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates, const std::string &metric_name, keel::Allocator *mr)
+kmedoids_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates, keel::StringRef metric_name, keel::Allocator *mr)
 {
     kmedoids_argcheck(X, K);
     if (max_iter <= 0)   max_iter = 100;
@@ -287,7 +290,7 @@ kmedoids_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_ite
 
 // Backward-compat 3-output wrapper.
 std::tuple<Value, Value, Value>
-kmedoids(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates, const std::string &metric_name, keel::Allocator *mr)
+kmedoids(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates, keel::StringRef metric_name, keel::Allocator *mr)
 {
     auto R = kmedoids_full(rng, X, K, max_iter, replicates, metric_name, mr);
     return std::make_tuple(std::move(R.idx), std::move(R.C),
@@ -299,7 +302,7 @@ kmedoids(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter, in
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value>
-dbscan(const Value &X, double eps, int minpts, const std::string &metric_name, double p, keel::Allocator *mr)
+dbscan(const Value &X, double eps, int minpts, keel::StringRef metric_name, double p, keel::Allocator *mr)
 {
     dbscan_argcheck(eps);
     if (minpts <= 0) minpts = 1;
@@ -391,7 +394,7 @@ dbscan(const Value &X, double eps, int minpts, const std::string &metric_name, d
 
 // Backward-compat without p.
 std::tuple<Value, Value>
-dbscan(const Value &X, double eps, int minpts, const std::string &metric_name, keel::Allocator *mr)
+dbscan(const Value &X, double eps, int minpts, keel::StringRef metric_name, keel::Allocator *mr)
 {
     return dbscan(X, eps, minpts, metric_name, 2.0, mr);
 }

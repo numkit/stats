@@ -18,8 +18,10 @@
 //
 // (categorical input and column-aligned char matrices are not yet handled.)
 
+#include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
+#include <keel/string.h>
 #include <numkit/stats/descriptive/descriptive.hpp>
 
 #include <numkit/value/value.hpp>
@@ -29,8 +31,6 @@
 #include <cmath>
 #include <cstdio>
 #include <limits>
-#include <string>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -38,14 +38,14 @@ namespace {
 
 // Format a numeric group value the way MATLAB's grp2idx labels it: integers
 // print with no decimals, other values with ~5 significant digits.
-std::string fmtGroupNum(double v)
+keel::String fmtGroupNum(double v)
 {
     char buf[64];
     if (std::isfinite(v) && std::floor(v) == v && std::fabs(v) < 1e15)
         std::snprintf(buf, sizeof(buf), "%.0f", v);
     else
         std::snprintf(buf, sizeof(buf), "%.5g", v);
-    return std::string(buf);
+    return keel::String::from(buf);
 }
 
 void grp2idx_argcheck(const Value &s)
@@ -64,35 +64,35 @@ Grp2idxResult grp2idx(const Value &s, keel::Allocator *mr)
     grp2idx_argcheck(s);
     const keel::usize n = s.numel();
 
-    std::vector<double>      g;        // index per element (NaN allowed)
-    std::vector<std::string> names;    // group names in group order
+    keel::Array<double>       g;        // index per element (NaN allowed)
+    keel::Array<keel::String> names;    // group names in group order
 
     if (s.isCell() || (s.isString() && n != 1)) {
         // cellstr / multi-element string array: first-appearance order.
         const auto &vec = s.cellDataVec();
         g.reserve(vec.size());
         for (const auto &e : vec) {
-            const std::string str(e.toString().as_ref());
+            keel::String str = e.toString();
             int idx = -1;
             for (keel::usize k = 0; k < names.size(); ++k)
                 if (names[k] == str) { idx = static_cast<int>(k); break; }
-            if (idx < 0) { names.push_back(str); idx = static_cast<int>(names.size()) - 1; }
+            if (idx < 0) { names.push_back(std::move(str)); idx = static_cast<int>(names.size()) - 1; }
             g.push_back(static_cast<double>(idx + 1));
         }
     } else if (s.isChar() || s.isString()) {
         // A single char row / string scalar is one group label.
-        names.emplace_back(s.toString().as_ref());
+        names.push_back(s.toString());
         g.push_back(1.0);
     } else {
         // Numeric / logical: sorted-ascending unique values; NaN -> NaN index.
-        std::vector<double> uniq;
+        keel::Array<double> uniq;
         uniq.reserve(n);
         for (keel::usize i = 0; i < n; ++i) {
             const double xi = s.elemAsDouble(i);
             if (!std::isnan(xi)) uniq.push_back(xi);
         }
         std::sort(uniq.begin(), uniq.end());
-        uniq.erase(std::unique(uniq.begin(), uniq.end()), uniq.end());
+        uniq.resize(static_cast<keel::usize>(std::unique(uniq.begin(), uniq.end()) - uniq.begin()));
         names.reserve(uniq.size());
         for (double u : uniq) names.push_back(fmtGroupNum(u));
         g.reserve(n);

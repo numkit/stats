@@ -4,7 +4,9 @@
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
 #include <keel/core.h>
+#include <keel/format.h>
 #include <keel/ref.h>
+#include <keel/string.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/anova/anova.hpp>
 #include <numkit/stats/distributions/students_t.hpp>   // tinv, tcdf
@@ -17,10 +19,8 @@
 #include <cctype>
 #include <cmath>
 #include <cstddef>
-#include <string>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -30,12 +30,12 @@ namespace {
 
 McCorrection parse_ctype(keel::StringRef raw)
 {
-    std::string s(raw.data(), raw.size());
+    keel::String s = keel::String::from(raw);
     for (auto &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     if (s == "bonferroni")                 return McCorrection::Bonferroni;
     if (s == "lsd")                        return McCorrection::LSD;
     if (s == "tukey-kramer" || s == "hsd") return McCorrection::TukeyKramer;
-    throw Error("multcompare: unknown ctype '" + std::string(raw.data(), raw.size()) + "'",
+    throw Error(keel::format("multcompare: unknown ctype '{}'", raw),
                 0, 0, "multcompare", "", "numkit:multcompare:badCtype");
 }
 
@@ -66,7 +66,8 @@ void multcompare_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
         if (!args[i].isChar() && !args[i].isString())
             throw Error("multcompare: expected parameter name",
                         0, 0, "multcompare", "", "numkit:multcompare:badParam");
-        std::string key(args[i].toString().as_ref());
+        keel::String rawKey = args[i].toString();
+        keel::String key = rawKey.clone();
         for (auto &c : key) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         const Value &val = args[i + 1];
         if (key == "alpha") {
@@ -76,7 +77,7 @@ void multcompare_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
         } else if (key == "display" || key == "dimension" || key == "estimate") {
             // Optional display/dimension flags accepted for compatibility.
         } else {
-            throw Error("multcompare: unknown parameter '" + std::string(args[i].toString().as_ref()) + "'",
+            throw Error(keel::format("multcompare: unknown parameter '{}'", rawKey),
                         0, 0, "multcompare", "", "numkit:multcompare:badParam");
         }
         i += 2;

@@ -4,6 +4,7 @@
 // Tukey-Kramer HSD (default), Bonferroni-corrected pairwise t-tests,
 // and Fisher LSD.
 
+#include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <numkit/stats/anova/anova.hpp>
@@ -16,7 +17,6 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -178,7 +178,7 @@ Value multcompare(const Value &stats, double alpha, McCorrection ctype,
     const double df    = stats.field("df").toScalar();
     const keel::usize K = means.numel();
 
-    std::vector<double> m(K), n(K);
+    keel::Array<double> m(K), n(K);
     for (keel::usize i = 0; i < K; ++i) {
         m[i] = means.elemAsDouble(i);
         n[i] = nv.elemAsDouble(i);

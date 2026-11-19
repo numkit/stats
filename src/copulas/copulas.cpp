@@ -10,7 +10,9 @@
 //   • Cherubini, Luciano & Vecchiato, "Copula Methods in Finance"
 //     (Wiley, 2004).
 
+#include <keel/array.h>
 #include <keel/core.h>
+#include <keel/format.h>
 #include <keel/memory.h>
 #include <numkit/stats/copulas/copulas.hpp>
 #include <numkit/stats/distributions/normal.hpp>
@@ -22,7 +24,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <vector>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -40,8 +41,8 @@ copula_U_argcheck(const Value &U, keel::usize d_expected, const char *fn)
     keel::usize n, d;
     if (U.isScalar()) {
         if (d_expected != 1)
-            throw Error(std::string(fn) + ": U has wrong shape",
-                        0, 0, fn, "", std::string("numkit:") + fn + ":shapeU");
+            throw Error(keel::format("{}: U has wrong shape", fn),
+                        0, 0, fn, "", keel::format("numkit:{}:shapeU", fn));
         n = 1; d = 1;
     } else if (U.dims().rows() == 1) {
         n = 1; d = U.dims().cols();
@@ -49,14 +50,13 @@ copula_U_argcheck(const Value &U, keel::usize d_expected, const char *fn)
         n = U.dims().rows(); d = U.dims().cols();
     }
     if (d != d_expected)
-        throw Error(std::string(fn) + ": U has " + std::to_string(d)
-                  + " columns, expected " + std::to_string(d_expected),
-                    0, 0, fn, "", std::string("numkit:") + fn + ":dimU");
+        throw Error(keel::format("{}: U has {} columns, expected {}", fn, d, d_expected),
+                    0, 0, fn, "", keel::format("numkit:{}:dimU", fn));
     for (keel::usize i = 0; i < n * d; ++i) {
         const double v = U.elemAsDouble(i);
         if (!(v > 0.0 && v < 1.0))
-            throw Error(std::string(fn) + ": U entries must lie in (0, 1)",
-                        0, 0, fn, "", std::string("numkit:") + fn + ":rangeU");
+            throw Error(keel::format("{}: U entries must lie in (0, 1)", fn),
+                        0, 0, fn, "", keel::format("numkit:{}:rangeU", fn));
     }
     return {n, d};
 }
@@ -65,22 +65,22 @@ copula_U_argcheck(const Value &U, keel::usize d_expected, const char *fn)
 double extract_rho_2x2(const Value &R, const char *fn)
 {
     if (R.dims().rows() != 2 || R.dims().cols() != 2)
-        throw Error(std::string(fn) + ": expected 2 × 2 R",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":dimR");
+        throw Error(keel::format("{}: expected 2 × 2 R", fn),
+                    0, 0, fn, "", keel::format("numkit:{}:dimR", fn));
     const double r00 = R.elemAsDouble(0);
     const double r10 = R.elemAsDouble(1);
     const double r01 = R.elemAsDouble(2);
     const double r11 = R.elemAsDouble(3);
     if (std::fabs(r00 - 1.0) > 1e-9 || std::fabs(r11 - 1.0) > 1e-9)
-        throw Error(std::string(fn) + ": R must have unit diagonal",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":Rdiag");
+        throw Error(keel::format("{}: R must have unit diagonal", fn),
+                    0, 0, fn, "", keel::format("numkit:{}:Rdiag", fn));
     if (std::fabs(r01 - r10) > 1e-9)
-        throw Error(std::string(fn) + ": R must be symmetric",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":Rsym");
+        throw Error(keel::format("{}: R must be symmetric", fn),
+                    0, 0, fn, "", keel::format("numkit:{}:Rsym", fn));
     const double rho = 0.5 * (r01 + r10);
     if (!(rho > -1.0 && rho < 1.0))
-        throw Error(std::string(fn) + ": ρ must lie strictly in (-1, 1)",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":Rrange");
+        throw Error(keel::format("{}: ρ must lie strictly in (-1, 1)", fn),
+                    0, 0, fn, "", keel::format("numkit:{}:Rrange", fn));
     return rho;
 }
 
@@ -88,20 +88,19 @@ double extract_rho_2x2(const Value &R, const char *fn)
 keel::usize check_R_dim(const Value &R, const char *fn)
 {
     if (R.dims().rows() != R.dims().cols() || R.dims().rows() < 2)
-        throw Error(std::string(fn) + ": R must be a square d × d "
-                    "matrix with d ≥ 2",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":dimR");
+        throw Error(keel::format("{}: R must be a square d × d matrix with d ≥ 2", fn),
+                    0, 0, fn, "", keel::format("numkit:{}:dimR", fn));
     const keel::usize d = R.dims().rows();
     // Diagonal must be 1; matrix must be symmetric.
     for (keel::usize i = 0; i < d; ++i) {
         if (std::fabs(R.elemAsDouble(i * d + i) - 1.0) > 1e-9)
-            throw Error(std::string(fn) + ": R must have unit diagonal",
-                        0, 0, fn, "", std::string("numkit:") + fn + ":Rdiag");
+            throw Error(keel::format("{}: R must have unit diagonal", fn),
+                        0, 0, fn, "", keel::format("numkit:{}:Rdiag", fn));
         for (keel::usize j = i + 1; j < d; ++j) {
             if (std::fabs(R.elemAsDouble(j * d + i) - R.elemAsDouble(i * d + j))
                 > 1e-9)
-                throw Error(std::string(fn) + ": R must be symmetric",
-                            0, 0, fn, "", std::string("numkit:") + fn + ":Rsym");
+                throw Error(keel::format("{}: R must be symmetric", fn),
+                            0, 0, fn, "", keel::format("numkit:{}:Rsym", fn));
         }
     }
     return d;
@@ -116,8 +115,8 @@ double chol_lower_inplace(double *R, keel::usize d, const char *fn)
         for (keel::usize k = 0; k < j; ++k)
             diag -= R[j * d + k] * R[j * d + k];
         if (!(diag > 0.0))
-            throw Error(std::string(fn) + ": R must be positive definite",
-                        0, 0, fn, "", std::string("numkit:") + fn + ":notPD");
+            throw Error(keel::format("{}: R must be positive definite", fn),
+                        0, 0, fn, "", keel::format("numkit:{}:notPD", fn));
         const double Ljj = std::sqrt(diag);
         R[j * d + j] = Ljj;
         det *= diag;
@@ -222,7 +221,8 @@ double bivtcdf(double a, double b, double rho, double nu)
     // Delegate to mvtcdf which already has a deterministic MC path.
     // Build X = [a b] and C = [[1 ρ];[ρ 1]].
     const keel::usize d = 2;
-    std::vector<double> Cmat = {1.0, rho, rho, 1.0};   // col-major
+    (void)d;
+    const double Cmat[4] = {1.0, rho, rho, 1.0};   // col-major
     Value Cval = Value::matrix(2, 2, ValueType::DOUBLE, nullptr);
     for (keel::usize i = 0; i < 4; ++i) Cval.doubleDataMut()[i] = Cmat[i];
     Value Xval = Value::matrix(1, 2, ValueType::DOUBLE, nullptr);
@@ -258,19 +258,19 @@ Value copulapdf_gaussian(const Value &U, const Value &R,
     if (n == 0) return out;
 
     // Lower Cholesky of R; det_R = ∏ diag(L)².
-    std::vector<double> L(d * d);
+    keel::Array<double> L(d * d);
     for (keel::usize i = 0; i < d; ++i)
         for (keel::usize j = 0; j < d; ++j)
             L[i * d + j] = R.elemAsDouble(j * d + i);   // col-major → row-major
     const double det_R = chol_lower_inplace(L.data(), d, "copulapdf");
     const double pref = 1.0 / std::sqrt(det_R);
     double *od = out.doubleDataMut();
-    std::vector<double> z(d), y(d);
+    keel::Array<double> z(d), y(d);
     for (keel::usize i = 0; i < n; ++i) {
         for (keel::usize j = 0; j < d; ++j)
             z[j] = phi_inv(U_at(U, i, j, n), mr);
         // Solve L · y = z, then z' R^{-1} z = y' y.
-        y = z;
+        y.assign(z.as_ref());
         chol_lower_solve(L.data(), y.data(), d);
         double yty = 0.0;
         for (keel::usize j = 0; j < d; ++j) yty += y[j] * y[j];
@@ -336,7 +336,7 @@ Value copulapdf_t(const Value &U, const Value &R, double nu,
     //   f(z_j; ν) = Γ((ν+1)/2) / [Γ(ν/2) · √(νπ)] · (1 + z_j²/ν)^{-(ν+1)/2}
     // log c(u; R, ν) = log f_d(z; R, ν) - Σ log f_1(z_j; ν)
 
-    std::vector<double> L(d * d);
+    keel::Array<double> L(d * d);
     for (keel::usize i = 0; i < d; ++i)
         for (keel::usize j = 0; j < d; ++j)
             L[i * d + j] = R.elemAsDouble(j * d + i);
@@ -352,11 +352,11 @@ Value copulapdf_t(const Value &U, const Value &R, double nu,
                               - 0.5 * std::log(nu * M_PI);
 
     double *od = out.doubleDataMut();
-    std::vector<double> z(d), y(d);
+    keel::Array<double> z(d), y(d);
     for (keel::usize i = 0; i < n; ++i) {
         for (keel::usize j = 0; j < d; ++j)
             z[j] = t_inv(U_at(U, i, j, n), nu, mr);
-        y = z;
+        y.assign(z.as_ref());
         chol_lower_solve(L.data(), y.data(), d);
         double yty = 0.0;
         for (keel::usize j = 0; j < d; ++j) yty += y[j] * y[j];

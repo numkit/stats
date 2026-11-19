@@ -3,6 +3,7 @@
 // Nonlinear least-squares fit via Levenberg-Marquardt + parameter and
 // prediction confidence intervals.
 
+#include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <keel/ref.h>
@@ -21,17 +22,16 @@
 #include <cmath>
 #include <cstring>
 #include <limits>
-#include <vector>
 
 namespace numkit::stats {
 
 namespace {
 
 // Pull a Value as a flat double vector (column-major contents).
-std::vector<double> toFlatDouble(const Value &v)
+keel::Array<double> toFlatDouble(const Value &v)
 {
     const keel::usize n = v.numel();
-    std::vector<double> out(n);
+    keel::Array<double> out(n);
     for (keel::usize i = 0; i < n; ++i) out[i] = v.elemAsDouble(i);
     return out;
 }
@@ -46,7 +46,7 @@ Value flatToMatrix(const double *data, keel::usize rows, keel::usize cols,
 }
 
 // Evaluate model(beta, X) → returns flat predictions length n.
-std::vector<double> evalModel(FnHandle model, const std::vector<double> &beta,
+keel::Array<double> evalModel(FnHandle model, keel::ArrayRef<double> beta,
                                keel::usize p, const Value &X,
                                keel::Allocator *mr)
 {
@@ -60,22 +60,23 @@ std::vector<double> evalModel(FnHandle model, const std::vector<double> &beta,
 // Numerical Jacobian via central differences.
 // Returns row-major matrix of size n × p stored column-major
 // (column-major: J[col * n + row]).
-std::vector<double> numericalJacobian(FnHandle model,
-                                       const std::vector<double> &beta,
+keel::Array<double> numericalJacobian(FnHandle model,
+                                       keel::ArrayRef<double> beta,
                                        keel::usize n, keel::usize p,
                                        const Value &X,
                                        keel::Allocator *mr)
 {
-    std::vector<double> J(n * p);
-    auto bplus = beta;
-    auto bminus = beta;
+    keel::Array<double> J(n * p);
+    keel::Array<double> bplus(beta.size()), bminus(beta.size());
+    std::copy(beta.begin(), beta.end(), bplus.begin());
+    std::copy(beta.begin(), beta.end(), bminus.begin());
     for (keel::usize j = 0; j < p; ++j) {
         const double scale = std::max(keel::abs(beta[j]), 1.0);
         const double h = 1e-7 * scale;
         bplus[j]  = beta[j] + h;
         bminus[j] = beta[j] - h;
-        auto fp = evalModel(model, bplus,  p, X, mr);
-        auto fm = evalModel(model, bminus, p, X, mr);
+        auto fp = evalModel(model, bplus.as_ref(),  p, X, mr);
+        auto fm = evalModel(model, bminus.as_ref(), p, X, mr);
         bplus[j]  = beta[j];
         bminus[j] = beta[j];
         const double inv2h = 1.0 / (2.0 * h);
@@ -87,13 +88,13 @@ std::vector<double> numericalJacobian(FnHandle model,
 
 // Compute (J' · J + λ · diag(J' · J)) · dβ = J' · r  via Gauss elim.
 // J is n × p column-major, r is length n.
-std::vector<double> lmStep(const std::vector<double> &J,
+keel::Array<double> lmStep(keel::ArrayRef<double> J,
                             keel::usize n, keel::usize p,
-                            const std::vector<double> &r,
+                            keel::ArrayRef<double> r,
                             double lambda)
 {
     // M = J' · J + λ · diag(J' · J)
-    std::vector<double> M(p * p, 0.0);
+    keel::Array<double> M(p * p, 0.0);
     for (keel::usize i = 0; i < p; ++i)
         for (keel::usize j = 0; j < p; ++j) {
             double s = 0.0;
@@ -104,7 +105,7 @@ std::vector<double> lmStep(const std::vector<double> &J,
     for (keel::usize i = 0; i < p; ++i)
         M[i * p + i] *= (1.0 + lambda);
     // g = J' · r
-    std::vector<double> g(p, 0.0);
+    keel::Array<double> g(p, 0.0);
     for (keel::usize i = 0; i < p; ++i)
         for (keel::usize k = 0; k < n; ++k)
             g[i] += J[i * n + k] * r[k];
@@ -118,7 +119,7 @@ std::vector<double> lmStep(const std::vector<double> &J,
         }
         if (pmax == 0.0) {
             // Singular — return zero step.
-            return std::vector<double>(p, 0.0);
+            return keel::Array<double>(p, 0.0);
         }
         if (piv != k) {
             for (keel::usize j = 0; j < p; ++j)
@@ -144,10 +145,10 @@ std::vector<double> lmStep(const std::vector<double> &J,
 }
 
 // Compute (J' · J)^{-1} for the covariance. Returns p × p column-major.
-std::vector<double> invJtJ(const std::vector<double> &J,
+keel::Array<double> invJtJ(keel::ArrayRef<double> J,
                             keel::usize n, keel::usize p)
 {
-    std::vector<double> M(p * p, 0.0);
+    keel::Array<double> M(p * p, 0.0);
     for (keel::usize i = 0; i < p; ++i)
         for (keel::usize j = 0; j < p; ++j) {
             double s = 0.0;
@@ -156,7 +157,7 @@ std::vector<double> invJtJ(const std::vector<double> &J,
             M[i * p + j] = s;
         }
     // Invert by Gauss-Jordan with augmented identity.
-    std::vector<double> A(p * 2 * p, 0.0);
+    keel::Array<double> A(p * 2 * p, 0.0);
     for (keel::usize i = 0; i < p; ++i)
         for (keel::usize j = 0; j < p; ++j)
             A[i * 2 * p + j] = M[i * p + j];
@@ -170,7 +171,7 @@ std::vector<double> invJtJ(const std::vector<double> &J,
             if (v > pmax) { pmax = v; piv = rr; }
         }
         if (pmax == 0.0) {
-            return std::vector<double>(p * p, std::numeric_limits<double>::quiet_NaN());
+            return keel::Array<double>(p * p, std::numeric_limits<double>::quiet_NaN());
         }
         if (piv != k) {
             for (keel::usize j = 0; j < 2 * p; ++j)
@@ -187,7 +188,7 @@ std::vector<double> invJtJ(const std::vector<double> &J,
         }
     }
     // Extract inverse (column-major). A right half is row-major inverse.
-    std::vector<double> Inv(p * p);
+    keel::Array<double> Inv(p * p);
     for (keel::usize i = 0; i < p; ++i)
         for (keel::usize j = 0; j < p; ++j)
             Inv[j * p + i] = A[i * 2 * p + (p + j)];
@@ -213,18 +214,18 @@ NlinfitResult nlinfit(const Value &X, const Value &y,
     const keel::usize p = beta0.numel();
     nlinfit_argcheck(p);
 
-    std::vector<double> beta = toFlatDouble(beta0);
-    std::vector<double> yv = toFlatDouble(y);
-    std::vector<double> rv(n);
+    keel::Array<double> beta = toFlatDouble(beta0);
+    keel::Array<double> yv = toFlatDouble(y);
+    keel::Array<double> rv(n);
 
     // Initial residual + SSE.
-    auto compute_r = [&](const std::vector<double> &b) {
+    auto compute_r = [&](keel::ArrayRef<double> b) {
         auto yhat = evalModel(model, b, p, X, mr);
-        std::vector<double> r(n);
+        keel::Array<double> r(n);
         for (keel::usize i = 0; i < n; ++i) r[i] = yv[i] - yhat[i];
         return r;
     };
-    rv = compute_r(beta);
+    rv = compute_r(beta.as_ref());
     double sse = 0.0;
     for (double v : rv) sse += v * v;
 
@@ -233,13 +234,13 @@ NlinfitResult nlinfit(const Value &X, const Value &y,
     const double tolFun = 1e-10;
     const double tolX   = 1e-10;
 
-    std::vector<double> J;
+    keel::Array<double> J;
     for (int iter = 0; iter < maxIter; ++iter) {
-        J = numericalJacobian(model, beta, n, p, X, mr);
-        auto dbeta = lmStep(J, n, p, rv, lambda);
+        J = numericalJacobian(model, beta.as_ref(), n, p, X, mr);
+        auto dbeta = lmStep(J.as_ref(), n, p, rv.as_ref(), lambda);
 
         // Trial step.
-        std::vector<double> betaNew(p);
+        keel::Array<double> betaNew(p);
         double stepNorm2 = 0.0;
         double betaNorm2 = 0.0;
         for (keel::usize j = 0; j < p; ++j) {
@@ -247,7 +248,7 @@ NlinfitResult nlinfit(const Value &X, const Value &y,
             stepNorm2 += dbeta[j] * dbeta[j];
             betaNorm2 += betaNew[j] * betaNew[j];
         }
-        auto rNew = compute_r(betaNew);
+        auto rNew = compute_r(betaNew.as_ref());
         double sseNew = 0.0;
         for (double v : rNew) sseNew += v * v;
 
@@ -255,8 +256,8 @@ NlinfitResult nlinfit(const Value &X, const Value &y,
             // Accept.
             const double rel = std::sqrt(stepNorm2) / (std::sqrt(betaNorm2) + 1e-12);
             const double relF = (sse - sseNew) / (sse + 1e-12);
-            beta = std::move(betaNew);
-            rv   = std::move(rNew);
+            beta = keel::move(betaNew);
+            rv   = keel::move(rNew);
             sse  = sseNew;
             lambda *= 0.1;
             if (rel < tolX || relF < tolFun) break;
@@ -267,12 +268,12 @@ NlinfitResult nlinfit(const Value &X, const Value &y,
     }
 
     // Final Jacobian (refresh at the accepted beta).
-    J = numericalJacobian(model, beta, n, p, X, mr);
+    J = numericalJacobian(model, beta.as_ref(), n, p, X, mr);
 
     // MSE = SSE / (n - p).
     const double mse = (n > p) ? sse / static_cast<double>(n - p) : sse;
-    auto Inv = invJtJ(J, n, p);
-    std::vector<double> CovB(p * p);
+    auto Inv = invJtJ(J.as_ref(), n, p);
+    keel::Array<double> CovB(p * p);
     for (keel::usize i = 0; i < p * p; ++i) CovB[i] = mse * Inv[i];
 
     NlinfitResult out;
@@ -306,7 +307,7 @@ Value nlparci(const Value &beta, const Value &R, const Value &J,
 
     // CovB = MSE · (J' · J)^{-1}.
     auto Jvec = toFlatDouble(J);
-    auto Inv = invJtJ(Jvec, n, p);
+    auto Inv = invJtJ(Jvec.as_ref(), n, p);
 
     // t_{α/2, n-p}.
     Value pHi = Value::scalar(1.0 - alpha / 2.0, mr);
@@ -346,26 +347,26 @@ nlpredci(FnHandle model, const Value &X, const Value &beta,
     }
     const double mse = sse / static_cast<double>(n - p);
     auto Jvec = toFlatDouble(J);
-    auto Inv = invJtJ(Jvec, n, p);
+    auto Inv = invJtJ(Jvec.as_ref(), n, p);
 
     auto betaFlat = toFlatDouble(beta);
 
     // ypred at query points: just fun(beta, X).
-    auto ypredFlat = evalModel(model, betaFlat, p, X, mr);
+    auto ypredFlat = evalModel(model, betaFlat.as_ref(), p, X, mr);
 
     // Per-row prediction sensitivity g_i = ∂fun/∂beta at X(i,:).
     // We compute by central diff on the full X (cheaper: one Jacobian
     // for the whole query set per parameter).
-    std::vector<double> Jq(m * p);
-    auto bplus = betaFlat;
-    auto bminus = betaFlat;
+    keel::Array<double> Jq(m * p);
+    auto bplus = betaFlat.clone();
+    auto bminus = betaFlat.clone();
     for (keel::usize j = 0; j < p; ++j) {
         const double scale = std::max(keel::abs(betaFlat[j]), 1.0);
         const double h = 1e-7 * scale;
         bplus[j]  = betaFlat[j] + h;
         bminus[j] = betaFlat[j] - h;
-        auto yp = evalModel(model, bplus,  p, X, mr);
-        auto ym = evalModel(model, bminus, p, X, mr);
+        auto yp = evalModel(model, bplus.as_ref(),  p, X, mr);
+        auto ym = evalModel(model, bminus.as_ref(), p, X, mr);
         bplus[j]  = betaFlat[j];
         bminus[j] = betaFlat[j];
         const double inv2h = 1.0 / (2.0 * h);

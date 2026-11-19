@@ -20,8 +20,10 @@
 //
 // Empty input -> 0-by-1 matrix (matches MATLAB).
 
+#include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
+#include <keel/string.h>
 #include <numkit/stats/descriptive/descriptive.hpp>
 
 #include <numkit/value/value.hpp>
@@ -29,8 +31,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <string>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -58,23 +58,23 @@ Value tabulate(const Value &x, keel::Allocator *mr)
     tabulate_argcheck(x);
 
     if (x.isCell() || x.isString() || x.isChar()) {
-        std::vector<std::string> items;
+        keel::Array<keel::String> items;
         if (x.isCell()) {
             const keel::usize N0 = x.numel();
             items.reserve(N0);
             for (keel::usize i = 0; i < N0; ++i)
-                items.emplace_back(x.cellAt(i).toString().as_ref());
+                items.push_back(x.cellAt(i).toString());
         } else if (x.isString()) {
             const keel::usize N0 = x.numel();
             items.reserve(N0);
             for (keel::usize i = 0; i < N0; ++i)
-                items.emplace_back(x.stringElem(i).as_ref());
+                items.push_back(x.stringElem(i).clone());
         } else {
             const keel::usize R = x.dims().rows();
             if (x.numel() > 0) {
                 items.reserve(R);
                 for (keel::usize r = 0; r < R; ++r) {
-                    std::string s(x.charRow(r).as_ref());
+                    keel::String s = x.charRow(r);
                     while (!s.empty() && s.back() == ' ')
                         s.pop_back();
                     items.push_back(std::move(s));
@@ -85,14 +85,14 @@ Value tabulate(const Value &x, keel::Allocator *mr)
         if (N == 0)
             return Value::cell(0, 3, mr);
 
-        std::vector<std::string> uniq;
-        std::vector<keel::usize> cnt;
+        keel::Array<keel::String> uniq;
+        keel::Array<keel::usize> cnt;
         uniq.reserve(N);
         cnt.reserve(N);
         for (const auto &s : items) {
             auto it = std::find(uniq.begin(), uniq.end(), s);
             if (it == uniq.end()) {
-                uniq.push_back(s);
+                uniq.push_back(s.clone());
                 cnt.push_back(1);
             } else {
                 cnt[static_cast<keel::usize>(it - uniq.begin())]++;
@@ -114,7 +114,7 @@ Value tabulate(const Value &x, keel::Allocator *mr)
         return Value::matrix(0, 1, ValueType::DOUBLE, mr);
 
     // Collect non-NaN values; check positive-integer property.
-    std::vector<double> v;
+    keel::Array<double> v;
     v.reserve(N0);
     bool all_pos_int = true;
     double max_val = 0.0;
@@ -133,7 +133,7 @@ Value tabulate(const Value &x, keel::Allocator *mr)
 
     if (all_pos_int) {
         const keel::usize K = static_cast<keel::usize>(max_val);
-        std::vector<keel::usize> count(K, 0);
+        keel::Array<keel::usize> count(K, 0);
         for (double xi : v) {
             count[static_cast<keel::usize>(xi) - 1]++;
         }
@@ -156,8 +156,8 @@ Value tabulate(const Value &x, keel::Allocator *mr)
     // Sparse layout: unique sorted values.
     std::sort(v.begin(), v.end());
     // Build unique list with counts.
-    std::vector<double>  uniq;
-    std::vector<keel::usize>  cnt;
+    keel::Array<double>  uniq;
+    keel::Array<keel::usize>  cnt;
     uniq.reserve(N);
     cnt.reserve(N);
     keel::usize i = 0;

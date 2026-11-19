@@ -20,6 +20,7 @@
 //   5. If p > 0, return empty T.
 //   6. Else (PSD), keep eigvals d > tol and rebuild T = sqrt(d_keep) .* V_keep'.
 
+#include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <keel/math.h>
@@ -35,7 +36,6 @@
 #include <cmath>
 #include <limits>
 #include <utility>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -51,7 +51,7 @@ void cholcov_argcheck(const Value &SIGMA)
 // In-place upper-tri Cholesky attempt. Returns true if SIGMA is PD;
 // fills `out` with R such that R'*R = SIGMA. On any non-positive
 // pivot, returns false.
-bool tryCholesky(const Value &SIGMA, std::vector<double> &out, keel::usize n)
+bool tryCholesky(const Value &SIGMA, keel::Array<double> &out, keel::usize n)
 {
     const double *a = SIGMA.doubleData();
     out.assign(n * n, 0.0);
@@ -86,7 +86,7 @@ cholcov(const Value &SIGMA, keel::Allocator *mr)
     }
 
     // 1. Try positive-definite Cholesky.
-    std::vector<double> chol_out;
+    keel::Array<double> chol_out;
     if (tryCholesky(SIGMA, chol_out, R)) {
         Value T = Value::matrix(R, R, ValueType::DOUBLE, mr);
         std::copy(chol_out.begin(), chol_out.end(), T.doubleDataMut());
@@ -98,7 +98,7 @@ cholcov(const Value &SIGMA, keel::Allocator *mr)
     auto [V, D] = ::numkit::linalg::eig_symmetric(SIGMA, mr);
 
     // D is n×n diagonal; extract eigvals into a flat vector.
-    std::vector<double> d(R);
+    keel::Array<double> d(R);
     {
         const double *dd = D.doubleData();
         for (keel::usize i = 0; i < R; ++i) d[i] = dd[i + i * R];
@@ -117,7 +117,7 @@ cholcov(const Value &SIGMA, keel::Allocator *mr)
     }
 
     // 4. PSD: keep eigvals > tol, rebuild T = sqrt(d_keep) .* V_keep'.
-    std::vector<keel::usize> keep;
+    keel::Array<keel::usize> keep;
     keep.reserve(R);
     for (keel::usize i = 0; i < R; ++i) if (d[i] > tol) keep.push_back(i);
     const keel::usize r = keep.size();

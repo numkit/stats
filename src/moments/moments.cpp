@@ -5,6 +5,7 @@
 // content (var/std/median stay in toolboxes/builtin as base MATLAB).
 
 #include <keel/core.h>
+#include <keel/format.h>
 #include <keel/memory.h>
 #include <numkit/stats/moments/moments.hpp>
 
@@ -97,11 +98,11 @@ double kurtosisFromSlice(const double *data, keel::usize n, int normFlag)
 void moments_argcheck(const Value &x, int normFlag, const char *fn)
 {
     if (normFlag != 0 && normFlag != 1)
-        throw Error(std::string(fn) + ": normalization flag must be 0 or 1",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":badFlag");
+        throw Error(keel::format("{}: normalization flag must be 0 or 1", fn),
+                     0, 0, fn, "", keel::format("numkit:{}:badFlag", fn));
     if (x.type() == ValueType::COMPLEX)
-        throw Error(std::string(fn) + ": complex inputs are not supported",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":complex");
+        throw Error(keel::format("{}: complex inputs are not supported", fn),
+                     0, 0, fn, "", keel::format("numkit:{}:complex", fn));
 }
 
 Value dispatchMomentReduction(const Value &x, int dim, int normFlag, const char *fn, double (*fromSlice)(const double *, keel::usize, int), keel::Allocator *mr)

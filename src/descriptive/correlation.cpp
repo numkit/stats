@@ -56,7 +56,9 @@
 #include <keel/arena.h>
 #include <keel/array.h>
 #include <keel/complex.h>
+#include <keel/format.h>
 #include <keel/math.h>
+#include <keel/string.h>
 #include <numkit/stats/descriptive/descriptive.hpp>
 #include "descriptive/descriptive_extras_detail.hpp"
 
@@ -69,9 +71,7 @@
 #include <cmath>
 #include <cstddef>
 #include <limits>
-#include <string>
 #include <utility>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -93,18 +93,19 @@ const double kInf = std::numeric_limits<double>::infinity();
 
 // tail = left|both|right by prefix, then the lt|ne|gt alias table
 // (strncmpi semantics: the given string is a prefix of the choice).
-CorrTail parseTailChoice(const Value &v, std::string_view fn)
+CorrTail parseTailChoice(const Value &v, keel::StringRef fn)
 {
-    static constexpr std::string_view kTail[] = {"left", "both", "right"};
-    static constexpr std::string_view kAlias[] = {"lt", "ne", "gt"};
-    int m = argcheck::matchStringChoice(v, keel::ArrayRef<std::string_view>(kTail));
+    static constexpr keel::StringRef kTail[] = {"left", "both", "right"};
+    static constexpr keel::StringRef kAlias[] = {"lt", "ne", "gt"};
+    int m = argcheck::matchStringChoice(v, keel::ArrayRef<keel::StringRef>(kTail));
     if (m >= 0) return static_cast<CorrTail>(m);
-    m = argcheck::matchStringChoice(v, keel::ArrayRef<std::string_view>(kAlias));
+    m = argcheck::matchStringChoice(v, keel::ArrayRef<keel::StringRef>(kAlias));
     if (m >= 0) return static_cast<CorrTail>(m);
-    throw Error(std::string(fn) + ": Tail must be 'left', 'both', or 'right' "
-                "(aliases 'lt', 'ne', 'gt'), got '" + std::string(v.toString().as_ref()) + "'.",
-                0, 0, std::string(fn), "", "numkit:" + std::string(fn)
-                    + ":unknownTail");
+    keel::String vStr = v.toString();
+    throw Error(keel::format("{}: Tail must be 'left', 'both', or 'right' "
+                             "(aliases 'lt', 'ne', 'gt'), got '{}'.",
+                             fn, vStr.as_ref()),
+                0, 0, fn, "", keel::format("numkit:{}:unknownTail", fn));
 }
 
 // ── rank / Kendall kernels (moved from the register adapter) ──────────
@@ -231,7 +232,7 @@ bool elemIsNaN(const Value &V, keel::usize idx)
 // Gather X (and Y, sharing the row index) keeping only rows where keep
 // is true; weights filtered alongside. keep has n entries.
 void gatherRows(const Value &X, const Value *Y, const Value *wts,
-                const std::vector<keel::u8> &keep, keel::Allocator *mr,
+                keel::ArrayRef<keel::u8> keep, keel::Allocator *mr,
                 Value &Xo, Value *Yo, Value &wo)
 {
     const keel::usize n = corrRowsOf(X);
@@ -285,7 +286,7 @@ void dropCompleteRows(const Value &X, const Value *Y, const Value *wts,
     const keel::usize n = corrRowsOf(X);
     const keel::usize pX = corrColsOf(X);
     const keel::usize pY = Y ? corrColsOf(*Y) : 0;
-    std::vector<keel::u8> keep(n, 1);
+    keel::Array<keel::u8> keep(n, 1);
     for (keel::usize r = 0; r < n; ++r) {
         for (keel::usize c = 0; c < pX && keep[r]; ++c)
             if (elemIsNaN(X, r + c * n)) keep[r] = 0;
@@ -327,29 +328,29 @@ Value pearsonMatrixFull(const Value &X, const Value &Y, const Value *wts,
 
     // Weighted (or plain) column means; then the centered columns scaled
     // by sqrt(w).
-    std::vector<keel::c64> mx(p), my(q);
-    std::vector<double> sw(1, 0.0);
+    keel::Array<keel::c64> mx(p), my(q);
+    double sw = 0.0;
     if (weighted) {
         double s = 0.0;
         for (keel::usize k = 0; k < n; ++k) s += wOf(k);
-        sw[0] = s;
+        sw = s;
     } else {
-        sw[0] = static_cast<double>(n);
+        sw = static_cast<double>(n);
     }
     for (keel::usize c = 0; c < p; ++c) {
         keel::c64 s(0.0, 0.0);
         for (keel::usize k = 0; k < n; ++k) s += wOf(k) * readX(k, c);
-        mx[c] = s / sw[0];
+        mx[c] = s / sw;
     }
     for (keel::usize c = 0; c < q; ++c) {
         keel::c64 s(0.0, 0.0);
         for (keel::usize k = 0; k < n; ++k) s += wOf(k) * readY(k, c);
-        my[c] = s / sw[0];
+        my[c] = s / sw;
     }
     // coef(i,j) = (Σ conj(x̃) ỹ) / (|x̃| |ỹ|), x̃ = (x-mx)·sqrt(w).
     Value out = complexData ? Value::matrix(p, q, ValueType::COMPLEX, mr)
                             : Value::matrix(p, q, ValueType::DOUBLE, mr);
-    std::vector<double> nx(p), ny(q);
+    keel::Array<double> nx(p), ny(q);
     for (keel::usize i = 0; i < p; ++i) {
         double s = 0.0;
         for (keel::usize k = 0; k < n; ++k) {
@@ -525,7 +526,7 @@ PairwisePearsonOut corrPairwiseKendall(const Value &X, const Value &Y,
     for (keel::usize i = 0; i < p; ++i) {
         const keel::usize j1 = corrXX ? (i + 1) : q;
         for (keel::usize j = 0; j < j1; ++j) {
-            std::vector<keel::u8> keep(n, 0);
+            keel::Array<keel::u8> keep(n, 0);
             keel::usize m = 0;
             for (keel::usize k = 0; k < n; ++k) {
                 if (!std::isnan(X.elemAsDouble(k + i * n)) &&
@@ -895,7 +896,7 @@ void corrPairwiseSpearman(const Value &X, const Value &Y, const Value *wts,
     for (keel::usize i = 0; i < p1; ++i) {
         const keel::usize j1 = corrXX ? (i + 1) : p2;
         for (keel::usize j = 0; j < j1; ++j) {
-            std::vector<keel::u8> keep(n, 0);
+            keel::Array<keel::u8> keep(n, 0);
             keel::usize m = 0;
             for (keel::usize k = 0; k < n; ++k) {
                 if (!std::isnan(X.elemAsDouble(k + i * n)) &&
@@ -1052,10 +1053,10 @@ Value asComputeDouble(const Value &X, keel::Allocator *mr)
 // Listwise NaN-row drop over 1-3 row-aligned matrices (partialcorr's
 // 'complete' — and 'pairwise' in the combinedXZ form, where every column
 // is a control for every pair so the two coincide).
-void dropNaNRowsAny(std::vector<Value> &M, keel::Allocator *mr)
+void dropNaNRowsAny(keel::Array<Value> &M, keel::Allocator *mr)
 {
     const keel::usize n = static_cast<keel::usize>(M[0].dims().dim(0));
-    std::vector<keel::u8> keep(n, 1);
+    keel::Array<keel::u8> keep(n, 1);
     for (keel::usize t = 0; t < M.size(); ++t) {
         const keel::usize nn = static_cast<keel::usize>(M[t].dims().dim(0));
         const keel::usize p = static_cast<keel::usize>(M[t].dims().dim(1));
@@ -1136,9 +1137,8 @@ void corr_full_argcheck(const Value &x, const Value *Y)
 {
     const keel::usize n = corrRowsOf(x);
     if (Y != nullptr && corrRowsOf(*Y) != n)
-        throw Error("corr: X and Y must have the same number of rows "
-                    "(X has " + std::to_string(n) + ", Y has "
-                    + std::to_string(corrRowsOf(*Y)) + ").",
+        throw Error(keel::format("corr: X and Y must have the same number of rows "
+                                 "(X has {}, Y has {}).", n, corrRowsOf(*Y)),
                     0, 0, "corr", "", "numkit:corr:inputSizeMismatch");
 }
 
@@ -1170,10 +1170,10 @@ CorrOut corr_full(const Value &x, const Value *Y, keel::ArrayRef<Value> nv,
     // after the n<2 early-return (the reference's parseArgs validates names
     // only — a 1-row input never reaches the value checks).
     Value typeRaw, rowsRaw, tailRaw, wtsRaw;
-    static constexpr std::string_view kNv[] = { "type", "rows", "tail",
-                                                "weights" };
+    static constexpr keel::StringRef kNv[] = { "type", "rows", "tail",
+                                               "weights" };
     argcheck::forEachNvPair(
-        nv, 0, keel::ArrayRef<std::string_view>(kNv), "corr",
+        nv, 0, keel::ArrayRef<keel::StringRef>(kNv), "corr",
         "numkit:corr:badParamName", [&](keel::usize hit, const Value &v) {
             switch (hit) {
             case 0: typeRaw = v; break;
@@ -1192,17 +1192,15 @@ CorrOut corr_full(const Value &x, const Value *Y, keel::ArrayRef<Value> nv,
                                   argcheck::RejectionVoice{ "invalidWeight",
                                                             "", "" });
         if (wtsRaw.dims().rows() != n || wtsRaw.dims().cols() != 1)
-            throw Error("corr: Weights must have size " + std::to_string(n)
-                        + "x1, but the received array is "
-                        + std::to_string(wtsRaw.dims().rows()) + "x"
-                        + std::to_string(wtsRaw.dims().cols()) + ".",
+            throw Error(keel::format("corr: Weights must have size {}x1, "
+                                     "but the received array is {}x{}.",
+                                     n, wtsRaw.dims().rows(), wtsRaw.dims().cols()),
                         0, 0, "corr", "", "numkit:corr:incorrectSize");
         for (keel::usize k = 0; k < n; ++k) {
             const double w = wtsRaw.elemAsDouble(k);
             if (!(w >= 0.0))
-                throw Error("corr: expected Weights to be nonnegative (got "
-                            + std::to_string(w) + " at position "
-                            + std::to_string(k + 1) + ").",
+                throw Error(keel::format("corr: expected Weights to be nonnegative (got {} "
+                                         "at position {}).", w, k + 1),
                             0, 0, "corr", "", "numkit:corr:expectedNonnegative");
         }
         weighted = true;
@@ -1212,15 +1210,17 @@ CorrOut corr_full(const Value &x, const Value *Y, keel::ArrayRef<Value> nv,
     // Rows value + per-mode row prep (zero-weight drop rules differ).
     CorrRows rows = CorrRows::All;
     if (!rowsRaw.isEmpty()) {
-        static constexpr std::string_view kRows[] = { "all", "complete",
-                                                      "pairwise" };
+        static constexpr keel::StringRef kRows[] = { "all", "complete",
+                                                     "pairwise" };
         const int m = argcheck::matchStringChoice(
-            rowsRaw, keel::ArrayRef<std::string_view>(kRows));
-        if (m < 0)
-            throw Error("corr: the Rows parameter value must be 'all', "
-                        "'complete', or 'pairwise', got '"
-                        + std::string(rowsRaw.toString().as_ref()) + "'.",
+            rowsRaw, keel::ArrayRef<keel::StringRef>(kRows));
+        if (m < 0) {
+            keel::String rowsStr = rowsRaw.toString();
+            throw Error(keel::format("corr: the Rows parameter value must be 'all', "
+                                     "'complete', or 'pairwise', got '{}'.",
+                                     rowsStr.as_ref()),
                         0, 0, "corr", "", "numkit:corr:unknownRows");
+        }
         rows = static_cast<CorrRows>(m);
     }
     // gatherRows/dropCompleteRows read their inputs while writing the
@@ -1238,7 +1238,7 @@ CorrOut corr_full(const Value &x, const Value *Y, keel::ArrayRef<Value> nv,
         } else {
             // 'all' drops w==0 rows; 'pairwise' keeps w>0 (NaN weights were
             // already rejected at validation).
-            std::vector<keel::u8> keep(n, 1);
+            keel::Array<keel::u8> keep(n, 1);
             for (keel::usize k = 0; k < n; ++k)
                 if (rows == CorrRows::All
                         ? (wts.elemAsDouble(k) == 0.0)
@@ -1263,15 +1263,17 @@ CorrOut corr_full(const Value &x, const Value *Y, keel::ArrayRef<Value> nv,
     // Type/Tail VALUES validated here — after the n<2 return.
     CorrType ct = CorrType::Pearson;
     if (!typeRaw.isEmpty()) {
-        static constexpr std::string_view kTypes[] = { "pearson", "kendall",
-                                                       "spearman" };
+        static constexpr keel::StringRef kTypes[] = { "pearson", "kendall",
+                                                      "spearman" };
         const int m = argcheck::matchStringChoice(
-            typeRaw, keel::ArrayRef<std::string_view>(kTypes));
-        if (m < 0)
-            throw Error("corr: the Type parameter value must be 'Pearson', "
-                        "'Kendall', or 'Spearman', got '" + std::string(typeRaw.toString().as_ref())
-                        + "'.",
+            typeRaw, keel::ArrayRef<keel::StringRef>(kTypes));
+        if (m < 0) {
+            keel::String typeStr = typeRaw.toString();
+            throw Error(keel::format("corr: the Type parameter value must be 'Pearson', "
+                                     "'Kendall', or 'Spearman', got '{}'.",
+                                     typeStr.as_ref()),
                         0, 0, "corr", "", "numkit:corr:unknownType");
+        }
         ct = static_cast<CorrType>(m);
     }
     CorrTail tail = CorrTail::Both;
@@ -1366,30 +1368,32 @@ CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
                          keel::ArrayRef<Value> nv, bool wantP,
                          keel::Allocator *mr)
 {
-    const auto matricesErr = [](const std::string &what) {
-        throw Error("partialcorr: all input arrays must be numeric matrices "
-                    "(" + what + ").",
+    const auto matricesErr = [](keel::StringRef what) {
+        throw Error(keel::format("partialcorr: all input arrays must be numeric matrices ({}).",
+                                 what),
                     0, 0, "partialcorr", "",
                     "numkit:partialcorr:inputsMustBeMatrices");
     };
     const auto isMatrixNumeric = [](const Value &M) {
         return M.isNumeric() && M.dims().ndim() <= 2 && M.numel() > 0;
     };
-    const auto mismatchErr = [](const std::string &which,
+    const auto mismatchErr = [](keel::StringRef which,
                                 keel::usize got, keel::usize want) {
-        throw Error("partialcorr: all input arrays must have the same number "
-                    "of rows (" + which + " has " + std::to_string(got)
-                    + " rows, expected " + std::to_string(want) + ").",
+        throw Error(keel::format("partialcorr: all input arrays must have the same number "
+                                 "of rows ({} has {} rows, expected {}).",
+                                 which, got, want),
                     0, 0, "partialcorr", "",
                     "numkit:partialcorr:inputSizeMismatch");
     };
     const auto describe = [](const Value &M) {
-        return std::string(mtypeName(M.type())) + " "
-            + std::to_string(M.dims().dim(0)) + "x"
-            + std::to_string(M.dims().dim(1));
+        return keel::format("{} {}x{}", mtypeName(M.type()),
+                            M.dims().dim(0), M.dims().dim(1));
     };
 
-    if (!isMatrixNumeric(x)) matricesErr("X is " + describe(x));
+    if (!isMatrixNumeric(x)) {
+        keel::String dsc = describe(x);
+        matricesErr(keel::format("X is {}", dsc.as_ref()).as_ref());
+    }
     const keel::usize n = static_cast<keel::usize>(x.dims().dim(0));
     const keel::usize d = static_cast<keel::usize>(x.dims().dim(1));
     if (y) {
@@ -1397,12 +1401,21 @@ CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
         // (reference order), Z is checked after its form is known.
         if (static_cast<keel::usize>(y->dims().dim(0)) != n)
             mismatchErr("Y", static_cast<keel::usize>(y->dims().dim(0)), n);
-        if (!isMatrixNumeric(*y)) matricesErr("Y is " + describe(*y));
-        if (!isMatrixNumeric(*z)) matricesErr("Z is " + describe(*z));
+        if (!isMatrixNumeric(*y)) {
+            keel::String dsc = describe(*y);
+            matricesErr(keel::format("Y is {}", dsc.as_ref()).as_ref());
+        }
+        if (!isMatrixNumeric(*z)) {
+            keel::String dsc = describe(*z);
+            matricesErr(keel::format("Z is {}", dsc.as_ref()).as_ref());
+        }
         if (static_cast<keel::usize>(z->dims().dim(0)) != n)
             mismatchErr("Z", static_cast<keel::usize>(z->dims().dim(0)), n);
     } else if (z) {
-        if (!isMatrixNumeric(*z)) matricesErr("Z is " + describe(*z));
+        if (!isMatrixNumeric(*z)) {
+            keel::String dsc = describe(*z);
+            matricesErr(keel::format("Z is {}", dsc.as_ref()).as_ref());
+        }
         if (static_cast<keel::usize>(z->dims().dim(0)) != n)
             mismatchErr("Z", static_cast<keel::usize>(z->dims().dim(0)), n);
     }
@@ -1431,38 +1444,42 @@ CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
     CorrRows rows = CorrRows::All;
     CorrType ct = CorrType::Pearson;
     CorrTail tail = CorrTail::Both;
-    static constexpr std::string_view kNv[] = { "rows", "type", "tail" };
+    static constexpr keel::StringRef kNv[] = { "rows", "type", "tail" };
     argcheck::forEachNvPair(
-        nv, 0, keel::ArrayRef<std::string_view>(kNv), "partialcorr",
+        nv, 0, keel::ArrayRef<keel::StringRef>(kNv), "partialcorr",
         "numkit:partialcorr:badParamName", [&](keel::usize hit, const Value &v) {
             switch (hit) {
             case 0: {
-                static constexpr std::string_view kRows[] = { "all",
-                                                              "complete",
-                                                              "pairwise" };
+                static constexpr keel::StringRef kRows[] = { "all",
+                                                             "complete",
+                                                             "pairwise" };
                 const int m = argcheck::matchStringChoice(
-                    v, keel::ArrayRef<std::string_view>(kRows));
-                if (m < 0)
-                    throw Error("partialcorr: the Rows parameter value must "
-                                "be 'all', 'complete', or 'pairwise', got '"
-                                + std::string(v.toString().as_ref()) + "'.",
+                    v, keel::ArrayRef<keel::StringRef>(kRows));
+                if (m < 0) {
+                    keel::String vStr = v.toString();
+                    throw Error(keel::format("partialcorr: the Rows parameter value must "
+                                             "be 'all', 'complete', or 'pairwise', got '{}'.",
+                                             vStr.as_ref()),
                                 0, 0, "partialcorr", "",
                                 "numkit:partialcorr:unknownRows");
+                }
                 rows = static_cast<CorrRows>(m);
                 break;
             }
             case 1: {
-                static constexpr std::string_view kTypes[] = { "pearson",
-                                                               "kendall",
-                                                               "spearman" };
+                static constexpr keel::StringRef kTypes[] = { "pearson",
+                                                              "kendall",
+                                                              "spearman" };
                 const int m = argcheck::matchStringChoice(
-                    v, keel::ArrayRef<std::string_view>(kTypes));
-                if (m < 0)
-                    throw Error("partialcorr: the Type parameter value must "
-                                "be 'Pearson', 'Kendall', or 'Spearman', "
-                                "got '" + std::string(v.toString().as_ref()) + "'.",
+                    v, keel::ArrayRef<keel::StringRef>(kTypes));
+                if (m < 0) {
+                    keel::String vStr = v.toString();
+                    throw Error(keel::format("partialcorr: the Type parameter value must "
+                                             "be 'Pearson', 'Kendall', or 'Spearman', "
+                                             "got '{}'.", vStr.as_ref()),
                                 0, 0, "partialcorr", "",
                                 "numkit:partialcorr:unknownType");
+                }
                 if (m == 1)
                     throw Error("partialcorr: Kendall's partial rank "
                                 "correlation cannot be computed (the "
@@ -1518,7 +1535,8 @@ CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
     if (combinedXZ) {
         // 'complete' and 'pairwise' coincide here: every column of X is a
         // control for every pair, so row removal is necessarily listwise.
-        std::vector<Value> M{ xD };
+        keel::Array<Value> M;
+        M.push_back(xD);
         if (rows != CorrRows::All) dropNaNRowsAny(M, mr);
         const keel::usize m = static_cast<keel::usize>(M[0].dims().dim(0));
         const long dz = (d >= 2) ? static_cast<long>(d - 2) : 0;
@@ -1539,7 +1557,7 @@ CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
         for (keel::usize i = 0; i < dx; ++i) {
             const keel::usize j1 = crossCorr ? dy : (i + 1);
             for (keel::usize j = 0; j < j1; ++j) {
-                std::vector<keel::u8> keep(n, 1);
+                keel::Array<keel::u8> keep(n, 1);
                 keel::usize m = 0;
                 for (keel::usize r = 0; r < n; ++r) {
                     if (std::isnan(xD.elemAsDouble(r + i * n)) ||
@@ -1615,7 +1633,8 @@ CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
         Value Xv = xD, Yv, Zv = zD;
         if (y) Yv = yD;
         if (rows == CorrRows::Complete) {
-            std::vector<Value> M{ xD };
+            keel::Array<Value> M;
+            M.push_back(xD);
             if (y) M.push_back(yD);
             M.push_back(zD);
             dropNaNRowsAny(M, mr);

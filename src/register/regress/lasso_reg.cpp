@@ -4,23 +4,22 @@
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
 #include <keel/core.h>
+#include <keel/format.h>
 #include <keel/ref.h>
+#include <keel/string.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/regress/regress.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 #include "regress/lasso_detail.hpp"
-#include <numkit/value/error.hpp>
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstddef>
-#include <string>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -46,14 +45,14 @@ void lassoglm_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     if (!args[2].isChar())
         throw Error("lassoglm: distr must be a string",
                     0, 0, "lassoglm", "", "numkit:lassoglm:badDistr");
-    const std::string s(args[2].toString().as_ref());
+    const keel::String s = args[2].toString();
     GlmDistribution d;
     if (s == "normal")        d = GlmDistribution::Normal;
     else if (s == "binomial") d = GlmDistribution::Binomial;
     else if (s == "poisson")  d = GlmDistribution::Poisson;
     else
-        throw Error("lassoglm: unsupported distribution '" + s
-                    + "' (v1: normal, binomial, poisson)",
+        throw Error(keel::format("lassoglm: unsupported distribution '{}' "
+                                 "(v1: normal, binomial, poisson)", s),
                     0, 0, "lassoglm", "", "numkit:lassoglm:badDistr");
     double alpha = 1.0;
     if (args.size() >= 5 && !args[4].isEmpty())

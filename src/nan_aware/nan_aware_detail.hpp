@@ -4,6 +4,7 @@
 #pragma once
 
 #include <keel/core.h>
+#include <keel/format.h>
 #include <keel/memory.h>
 #include <keel/array.h>
 #include <numkit/value/value.hpp>
@@ -17,10 +18,8 @@
 #include <cstring>
 #include <limits>
 #include <numeric>
-#include <string>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -33,8 +32,8 @@ namespace {
 void validateNormFlag(int w, const char *fn)
 {
     if (w != 0 && w != 1)
-        throw Error(std::string(fn) + ": normalization flag must be 0 or 1",
-                     0, 0, fn, "", std::string("numkit:") + fn + ":badFlag");
+        throw Error(keel::format("{}: normalization flag must be 0 or 1", fn),
+                     0, 0, fn, "", keel::format("numkit:{}:badFlag", fn));
 }
 
 double medianFromSlice(double *data, keel::usize n)

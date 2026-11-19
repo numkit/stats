@@ -2,9 +2,12 @@
 //
 // CallContext register half of descriptive/descriptive_extras.cpp (Phase 2b
 // compute/register split). Engine-coupled glue over the engine-free compute.
+#include <keel/array.h>
 #include <keel/core.h>
+#include <keel/format.h>
 #include <keel/memory.h>
 #include <keel/ref.h>
+#include <keel/string.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/stats/descriptive/descriptive.hpp>
 #include <numkit/stats/distributions/students_t.hpp>
@@ -18,16 +21,15 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <limits>
 #include <random>
-#include <string>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 namespace numkit::stats {
 
@@ -63,12 +65,12 @@ void ksdensity_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     auto *mr = ctx.engine->allocator();
     Value pts = Value::matrix(0, 0, ValueType::DOUBLE, mr);
     double bw_user = 0.0;
-    std::string kernel = "normal";
-    std::string function_mode = "pdf";
+    keel::String kernel = keel::String::from("normal");
+    keel::String function_mode = keel::String::from("pdf");
     keel::usize numpoints = 100;
     const Value *weights = nullptr;
     auto lower = [](keel::StringRef sv) {
-        std::string s(sv.data(), sv.size());
+        keel::String s = keel::String::from(sv);
         for (auto &c : s) c = (char)std::tolower((unsigned char)c);
         return s;
     };
@@ -80,15 +82,17 @@ void ksdensity_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     }
     while (i + 1 < args.size()) {
         if (!args[i].isChar() && !args[i].isString()) break;
-        const std::string name = lower(args[i].toString());
+        const keel::String nameStr = lower(args[i].toString().as_ref());
+        const keel::StringRef name = nameStr.as_ref();
         const Value &v = args[i + 1];
         if      (name == "bandwidth" || name == "width") {
             if (v.isChar() || v.isString()) {
                 // 'normal-approx' / 'plug-in' string forms — only
                 // 'normal-approx' (default behavior) is supported.
-                const std::string s = lower(v.toString());
+                const keel::String sStr = lower(v.toString().as_ref());
+                const keel::StringRef s = sStr.as_ref();
                 if (s != "normal-approx" && s != "plug-in")
-                    throw Error("ksdensity: unknown Bandwidth string '" + s + "'",
+                    throw Error(keel::format("ksdensity: unknown Bandwidth string '{}'", s),
                                 0, 0, "ksdensity", "", "numkit:ksdensity:bw");
                 bw_user = 0.0;
             } else {
@@ -102,13 +106,13 @@ void ksdensity_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         else if (name == "censoring" || name == "support"
                  || name == "boundarycorrection") {
             if (!v.isEmpty())
-                throw Error("ksdensity: '" + name + "' is not yet supported",
+                throw Error(keel::format("ksdensity: '{}' is not yet supported", name),
                             0, 0, "ksdensity", "", "numkit:ksdensity:nyi");
         }
         // 'PlotFcn' silently ignored (no-op headless).
         i += 2;
     }
-    auto R = ksdensity_full(args[0], pts, bw_user, kernel, function_mode, numpoints, weights, mr);
+    auto R = ksdensity_full(args[0], pts, bw_user, kernel.as_ref(), function_mode.as_ref(), numpoints, weights, mr);
     outs[0] = std::move(R.f);
     if (nargout > 1) outs[1] = std::move(R.xi);
     if (nargout > 2) outs[2] = std::move(R.bw);
@@ -144,22 +148,22 @@ void bounds_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayR
     argcheck::checkNargin(args.size(), 1, 3, "bounds");
     int dim = 0;
     bool flatten = false;
-    std::vector<int> vecdimSet;
+    keel::Array<int> vecdimSet;
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const Value &a = args[1];
         if (a.isChar() || a.isString()) {
-            std::string s(a.toString().as_ref());
+            keel::String s = a.toString();
             std::transform(s.begin(), s.end(), s.begin(),
                 [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
-            if (s == "all") flatten = true;
-            else throw Error("bounds: unknown flag '" + s + "'",
+            if (s.as_ref() == "all") flatten = true;
+            else throw Error(keel::format("bounds: unknown flag '{}'", s.as_ref()),
                               0, 0, "bounds", "", "numkit:bounds:badFlag");
         } else if (a.numel() == 1) {
             dim = argcheck::dimArg(a, "bounds");
         } else {
             // vecdim: full coverage reduces like 'all'; a partial set
             // collapses the listed dims into one trailing dim below.
-            std::vector<int> set = vecdim::parseDimSet(a, "bounds");
+            keel::Array<int> set = vecdim::parseDimSet(a, "bounds");
             if (vecdim::coversAllDims(set, args[0]))
                 flatten = true;
             else
@@ -198,22 +202,22 @@ void iqr_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArray
     argcheck::checkNargin(args.size(), 1, 2, "iqr");
     int dim = 0;
     bool flatten = false;
-    std::vector<int> vecdimSet;
+    keel::Array<int> vecdimSet;
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const Value &a = args[1];
         if (a.isChar() || a.isString()) {
-            std::string s(a.toString().as_ref());
+            keel::String s = a.toString();
             std::transform(s.begin(), s.end(), s.begin(),
                 [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
-            if (s == "all") flatten = true;
-            else throw Error("iqr: unknown flag '" + s + "'",
+            if (s.as_ref() == "all") flatten = true;
+            else throw Error(keel::format("iqr: unknown flag '{}'", s.as_ref()),
                               0, 0, "iqr", "", "numkit:iqr:badFlag");
         } else if (a.numel() == 1) {
             dim = argcheck::dimArg(a, "iqr");
         } else {
             // vecdim: full coverage reduces like 'all'; a partial set
             // collapses the listed dims into one trailing dim below.
-            std::vector<int> set = vecdim::parseDimSet(a, "iqr");
+            keel::Array<int> set = vecdim::parseDimSet(a, "iqr");
             if (vecdim::coversAllDims(set, args[0]))
                 flatten = true;
             else
@@ -263,19 +267,19 @@ void maxk_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef
         if (!args[i].isChar() && !args[i].isString())
             throw Error("maxk: expected Name-Value pair",
                         0, 0, "maxk", "", "numkit:maxk:nv");
-        std::string name(args[i].toString().as_ref());
+        keel::String name = args[i].toString();
         std::transform(name.begin(), name.end(), name.begin(),
                        [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
-        if (name == "comparisonmethod") {
-            std::string m(args[i + 1].toString().as_ref());
+        if (name.as_ref() == "comparisonmethod") {
+            keel::String m = args[i + 1].toString();
             std::transform(m.begin(), m.end(), m.begin(),
                            [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
-            if (m != "real" && m != "abs" && m != "auto")
+            if (m.as_ref() != "real" && m.as_ref() != "abs" && m.as_ref() != "auto")
                 throw Error("maxk: ComparisonMethod must be 'real', 'abs' or 'auto'",
                             0, 0, "maxk", "", "numkit:maxk:cm");
-            byAbs = (m == "abs");
+            byAbs = (m.as_ref() == "abs");
         } else {
-            throw Error("maxk: unknown Name-Value '" + name + "'",
+            throw Error(keel::format("maxk: unknown Name-Value '{}'", name.as_ref()),
                         0, 0, "maxk", "", "numkit:maxk:nv");
         }
         i += 2;
@@ -304,19 +308,19 @@ void mink_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef
         if (!args[i].isChar() && !args[i].isString())
             throw Error("mink: expected Name-Value pair",
                         0, 0, "mink", "", "numkit:mink:nv");
-        std::string name(args[i].toString().as_ref());
+        keel::String name = args[i].toString();
         std::transform(name.begin(), name.end(), name.begin(),
                        [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
-        if (name == "comparisonmethod") {
-            std::string m(args[i + 1].toString().as_ref());
+        if (name.as_ref() == "comparisonmethod") {
+            keel::String m = args[i + 1].toString();
             std::transform(m.begin(), m.end(), m.begin(),
                            [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
-            if (m != "real" && m != "abs" && m != "auto")
+            if (m.as_ref() != "real" && m.as_ref() != "abs" && m.as_ref() != "auto")
                 throw Error("mink: ComparisonMethod must be 'real', 'abs' or 'auto'",
                             0, 0, "mink", "", "numkit:mink:cm");
-            byAbs = (m == "abs");
+            byAbs = (m.as_ref() == "abs");
         } else {
-            throw Error("mink: unknown Name-Value '" + name + "'",
+            throw Error(keel::format("mink: unknown Name-Value '{}'", name.as_ref()),
                         0, 0, "mink", "", "numkit:mink:nv");
         }
         i += 2;
@@ -334,17 +338,17 @@ void mink_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef
 // same result.
 namespace {
 void parseDimOrAll(const Value &x, keel::ArrayRef<Value> args, keel::usize pos,
-                   int &dim, bool &flatten, std::vector<int> &vecdimSet,
+                   int &dim, bool &flatten, keel::Array<int> &vecdimSet,
                    const char *fn)
 {
     dim = 0; flatten = false; vecdimSet.clear();
     if (pos >= args.size() || args[pos].isEmpty()) return;
     const Value &a = args[pos];
     if (a.isChar() || a.isString()) {
-        std::string s(a.toString().as_ref());
+        keel::String s = a.toString();
         std::transform(s.begin(), s.end(), s.begin(),
                        [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
-        if (s == "all") { flatten = true; return; }
+        if (s.as_ref() == "all") { flatten = true; return; }
         // Any other string belongs to the flag/Weights parser that
         // runs after this (nanflags / 'Weights'); do not consume it.
         return;
@@ -352,7 +356,7 @@ void parseDimOrAll(const Value &x, keel::ArrayRef<Value> args, keel::usize pos,
     if (a.numel() == 1) { dim = argcheck::dimArg(a, fn); return; }
     // vecdim: full coverage reduces like 'all'; a partial set collapses
     // the listed dims into one trailing dim.
-    std::vector<int> set = vecdim::parseDimSet(a, fn);
+    keel::Array<int> set = vecdim::parseDimSet(a, fn);
     if (vecdim::coversAllDims(set, x))
         flatten = true;
     else
@@ -374,7 +378,7 @@ void mape_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArra
               CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "mape");  // no max: flag/NV tail in the reference
-    int dim = 0; bool flatten = false; std::vector<int> vecdimSet;
+    int dim = 0; bool flatten = false; keel::Array<int> vecdimSet;
     parseDimOrAll(args[0], args, 2, dim, flatten, vecdimSet, "mape");
     auto *mr = ctx.engine->allocator();
     // Flags + Weights (probe71 contract; classes live in the compute
@@ -410,7 +414,7 @@ void mape_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArra
 void rmse_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "rmse");  // no max: flag/NV tail in the reference
-    int dim = 0; bool flatten = false; std::vector<int> vecdimSet;
+    int dim = 0; bool flatten = false; keel::Array<int> vecdimSet;
     parseDimOrAll(args[0], args, 2, dim, flatten, vecdimSet, "rmse");
     auto *mr = ctx.engine->allocator();
     const bool allConsumed =
@@ -445,17 +449,18 @@ void ecdf_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef
 {
     argcheck::checkNargin(args.size(), 1, "ecdf");  // no max: name-value tail in the reference
     auto *mr = ctx.engine->allocator();
-    std::string function_mode = "cdf";
+    keel::String function_mode = keel::String::from("cdf");
     double alpha = 0.05;
     const Value *freq = nullptr;
     auto lower = [](keel::StringRef sv) {
-        std::string s(sv.data(), sv.size());
+        keel::String s = keel::String::from(sv);
         for (auto &c : s) c = (char)std::tolower((unsigned char)c);
         return s;
     };
     for (keel::usize i = 1; i + 1 < args.size(); i += 2) {
         if (!(args[i].isChar() || args[i].isString())) break;
-        const std::string key = lower(args[i].toString());
+        const keel::String keyStr = lower(args[i].toString().as_ref());
+        const keel::StringRef key = keyStr.as_ref();
         const Value &v = args[i + 1];
         if      (key == "function")  function_mode = v.toString();
         else if (key == "frequency") {
@@ -475,7 +480,7 @@ void ecdf_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef
         }
     }
     const bool want_bounds = (nargout > 2);
-    auto R = ecdf_full(args[0], freq, function_mode, alpha, want_bounds, mr);
+    auto R = ecdf_full(args[0], freq, function_mode.as_ref(), alpha, want_bounds, mr);
     outs[0] = std::move(R.f);
     if (nargout > 1) outs[1] = std::move(R.x);
     if (nargout > 2) outs[2] = std::move(R.flo);
@@ -636,28 +641,30 @@ void filloutliers_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
 {
     argcheck::checkNargin(args.size(), 2, "filloutliers");  // no max: name-value tail in the reference
     auto lower = [](keel::StringRef sv) {
-        std::string v(sv.data(), sv.size());
+        keel::String v = keel::String::from(sv);
         for (char &ch : v)
             ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
         return v;
     };
 
-    std::string detect = "median";
+    keel::String detect = keel::String::from("median");
     double tf = 3.0;
     bool tf_set = false;
     double loP = 0.0, hiP = 0.0;
     keel::usize i = 2;
     if (i < args.size() && (args[i].isChar() || args[i].isString())) {
-        const std::string s = lower(args[i].toString());
+        keel::String s = lower(args[i].toString().as_ref());
+        const keel::StringRef sr = s.as_ref();
         // Distinguish findmethod string vs NV name. NV names are known.
-        if (s == "thresholdfactor" || s == "maxnumoutliers" ||
-            s == "samplepoints"    || s == "outlierlocations") {
+        if (sr == "thresholdfactor" || sr == "maxnumoutliers" ||
+            sr == "samplepoints"    || sr == "outlierlocations") {
             // fall through — handled by NV loop below.
         } else {
-            detect = s;
-            if (detect == "median" || detect == "mean" || detect == "quartiles") {
+            detect = std::move(s);
+            const keel::StringRef detRef = detect.as_ref();
+            if (detRef == "median" || detRef == "mean" || detRef == "quartiles") {
                 ++i;
-            } else if (detect == "percentiles") {
+            } else if (detRef == "percentiles") {
                 ++i;
                 if (i >= args.size() || args[i].numel() != 2)
                     throw Error("filloutliers: 'percentiles' requires a "
@@ -682,26 +689,27 @@ void filloutliers_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
         if (!args[i].isChar() && !args[i].isString())
             throw Error("filloutliers: expected name-value pair",
                         0, 0, "filloutliers", "", "numkit:filloutliers:nv");
-        const std::string nm = lower(args[i].toString());
-        if (nm == "thresholdfactor") {
+        const keel::String rawNm = args[i].toString();
+        const keel::String nm = lower(rawNm.as_ref());
+        if (nm.as_ref() == "thresholdfactor") {
             tf = args[i + 1].toScalar(); tf_set = true;
         } else {
-            throw Error("filloutliers: unsupported name-value parameter '"
-                        + std::string(args[i].toString().as_ref()) + "'",
+            throw Error(keel::format("filloutliers: unsupported name-value parameter '{}'",
+                                     rawNm.as_ref()),
                         0, 0, "filloutliers", "", "numkit:filloutliers:nv");
         }
         i += 2;
     }
     // MATLAB's per-method default ThresholdFactor.
     if (!tf_set) {
-        if (detect == "quartiles") tf = 3.0;     // 1.5·IQR → scaled by 0.5 internally so 3.0 here
-        else                       tf = 3.0;
-    } else if (detect == "quartiles") {
+        if (detect.as_ref() == "quartiles") tf = 3.0;     // 1.5·IQR → scaled by 0.5 internally so 3.0 here
+        else                                tf = 3.0;
+    } else if (detect.as_ref() == "quartiles") {
         // User-set tf for quartiles means "k" in [Q1 - k·IQR, Q3 + k·IQR].
         // Our internal formula uses 0.5·tf·IQR, so multiply by 2.
         tf = 2.0 * tf;
     }
-    outs[0] = filloutliers_of(args[0], args[1], detect, tf, loP, hiP,
+    outs[0] = filloutliers_of(args[0], args[1], detect.as_ref(), tf, loP, hiP,
                               ctx.engine->allocator());
 }
 
@@ -711,7 +719,7 @@ void range_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArr
 {
     argcheck::checkNargin(args.size(), 1, 2, "range");
     int dim = 0;
-    std::vector<int> vecdimSet;
+    keel::Array<int> vecdimSet;
     if (args.size() >= 2)
         vecdim::parseDimSlot(args[0], args[1], "range", dim, vecdimSet);
     auto *mr = ctx.engine->allocator();
@@ -730,7 +738,7 @@ void mad_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArray
     argcheck::checkNargin(args.size(), 1, 3, "mad");
     int flag = 0;
     int dim  = 0;
-    std::vector<int> vecdimSet;
+    keel::Array<int> vecdimSet;
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const double fv = argcheck::expectedReal(args[1], 2, "flag", "mad");
         argcheck::expectedFlag01(fv, 2, "flag", "mad");
@@ -755,13 +763,13 @@ bool parseMeanNanFlag(keel::ArrayRef<Value> args, const char *fn, keel::usize &n
 {
     nargs = args.size();
     if (nargs >= 2 && (args[nargs - 1].isChar() || args[nargs - 1].isString())) {
-        std::string f(args[nargs - 1].toString().as_ref());
+        keel::String f = args[nargs - 1].toString();
         for (char &c : f) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-        if (f == "omitnan")     { --nargs; return true; }
-        if (f == "includenan")  { --nargs; return false; }
-        if (f == "all" && nargs == 2) return false;  // 'all' is the dim slot, not a nanflag
-        throw Error(std::string(fn) + ": unknown option '" + f + "'",
-                    0, 0, fn, "", std::string("numkit:") + fn + ":badopt");
+        if (f.as_ref() == "omitnan")     { --nargs; return true; }
+        if (f.as_ref() == "includenan")  { --nargs; return false; }
+        if (f.as_ref() == "all" && nargs == 2) return false;  // 'all' is the dim slot, not a nanflag
+        throw Error(keel::format("{}: unknown option '{}'", fn, f.as_ref()),
+                    0, 0, fn, "", keel::format("numkit:{}:badopt", fn));
     }
     return false;
 }
@@ -772,7 +780,7 @@ void geomean_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
     keel::usize nargs;
     const bool omitnan = parseMeanNanFlag(args, "geomean", nargs);
     int dim = 0;
-    std::vector<int> vecdimSet;
+    keel::Array<int> vecdimSet;
     if (nargs >= 2)
         vecdim::parseDimSlot(args[0], args[1], "geomean", dim, vecdimSet);
     auto *mr = ctx.engine->allocator();
@@ -792,7 +800,7 @@ void harmmean_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mut
     keel::usize nargs;
     const bool omitnan = parseMeanNanFlag(args, "harmmean", nargs);
     int dim = 0;
-    std::vector<int> vecdimSet;
+    keel::Array<int> vecdimSet;
     if (nargs >= 2)
         vecdim::parseDimSlot(args[0], args[1], "harmmean", dim, vecdimSet);
     auto *mr = ctx.engine->allocator();
@@ -812,7 +820,7 @@ void moment_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
     const int order = argcheck::expectedInteger(
         argcheck::expectedReal(args[1], 2, "order", "moment"), 2, "order", "moment");
     int dim = 0;
-    std::vector<int> vecdimSet;
+    keel::Array<int> vecdimSet;
     if (args.size() >= 3 && !args[2].isEmpty()) {
         // A vecdim (full or partial cover) always collapses — moment has
         // no separate 'all' path, and the collapse handles both.
@@ -843,13 +851,13 @@ void trimmean_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mut
     // present the dim may follow it. Distinguish by type before toScalar.
     bool useFloor = false;
     int dim = 0;
-    std::vector<int> vecdimSet;
+    keel::Array<int> vecdimSet;
     keel::usize i = 2;
     if (i < args.size() && (args[i].isChar() || args[i].isString())) {
-        std::string f(args[i].toString().as_ref());
+        keel::String f = args[i].toString();
         for (char &c : f) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-        if (f == "floor")      useFloor = true;
-        else if (f == "round") useFloor = false;
+        if (f.as_ref() == "floor")      useFloor = true;
+        else if (f.as_ref() == "round") useFloor = false;
         else
             throw Error("trimmean: flag must be 'round' or 'floor'",
                         0, 0, "trimmean", "", "numkit:trimmean:flag");

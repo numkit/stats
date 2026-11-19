@@ -1,6 +1,7 @@
 // src/c_api.cpp
 //
 // Self-contained C-ABI implementation for `numkit/stats`.
+#include <keel/array.h>
 #include <keel/core.h>
 #include <keel/ref.h>
 #include <numkit/stats/c_api.h>
@@ -12,8 +13,6 @@
 #include <algorithm>
 #include <cstring>
 #include <exception>
-#include <string>
-#include <vector>
 
 struct numkit_stats_ctx_s {
     numkit::ops::RngContext rng;
@@ -51,7 +50,7 @@ using numkit::Value;
         }
 
         Value inStack[8];
-        std::vector<Value> inHeap;
+        keel::Array<Value> inHeap;
         Value *inPtr = inStack;
         if (nargs > 8) {
             inHeap.resize(nargs);
@@ -63,7 +62,7 @@ using numkit::Value;
 
         keel::usize outSlots = nargout == 0 ? 1 : nargout;
         Value outStack[4];
-        std::vector<Value> outHeap;
+        keel::Array<Value> outHeap;
         Value *outPtr = outStack;
         if (outSlots > 4) {
             outHeap.resize(outSlots);
