@@ -18,7 +18,7 @@
 #include <cmath>
 #include <limits>
 #include <mutex>
-#include <random>
+#include <keel/random.h>
 
 #include "beta_detail.hpp"
 
@@ -81,13 +81,8 @@ Value betarnd(::numkit::ops::RngContext &rng, double a, double b, keel::usize ro
     if (a <= 0.0 || b <= 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
     const keel::usize n = rows * cols;
-    std::gamma_distribution<double> ga(a, 1.0);
-    std::gamma_distribution<double> gb(b, 1.0);
     for (keel::usize i = 0; i < n; ++i) {
-        const double u = ga(gen);
-        const double v = gb(gen);
-        const double s = u + v;
-        od[i] = (s > 0.0) ? u / s : 0.5;
+        od[i] = keel::beta_f64(gen, a, b);
     }
     return out;
 }

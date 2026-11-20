@@ -20,7 +20,7 @@
 #include <cstring>
 #include <limits>
 #include <mutex>
-#include <random>
+#include <keel/random.h>
 
 #include "fisher_f_detail.hpp"
 
@@ -106,11 +106,9 @@ Value frnd(::numkit::ops::RngContext &rng, double v1, double v2, keel::usize row
     if (v1 <= 0.0 || v2 <= 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
     const keel::usize n = rows * cols;
-    std::gamma_distribution<double> g1(0.5 * v1, 2.0); // χ²(v1)
-    std::gamma_distribution<double> g2(0.5 * v2, 2.0); // χ²(v2)
     for (keel::usize i = 0; i < n; ++i) {
-        const double x1 = g1(gen);
-        const double x2 = g2(gen);
+        const double x1 = keel::chi_squared_f64(gen, v1);
+        const double x2 = keel::chi_squared_f64(gen, v2);
         od[i] = (x1 / v1) / (x2 / v2);
     }
     return out;
@@ -185,17 +183,10 @@ Value ncfrnd(::numkit::ops::RngContext &rng, double nu1, double nu2, double delt
         return out;
     double *od = out.doubleDataMut();
     const keel::usize n = rows * cols;
-    // delta == 0 is the CENTRAL F: the Poisson mixing mean is 0 and
-    // std::poisson_distribution REQUIRES a positive mean (MSVC asserts
-    // in Debug). Skip the mixing draw — J = 0 always.
-    const bool central = (delta == 0.0);
-    std::poisson_distribution<int>   pd(central ? 1.0 : 0.5 * delta);
-    std::gamma_distribution<double>  g2(0.5 * nu2, 2.0);   // χ²(ν₂)
     for (keel::usize i = 0; i < n; ++i) {
-        const int J = central ? 0 : pd(gen);
-        std::gamma_distribution<double> g1(0.5 * nu1 + static_cast<double>(J), 2.0);
-        const double X1 = g1(gen);   // χ²(ν₁ + 2J) — noncentral χ² draw
-        const double X2 = g2(gen);
+        const keel::u64 J = (delta == 0.0) ? 0ULL : keel::poisson_u64(gen, 0.5 * delta);
+        const double X1 = keel::chi_squared_f64(gen, nu1 + 2.0 * static_cast<double>(J));
+        const double X2 = keel::chi_squared_f64(gen, nu2);
         od[i] = (X1 / nu1) / (X2 / nu2);
     }
     return out;

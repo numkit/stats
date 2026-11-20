@@ -19,7 +19,7 @@
 #include <cstring>
 #include <limits>
 #include <mutex>
-#include <random>
+#include <keel/random.h>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -151,12 +151,8 @@ Value trnd(::numkit::ops::RngContext &rng, double nu, keel::usize rows, keel::us
     if (nu <= 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
     const keel::usize n = rows * cols;
-    std::normal_distribution<double> nd(0.0, 1.0);
-    std::gamma_distribution<double>  gd(0.5 * nu, 2.0);  // χ²(ν) = Gamma(ν/2, 2)
     for (keel::usize i = 0; i < n; ++i) {
-        const double Z = nd(gen);
-        const double X = gd(gen);
-        od[i] = Z / std::sqrt(X / nu);
+        od[i] = keel::student_t_f64(gen, nu);
     }
     return out;
 }
@@ -220,11 +216,9 @@ Value nctrnd(::numkit::ops::RngContext &rng, double nu, double delta, keel::usiz
     if (!(nu > 0.0) || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
     const keel::usize n = rows * cols;
-    std::normal_distribution<double> nd(0.0, 1.0);
-    std::gamma_distribution<double>  gd(0.5 * nu, 2.0);   // χ²(ν) = Gamma(ν/2, 2)
     for (keel::usize i = 0; i < n; ++i) {
-        const double Z = nd(gen);
-        const double X = gd(gen);
+        const double Z = keel::normal_f64(gen);
+        const double X = keel::chi_squared_f64(gen, nu);
         od[i] = (Z + delta) / std::sqrt(X / nu);
     }
     return out;

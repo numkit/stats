@@ -14,7 +14,7 @@
 #include <cmath>
 #include <limits>
 #include <mutex>
-#include <random>
+#include <keel/random.h>
 
 #include "geometric_detail.hpp"
 
@@ -83,8 +83,8 @@ Value geornd(::numkit::ops::RngContext &rng, double p, keel::usize rows, keel::u
     if (p <= 0.0 || p > 1.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
     const keel::usize cnt = rows * cols;
-    std::geometric_distribution<int> gd(p);
-    for (keel::usize i = 0; i < cnt; ++i) od[i] = static_cast<double>(gd(gen));
+    for (keel::usize i = 0; i < cnt; ++i)
+        od[i] = static_cast<double>(keel::geometric_u64(gen, p));
     return out;
 }
 

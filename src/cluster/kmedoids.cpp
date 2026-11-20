@@ -18,9 +18,9 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <keel/random.h>
 #include <limits>
 #include <mutex>
-#include <random>
 
 #include "kmedoids_detail.hpp"
 
@@ -177,7 +177,7 @@ kmedoids_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_ite
         {
             keel::Array<int> all(N, scratch.allocator());
             for (keel::usize i = 0; i < N; ++i) all[i] = (int)i;
-            std::shuffle(all.begin(), all.end(), gen);
+            keel::shuffle(gen, keel::MutArrayRef<int>(all.data(), all.size()));
             for (int k = 0; k < K; ++k) med[k] = all[k];
         }
 

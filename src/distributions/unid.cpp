@@ -14,7 +14,7 @@
 #include <cmath>
 #include <limits>
 #include <mutex>
-#include <random>
+#include <keel/random.h>
 
 #include "unid_detail.hpp"
 
@@ -71,8 +71,9 @@ Value unidrnd(::numkit::ops::RngContext &rng, double N, keel::usize rows, keel::
     if (N < 1.0 || std::floor(N) != N || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
     const keel::usize cnt = rows * cols;
-    std::uniform_int_distribution<long long> ud(1, static_cast<long long>(N));
-    for (keel::usize i = 0; i < cnt; ++i) od[i] = static_cast<double>(ud(gen));
+    const keel::i64 nMax = static_cast<keel::i64>(N);
+    for (keel::usize i = 0; i < cnt; ++i)
+        od[i] = static_cast<double>(keel::uniform_i64(gen, 1, nMax));
     return out;
 }
 

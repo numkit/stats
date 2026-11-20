@@ -15,7 +15,7 @@
 #include <cmath>
 #include <limits>
 #include <mutex>
-#include <random>
+#include <keel/random.h>
 
 #include "binomial_detail.hpp"
 
@@ -67,8 +67,8 @@ Value binornd(::numkit::ops::RngContext &rng, double n, double p, keel::usize ro
         }
         return out;
     }
-    std::binomial_distribution<int> bd(ntrials, p);
-    for (keel::usize i = 0; i < cnt; ++i) od[i] = static_cast<double>(bd(gen));
+    for (keel::usize i = 0; i < cnt; ++i)
+        od[i] = static_cast<double>(keel::binomial_u64(gen, static_cast<keel::u64>(ntrials), p));
     return out;
 }
 

@@ -15,7 +15,7 @@
 #include <cmath>
 #include <limits>
 #include <mutex>
-#include <random>
+#include <keel/random.h>
 
 #include "ncx2_detail.hpp"
 
@@ -96,14 +96,9 @@ Value ncx2rnd(::numkit::ops::RngContext &rng, double k, double lambda, keel::usi
     double *od = out.doubleDataMut();
     const keel::usize n = rows * cols;
     // Draw J ~ Poisson(λ/2), then X ~ chi²(k + 2J) = Gamma(shape=k/2+J, scale=2).
-    // λ == 0 is the CENTRAL χ²: the Poisson mean is 0, which
-    // std::poisson_distribution rejects (MSVC Debug asserts) — J = 0.
-    const bool central = (lambda == 0.0);
-    std::poisson_distribution<int> pd(central ? 1.0 : lambda / 2.0);
     for (keel::usize i = 0; i < n; ++i) {
-        const int J = central ? 0 : pd(gen);
-        std::gamma_distribution<double> gd(k / 2.0 + double(J), 2.0);
-        od[i] = gd(gen);
+        const keel::u64 J = (lambda == 0.0) ? 0ULL : keel::poisson_u64(gen, 0.5 * lambda);
+        od[i] = keel::chi_squared_f64(gen, k + 2.0 * static_cast<double>(J));
     }
     return out;
 }

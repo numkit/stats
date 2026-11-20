@@ -18,7 +18,7 @@
 #include <cmath>
 #include <limits>
 #include <mutex>
-#include <random>
+#include <keel/random.h>
 
 #include "hypergeom_detail.hpp"
 
@@ -60,8 +60,7 @@ Value hygernd(::numkit::ops::RngContext &rng, double M, double K, double N, keel
     double *od = out.doubleDataMut();
     const keel::usize cnt = rows * cols;
     // Inverse-cdf walk per draw. M, K, N fixed so the walk is fast.
-    std::uniform_real_distribution<double> ud(0.0, 1.0);
-    for (keel::usize i = 0; i < cnt; ++i) od[i] = hyge_inv_scalar(ud(gen), M, K, N);
+    for (keel::usize i = 0; i < cnt; ++i) od[i] = hyge_inv_scalar(keel::uniform_f64(gen), M, K, N);
     return out;
 }
 

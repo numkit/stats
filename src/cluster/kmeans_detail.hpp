@@ -6,6 +6,7 @@
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <keel/array.h>
+#include <keel/random.h>
 #include <numkit/value/value.hpp>
 #include <numkit/ops/matlab_mt19937.hpp>
 #include <numkit/value/error.hpp>
@@ -44,8 +45,7 @@ inline double sq_dist(const double *a, const double *b, keel::usize D) {
                                  keel::Allocator *scratch_mr)
 {
     keel::Array<double> C((keel::usize)K * D, scratch_mr);
-    std::uniform_int_distribution<keel::usize> first(0, N - 1);
-    const keel::usize i0 = first(gen);
+    const keel::usize i0 = keel::uniform_usize(gen, 0, N - 1);
     std::copy(X.begin() + i0 * D, X.begin() + (i0 + 1) * D, C.begin());
 
     keel::Array<double> dist(N, std::numeric_limits<double>::infinity(),
@@ -63,13 +63,12 @@ inline double sq_dist(const double *a, const double *b, keel::usize D) {
         for (auto v : dist) total += v;
         if (total <= 0.0) {
             // All points coincide with existing centroids; pick uniformly.
-            const keel::usize pick = first(gen);
+            const keel::usize pick = keel::uniform_usize(gen, 0, N - 1);
             std::copy(X.begin() + pick * D, X.begin() + (pick + 1) * D,
                       C.begin() + (keel::usize)k * D);
             continue;
         }
-        std::uniform_real_distribution<double> ud(0.0, total);
-        const double r = ud(gen);
+        const double r = keel::uniform_f64(gen, 0.0, total);
         double acc = 0.0;
         keel::usize pick = N - 1;
         for (keel::usize i = 0; i < N; ++i) {

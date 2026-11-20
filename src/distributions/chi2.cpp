@@ -18,7 +18,7 @@
 #include <cmath>
 #include <cstring>
 #include <mutex>
-#include <random>
+#include <keel/random.h>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -91,9 +91,7 @@ Value chi2rnd(::numkit::ops::RngContext &rng, double k, keel::usize rows, keel::
     if (k <= 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
     const keel::usize n = rows * cols;
-    // Sample from Gamma(k/2, 2) — std::gamma_distribution(shape, scale).
-    std::gamma_distribution<double> gd(0.5 * k, 2.0);
-    for (keel::usize i = 0; i < n; ++i) od[i] = gd(gen);
+    for (keel::usize i = 0; i < n; ++i) od[i] = keel::chi_squared_f64(gen, k);
     return out;
 }
 

@@ -27,7 +27,7 @@
 #include <cstring>
 #include <limits>
 #include <mutex>
-#include <random>
+#include <keel/random.h>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -184,13 +184,13 @@ Value mvncdf(const Value &X, const Value &mu, const Value &Sigma,
         return out;
     }
 
-    // d ≥ 3: Monte Carlo.
-    std::mt19937 gen(12345);   // deterministic seed for reproducibility
-    keel::Array<double> q(d);
+    // d ≥ 3: Genz (1992) Separation-of-Variables QMC integrator.
+    keel::Array<double> a(d, -std::numeric_limits<double>::infinity());
+    keel::Array<double> b(d);
     for (keel::usize i = 0; i < n; ++i) {
         for (keel::usize j = 0; j < d; ++j)
-            q[j] = X.elemAsDouble(j * n + i);
-        od[i] = monteCarloCdf(L.data(), d, muv.data(), q.data(), 20000, gen);
+            b[j] = X.elemAsDouble(j * n + i) - muv[j];
+        od[i] = genzSovCdf(L.data(), d, a.data(), b.data());
     }
     return out;
 }
@@ -218,13 +218,11 @@ Value mvtrnd(::numkit::ops::RngContext &rng, const Value &C, double df, keel::us
     auto out = Value::matrix(n, d, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
     auto &gen = rng;
-    std::normal_distribution<double> Nz(0.0, 1.0);
-    std::chi_squared_distribution<double> Chi(df);
 
     keel::Array<double> z(d);
     for (keel::usize r = 0; r < n; ++r) {
-        for (keel::usize k = 0; k < d; ++k) z[k] = Nz(gen);
-        const double scale = std::sqrt(df / Chi(gen));
+        for (keel::usize k = 0; k < d; ++k) z[k] = keel::normal_f64(gen);
+        const double scale = std::sqrt(df / keel::chi_squared_f64(gen, df));
         for (keel::usize j = 0; j < d; ++j) {
             double v = 0.0;
             for (keel::usize k = 0; k <= j; ++k) v += L[j * d + k] * z[k];
@@ -269,7 +267,6 @@ Value mnrnd(::numkit::ops::RngContext &rng, keel::usize N, const Value &P, keel:
     auto out = Value::matrix(m, k, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
     auto &gen = rng;
-    std::uniform_real_distribution<double> U(0.0, 1.0);
 
     keel::Array<keel::usize> counts(k);
     for (keel::usize r = 0; r < m; ++r) {
@@ -382,15 +379,13 @@ wishrnd_factor(::numkit::ops::RngContext &rng, const Value &Sigma, double df, co
         return {std::move(W), std::move(D)};
     }
     auto &gen = rng;
-    std::normal_distribution<double> Nz(0.0, 1.0);
 
     keel::Array<double> B(d * d, 0.0);
     for (keel::usize i = 0; i < d; ++i) {
         const double dfi = df - static_cast<double>(i);
-        std::chi_squared_distribution<double> Chi(dfi);
-        B[i * d + i] = std::sqrt(Chi(gen));
+        B[i * d + i] = std::sqrt(keel::chi_squared_f64(gen, dfi));
         for (keel::usize j = 0; j < i; ++j)
-            B[i * d + j] = Nz(gen);
+            B[i * d + j] = keel::normal_f64(gen);
     }
 
     // M = L · B (lower-tri).
@@ -536,15 +531,13 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, double df, con
     }
     if (false) {
     auto &gen = rng;
-    std::normal_distribution<double> Nz(0.0, 1.0);
 
     keel::Array<double> B(d * d, 0.0);
     for (keel::usize i = 0; i < d; ++i) {
         const double dfi = df - static_cast<double>(i);
-        std::chi_squared_distribution<double> Chi(dfi);
-        B[i * d + i] = std::sqrt(Chi(gen));
+        B[i * d + i] = std::sqrt(keel::chi_squared_f64(gen, dfi));
         for (keel::usize j = 0; j < i; ++j)
-            B[i * d + j] = Nz(gen);
+            B[i * d + j] = keel::normal_f64(gen);
     }
     keel::Array<double> M(d * d, 0.0);
     for (keel::usize i = 0; i < d; ++i) {
@@ -634,7 +627,7 @@ Value mvtcdf(const Value &X, const Value &C, double df, double tol,
     choleskyLowerInPlace(L.data(), d);
 
     const int N = mvtcdf_N_from_tol(tol);
-    std::mt19937_64 mc_gen(12345ULL);
+    keel::Xoshiro256PlusPlus mc_gen(12345ULL);
     const double NEG_INF = -std::numeric_limits<double>::infinity();
 
     const keel::usize nRows = n;   // plain local: capturing a structured
@@ -694,7 +687,7 @@ Value mvtcdf_box(const Value &Lb, const Value &Ub, const Value &C, double df,
     choleskyLowerInPlace(Lc.data(), d);
 
     const int N = mvtcdf_N_from_tol(tol);
-    std::mt19937_64 mc_gen(12345ULL);
+    keel::Xoshiro256PlusPlus mc_gen(12345ULL);
 
     const keel::usize nRows = n;   // plain local (see mvtcdf above): avoid
                                    // capturing a structured binding in a lambda.

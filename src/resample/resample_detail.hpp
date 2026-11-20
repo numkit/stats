@@ -6,6 +6,7 @@
 #include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
+#include <keel/random.h>
 #include <keel/ref.h>
 #include <numkit/value/value.hpp>
 #include <numkit/builtin/datafun.hpp>
@@ -59,20 +60,20 @@ namespace {
         auto &gen = rng.engine();
         // Weighted sampling.
         if (with_replacement) {
-            std::discrete_distribution<int> dd(weights.begin(), weights.end());
-            for (int i = 0; i < K; ++i) out.push_back(dd(gen));
+            const keel::ArrayRef<double> wref(weights.data(), weights.size());
+            for (int i = 0; i < K; ++i)
+                out.push_back(static_cast<int>(keel::discrete_index(gen, wref)));
         } else {
             // Without replacement: Efraimidis-Spirakis (2006) wswor algorithm.
             // Each positive-weight item i receives key k_i = u_i^(1/w_i), or
             // equivalently log(u_i)/w_i = -Exp(1)/w_i; the top K keys are drawn
             // in descending key order. Exact O(N log N) with zero rejection risk.
-            std::exponential_distribution<double> expDist(1.0);
             keel::Array<std::pair<double, int>> keyed;
             keyed.reserve(N);
             for (int i = 0; i < N; ++i) {
                 const double w = weights[static_cast<keel::usize>(i)];
                 if (w > 0.0) {
-                    const double e = std::max(expDist(gen), 1e-300);
+                    const double e = std::max(keel::exponential_f64(gen, 1.0), 1e-300);
                     keyed.emplace_back(-e / w, i);
                 }
             }

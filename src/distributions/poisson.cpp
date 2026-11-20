@@ -17,7 +17,6 @@
 #include <cmath>
 #include <limits>
 #include <mutex>
-#include <random>
 
 #include "poisson_detail.hpp"
 

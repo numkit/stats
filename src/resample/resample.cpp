@@ -18,7 +18,6 @@
 #include <cstring>
 #include <mutex>
 #include <numeric>
-#include <random>
 
 #include "resample_detail.hpp"
 

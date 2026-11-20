@@ -14,7 +14,6 @@
 #include <cmath>
 #include <limits>
 #include <mutex>
-#include <random>
 
 #include "extreme_value_detail.hpp"
 

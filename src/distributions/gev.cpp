@@ -14,7 +14,6 @@
 #include <cmath>
 #include <limits>
 #include <mutex>
-#include <random>
 
 #include "gev_detail.hpp"
 

@@ -20,8 +20,8 @@
 #include <algorithm>
 #include <cstring>
 #include <mutex>
+#include <keel/random.h>
 #include <numeric>
-#include <random>
 
 namespace numkit::stats {
 
@@ -50,9 +50,8 @@ void datasample_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
 // Helper: draw N indices in [0, N-1] with replacement, write into idx_out.
 static void drawBootstrapIndices(::numkit::ops::RngContext &rng, int N, int *idx_out)
 {
-    auto &gen = rng;
-    std::uniform_int_distribution<int> dist(0, N - 1);
-    for (int i = 0; i < N; ++i) idx_out[i] = dist(gen);
+    for (int i = 0; i < N; ++i)
+        idx_out[i] = static_cast<int>(keel::uniform_i64(rng, 0, N - 1));
 }
 
 // Resample row indices of X into a same-shape Value.

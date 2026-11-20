@@ -5,6 +5,7 @@
 #include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
+#include <keel/random.h>
 #include <numkit/stats/sampling/lhs.hpp>
 #include <numkit/stats/distributions/multivariate.hpp>
 #include <numkit/stats/distributions/normal.hpp>
@@ -18,7 +19,6 @@
 #include <cmath>
 #include <mutex>
 #include <numeric>
-#include <random>
 
 namespace numkit::stats {
 
@@ -31,18 +31,17 @@ template <typename Rng>
 void buildOneLhs(double *od, keel::usize n, keel::usize p, bool smooth,
                  Rng &gen)
 {
-    std::uniform_real_distribution<double> U(0.0, 1.0);
     keel::Array<keel::usize> perm(n);
     const double inv_n = 1.0 / static_cast<double>(n);
     for (keel::usize j = 0; j < p; ++j) {
         std::iota(perm.begin(), perm.end(), keel::usize(1));
         for (keel::usize i = n - 1; i > 0; --i) {
-            std::uniform_int_distribution<keel::usize> dist(0, i);
-            std::swap(perm[i], perm[dist(gen)]);
+            const keel::usize k = keel::uniform_usize(gen, 0, i);
+            std::swap(perm[i], perm[k]);
         }
         if (smooth) {
             for (keel::usize i = 0; i < n; ++i)
-                od[j * n + i] = (static_cast<double>(perm[i]) - U(gen)) * inv_n;
+                od[j * n + i] = (static_cast<double>(perm[i]) - keel::uniform_f64(gen)) * inv_n;
         } else {
             for (keel::usize i = 0; i < n; ++i)
                 od[j * n + i] = (static_cast<double>(perm[i]) - 0.5) * inv_n;
@@ -185,7 +184,6 @@ Value lhsnorm(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigm
     Value casesVal = Value::scalar(static_cast<double>(n), mr);
     MvnrndOut mv = mvnrnd_full(rng, muRow, Sigma, casesVal, /*wantT=*/false, mr);
 
-    std::uniform_real_distribution<double> U(0.0, 1.0);
     const double invN = 1.0 / static_cast<double>(n);
     keel::Array<keel::usize> ord(n), rank(n);
     Value uCol = Value::matrix(n, 1, ValueType::DOUBLE, mr);
@@ -199,7 +197,7 @@ Value lhsnorm(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigm
         for (keel::usize r = 0; r < n; ++r)
             rank[ord[r]] = r + 1;
         for (keel::usize i = 0; i < n; ++i) {
-            const double xi = smooth ? U(rng) : 0.5;
+            const double xi = smooth ? keel::uniform_f64(rng) : 0.5;
             ud[i] = (static_cast<double>(rank[i]) - xi) * invN;
         }
         const double muj = mu.elemAsDouble(j);

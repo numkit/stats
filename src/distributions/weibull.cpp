@@ -14,7 +14,7 @@
 #include <cmath>
 #include <limits>
 #include <mutex>
-#include <random>
+#include <keel/random.h>
 
 #include "weibull_detail.hpp"
 
@@ -74,10 +74,9 @@ Value wblrnd(::numkit::ops::RngContext &rng, double a, double b, keel::usize row
     if (a <= 0.0 || b <= 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
     const keel::usize n = rows * cols;
-    // std::weibull_distribution(shape=a, scale=b) — note ORDER FLIP relative
+    // keel::weibull_f64(rng, shape, scale) — note ORDER FLIP relative
     // to MATLAB (a=scale, b=shape).
-    std::weibull_distribution<double> wd(b, a);
-    for (keel::usize i = 0; i < n; ++i) od[i] = wd(gen);
+    for (keel::usize i = 0; i < n; ++i) od[i] = keel::weibull_f64(gen, b, a);
     return out;
 }
 

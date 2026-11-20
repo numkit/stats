@@ -14,7 +14,7 @@
 #include <cmath>
 #include <limits>
 #include <mutex>
-#include <random>
+#include <keel/random.h>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -75,8 +75,7 @@ Value lognrnd(::numkit::ops::RngContext &rng, double mu, double sigma, keel::usi
     if (sigma <= 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
     const keel::usize n = rows * cols;
-    std::lognormal_distribution<double> ld(mu, sigma);
-    for (keel::usize i = 0; i < n; ++i) od[i] = ld(gen);
+    for (keel::usize i = 0; i < n; ++i) od[i] = keel::lognormal_f64(gen, mu, sigma);
     return out;
 }
 

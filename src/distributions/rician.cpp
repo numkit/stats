@@ -15,7 +15,7 @@
 #include <cmath>
 #include <limits>
 #include <mutex>
-#include <random>
+#include <keel/random.h>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -95,11 +95,9 @@ Value ricernd(::numkit::ops::RngContext &rng, double s, double sigma, keel::usiz
     if (sigma <= 0.0 || s < 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
     const keel::usize n = rows * cols;
-    std::normal_distribution<double> nd1(s, sigma);
-    std::normal_distribution<double> nd2(0.0, sigma);
     for (keel::usize i = 0; i < n; ++i) {
-        const double a = nd1(gen);
-        const double b = nd2(gen);
+        const double a = keel::normal_f64(gen, s, sigma);
+        const double b = keel::normal_f64(gen, 0.0, sigma);
         od[i] = std::sqrt(a * a + b * b);
     }
     return out;
