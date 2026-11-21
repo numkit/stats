@@ -134,7 +134,7 @@ double phiCdf(double x) { return 0.5 * std::erfc(-x / std::sqrt(2.0)); }
         }
     }
     const keel::usize total = halfN * 2;
-    return static_cast<double>(below) / static_cast<double>(total);
+    return keel::as<double>(below) / keel::as<double>(total);
 }
 
 // Acklam's full-precision inverse standard normal CDF Φ⁻¹(p).
@@ -196,8 +196,8 @@ inline double genzSovCdf(const double *L, keel::usize d,
     const keel::usize m = d - 1;
     keel::Array<double> alpha(m);
     for (keel::usize k = 0; k < m; ++k) {
-        const double pk = (k < 32) ? static_cast<double>(kPrimes[k])
-                                   : static_cast<double>(137 + 2 * k);
+        const double pk = (k < 32) ? keel::as<double>(kPrimes[k])
+                                   : keel::as<double>(137 + 2 * k);
         const double rt = std::sqrt(pk);
         alpha[k] = rt - std::floor(rt);
     }
@@ -237,7 +237,7 @@ inline double genzSovCdf(const double *L, keel::usize d,
         for (keel::usize k = 0; k < m; ++k) shift[k] = keel::random::uniform_f64(shiftGen);
         double batchSum = 0.0;
         for (keel::usize p = 1; p <= pairsPerBatch; ++p) {
-            const double pd = static_cast<double>(p);
+            const double pd = keel::as<double>(p);
             for (keel::usize k = 0; k < m; ++k) {
                 double v = pd * alpha[k] + shift[k];
                 w[k] = v - std::floor(v);
@@ -247,13 +247,13 @@ inline double genzSovCdf(const double *L, keel::usize d,
             const double f2 = evalIntegrand(w);
             batchSum += 0.5 * (f1 + f2);
         }
-        const double batchMean = batchSum / static_cast<double>(pairsPerBatch);
+        const double batchMean = batchSum / keel::as<double>(pairsPerBatch);
         ++completedBatches;
         const double delta = batchMean - meanEst;
-        meanEst += delta / static_cast<double>(completedBatches);
+        meanEst += delta / keel::as<double>(completedBatches);
         m2 += delta * (batchMean - meanEst);
         if (completedBatches >= 4) {
-            const double se = std::sqrt(m2 / static_cast<double>(completedBatches * (completedBatches - 1)));
+            const double se = std::sqrt(m2 / keel::as<double>(completedBatches * (completedBatches - 1)));
             if (se <= tol) break;
         }
     }
@@ -295,7 +295,7 @@ mvtcdf_shape_check(const Value &X, const Value &C, const char *fn)
 {
     if (!(tol > 0.0)) tol = 0.01;
     const double n_d = 1.0 / (tol * tol);
-    int N = (n_d > 1e7) ? 10000000 : static_cast<int>(std::ceil(n_d));
+    int N = (n_d > 1e7) ? 10000000 : keel::as<int>(std::ceil(n_d));
     if (N < 10000) N = 10000;
     if (N % 2) ++N;   // antithetic pairs
     return N;
@@ -342,7 +342,7 @@ double mvtcdf_mc(const keel::Array<double> &Lchol, keel::usize d,
         }
         if (inside) ++hits;
     }
-    return static_cast<double>(hits) / static_cast<double>(N);
+    return keel::as<double>(hits) / keel::as<double>(N);
 }
 
 } // anonymous

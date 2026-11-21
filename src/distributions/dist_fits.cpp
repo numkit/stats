@@ -127,8 +127,8 @@ Value gamfit(const Value &x, const Value &censoring, const Value &freq,
         // Existing closed-form path.
         double sum = 0.0, sumLog = 0.0;
         for (double v : xv) { sum += v; sumLog += std::log(v); }
-        const double mean = sum / static_cast<double>(n);
-        const double meanLog = sumLog / static_cast<double>(n);
+        const double mean = sum / keel::as<double>(n);
+        const double meanLog = sumLog / keel::as<double>(n);
         const double s = std::log(mean) - meanLog;
         if (!(s > 0.0)) {
             auto out = Value::matrix(1, 2, ValueType::DOUBLE, mr);
@@ -292,13 +292,13 @@ Value wblfit(const Value &x, const Value &censoring, const Value &freq,
             lx[i] = std::log(xv[i]);
             sumLog += lx[i];
         }
-        const double meanLog = sumLog / static_cast<double>(n);
+        const double meanLog = sumLog / keel::as<double>(n);
         double v2 = 0.0;
         for (keel::usize i = 0; i < n; ++i) {
             const double d = lx[i] - meanLog;
             v2 += d * d;
         }
-        const double sdLog = std::sqrt(v2 / static_cast<double>(n));
+        const double sdLog = std::sqrt(v2 / keel::as<double>(n));
         double b = 3.141592653589793 / (sdLog * std::sqrt(6.0) + 1e-12);
         if (!(b > 0.1) || !std::isfinite(b)) b = 1.0;
 
@@ -321,7 +321,7 @@ Value wblfit(const Value &x, const Value &censoring, const Value &freq,
         }
         double S = 0.0;
         for (double v : xv) S += std::pow(v, b);
-        const double a = std::pow(S / static_cast<double>(n), 1.0 / b);
+        const double a = std::pow(S / keel::as<double>(n), 1.0 / b);
         auto out = Value::matrix(1, 2, ValueType::DOUBLE, mr);
         out.doubleDataMut()[0] = a;
         out.doubleDataMut()[1] = b;
@@ -424,14 +424,14 @@ Value betafit(const Value &x, keel::Allocator *mr)
         sumLogX  += std::log(v);
         sumLog1mX += std::log(1.0 - v);
     }
-    const double meanX = sumX / static_cast<double>(n);
+    const double meanX = sumX / keel::as<double>(n);
     // MoM initial guess: a = μ·(μ(1-μ)/σ² - 1), b = (1-μ)·(...)
     double v0 = 0.0;
     for (double v : xv) {
         const double d = v - meanX;
         v0 += d * d;
     }
-    v0 /= static_cast<double>(n);
+    v0 /= keel::as<double>(n);
     if (!(v0 > 0.0) || v0 >= meanX * (1.0 - meanX))
         v0 = meanX * (1.0 - meanX) * 0.5;   // safeguard for MoM
     const double common = meanX * (1.0 - meanX) / v0 - 1.0;
@@ -440,8 +440,8 @@ Value betafit(const Value &x, keel::Allocator *mr)
     if (!(a > 0.0)) a = 1.0;
     if (!(b > 0.0)) b = 1.0;
 
-    const double sLogX  = sumLogX  / static_cast<double>(n);
-    const double sLog1X = sumLog1mX / static_cast<double>(n);
+    const double sLogX  = sumLogX  / keel::as<double>(n);
+    const double sLog1X = sumLog1mX / keel::as<double>(n);
 
     // Newton on (a, b). 2x2 system with diagonal trigamma minus
     // ψ'(a+b) on both off-diagonal entries.
@@ -485,13 +485,13 @@ Value nbinfit(const Value &x, keel::Allocator *mr)
     }
     double sum = 0.0;
     for (double v : xv) sum += v;
-    const double meanX = sum / static_cast<double>(n);
+    const double meanX = sum / keel::as<double>(n);
     double v2 = 0.0;
     for (double v : xv) {
         const double d = v - meanX;
         v2 += d * d;
     }
-    const double varX = v2 / static_cast<double>(n - 1);
+    const double varX = v2 / keel::as<double>(n - 1);
     if (varX <= meanX)
         throw Error("nbinfit: sample is under-dispersed (var ≤ mean); "
                     "MLE undefined for negative binomial",
@@ -509,8 +509,8 @@ Value nbinfit(const Value &x, keel::Allocator *mr)
             S1 += digamma(v + r) - digamma(r);
             S2 += trigamma(v + r) - trigamma(r);
         }
-        const double f = S1 + static_cast<double>(n) * std::log(frac);
-        const double fp = S2 + static_cast<double>(n) * meanX / (r * (r + meanX));
+        const double f = S1 + keel::as<double>(n) * std::log(frac);
+        const double fp = S2 + keel::as<double>(n) * meanX / (r * (r + meanX));
         if (std::fabs(fp) < 1e-300) break;
         const double step = f / fp;
         const double newR = r - step;
@@ -650,7 +650,7 @@ Value evfit(const Value &x, const Value &censoring, const Value &freq,
         // Closed-form (existing path): profile μ via log-sum-exp.
         double sum = 0.0;
         for (double v : xv) sum += v;
-        const double mean = sum / static_cast<double>(n);
+        const double mean = sum / keel::as<double>(n);
         double x_max = xv[0];
         for (double v : xv) if (v > x_max) x_max = v;
         double T = 0.0;
@@ -673,7 +673,7 @@ Value evfit(const Value &x, const Value &censoring, const Value &freq,
         }
         T = 0.0;
         for (double v : xv) T += std::exp((v - x_max) / sigma);
-        mu = x_max + sigma * (std::log(T) - std::log(static_cast<double>(n)));
+        mu = x_max + sigma * (std::log(T) - std::log(keel::as<double>(n)));
     } else {
         // 2-D Newton with FD gradient/Hessian.
         auto grad = [&](double m, double s, double &gm, double &gs) {
@@ -740,7 +740,7 @@ static double gp_nll(double k, double sigma,
 {
     if (!(sigma > 0.0)) return std::numeric_limits<double>::infinity();
     const keel::usize n = xv.size();
-    double nll = static_cast<double>(n) * std::log(sigma);
+    double nll = keel::as<double>(n) * std::log(sigma);
     if (std::fabs(k) < 1e-10) {
         // Exponential limit.
         double s = 0.0;
@@ -791,13 +791,13 @@ Value gpfit(const Value &x, keel::Allocator *mr)
     std::sort(xs.begin(), xs.end());
     double sumX = 0.0;
     for (double v : xs) sumX += v;
-    const double beta0 = sumX / static_cast<double>(n);
+    const double beta0 = sumX / keel::as<double>(n);
     double beta1 = 0.0;
     for (keel::usize i = 0; i < n; ++i) {
-        const double F = (static_cast<double>(i + 1) - 0.35) / static_cast<double>(n);
+        const double F = (keel::as<double>(i + 1) - 0.35) / keel::as<double>(n);
         beta1 += (1.0 - F) * xs[i];
     }
-    beta1 /= static_cast<double>(n);
+    beta1 /= keel::as<double>(n);
 
     const double denom = beta0 - 2.0 * beta1;
     double k_hat, sigma_hat;
@@ -973,7 +973,7 @@ Value betafit_ci(const Value &x, double alpha, keel::Allocator *mr)
     //   I_aa = n[ψ'(a) − ψ'(a+b)]
     //   I_bb = n[ψ'(b) − ψ'(a+b)]
     //   I_ab = −n·ψ'(a+b)
-    const double N = static_cast<double>(xv.size());
+    const double N = keel::as<double>(xv.size());
     const double tab = trigamma(a + b);
     const double H11 = N * (trigamma(a) - tab);
     const double H22 = N * (trigamma(b) - tab);
@@ -993,7 +993,7 @@ Value nbinfit_ci(const Value &x, double alpha, keel::Allocator *mr)
     //   I_rr = -Σ ψ'(x_i + r) + n·ψ'(r)
     //   I_pp = n·r/p² + (Σx)/(1−p)²
     //   I_rp = −n/p
-    const double N = static_cast<double>(xv.size());
+    const double N = keel::as<double>(xv.size());
     double sxh = 0.0;
     double sx = 0.0;
     for (double v : xv) {
@@ -1062,7 +1062,7 @@ static double nll_gev(double k, double sigma, double mu,
 {
     if (!(sigma > 0.0)) return std::numeric_limits<double>::infinity();
     const keel::usize n = xv.size();
-    double nll = static_cast<double>(n) * std::log(sigma);
+    double nll = keel::as<double>(n) * std::log(sigma);
     if (std::fabs(k) < 1e-10) {
         // Gumbel-max limit.
         for (double x : xv) {
@@ -1099,9 +1099,9 @@ Value gevfit(const Value &x, keel::Allocator *mr)
     keel::Array<double> xs = xv.clone();
     std::sort(xs.begin(), xs.end());
     double b0 = 0.0, b1 = 0.0, b2 = 0.0;
-    const double dN = static_cast<double>(n);
+    const double dN = keel::as<double>(n);
     for (keel::usize i = 0; i < n; ++i) {
-        const double dI = static_cast<double>(i + 1);
+        const double dI = keel::as<double>(i + 1);
         // PWM using plotting positions p_i = (i - 0.35) / n.
         const double Fhat = (dI - 0.35) / dN;
         b0 += xs[i];

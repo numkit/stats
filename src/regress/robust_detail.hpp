@@ -258,7 +258,7 @@ namespace {
     for (keel::usize i : keep)
         for (keel::usize j = 0; j < d; ++j)
             mu[j] += X[j * n_orig + i];
-    for (keel::usize j = 0; j < d; ++j) mu[j] /= static_cast<double>(k);
+    for (keel::usize j = 0; j < d; ++j) mu[j] /= keel::as<double>(k);
 
     C = keel::Array<double>(d * d, 0.0);
     keel::Array<double> diff(d);
@@ -268,7 +268,7 @@ namespace {
             for (keel::usize b = 0; b < d; ++b)
                 C[a * d + b] += diff[a] * diff[b];
     }
-    const double denom = static_cast<double>(k > 1 ? k - 1 : 1);
+    const double denom = keel::as<double>(k > 1 ? k - 1 : 1);
     for (auto &c : C) c /= denom;
 }
 

@@ -48,7 +48,7 @@ keel::Array<double> sortedUniqueNoNaN(const Value &x)
 [[maybe_unused]] keel::usize indexOf(const keel::Array<double> &u, double val)
 {
     auto it = std::lower_bound(u.begin(), u.end(), val);
-    return static_cast<keel::usize>(it - u.begin());
+    return keel::as<keel::usize>(it - u.begin());
 }
 
 // num2str-style label for a (typically integer) group value, matching
@@ -59,7 +59,7 @@ keel::Array<double> sortedUniqueNoNaN(const Value &x)
 {
     char buf[64];
     if (std::isfinite(v) && v == std::floor(v) && std::fabs(v) < 1e15)
-        std::snprintf(buf, sizeof(buf), "%lld", static_cast<long long>(v));
+        std::snprintf(buf, sizeof(buf), "%lld", keel::as<long long>(v));
     else
         std::snprintf(buf, sizeof(buf), "%.5g", v);
     return keel::String::from(buf);

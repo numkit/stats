@@ -253,8 +253,8 @@ Value cov(const Value &x, int normFlag, keel::Allocator *mr)
     centerColumns(data.data(), n, p);
 
     const double divisor = (normFlag == 0)
-        ? std::max(1.0, static_cast<double>(n) - 1.0)
-        : static_cast<double>(n);
+        ? std::max(1.0, keel::as<double>(n) - 1.0)
+        : keel::as<double>(n);
 
     if (p == 1) {
         // Vector input â†’ return scalar variance.
@@ -287,8 +287,8 @@ Value cov(const Value &x, const Value &y, int normFlag, keel::Allocator *mr)
     }
     centerColumns(data.data(), n, 2);
     const double divisor = (normFlag == 0)
-        ? std::max(1.0, static_cast<double>(n) - 1.0)
-        : static_cast<double>(n);
+        ? std::max(1.0, keel::as<double>(n) - 1.0)
+        : keel::as<double>(n);
     return covMatrixFromCentered(data.data(), n, 2, divisor, mr);
 }
 

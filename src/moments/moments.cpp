@@ -35,7 +35,7 @@ Value narrowToSingle(Value d, keel::Allocator *mr)
     const double *src = d.doubleData();
     float *dst = r.singleDataMut();
     for (keel::usize i = 0; i < d.numel(); ++i)
-        dst[i] = static_cast<float>(src[i]);
+        dst[i] = keel::as<float>(src[i]);
     return r;
 }
 
@@ -46,7 +46,7 @@ double skewnessFromSlice(const double *data, keel::usize n, int normFlag)
     if (n < 2) return std::nan("");
     double mean = 0.0;
     for (keel::usize i = 0; i < n; ++i) mean += data[i];
-    mean /= static_cast<double>(n);
+    mean /= keel::as<double>(n);
     double m2 = 0.0, m3 = 0.0;
     for (keel::usize i = 0; i < n; ++i) {
         const double d = data[i] - mean;
@@ -54,13 +54,13 @@ double skewnessFromSlice(const double *data, keel::usize n, int normFlag)
         m2 += d2;
         m3 += d2 * d;
     }
-    m2 /= static_cast<double>(n);
-    m3 /= static_cast<double>(n);
+    m2 /= keel::as<double>(n);
+    m3 /= keel::as<double>(n);
     if (m2 <= 0.0) return std::nan("");
     double y = m3 / std::pow(m2, 1.5);
     if (normFlag == 0) {
         if (n < 3) return std::nan("");
-        const double nd = static_cast<double>(n);
+        const double nd = keel::as<double>(n);
         y *= std::sqrt(nd * (nd - 1.0)) / (nd - 2.0);
     }
     return y;
@@ -73,7 +73,7 @@ double kurtosisFromSlice(const double *data, keel::usize n, int normFlag)
     if (n < 2) return std::nan("");
     double mean = 0.0;
     for (keel::usize i = 0; i < n; ++i) mean += data[i];
-    mean /= static_cast<double>(n);
+    mean /= keel::as<double>(n);
     double m2 = 0.0, m4 = 0.0;
     for (keel::usize i = 0; i < n; ++i) {
         const double d = data[i] - mean;
@@ -81,13 +81,13 @@ double kurtosisFromSlice(const double *data, keel::usize n, int normFlag)
         m2 += d2;
         m4 += d2 * d2;
     }
-    m2 /= static_cast<double>(n);
-    m4 /= static_cast<double>(n);
+    m2 /= keel::as<double>(n);
+    m4 /= keel::as<double>(n);
     if (m2 <= 0.0) return std::nan("");
     double y = m4 / (m2 * m2);
     if (normFlag == 0) {
         if (n < 4) return std::nan("");
-        const double nd = static_cast<double>(n);
+        const double nd = keel::as<double>(n);
         y = ((nd - 1.0) / ((nd - 2.0) * (nd - 3.0)))
                 * ((nd + 1.0) * y - 3.0 * (nd - 1.0))
             + 3.0;

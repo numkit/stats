@@ -111,7 +111,7 @@ void mPower(keel::ArrayRef<double> A, int eA, keel::Array<double> &V,
         return;
     }
     mPower(A, eA, V, eV, m, n / 2);
-    keel::Array<double> B(static_cast<keel::usize>(m) * m);
+    keel::Array<double> B(keel::as<keel::usize>(m) * m);
     mMultiply(V.as_ref(), V.as_ref(), B, m);
     int eB = 2 * eV;
     if (n % 2 == 0) { V = keel::move(B); eV = eB; }
@@ -127,10 +127,10 @@ double marsagliaK(int n, double d) {
     if (d <= 0.0) return 0.0;
     if (d >= 1.0) return 1.0;
     const double nd = n * d;
-    const int k = static_cast<int>(nd) + 1;
+    const int k = keel::as<int>(nd) + 1;
     const int m = 2 * k - 1;
     const double h = k - nd;
-    keel::Array<double> H(static_cast<keel::usize>(m) * m), Q(static_cast<keel::usize>(m) * m, 0.0);
+    keel::Array<double> H(keel::as<keel::usize>(m) * m), Q(keel::as<keel::usize>(m) * m, 0.0);
     for (int i = 0; i < m; ++i)
         for (int j = 0; j < m; ++j)
             H[i*m+j] = (i - j + 1 < 0) ? 0.0 : 1.0;
@@ -150,15 +150,15 @@ double marsagliaK(int n, double d) {
         s = s * i / n;
         if (s < 1e-140) { s *= 1e140; eQ -= 140; }
     }
-    return s * std::pow(10.0, static_cast<double>(eQ));
+    return s * std::pow(10.0, keel::as<double>(eQ));
 }
 
 // P(D_n^+ >= d) — exact one-sided KS survival (Birnbaum-Tingey 1951), log space.
 double birnbaumTingey(int n, double d) {
     if (d <= 0.0) return 1.0;
     if (d >= 1.0) return 0.0;
-    const double dn = static_cast<double>(n);
-    const int jmax = static_cast<int>(std::floor(dn * (1.0 - d)));
+    const double dn = keel::as<double>(n);
+    const int jmax = keel::as<int>(std::floor(dn * (1.0 - d)));
     double sum = 0.0;
     for (int j = 0; j <= jmax; ++j) {
         const double a = 1.0 - d - j / dn;
@@ -176,7 +176,7 @@ double birnbaumTingey(int n, double d) {
 // Two-sided one-sample p: exact for small statistics; MATLAB's corrected
 // asymptotic 2·exp(-(2.000071 + .331/√n + 1.409/n)·n·D²) for large ones.
 [[maybe_unused]] double ksOneSampleTwoSidedP(int n, double D) {
-    const double s = static_cast<double>(n) * D * D;
+    const double s = keel::as<double>(n) * D * D;
     if (s > 7.24 || (s > 3.76 && n > 99))
         return std::min(1.0, 2.0 * std::exp(-(2.000071 + 0.331/std::sqrt((double)n)
                                               + 1.409/n) * s));

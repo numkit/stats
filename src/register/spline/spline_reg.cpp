@@ -71,7 +71,7 @@ void fnder_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     argcheck::checkNargin(args.size(), 1, 2, "fnder");
     int order = 1;
     if (args.size() >= 2 && !args[1].isEmpty())
-        order = static_cast<int>(argcheck::roundLength(args[1], 2, "order", "fnder"));
+        order = keel::as<int>(argcheck::roundLength(args[1], 2, "order", "fnder"));
     outs[0] = fnder(args[0], order, ctx.engine->allocator());
 }
 

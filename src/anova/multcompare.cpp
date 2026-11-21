@@ -86,8 +86,8 @@ inline double normCdfScalar(double z)
 double normalRangeCDF(double w, keel::usize k)
 {
     if (w <= 0.0) return 0.0;
-    const double kd = static_cast<double>(k);
-    const double km1 = static_cast<double>(k - 1);
+    const double kd = keel::as<double>(k);
+    const double km1 = keel::as<double>(k - 1);
     auto integrand = [&](double z) -> double {
         const double diff = normCdfScalar(z + w) - normCdfScalar(z);
         if (diff <= 0.0) return 0.0;
@@ -193,7 +193,7 @@ Value multcompare(const Value &stats, double alpha, McCorrection ctype,
         tCrit = qCrit / std::sqrt(2.0);
     } else {
         const double alphaEffective = (ctype == McCorrection::Bonferroni)
-            ? (alpha / static_cast<double>(nPairs))
+            ? (alpha / keel::as<double>(nPairs))
             : alpha;
         Value pTail = Value::scalar(1.0 - alphaEffective / 2.0, mr);
         tCrit = tinv(pTail, df, mr).toScalar();
@@ -216,12 +216,12 @@ Value multcompare(const Value &stats, double alpha, McCorrection ctype,
             } else {
                 pVal = tTwoSidedP(tStat, df, mr);
                 if (ctype == McCorrection::Bonferroni)
-                    pVal = std::min(1.0, pVal * static_cast<double>(nPairs));
+                    pVal = std::min(1.0, pVal * keel::as<double>(nPairs));
             }
 
             // Column-major: out(row, c) = od[c * nPairs + row].
-            od[0 * nPairs + row] = static_cast<double>(i + 1);
-            od[1 * nPairs + row] = static_cast<double>(j + 1);
+            od[0 * nPairs + row] = keel::as<double>(i + 1);
+            od[1 * nPairs + row] = keel::as<double>(j + 1);
             od[2 * nPairs + row] = diff - halfCI;
             od[3 * nPairs + row] = diff;
             od[4 * nPairs + row] = diff + halfCI;

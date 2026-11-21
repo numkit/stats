@@ -40,7 +40,7 @@ double samplePoisson1(::numkit::ops::RngContext &rng, double lam, keel::Allocato
             lam -= x;
         } else {
             if (m > 1.0) {
-                k += binornd(rng, static_cast<int>(m - 1.0), lam / x, 1, 1, mr).toScalar();
+                k += binornd(rng, keel::as<int>(m - 1.0), lam / x, 1, 1, mr).toScalar();
             }
             return k;
         }

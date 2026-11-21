@@ -29,7 +29,7 @@ namespace {
 void kmeans_argcheck(const Value &X, int K)
 {
     const keel::usize N = X.dims().rows();
-    if (K < 1 || static_cast<keel::usize>(K) > N)
+    if (K < 1 || keel::as<keel::usize>(K) > N)
         throw Error("kmeans: K must be in 1..N", 0, 0, "kmeans", "",
                     "numkit:kmeans:badK");
 }

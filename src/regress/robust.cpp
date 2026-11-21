@@ -122,8 +122,8 @@ RobustcovResult robustcov(const Value &X, keel::Allocator *mr)
     keel::Array<double> mu, C, invC;
     meanCovSubset(Xv.data(), n, d, keep.as_ref(), mu, C);
 
-    const keel::usize h = static_cast<keel::usize>(
-        std::ceil(0.75 * static_cast<double>(n)));
+    const keel::usize h = keel::as<keel::usize>(
+        std::ceil(0.75 * keel::as<double>(n)));
 
     keel::Array<keel::usize> prevKeep;
     for (int it = 0; it < 30; ++it) {
@@ -149,11 +149,11 @@ RobustcovResult robustcov(const Value &X, keel::Allocator *mr)
     // where F_d is the chi-squared CDF with d DOF. For h/n = 0.75
     // and d = 2 this gives c ≈ 1.86, restoring the variance of a
     // trimmed multivariate-normal sample back to the population value.
-    const double hRatio = static_cast<double>(h) / static_cast<double>(n);
+    const double hRatio = keel::as<double>(h) / keel::as<double>(n);
     Value pVal = Value::scalar(hRatio, mr);
-    const double q = chi2inv(pVal, static_cast<double>(d), mr).toScalar();
+    const double q = chi2inv(pVal, keel::as<double>(d), mr).toScalar();
     Value qVal = Value::scalar(q, mr);
-    const double F_dp2 = chi2cdf(qVal, static_cast<double>(d + 2), mr).toScalar();
+    const double F_dp2 = chi2cdf(qVal, keel::as<double>(d + 2), mr).toScalar();
     const double scale = (F_dp2 > 0.0) ? hRatio / F_dp2 : 1.0;
     for (auto &c : C) c *= scale;
 

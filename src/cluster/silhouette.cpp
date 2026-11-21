@@ -44,7 +44,7 @@ Value silhouette(const Value &X, const Value &clust, keel::StringRef metric, dou
     // we accept anything that elemAsDouble can read (round to int).
     keel::Array<int> lbl(N);
     for (keel::usize i = 0; i < N; ++i)
-        lbl[i] = static_cast<int>(std::lround(clust.elemAsDouble(i)));
+        lbl[i] = keel::as<int>(std::lround(clust.elemAsDouble(i)));
 
     // Catalogue labels and their member indices.
     keel::HashMap<int, keel::Array<keel::usize>> groups;
@@ -75,7 +75,7 @@ Value silhouette(const Value &X, const Value &clust, keel::StringRef metric, dou
         }
         for (keel::usize j : mine) if (j != i)
             a += dd[i + j * N];   // column-major: D(i, j) = dd[i + j*N]
-        a /= static_cast<double>(mine.size() - 1);
+        a /= keel::as<double>(mine.size() - 1);
 
         // b(i): min over other clusters of mean distance to that cluster.
         double b = std::numeric_limits<double>::infinity();
@@ -83,7 +83,7 @@ Value silhouette(const Value &X, const Value &clust, keel::StringRef metric, dou
             if (gk == k) continue;
             double m = 0.0;
             for (keel::usize j : members) m += dd[i + j * N];
-            m /= static_cast<double>(members.size());
+            m /= keel::as<double>(members.size());
             if (m < b) b = m;
         }
         if (!std::isfinite(b)) {

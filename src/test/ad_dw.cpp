@@ -93,13 +93,13 @@ adtest(const Value &x, double alpha, keel::Allocator *mr)
     // Sample mean and unbiased std.
     double mean = 0.0;
     for (double xi : v) mean += xi;
-    mean /= static_cast<double>(n);
+    mean /= keel::as<double>(n);
     double s2 = 0.0;
     for (double xi : v) {
         const double d = xi - mean;
         s2 += d * d;
     }
-    s2 /= static_cast<double>(n - 1);
+    s2 /= keel::as<double>(n - 1);
     const double sd = std::sqrt(s2);
     if (!(sd > 0.0))
         throw Error("adtest: sample has zero variance",
@@ -121,12 +121,12 @@ adtest(const Value &x, double alpha, keel::Allocator *mr)
         const double Phi_hi = 0.5 * std::erfc(-z[n - 1 - i] / SQRT2);
         const double lnLo = std::log(std::max(Phi_lo, 1e-300));
         const double lnHi = std::log(std::max(1.0 - Phi_hi, 1e-300));
-        sum += (2.0 * static_cast<double>(i) + 1.0) * (lnLo + lnHi);
+        sum += (2.0 * keel::as<double>(i) + 1.0) * (lnLo + lnHi);
     }
-    const double A2 = -static_cast<double>(n) - sum / static_cast<double>(n);
+    const double A2 = -keel::as<double>(n) - sum / keel::as<double>(n);
 
     // Stephens 1986 small-sample adjustment for parameters estimated.
-    const double nD = static_cast<double>(n);
+    const double nD = keel::as<double>(n);
     const double A2star = A2 * (1.0 + 0.75 / nD + 2.25 / (nD * nD));
 
     // p-value via piecewise rational fit.
@@ -140,7 +140,7 @@ adtest(const Value &x, double alpha, keel::Allocator *mr)
 
     const int h = (p < alpha) ? 1 : 0;
     return {
-        Value::scalar(static_cast<double>(h), mr),
+        Value::scalar(keel::as<double>(h), mr),
         Value::scalar(p,       mr),
         Value::scalar(A2star,  mr),
         Value::scalar(cv,      mr),
@@ -309,7 +309,7 @@ double dwExactPLeft(const Value &X, keel::usize n, keel::usize k, double dw,
 // the 'approximate' method and large-n fallback.
 double dwApproxPLeft(double dw, keel::usize n, keel::Allocator *mr)
 {
-    const double a = 0.5 * (static_cast<double>(n) - 1.0);
+    const double a = 0.5 * (keel::as<double>(n) - 1.0);
     Value pv = betacdf(Value::scalar(dw / 4.0, mr), a, a, mr);
     return pv.toScalar();
 }

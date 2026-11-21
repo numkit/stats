@@ -85,15 +85,15 @@ double scalarVarFlat(const double *x, keel::usize n, int normFlag,
     if (cnt == 0) return std::numeric_limits<double>::quiet_NaN();
     if (cnt == 1) return (normFlag == 1) ? 0.0
                                          : std::numeric_limits<double>::quiet_NaN();
-    const double mean = s / static_cast<double>(cnt);
+    const double mean = s / keel::as<double>(cnt);
     double ss = 0.0;
     for (keel::usize i = 0; i < n; ++i) {
         if (omitNan && std::isnan(x[i])) continue;
         const double d = x[i] - mean;
         ss += d * d;
     }
-    const double denom = (normFlag == 1) ? static_cast<double>(cnt)
-                                         : static_cast<double>(cnt - 1);
+    const double denom = (normFlag == 1) ? keel::as<double>(cnt)
+                                         : keel::as<double>(cnt - 1);
     const double v = ss / denom;
     return sqrtIt ? std::sqrt(v) : v;
 }
@@ -147,7 +147,7 @@ Value varStdDispatch(keel::ArrayRef<Value> args, bool sqrtIt, const char *fn,
                                          "single vector of nonnegative weights.", fn),
                             0, 0, fn, "",
                             keel::format("numkit:{}:invalidWgts", fn));
-            normFlag = static_cast<int>(wf);
+            normFlag = keel::as<int>(wf);
         } else {
             isWeightVec = true;
             wVec = &args[1];
@@ -237,8 +237,8 @@ Value varStdDispatch(keel::ArrayRef<Value> args, bool sqrtIt, const char *fn,
         if (d != 1 && d != 2)
             throw Error(keel::format("{}: dim out of range", fn),
                         0, 0, fn, "", keel::format("numkit:{}:dim", fn));
-        const keel::usize r = static_cast<keel::usize>(x.dims().dim(0));
-        const keel::usize c = static_cast<keel::usize>(x.dims().dim(1));
+        const keel::usize r = keel::as<keel::usize>(x.dims().dim(0));
+        const keel::usize c = keel::as<keel::usize>(x.dims().dim(1));
         auto wv = flatten(*wVec);
         const keel::usize need = (d == 1) ? r : c;
         if (wv.size() != need)
@@ -270,7 +270,7 @@ Value varStdDispatch(keel::ArrayRef<Value> args, bool sqrtIt, const char *fn,
     // path, so every flag combination carries over).
     if (!vecdimSet.empty()) {
         Value c = vecdim::collapseDims(x, vecdimSet, mr);
-        const int lastd = static_cast<int>(c.dims().ndim());
+        const int lastd = keel::as<int>(c.dims().ndim());
         if (omitNan) {
             if (x.type() == ValueType::COMPLEX)
                 return vecdim::expandReduced(
@@ -399,7 +399,7 @@ void median_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
         // NarrowGuard above still narrows an all-zero-imaginary result).
         Value c = vecdim::collapseDims(args[0], vecdimSet,
                                        ctx.engine->allocator());
-        const int lastd = static_cast<int>(c.dims().ndim());
+        const int lastd = keel::as<int>(c.dims().ndim());
         if (omitNan) {
             rejectComplexOmitNan(args[0], "median");
             Value r = ::numkit::stats::nanmedian(c, lastd, ctx.engine->allocator());
@@ -490,15 +490,15 @@ QArgs parseQArgs(keel::ArrayRef<Value> args, keel::usize start, const Value &x,
                 dims.push_back(argcheck::dimArg(args[i].elemAsDouble(j), "median"));
             const int rank = x.dims().is3D() ? 3
                               : (x.dims().isVector() || x.isScalar() ? 1 : 2);
-            keel::Array<keel::u8> seen(static_cast<keel::usize>(rank) + 1, 0);
+            keel::Array<keel::u8> seen(keel::as<keel::usize>(rank) + 1, 0);
             for (int d : dims) {
                 if (d < 1 || d > rank)
                     throw Error(keel::format("{}: vecdim entries out of range", fn),
                                 0, 0, fn, "", keel::format("numkit:{}:vecdim", fn));
-                seen[static_cast<keel::usize>(d)] = 1;
+                seen[keel::as<keel::usize>(d)] = 1;
             }
             bool allCovered = true;
-            for (int d = 1; d <= rank; ++d) if (!seen[static_cast<keel::usize>(d)]) allCovered = false;
+            for (int d = 1; d <= rank; ++d) if (!seen[keel::as<keel::usize>(d)]) allCovered = false;
             if (!allCovered)
                 throw Error(keel::format("{}: partial vecdim reduction is "
                                          "not yet supported in nk (only full-flatten "
@@ -660,7 +660,7 @@ void mode_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef
         // 3rd output's cell array reshapes through the same mechanism
         // (permute/reshape support cell values).
         Value c = vecdim::collapseDims(args[0], vecdimSet, mr);
-        const int lastd = static_cast<int>(c.dims().ndim());
+        const int lastd = keel::as<int>(c.dims().ndim());
         auto [v, cnt] = mode(c, lastd, mr);
         outs[0] = vecdim::expandReduced(std::move(v), args[0], vecdimSet, mr);
         if (nargout > 1)
@@ -718,7 +718,7 @@ void cov_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArray
             if (args[1].isScalar()) {
                 const double v = args[1].toScalar();
                 if (v == 0.0 || v == 1.0) {
-                    outs[0] = covNanAware(args[0], static_cast<int>(v),
+                    outs[0] = covNanAware(args[0], keel::as<int>(v),
                                           nanMode, mr);
                     return;
                 }
@@ -730,7 +730,7 @@ void cov_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArray
         const double wv = argcheck::expectedReal(args[2], 3, "w", "cov");
         argcheck::expectedFlag01(wv, 3, "w", "cov");
         outs[0] = covNanAware(assembleXY(args[0], args[1], mr),
-                              static_cast<int>(wv), nanMode, mr);
+                              keel::as<int>(wv), nanMode, mr);
         return;
     }
 
@@ -746,7 +746,7 @@ void cov_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArray
         if (args[1].isScalar()) {
             const double v = args[1].toScalar();
             if (v == 0.0 || v == 1.0) {
-                outs[0] = cov(args[0], static_cast<int>(v), mr);
+                outs[0] = cov(args[0], keel::as<int>(v), mr);
                 return;
             }
         }
@@ -756,7 +756,7 @@ void cov_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArray
     // 3-arg form: cov(x, y, normFlag).
     const double wv = argcheck::expectedReal(args[2], 3, "w", "cov");
     argcheck::expectedFlag01(wv, 3, "w", "cov");
-    outs[0] = cov(args[0], args[1], static_cast<int>(wv), mr);
+    outs[0] = cov(args[0], args[1], keel::as<int>(wv), mr);
 }
 
 // Widen a single matrix to double (stats kernels are double-based; the
@@ -767,7 +767,7 @@ static Value widenSingleToDouble(const Value &v, keel::Allocator *mr)
     const float *sv = v.singleData();
     double *dv = d.doubleDataMut();
     for (keel::usize i = 0; i < v.numel(); ++i)
-        dv[i] = static_cast<double>(sv[i]);
+        dv[i] = keel::as<double>(sv[i]);
     return d;
 }
 void corrcoef_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs,
@@ -806,8 +806,8 @@ void corrcoef_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArra
         if (!twoArg) {
             const Value &x = args[0];
             n = (x.dims().isVector() || x.isScalar())
-                    ? static_cast<double>(x.numel())          // single variable
-                    : static_cast<double>(x.dims().rows());   // n obs × p vars
+                    ? keel::as<double>(x.numel())          // single variable
+                    : keel::as<double>(x.dims().rows());   // n obs × p vars
             Value xd = (!x.isComplex() && x.type() == ValueType::SINGLE)
                 ? widenSingleToDouble(x, mr) : Value(x);
             Value R = corrcoef(xd, mr);
@@ -818,7 +818,7 @@ void corrcoef_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArra
             if (!outs[0].isComplex() && x.type() == ValueType::SINGLE)
                 outs[0] = narrowToSingle(std::move(outs[0]), mr);
         } else {
-            n = static_cast<double>(args[0].numel());         // corrcoef(x, y)
+            n = keel::as<double>(args[0].numel());         // corrcoef(x, y)
             Value x0 = (!args[0].isComplex() && args[0].type() == ValueType::SINGLE)
                 ? widenSingleToDouble(args[0], mr) : Value(args[0]);
             Value x1 = (!args[1].isComplex() && args[1].type() == ValueType::SINGLE)
@@ -855,7 +855,7 @@ void corrcoef_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArra
             if (nargout >= 2) outs[1] = rMat;
             if (nargout >= 3) {
                 Value RL, RU;
-                corrcoefConfBounds(outs[0], static_cast<double>(nValid), alpha, RL, RU, mr);
+                corrcoefConfBounds(outs[0], keel::as<double>(nValid), alpha, RL, RU, mr);
                 outs[2] = std::move(RL);
                 if (nargout >= 4) outs[3] = std::move(RU);
             }
@@ -884,7 +884,7 @@ void corrcoef_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArra
         if (nargout >= 2) outs[1] = rMat;
         if (nargout >= 3) {
             Value RL, RU;
-            corrcoefConfBounds(outs[0], static_cast<double>(nValid), alpha, RL, RU, mr);
+            corrcoefConfBounds(outs[0], keel::as<double>(nValid), alpha, RL, RU, mr);
             outs[2] = std::move(RL);
             if (nargout >= 4) outs[3] = std::move(RU);
         }
@@ -892,7 +892,7 @@ void corrcoef_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArra
     }
     outs[0] = corrcoefFromCov(covNanAware(M, 0, CovNan::Omitrows, mr), mr);
     if (nargout >= 2) {
-        const double n = static_cast<double>(countCompleteRows(M));
+        const double n = keel::as<double>(countCompleteRows(M));
         outs[1] = corrcoefPValues(outs[0], n, mr);
         if (nargout >= 3) {
             Value RL, RU;

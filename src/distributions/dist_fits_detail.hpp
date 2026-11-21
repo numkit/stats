@@ -210,7 +210,7 @@ namespace {
 [[maybe_unused]] double nll_gam(double a, double b, const keel::Array<double> &xv)
 {
     if (!(a > 0.0) || !(b > 0.0)) return std::numeric_limits<double>::infinity();
-    const double N = static_cast<double>(xv.size());
+    const double N = keel::as<double>(xv.size());
     double sx = 0.0, slx = 0.0;
     for (double v : xv) { sx += v; slx += std::log(v); }
     return N * std::lgamma(a) + N * a * std::log(b)
@@ -220,7 +220,7 @@ namespace {
 [[maybe_unused]] double nll_wbl(double a, double b, const keel::Array<double> &xv)
 {
     if (!(a > 0.0) || !(b > 0.0)) return std::numeric_limits<double>::infinity();
-    const double N = static_cast<double>(xv.size());
+    const double N = keel::as<double>(xv.size());
     double slx = 0.0, sw = 0.0;
     for (double v : xv) {
         slx += std::log(v);
@@ -233,7 +233,7 @@ namespace {
 [[maybe_unused]] double nll_beta(double a, double b, const keel::Array<double> &xv)
 {
     if (!(a > 0.0) || !(b > 0.0)) return std::numeric_limits<double>::infinity();
-    const double N = static_cast<double>(xv.size());
+    const double N = keel::as<double>(xv.size());
     double slx = 0.0, sl1mx = 0.0;
     for (double v : xv) {
         slx   += std::log(v);
@@ -247,7 +247,7 @@ namespace {
 {
     if (!(r > 0.0) || !(p > 0.0) || !(p < 1.0))
         return std::numeric_limits<double>::infinity();
-    const double N = static_cast<double>(xv.size());
+    const double N = keel::as<double>(xv.size());
     double term = 0.0;
     double sx = 0.0;
     for (double v : xv) {
@@ -260,7 +260,7 @@ namespace {
 [[maybe_unused]] double nll_ev(double mu, double sigma, const keel::Array<double> &xv)
 {
     if (!(sigma > 0.0)) return std::numeric_limits<double>::infinity();
-    const double N = static_cast<double>(xv.size());
+    const double N = keel::as<double>(xv.size());
     // log f(x) = -log σ + t - exp(t), t = (x-μ)/σ. NLL is sum of -log f.
     double st = 0.0, set = 0.0;
     for (double v : xv) {

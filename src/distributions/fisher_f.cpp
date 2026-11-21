@@ -136,7 +136,7 @@ Value ncfrnd(::numkit::ops::RngContext &rng, double nu1, double nu2, double delt
     const keel::usize n = rows * cols;
     for (keel::usize i = 0; i < n; ++i) {
         const keel::u64 J = (delta == 0.0) ? 0ULL : keel::random::poisson_u64(gen, 0.5 * delta);
-        const double X1 = keel::random::chi_squared_f64(gen, nu1 + 2.0 * static_cast<double>(J));
+        const double X1 = keel::random::chi_squared_f64(gen, nu1 + 2.0 * keel::as<double>(J));
         const double X2 = keel::random::chi_squared_f64(gen, nu2);
         od[i] = (X1 / nu1) / (X2 / nu2);
     }

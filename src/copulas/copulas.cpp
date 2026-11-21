@@ -201,7 +201,7 @@ double bivnormcdf(double a, double b, double rho)
     const double ab = a * b;
     double total = 0.0;
     for (int i = 0; i <= N; ++i) {
-        const double r = rho * static_cast<double>(i) / N;
+        const double r = rho * keel::as<double>(i) / N;
         const double one_m_r2 = 1.0 - r * r;
         const double v = half_inv_pi / std::sqrt(one_m_r2)
                        * std::exp(-(a2_p_b2 - 2.0 * r * ab) / (2.0 * one_m_r2));
@@ -342,7 +342,7 @@ Value copulapdf_t(const Value &U, const Value &R, double nu,
             L[i * d + j] = R.elemAsDouble(j * d + i);
     const double det_R = chol_lower_inplace(L.data(), d, "copulapdf");
 
-    const double dD = static_cast<double>(d);
+    const double dD = keel::as<double>(d);
     const double log_norm_mv = std::lgamma(0.5 * (nu + dD))
                              - std::lgamma(0.5 * nu)
                              - 0.5 * dD * std::log(nu * M_PI)

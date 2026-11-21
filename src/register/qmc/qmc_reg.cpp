@@ -37,8 +37,8 @@ void haltonset_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
         keel::String name = args[i].toString();
         for (auto &c : name) c = keel::to_ascii_lower(c);
         const Value &v = args[i + 1];
-        if      (name == "skip") skip = static_cast<long long>(v.toScalar());
-        else if (name == "leap") leap = static_cast<long long>(v.toScalar());
+        if      (name == "skip") skip = keel::as<long long>(v.toScalar());
+        else if (name == "leap") leap = keel::as<long long>(v.toScalar());
     }
     outs[0] = haltonset(d, skip, leap, ctx.engine->allocator());
 }
@@ -47,7 +47,7 @@ void net_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
              keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "net");  // no max: absent from the R2025b reference build
-    const long long n = static_cast<long long>(args[1].toScalar());
+    const long long n = keel::as<long long>(args[1].toScalar());
     outs[0] = net(args[0], n, ctx.engine->allocator());
 }
 

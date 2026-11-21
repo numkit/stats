@@ -88,7 +88,7 @@ Value evalDistStructBase(const Value &pd, const char *suffix, const Value &xVal,
 {
     auto *mr = ctx.engine->allocator();
     const keel::String dist = toLowerStr(pd.field("DistributionName").toString());
-    const int nparams = static_cast<int>(pd.field("__nparams").toScalar());
+    const int nparams = keel::as<int>(pd.field("__nparams").toScalar());
     const double p1 = (nparams >= 1) ? pd.field("p1").toScalar() : 0.0;
     const double p2 = (nparams >= 2) ? pd.field("p2").toScalar() : 1.0;
     const double p3 = (nparams >= 3) ? pd.field("p3").toScalar() : 1.0;
@@ -169,7 +169,7 @@ void dispatchDistStruct(const char *fnName, const char *suffix,
     if (sfx == "rnd") {
         if (!isTrunc) {
             const keel::String dist = toLowerStr(pd.field("DistributionName").toString());
-            const int nparams = static_cast<int>(pd.field("__nparams").toScalar());
+            const int nparams = keel::as<int>(pd.field("__nparams").toScalar());
             const double p1 = (nparams >= 1) ? pd.field("p1").toScalar() : 0.0;
             const double p2 = (nparams >= 2) ? pd.field("p2").toScalar() : 1.0;
             const double p3 = (nparams >= 3) ? pd.field("p3").toScalar() : 1.0;
@@ -382,7 +382,7 @@ void makedist_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mut
 
     Value pd = Value::structure(mr);
     pd.setFieldAll("DistributionName", Value::fromString(rawName, mr));
-    pd.setFieldAll("__nparams", Value::scalar(static_cast<double>(nparams), mr));
+    pd.setFieldAll("__nparams", Value::scalar(keel::as<double>(nparams), mr));
     pd.setFieldAll("p1", Value::scalar(p1, mr));
     pd.setFieldAll("p2", Value::scalar(p2, mr));
     pd.setFieldAll("p3", Value::scalar(p3, mr));

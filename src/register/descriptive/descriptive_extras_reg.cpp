@@ -173,7 +173,7 @@ void bounds_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayR
     if (!vecdimSet.empty()) {
         // Partial vecdim — same kernels as the scalar-dim path.
         Value c = vecdim::collapseDims(args[0], vecdimSet, mr);
-        const int lastd = static_cast<int>(c.dims().ndim());
+        const int lastd = keel::as<int>(c.dims().ndim());
         auto [lo, hi] = bounds(c, lastd, mr);
         outs[0] = vecdim::expandReduced(std::move(lo), args[0], vecdimSet, mr);
         if (nargout > 1)
@@ -227,7 +227,7 @@ void iqr_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArray
     if (!vecdimSet.empty()) {
         // Partial vecdim — same kernel as the scalar-dim path.
         Value c = vecdim::collapseDims(args[0], vecdimSet, mr);
-        const int lastd = static_cast<int>(c.dims().ndim());
+        const int lastd = keel::as<int>(c.dims().ndim());
         outs[0] = vecdim::expandReduced(iqr(c, lastd, mr), args[0],
                                         vecdimSet, mr);
         return;
@@ -389,7 +389,7 @@ void mape_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArra
          (!(args[2].isChar() || args[2].isString()) || allConsumed)) ? 3 : 2;
     const keel::usize dimLen = flatten ? std::max(args[0].numel(),
                                                   args[1].numel())
-        : args[0].dims().dim(dim > 0 ? static_cast<keel::usize>(dim) - 1 : 0);
+        : args[0].dims().dim(dim > 0 ? keel::as<keel::usize>(dim) - 1 : 0);
     const ErrorMetricOpts opts = parseErrorMetricOpts(
         args, flagStart, true, args[0], args[1], dimLen, "mape");
     if (!vecdimSet.empty()) {
@@ -397,7 +397,7 @@ void mape_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArra
         // slices stay paired, then reduce along the last dim.
         Value f = vecdim::collapseDims(args[0], vecdimSet, mr);
         Value a = vecdim::collapseDims(args[1], vecdimSet, mr);
-        const int lastd = static_cast<int>(f.dims().ndim());
+        const int lastd = keel::as<int>(f.dims().ndim());
         outs[0] = vecdim::expandReduced(mape(f, a, lastd, opts, mr), args[0],
                                         vecdimSet, mr);
         return;
@@ -423,7 +423,7 @@ void rmse_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArra
          (!(args[2].isChar() || args[2].isString()) || allConsumed)) ? 3 : 2;
     const keel::usize dimLen = flatten ? std::max(args[0].numel(),
                                                   args[1].numel())
-        : args[0].dims().dim(dim > 0 ? static_cast<keel::usize>(dim) - 1 : 0);
+        : args[0].dims().dim(dim > 0 ? keel::as<keel::usize>(dim) - 1 : 0);
     const ErrorMetricOpts opts = parseErrorMetricOpts(
         args, flagStart, false, args[0], args[1], dimLen, "rmse");
     if (!vecdimSet.empty()) {
@@ -431,7 +431,7 @@ void rmse_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArra
         // slices stay paired, then reduce along the last dim.
         Value f = vecdim::collapseDims(args[0], vecdimSet, mr);
         Value a = vecdim::collapseDims(args[1], vecdimSet, mr);
-        const int lastd = static_cast<int>(f.dims().ndim());
+        const int lastd = keel::as<int>(f.dims().ndim());
         outs[0] = vecdim::expandReduced(rmse(f, a, lastd, opts, mr), args[0],
                                         vecdimSet, mr);
         return;
@@ -491,7 +491,7 @@ void ecdfhist_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArra
     argcheck::checkNargin(args.size(), 2, "ecdfhist");  // no max: name-value tail in the reference
     int m = 10;
     if (args.size() >= 3 && !args[2].isEmpty())
-        m = static_cast<int>(argcheck::roundLength(args[2], 3, "m", "ecdfhist"));
+        m = keel::as<int>(argcheck::roundLength(args[2], 3, "m", "ecdfhist"));
     auto [n, c] = ecdfhist(args[0], args[1], m, ctx.engine->allocator());
     outs[0] = std::move(n);
     if (nargout > 1) outs[1] = std::move(c);
@@ -725,7 +725,7 @@ void range_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArr
     if (!vecdimSet.empty()) {
         Value c = vecdim::collapseDims(args[0], vecdimSet, mr);
         outs[0] = vecdim::expandReduced(
-            range_of(c, static_cast<int>(c.dims().ndim()), mr),
+            range_of(c, keel::as<int>(c.dims().ndim()), mr),
             args[0], vecdimSet, mr);
         return;
     }
@@ -741,7 +741,7 @@ void mad_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArray
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const double fv = argcheck::expectedReal(args[1], 2, "flag", "mad");
         argcheck::expectedFlag01(fv, 2, "flag", "mad");
-        flag = static_cast<int>(fv);
+        flag = keel::as<int>(fv);
     }
     if (args.size() >= 3)
         vecdim::parseDimSlot(args[0], args[2], "mad", dim, vecdimSet);
@@ -749,7 +749,7 @@ void mad_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArray
     if (!vecdimSet.empty()) {
         Value c = vecdim::collapseDims(args[0], vecdimSet, mr);
         outs[0] = vecdim::expandReduced(
-            mad_of(c, flag, static_cast<int>(c.dims().ndim()), mr),
+            mad_of(c, flag, keel::as<int>(c.dims().ndim()), mr),
             args[0], vecdimSet, mr);
         return;
     }
@@ -786,7 +786,7 @@ void geomean_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
     if (!vecdimSet.empty()) {
         Value c = vecdim::collapseDims(args[0], vecdimSet, mr);
         outs[0] = vecdim::expandReduced(
-            geomean_of(c, static_cast<int>(c.dims().ndim()), omitnan, mr),
+            geomean_of(c, keel::as<int>(c.dims().ndim()), omitnan, mr),
             args[0], vecdimSet, mr);
         return;
     }
@@ -806,7 +806,7 @@ void harmmean_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mut
     if (!vecdimSet.empty()) {
         Value c = vecdim::collapseDims(args[0], vecdimSet, mr);
         outs[0] = vecdim::expandReduced(
-            harmmean_of(c, static_cast<int>(c.dims().ndim()), omitnan, mr),
+            harmmean_of(c, keel::as<int>(c.dims().ndim()), omitnan, mr),
             args[0], vecdimSet, mr);
         return;
     }
@@ -832,7 +832,7 @@ void moment_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
         Value c = vecdim::collapseDims(args[0], vecdimSet,
                                        ctx.engine->allocator());
         outs[0] = vecdim::expandReduced(
-            moment_of(c, order, static_cast<int>(c.dims().ndim()),
+            moment_of(c, order, keel::as<int>(c.dims().ndim()),
                       ctx.engine->allocator()),
             args[0], vecdimSet, ctx.engine->allocator());
         return;
@@ -874,7 +874,7 @@ void trimmean_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mut
         Value c = vecdim::collapseDims(args[0], vecdimSet,
                                        ctx.engine->allocator());
         outs[0] = vecdim::expandReduced(
-            trimmean_of(c, pct, static_cast<int>(c.dims().ndim()), useFloor,
+            trimmean_of(c, pct, keel::as<int>(c.dims().ndim()), useFloor,
                         ctx.engine->allocator()),
             args[0], vecdimSet, ctx.engine->allocator());
         return;

@@ -74,12 +74,12 @@ inline int realRank(const Value &x)
 inline bool coversAllDims(keel::ArrayRef<int> set, const Value &x)
 {
     const int rank = realRank(x);
-    keel::Array<char> seen(static_cast<keel::usize>(rank) + 1, 0);
+    keel::Array<char> seen(keel::as<keel::usize>(rank) + 1, 0);
     for (int d : set)
         if (d <= rank)
-            seen[static_cast<keel::usize>(d)] = 1;
+            seen[keel::as<keel::usize>(d)] = 1;
     for (int d = 1; d <= rank; ++d)
-        if (!seen[static_cast<keel::usize>(d)])
+        if (!seen[keel::as<keel::usize>(d)])
             return false;
     return true;
 }
@@ -91,28 +91,28 @@ inline Value collapseDims(const Value &x, keel::ArrayRef<int> set,
                           keel::Allocator *mr)
 {
     const int nd = x.dims().ndim();
-    keel::Array<char> listed(static_cast<keel::usize>(nd) + 1, 0);
+    keel::Array<char> listed(keel::as<keel::usize>(nd) + 1, 0);
     for (int d : set)
         if (d <= nd)
-            listed[static_cast<keel::usize>(d)] = 1;
+            listed[keel::as<keel::usize>(d)] = 1;
     keel::Array<int> order;          // non-listed first, listed last
     order.reserve(nd);
     keel::usize red = 1;             // product of the listed real sizes
     for (int d = 1; d <= nd; ++d)
-        if (!listed[static_cast<keel::usize>(d)])
+        if (!listed[keel::as<keel::usize>(d)])
             order.push_back(d);
     for (int d = 1; d <= nd; ++d)
-        if (listed[static_cast<keel::usize>(d)])
+        if (listed[keel::as<keel::usize>(d)])
             red *= x.dims().dim(d - 1);
     for (int d = 1; d <= nd; ++d)
-        if (listed[static_cast<keel::usize>(d)])
+        if (listed[keel::as<keel::usize>(d)])
             order.push_back(d);
     Value p = builtin::permute(x, order.as_ref(), mr);
     keel::Array<keel::usize> shape;
-    shape.reserve(static_cast<keel::usize>(nd) + 1);
+    shape.reserve(keel::as<keel::usize>(nd) + 1);
     bool anyUnlisted = false;
     for (int d = 1; d <= nd; ++d) {
-        if (!listed[static_cast<keel::usize>(d)]) {
+        if (!listed[keel::as<keel::usize>(d)]) {
             shape.push_back(x.dims().dim(d - 1));
             anyUnlisted = true;
         }
@@ -133,14 +133,14 @@ inline Value expandReduced(Value reduced, const Value &x, keel::ArrayRef<int> se
                            keel::Allocator *mr)
 {
     const int nd = x.dims().ndim();
-    keel::Array<char> listed(static_cast<keel::usize>(nd) + 1, 0);
+    keel::Array<char> listed(keel::as<keel::usize>(nd) + 1, 0);
     for (int d : set)
         if (d <= nd)
-            listed[static_cast<keel::usize>(d)] = 1;
+            listed[keel::as<keel::usize>(d)] = 1;
     keel::Array<keel::usize> shape;
-    shape.reserve(static_cast<keel::usize>(nd) + 1);
+    shape.reserve(keel::as<keel::usize>(nd) + 1);
     for (int d = 1; d <= nd; ++d)
-        shape.push_back(listed[static_cast<keel::usize>(d)] ? 1 : x.dims().dim(d - 1));
+        shape.push_back(listed[keel::as<keel::usize>(d)] ? 1 : x.dims().dim(d - 1));
     while (shape.size() > 2 && shape.back() == 1)
         shape.pop_back();
     if (shape.size() == 1)
@@ -163,7 +163,7 @@ inline void parseDimSlot(const Value &x, const Value &a, keel::StringRef fn,
         keel::String raw = a.toString();
         keel::String s = raw.clone();
         for (char &c : s)
-            if (c >= 'A' && c <= 'Z') c = static_cast<char>(c + 32);
+            if (c >= 'A' && c <= 'Z') c = keel::as<char>(c + 32);
         if (s == "all") {
             const int rank = realRank(x);
             vecdimSet.reserve(rank);
@@ -190,23 +190,23 @@ inline Value uncollapseFull(Value collapsedOut, const Value &x,
                             keel::Allocator *mr)
 {
     const int nd = x.dims().ndim();
-    keel::Array<char> listed(static_cast<keel::usize>(nd) + 1, 0);
+    keel::Array<char> listed(keel::as<keel::usize>(nd) + 1, 0);
     for (int d : set)
         if (d <= nd)
-            listed[static_cast<keel::usize>(d)] = 1;
+            listed[keel::as<keel::usize>(d)] = 1;
     keel::Array<int> order;
     order.reserve(nd);
     for (int d = 1; d <= nd; ++d)
-        if (!listed[static_cast<keel::usize>(d)])
+        if (!listed[keel::as<keel::usize>(d)])
             order.push_back(d);
     for (int d = 1; d <= nd; ++d)
-        if (listed[static_cast<keel::usize>(d)])
+        if (listed[keel::as<keel::usize>(d)])
             order.push_back(d);
     keel::Array<keel::usize> permShape(nd);
     keel::Array<int> invOrder(nd);
     for (int i = 0; i < nd; ++i) {
-        permShape[static_cast<keel::usize>(i)] = x.dims().dim(order[static_cast<keel::usize>(i)] - 1);
-        invOrder[static_cast<keel::usize>(order[static_cast<keel::usize>(i)] - 1)] = i + 1;
+        permShape[keel::as<keel::usize>(i)] = x.dims().dim(order[keel::as<keel::usize>(i)] - 1);
+        invOrder[keel::as<keel::usize>(order[keel::as<keel::usize>(i)] - 1)] = i + 1;
     }
     Value r = builtin::reshape(keel::move(collapsedOut), permShape.as_ref(), mr);
     return builtin::permute(r, invOrder.as_ref(), mr);

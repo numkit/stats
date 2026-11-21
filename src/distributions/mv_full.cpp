@@ -69,7 +69,7 @@ bool psdFactor(const keel::Array<double> &Sig, keel::usize d,
         eval[i] = D.doubleData()[i + i * d];
         maxAbs = std::max(maxAbs, keel::abs(eval[i]));
     }
-    const double tol = static_cast<double>(d)
+    const double tol = keel::as<double>(d)
                      * std::numeric_limits<double>::epsilon()
                      * std::max(maxAbs, 1.0);
     for (double e : eval)
@@ -125,12 +125,12 @@ bool psdFactor(const keel::Array<double> &Sig, keel::usize d,
 Value castDown(const Value &X, bool single, keel::Allocator *mr)
 {
     if (!single || X.type() == ValueType::SINGLE) return X;
-    const keel::usize r = static_cast<keel::usize>(X.dims().dim(0));
-    const keel::usize c = static_cast<keel::usize>(X.dims().dim(1));
+    const keel::usize r = keel::as<keel::usize>(X.dims().dim(0));
+    const keel::usize c = keel::as<keel::usize>(X.dims().dim(1));
     Value out = Value::matrix(r, c, ValueType::SINGLE, mr);
     const keel::usize cnt = r * c;
     for (keel::usize k = 0; k < cnt; ++k)
-        out.singleDataMut()[k] = static_cast<float>(X.elemAsDouble(k));
+        out.singleDataMut()[k] = keel::as<float>(X.elemAsDouble(k));
     return out;
 }
 
@@ -172,10 +172,10 @@ MvnrndOut mvnrnd_full(::numkit::ops::RngContext &rng, const Value &mu,
 {
     mvnrnd_full_argcheck(mu, Sigma);
 
-    keel::usize n = static_cast<keel::usize>(mu.dims().dim(0));
-    keel::usize d = static_cast<keel::usize>(mu.dims().dim(1));
-    keel::usize sz1 = static_cast<keel::usize>(Sigma.dims().dim(0));
-    const keel::usize sz2 = static_cast<keel::usize>(Sigma.dims().dim(1));
+    keel::usize n = keel::as<keel::usize>(mu.dims().dim(0));
+    keel::usize d = keel::as<keel::usize>(mu.dims().dim(1));
+    keel::usize sz1 = keel::as<keel::usize>(Sigma.dims().dim(0));
+    const keel::usize sz2 = keel::as<keel::usize>(Sigma.dims().dim(1));
     bool sigmaIsDiag = false;
     if (Sigma.dims().ndim() <= 2 && sz1 == 1 && sz2 > 1) {
         sigmaIsDiag = true;
@@ -196,10 +196,10 @@ MvnrndOut mvnrnd_reinterpreted(::numkit::ops::RngContext &rng, const Value &mu,
                                const Value &Sigma, const Value &cases,
                                bool wantT, keel::Allocator *mr)
 {
-    keel::usize n = static_cast<keel::usize>(mu.dims().dim(0));
-    keel::usize d = static_cast<keel::usize>(mu.dims().dim(1));
-    keel::usize sz1 = static_cast<keel::usize>(Sigma.dims().dim(0));
-    keel::usize sz2 = static_cast<keel::usize>(Sigma.dims().dim(1));
+    keel::usize n = keel::as<keel::usize>(mu.dims().dim(0));
+    keel::usize d = keel::as<keel::usize>(mu.dims().dim(1));
+    keel::usize sz1 = keel::as<keel::usize>(Sigma.dims().dim(0));
+    keel::usize sz2 = keel::as<keel::usize>(Sigma.dims().dim(1));
     bool sigmaIsDiag = false;
     if (Sigma.dims().ndim() <= 2 && sz1 == 1 && sz2 > 1) {
         sigmaIsDiag = true;
@@ -213,11 +213,11 @@ MvnrndOut mvnrnd_reinterpreted(::numkit::ops::RngContext &rng, const Value &mu,
     bool nocases = cases.isEmpty();
     long long casesN = -1;
     if (!nocases) {
-        casesN = static_cast<long long>(cases.elemAsDouble(0));
-        if (static_cast<long long>(n) == casesN) {
+        casesN = keel::as<long long>(cases.elemAsDouble(0));
+        if (keel::as<long long>(n) == casesN) {
             // mu already has cases rows.
         } else if (n == 1) {
-            n = static_cast<keel::usize>(std::max(casesN, 0LL));
+            n = keel::as<keel::usize>(std::max(casesN, 0LL));
         } else {
             throw Error(keel::format("mvnrnd: MU must be a row vector, or must have "
                         "CASES rows (CASES is {}, MU has {} rows).", casesN, n),
@@ -226,9 +226,9 @@ MvnrndOut mvnrnd_reinterpreted(::numkit::ops::RngContext &rng, const Value &mu,
     }
     if (nocases && Sigma.dims().ndim() >= 3 && n == 1) {
         // A single mu row with a Sigma stack: one case per page.
-        n = static_cast<keel::usize>(Sigma.dims().dim(2));
+        n = keel::as<keel::usize>(Sigma.dims().dim(2));
     }
-    const keel::usize muN = (static_cast<keel::usize>(
+    const keel::usize muN = (keel::as<keel::usize>(
         mu.dims().dim(0)) == 1) ? 1 : n;
 
     MvnrndOut out;
@@ -243,7 +243,7 @@ MvnrndOut mvnrnd_reinterpreted(::numkit::ops::RngContext &rng, const Value &mu,
     double *od = out.r.doubleDataMut();
 
     const keel::usize pages = Sigma.dims().ndim() >= 3
-                  ? static_cast<keel::usize>(Sigma.dims().dim(2)) : 1;
+                  ? keel::as<keel::usize>(Sigma.dims().dim(2)) : 1;
     if (pages == 1) {
         if (sz1 != sz2)
             throw Error(keel::format("mvnrnd: SIGMA must be a square covariance matrix "
@@ -401,11 +401,11 @@ Value mvtrnd_full(::numkit::ops::RngContext &rng, const Value &C,
 {
     keel::usize n = 1;
     if (!cases.isEmpty())
-        n = static_cast<keel::usize>(std::max(
-            static_cast<long long>(cases.elemAsDouble(0)), 0LL));
+        n = keel::as<keel::usize>(std::max(
+            keel::as<long long>(cases.elemAsDouble(0)), 0LL));
 
-    const keel::usize m1 = static_cast<keel::usize>(C.dims().dim(0));
-    const keel::usize m2 = static_cast<keel::usize>(C.dims().dim(1));
+    const keel::usize m1 = keel::as<keel::usize>(C.dims().dim(0));
+    const keel::usize m2 = keel::as<keel::usize>(C.dims().dim(1));
     if (m1 != m2)
         throw Error(keel::format("mvtrnd: the correlation matrix C must be square (got {}-by-{}).", m1, m2),
                     0, 0, "mvtrnd", "", "numkit:mvtrnd:badCorrelationNotSquare");
@@ -528,7 +528,7 @@ Value mvncdf_full(keel::ArrayRef<Value> args, keel::Allocator *mr)
             }
             if (const Value *mf = getFieldCI("maxfunevals")) {
                 const double v = mf->elemAsDouble(0);
-                if (v >= 100.0 && std::isfinite(v)) maxFunEvals = static_cast<keel::usize>(v);
+                if (v >= 100.0 && std::isfinite(v)) maxFunEvals = keel::as<keel::usize>(v);
             }
         }
         --nin;
@@ -559,7 +559,7 @@ Value mvncdf_full(keel::ArrayRef<Value> args, keel::Allocator *mr)
             throw Error("mvncdf: XL and XU must be matrices of the same "
                         "size.",
                         0, 0, "mvncdf", "", "numkit:mvncdf:invalidDataMatrices");
-        const keel::usize cnt = static_cast<keel::usize>(XU.numel());
+        const keel::usize cnt = keel::as<keel::usize>(XU.numel());
         for (keel::usize k = 0; k < cnt; ++k)
             if (XL.elemAsDouble(k) > XU.elemAsDouble(k))
                 throw Error("mvncdf: the lower limits XL must be less "
@@ -568,8 +568,8 @@ Value mvncdf_full(keel::ArrayRef<Value> args, keel::Allocator *mr)
                             "numkit:mvncdf:nonincreasingLimits");
     }
 
-    keel::usize n = static_cast<keel::usize>(XU.dims().dim(0));
-    keel::usize d = static_cast<keel::usize>(XU.dims().dim(1));
+    keel::usize n = keel::as<keel::usize>(XU.dims().dim(0));
+    keel::usize d = keel::as<keel::usize>(XU.dims().dim(1));
     if (d < 1)
         throw Error("mvncdf: X must have at least one column.",
                     0, 0, "mvncdf", "", "numkit:mvncdf:tooFewDimensions");
@@ -584,7 +584,7 @@ Value mvncdf_full(keel::ArrayRef<Value> args, keel::Allocator *mr)
             if (m != 0.0) {
                 Value out = Value::matrix(V.dims().dim(0), V.dims().dim(1),
                                           ValueType::DOUBLE, mr);
-                const keel::usize cnt = static_cast<keel::usize>(V.numel());
+                const keel::usize cnt = keel::as<keel::usize>(V.numel());
                 for (keel::usize k = 0; k < cnt; ++k)
                     out.doubleDataMut()[k] = V.elemAsDouble(k) - m;
                 V = out;
@@ -594,8 +594,8 @@ Value mvncdf_full(keel::ArrayRef<Value> args, keel::Allocator *mr)
         if (!isMatrixValue(mu))
             throw Error("mvncdf: MU must be a scalar or a matrix.",
                         0, 0, "mvncdf", "", "numkit:mvncdf:invalidMu");
-        const keel::usize n2 = static_cast<keel::usize>(mu.dims().dim(0));
-        const keel::usize d2 = static_cast<keel::usize>(mu.dims().dim(1));
+        const keel::usize n2 = keel::as<keel::usize>(mu.dims().dim(0));
+        const keel::usize d2 = keel::as<keel::usize>(mu.dims().dim(1));
         if (d2 != d || !(n2 == 1 || n2 == n))
             throw Error("mvncdf: MU must be a row vector with the same "
                         "number of columns as X, or one row per X row.",
@@ -630,8 +630,8 @@ Value mvncdf_full(keel::ArrayRef<Value> args, keel::Allocator *mr)
             n = 1;
         }
     } else {
-        sz1 = static_cast<keel::usize>(Sigma.dims().dim(0));
-        const keel::usize sz2 = static_cast<keel::usize>(Sigma.dims().dim(1));
+        sz1 = keel::as<keel::usize>(Sigma.dims().dim(0));
+        const keel::usize sz2 = keel::as<keel::usize>(Sigma.dims().dim(1));
         if (Sigma.dims().ndim() <= 2 && sz1 == 1 && sz2 > 1) {
             sigmaIsDiag = true;
             sz1 = sz2;
@@ -654,7 +654,7 @@ Value mvncdf_full(keel::ArrayRef<Value> args, keel::Allocator *mr)
                         0, 0, "mvncdf", "", "numkit:mvncdf:inputSizeMismatch");
         }
         single = single || (Sigma.type() == ValueType::SINGLE);
-        if (sz1 != static_cast<keel::usize>(Sigma.dims().dim(1)))
+        if (sz1 != keel::as<keel::usize>(Sigma.dims().dim(1)))
             throw Error("mvncdf: SIGMA must be a square covariance matrix.",
                         0, 0, "mvncdf", "", "numkit:mvncdf:badCovariance");
         if (sz1 != d)

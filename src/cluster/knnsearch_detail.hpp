@@ -41,7 +41,7 @@ struct KnnOpts { int K = 1; keel::String metric = keel::String::from("euclidean"
     KnnOpts o;
     if (args.size() == 3 && args[2].isNumeric() && args[2].isScalar()) {
         // legacy positional K
-        o.K = static_cast<int>(args[2].toScalar());
+        o.K = keel::as<int>(args[2].toScalar());
         return o;
     }
     // name-value pairs
@@ -57,7 +57,7 @@ struct KnnOpts { int K = 1; keel::String metric = keel::String::from("euclidean"
                         0, 0, fn, "", "numkit:knn:nvval");
         const Value &v = args[i + 1];
         if (name == "k") {
-            o.K = static_cast<int>(v.toScalar());
+            o.K = keel::as<int>(v.toScalar());
         } else if (name == "distance") {
             if (!v.isChar() && !v.isString())
                 throw Error(keel::format("{}: Distance must be a string", fn),

@@ -52,7 +52,7 @@ Value binornd(::numkit::ops::RngContext &rng, double n, double p, keel::usize ro
     if (n < 0.0 || std::floor(n) != n || p < 0.0 || p > 1.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
     const keel::usize cnt = rows * cols;
-    const int ntrials = static_cast<int>(n);
+    const int ntrials = keel::as<int>(n);
     if (ntrials <= 1000000) {
         std::fill(od, od + cnt, 0.0);
         for (int t = 0; t < ntrials; ++t) {
@@ -64,7 +64,7 @@ Value binornd(::numkit::ops::RngContext &rng, double n, double p, keel::usize ro
         return out;
     }
     for (keel::usize i = 0; i < cnt; ++i)
-        od[i] = static_cast<double>(keel::random::binomial_u64(gen, static_cast<keel::u64>(ntrials), p));
+        od[i] = keel::as<double>(keel::random::binomial_u64(gen, keel::as<keel::u64>(ntrials), p));
     return out;
 }
 

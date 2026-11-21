@@ -127,7 +127,7 @@ keel::Array<double> read_rows(const Value &X, keel::Allocator *scratch_mr) {
 void kmedoids_argcheck(const Value &X, int K)
 {
     const keel::usize N = X.dims().rows();
-    if (K < 1 || static_cast<keel::usize>(K) > N)
+    if (K < 1 || keel::as<keel::usize>(K) > N)
         throw Error("kmedoids: K must be in 1..N", 0, 0, "kmedoids", "",
                     "numkit:kmedoids:badK");
 }

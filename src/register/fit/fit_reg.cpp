@@ -715,7 +715,7 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             std::fill(centroid.begin(), centroid.end(), 0.0);
             for (keel::usize i = 0; i < K; ++i)
                 for (keel::usize k = 0; k < K; ++k)
-                    centroid[k] += simplex[ord[i]][k] / static_cast<double>(K);
+                    centroid[k] += simplex[ord[i]][k] / keel::as<double>(K);
 
             const auto &worst = simplex[ord[K]];
             for (keel::usize k = 0; k < K; ++k)
@@ -825,13 +825,13 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     if (dist == "normal" || dist == "Normal" || dist == "norm") {
         double sum = 0.0;
         for (keel::usize i = 0; i < N; ++i) sum += xd[i];
-        const double mean = sum / static_cast<double>(N);
+        const double mean = sum / keel::as<double>(N);
         double ss = 0.0;
         for (keel::usize i = 0; i < N; ++i) {
             const double d = xd[i] - mean;
             ss += d * d;
         }
-        const double sigma = std::sqrt(ss / static_cast<double>(N));
+        const double sigma = std::sqrt(ss / keel::as<double>(N));
         auto out = Value::matrix(1, 2, ValueType::DOUBLE, mr);
         out.doubleDataMut()[0] = mean;
         out.doubleDataMut()[1] = sigma;
@@ -852,7 +852,7 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             sum += xd[i];
         }
         auto out = Value::matrix(1, 1, ValueType::DOUBLE, mr);
-        out.doubleDataMut()[0] = sum / static_cast<double>(N);
+        out.doubleDataMut()[0] = sum / keel::as<double>(N);
         outs[0] = std::move(out);
         if (nargout >= 2) {
             auto [m, ci] = expfit(x, alpha, Value::Empty, Value::Empty, mr);
@@ -870,7 +870,7 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             sum += xd[i];
         }
         auto out = Value::matrix(1, 1, ValueType::DOUBLE, mr);
-        out.doubleDataMut()[0] = sum / static_cast<double>(N);
+        out.doubleDataMut()[0] = sum / keel::as<double>(N);
         outs[0] = std::move(out);
         if (nargout >= 2) {
             auto [lam, ci] = poissfit(x, alpha, mr);
@@ -887,13 +887,13 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                     0, 0, "mle", "", "numkit:mle:badData");
             sum_log += std::log(xd[i]);
         }
-        const double mu = sum_log / static_cast<double>(N);
+        const double mu = sum_log / keel::as<double>(N);
         double ss = 0.0;
         for (keel::usize i = 0; i < N; ++i) {
             const double d = std::log(xd[i]) - mu;
             ss += d * d;
         }
-        const double sigma = std::sqrt(ss / static_cast<double>(N));
+        const double sigma = std::sqrt(ss / keel::as<double>(N));
         auto out = Value::matrix(1, 2, ValueType::DOUBLE, mr);
         out.doubleDataMut()[0] = mu;
         out.doubleDataMut()[1] = sigma;
@@ -990,26 +990,26 @@ void fitdist_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     if (canonical == "Normal") {
         double sum = 0.0;
         for (keel::usize i = 0; i < N; ++i) sum += xd[i];
-        const double mean = sum / static_cast<double>(N);
+        const double mean = sum / keel::as<double>(N);
         double ss = 0.0;
         for (keel::usize i = 0; i < N; ++i) {
             const double d = xd[i] - mean;
             ss += d * d;
         }
-        const double sigma = std::sqrt(ss / static_cast<double>(N - 1));  // N-1
+        const double sigma = std::sqrt(ss / keel::as<double>(N - 1));  // N-1
         params = Value::matrix(1, 2, ValueType::DOUBLE, mr);
         params.doubleDataMut()[0] = mean;
         params.doubleDataMut()[1] = sigma;
     } else if (canonical == "Lognormal") {
         double sum_log = 0.0;
         for (keel::usize i = 0; i < N; ++i) sum_log += std::log(xd[i]);
-        const double mu = sum_log / static_cast<double>(N);
+        const double mu = sum_log / keel::as<double>(N);
         double ss = 0.0;
         for (keel::usize i = 0; i < N; ++i) {
             const double d = std::log(xd[i]) - mu;
             ss += d * d;
         }
-        const double sigma = std::sqrt(ss / static_cast<double>(N - 1));
+        const double sigma = std::sqrt(ss / keel::as<double>(N - 1));
         params = Value::matrix(1, 2, ValueType::DOUBLE, mr);
         params.doubleDataMut()[0] = mu;
         params.doubleDataMut()[1] = sigma;
@@ -1031,7 +1031,7 @@ void fitdist_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     for (keel::usize i = 0; i < param_names.size(); ++i)
         names_cell.cellAt(i) = Value::fromString(param_names[i], mr);
     pd.field("ParameterNames")    = std::move(names_cell);
-    pd.field("NumObservations")   = Value::scalar(static_cast<double>(N), mr);
+    pd.field("NumObservations")   = Value::scalar(keel::as<double>(N), mr);
     outs[0] = std::move(pd);
 }
 

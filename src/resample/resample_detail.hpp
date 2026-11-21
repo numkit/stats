@@ -44,17 +44,17 @@ namespace {
         if (with_replacement) {
             for (int i = 0; i < K; ++i) {
                 const double u = rng.nextUniform();
-                int idx = static_cast<int>(std::floor(u * static_cast<double>(N)));
+                int idx = keel::as<int>(std::floor(u * keel::as<double>(N)));
                 if (idx >= N) idx = N - 1;
                 out.push_back(idx);
             }
         } else {
             const int take = std::min(K, N);
-            Value rp = numkit::ops::randperm(rng, static_cast<keel::usize>(N),
-                                             static_cast<keel::usize>(take), nullptr);
+            Value rp = numkit::ops::randperm(rng, keel::as<keel::usize>(N),
+                                             keel::as<keel::usize>(take), nullptr);
             const double *rpd = rp.doubleData();
             for (int i = 0; i < take; ++i)
-                out.push_back(static_cast<int>(rpd[i]) - 1);
+                out.push_back(keel::as<int>(rpd[i]) - 1);
         }
     } else {
         auto &gen = rng.engine();
@@ -62,7 +62,7 @@ namespace {
         if (with_replacement) {
             const keel::ArrayRef<double> wref(weights.data(), weights.size());
             for (int i = 0; i < K; ++i)
-                out.push_back(static_cast<int>(keel::random::discrete_index(gen, wref)));
+                out.push_back(keel::as<int>(keel::random::discrete_index(gen, wref)));
         } else {
             // Without replacement: Efraimidis-Spirakis (2006) wswor algorithm.
             // Each positive-weight item i receives key k_i = u_i^(1/w_i), or
@@ -71,13 +71,13 @@ namespace {
             keel::Array<std::pair<double, int>> keyed;
             keyed.reserve(N);
             for (int i = 0; i < N; ++i) {
-                const double w = weights[static_cast<keel::usize>(i)];
+                const double w = weights[keel::as<keel::usize>(i)];
                 if (w > 0.0) {
                     const double e = std::max(keel::random::exponential_f64(gen, 1.0), 1e-300);
                     keyed.emplace_back(-e / w, i);
                 }
             }
-            const keel::usize take = std::min(static_cast<keel::usize>(K), keyed.size());
+            const keel::usize take = std::min(keel::as<keel::usize>(K), keyed.size());
             std::partial_sort(keyed.begin(), keyed.begin() + take, keyed.end(),
                               [](const auto &a, const auto &b) { return a.first > b.first; });
             for (keel::usize k = 0; k < take; ++k)
@@ -100,7 +100,7 @@ namespace {
 [[maybe_unused]] Value combnkImpl(keel::ArrayRef<double> items, int K,
                  keel::Allocator *mr)
 {
-    const int N = static_cast<int>(items.size());
+    const int N = keel::as<int>(items.size());
     if (K < 0)
         throw Error("combnk: K must be non-negative", 0, 0, "combnk", "",
                     "numkit:combnk:badK");
@@ -108,7 +108,7 @@ namespace {
     // error). E.g. combnk(1:4, 5) -> 0x5, combnk(5, 2) -> 0x2 (scalar 5 is
     // the 1-element set {5}, so K=2 > N=1).
     if (K > N)
-        return Value::matrix(0, static_cast<keel::usize>(K), ValueType::DOUBLE, mr);
+        return Value::matrix(0, keel::as<keel::usize>(K), ValueType::DOUBLE, mr);
 
     // Number of combinations.
     long long C = 1;

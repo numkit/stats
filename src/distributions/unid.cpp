@@ -71,9 +71,9 @@ Value unidrnd(::numkit::ops::RngContext &rng, double N, keel::usize rows, keel::
     if (N < 1.0 || std::floor(N) != N || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
     const keel::usize cnt = rows * cols;
-    const keel::i64 nMax = static_cast<keel::i64>(N);
+    const keel::i64 nMax = keel::as<keel::i64>(N);
     for (keel::usize i = 0; i < cnt; ++i)
-        od[i] = static_cast<double>(keel::random::uniform_i64(gen, 1, nMax));
+        od[i] = keel::as<double>(keel::random::uniform_i64(gen, 1, nMax));
     return out;
 }
 

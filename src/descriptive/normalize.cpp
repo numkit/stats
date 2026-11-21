@@ -67,7 +67,7 @@ void writeColumn(Value &out, keel::usize colIdx, const double *src, keel::usize 
 double colMean(const double *x, keel::usize n) {
     double s = 0.0;
     for (keel::usize i = 0; i < n; ++i) s += x[i];
-    return (n > 0) ? s / static_cast<double>(n) : 0.0;
+    return (n > 0) ? s / keel::as<double>(n) : 0.0;
 }
 
 double colStdPop(const double *x, keel::usize n) {
@@ -78,7 +78,7 @@ double colStdPop(const double *x, keel::usize n) {
         const double d = x[i] - m;
         s += d * d;
     }
-    return std::sqrt(s / static_cast<double>(n));
+    return std::sqrt(s / keel::as<double>(n));
 }
 
 // Sample (N-1) standard deviation — MATLAB's default for std/zscore/normalize.
@@ -90,7 +90,7 @@ double colStdSample(const double *x, keel::usize n) {
         const double d = x[i] - m;
         s += d * d;
     }
-    return std::sqrt(s / static_cast<double>(n - 1));
+    return std::sqrt(s / keel::as<double>(n - 1));
 }
 
 double colMedian(keel::Array<double> v) {
@@ -114,7 +114,7 @@ double colIQR(keel::Array<double> v) {
         const double pos = pfrac * double(n) - 0.5;   // index in [-0.5, n-0.5]
         if (pos <= 0.0)               return v[0];
         if (pos >= double(n - 1))     return v[n - 1];
-        const keel::usize lo   = static_cast<keel::usize>(std::floor(pos));
+        const keel::usize lo   = keel::as<keel::usize>(std::floor(pos));
         const double frac = pos - double(lo);
         return v[lo] * (1.0 - frac) + v[lo + 1] * frac;
     };

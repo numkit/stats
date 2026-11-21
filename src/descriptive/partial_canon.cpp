@@ -146,11 +146,11 @@ Value partialcorri(const Value &Y, const Value &X, const Value &Z,
                    keel::Allocator *mr)
 {
     partialcorri_argcheck(Y, X, Z);
-    const keel::usize n  = static_cast<keel::usize>(Y.dims().dim(0));
-    const keel::usize pY = static_cast<keel::usize>(Y.dims().dim(1));
-    const keel::usize pX = static_cast<keel::usize>(X.dims().dim(1));
+    const keel::usize n  = keel::as<keel::usize>(Y.dims().dim(0));
+    const keel::usize pY = keel::as<keel::usize>(Y.dims().dim(1));
+    const keel::usize pX = keel::as<keel::usize>(X.dims().dim(1));
     const bool hasZ = !Z.isEmpty();
-    const keel::usize pZ = hasZ ? static_cast<keel::usize>(Z.dims().dim(1)) : 0;
+    const keel::usize pZ = hasZ ? keel::as<keel::usize>(Z.dims().dim(1)) : 0;
 
     const double *Xd = X.doubleData();
     const double *Yd = Y.doubleData();
@@ -243,7 +243,7 @@ CanoncorrResult canoncorr(const Value &X, const Value &Y,
         for (keel::usize j = 0; j < p; ++j) {
             double m = 0.0;
             for (keel::usize i = 0; i < n; ++i) m += Xd[j * n + i];
-            m /= static_cast<double>(n);
+            m /= keel::as<double>(n);
             for (keel::usize i = 0; i < n; ++i)
                 Xcd[j * n + i] = Xd[j * n + i] - m;
         }
@@ -252,7 +252,7 @@ CanoncorrResult canoncorr(const Value &X, const Value &Y,
         for (keel::usize j = 0; j < q; ++j) {
             double m = 0.0;
             for (keel::usize i = 0; i < n; ++i) m += Yd[j * n + i];
-            m /= static_cast<double>(n);
+            m /= keel::as<double>(n);
             for (keel::usize i = 0; i < n; ++i)
                 Ycd[j * n + i] = Yd[j * n + i] - m;
         }

@@ -51,9 +51,9 @@ void lhsdesign_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mu
                                                      LhsCriterion::Correlation};
             crit = kCrit[argcheck::expectedChoice(
                 args[k + 1], {"none", "maximin", "correlation"},
-                static_cast<int>(k) + 3, "criterion", "lhsdesign")];
+                keel::as<int>(k) + 3, "criterion", "lhsdesign")];
         } else if (name == "iterations") {
-            iters = argcheck::roundLength(args[k + 1], static_cast<int>(k) + 3, "Iterations", "lhsdesign");
+            iters = argcheck::roundLength(args[k + 1], keel::as<int>(k) + 3, "Iterations", "lhsdesign");
             if (iters < 1) iters = 1;
         } else {
             throw Error(keel::format("lhsdesign: unknown option '{}'", name),

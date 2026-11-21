@@ -113,7 +113,7 @@ inline void invert_small(double *A, keel::usize D,
     keel::Array<double> mean(D, 0.0, scratch_mr);
     for (keel::usize c = 0; c < D; ++c) {
         for (keel::usize r = 0; r < M; ++r) mean[c] += X.elemAsDouble(c * M + r);
-        mean[c] /= static_cast<double>(M);
+        mean[c] /= keel::as<double>(M);
     }
     std::fill(cov_out, cov_out + D * D, 0.0);
     keel::Array<double> dev(D, scratch_mr);
@@ -124,7 +124,7 @@ inline void invert_small(double *A, keel::usize D,
             for (keel::usize b = 0; b < D; ++b)
                 cov_out[a * D + b] += dev[a] * dev[b];
     }
-    const double inv_dof = (M > 1) ? 1.0 / static_cast<double>(M - 1) : 1.0;
+    const double inv_dof = (M > 1) ? 1.0 / keel::as<double>(M - 1) : 1.0;
     for (keel::usize i = 0; i < D * D; ++i) cov_out[i] *= inv_dof;
 }
 
@@ -163,8 +163,8 @@ inline double correlation_distance(const double *x, const double *y, keel::usize
 {
     double mx = 0, my = 0;
     for (keel::usize k = 0; k < D; ++k) { mx += x[k]; my += y[k]; }
-    mx /= static_cast<double>(D);
-    my /= static_cast<double>(D);
+    mx /= keel::as<double>(D);
+    my /= keel::as<double>(D);
     double xy = 0, xx = 0, yy = 0;
     for (keel::usize k = 0; k < D; ++k) {
         const double dx = x[k] - mx, dy = y[k] - my;
@@ -268,13 +268,13 @@ inline void col_std(const Value &X, double *scale_out,
     for (keel::usize c = 0; c < D; ++c) {
         double mean = 0.0;
         for (keel::usize r = 0; r < M; ++r) mean += X.elemAsDouble(c * M + r);
-        mean /= static_cast<double>(M);
+        mean /= keel::as<double>(M);
         double ss = 0.0;
         for (keel::usize r = 0; r < M; ++r) {
             const double d = X.elemAsDouble(c * M + r) - mean;
             ss += d * d;
         }
-        scale_out[c] = (M > 1) ? std::sqrt(ss / static_cast<double>(M - 1)) : 0.0;
+        scale_out[c] = (M > 1) ? std::sqrt(ss / keel::as<double>(M - 1)) : 0.0;
     }
 }
 
@@ -291,8 +291,8 @@ inline void tiedrank_row(const double *v, keel::usize D, double *r,
     while (i < D) {
         keel::usize j = i;
         while (j + 1 < D && v[idx[j + 1]] == v[idx[i]]) ++j;
-        const double avg = (static_cast<double>(i + 1) +
-                            static_cast<double>(j + 1)) / 2.0;
+        const double avg = (keel::as<double>(i + 1) +
+                            keel::as<double>(j + 1)) / 2.0;
         for (keel::usize t = i; t <= j; ++t) r[idx[t]] = avg;
         i = j + 1;
     }

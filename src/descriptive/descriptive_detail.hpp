@@ -62,7 +62,7 @@ Value narrowToSingle(Value d, keel::Allocator *mr)
     const double *src = d.doubleData();
     float *dst = r.singleDataMut();
     for (keel::usize i = 0; i < d.numel(); ++i)
-        dst[i] = static_cast<float>(src[i]);
+        dst[i] = keel::as<float>(src[i]);
     return r;
 }
 
@@ -79,8 +79,8 @@ Value narrowToSingle(Value d, keel::Allocator *mr)
     const keel::usize n = d.numel();
     auto fill = [&](auto *dst) {
         using T = std::remove_pointer_t<std::decay_t<decltype(dst)>>;
-        const double lo = static_cast<double>(std::numeric_limits<T>::min());
-        const double hi = static_cast<double>(std::numeric_limits<T>::max());
+        const double lo = keel::as<double>(std::numeric_limits<T>::min());
+        const double hi = keel::as<double>(std::numeric_limits<T>::max());
         for (keel::usize i = 0; i < n; ++i) {
             double v = std::round(src[i]);   // round half away from zero
             if (v < lo) v = lo;
@@ -123,14 +123,14 @@ double complexVarianceFromSlice(const keel::c64 *data, keel::usize n, int normFl
     }
     if (k == 0) return std::nan("");
     if (k == 1) return (normFlag == 0) ? std::nan("") : 0.0;
-    mean /= static_cast<double>(k);
+    mean /= keel::as<double>(k);
     double acc = 0.0;
     for (keel::usize i = 0; i < n; ++i) {
         if (omitNan && isComplexNaNStats(data[i])) continue;
         const keel::c64 d = data[i] - mean;
         acc += d.real() * d.real() + d.imag() * d.imag();
     }
-    const double divisor = static_cast<double>(k - (normFlag == 0 ? 1 : 0));
+    const double divisor = keel::as<double>(k - (normFlag == 0 ? 1 : 0));
     return acc / divisor;
 }
 
@@ -318,7 +318,7 @@ void complexMedianAlongDim(const Value &x, int redDim, keel::c64 *dst,
     if (x.dims().ndim() >= 4 && d >= 1 && d <= x.dims().ndim()) {
         keel::ArenaTemp sc = keel::get_scratch(mr);
         auto shape = outShapeForDimND(x, d, sc.allocator());
-        out = Value::matrixND(shape.data(), static_cast<int>(shape.size()),
+        out = Value::matrixND(shape.data(), keel::as<int>(shape.size()),
                               ValueType::COMPLEX, mr);
     } else {
         auto outShape = outShapeForDim(x, d);
@@ -345,18 +345,18 @@ double quantileFromSortedSlice(const double *sorted, keel::usize n, double p,
     switch (method) {
         case QMethod::Midpoint:
         case QMethod::Approximate:                     // fallback
-            q = p * static_cast<double>(n) + 0.5;
+            q = p * keel::as<double>(n) + 0.5;
             break;
         case QMethod::Inclusive:
-            q = p * static_cast<double>(n - 1) + 1.0;
+            q = p * keel::as<double>(n - 1) + 1.0;
             break;
         case QMethod::Exclusive:
-            q = p * static_cast<double>(n + 1);
+            q = p * keel::as<double>(n + 1);
             break;
     }
     if (q <= 1.0) return sorted[0];
-    if (q >= static_cast<double>(n)) return sorted[n - 1];
-    const keel::usize lo = static_cast<keel::usize>(std::floor(q)) - 1; // â†’ 0-based
+    if (q >= keel::as<double>(n)) return sorted[n - 1];
+    const keel::usize lo = keel::as<keel::usize>(std::floor(q)) - 1; // â†’ 0-based
     const keel::usize hi = lo + 1;
     const double frac = q - std::floor(q);
     return sorted[lo] + frac * (sorted[hi] - sorted[lo]);
@@ -466,8 +466,8 @@ inline T readSrcAsT(const Value &x, keel::usize i, bool typeMatch)
     } else {
         const double d = x.elemAsDouble(i);
         return static_cast<T>(std::clamp(std::round(d),
-            static_cast<double>(std::numeric_limits<T>::lowest()),
-            static_cast<double>(std::numeric_limits<T>::max())));
+            keel::as<double>(std::numeric_limits<T>::lowest()),
+            keel::as<double>(std::numeric_limits<T>::max())));
     }
 }
 
@@ -475,7 +475,7 @@ template <typename T>
 inline Value makeScalarT(T v, ValueType outType, keel::Allocator *mr)
 {
     if (outType == ValueType::DOUBLE)
-        return Value::scalar(static_cast<double>(v), mr);
+        return Value::scalar(keel::as<double>(v), mr);
     if (outType == ValueType::LOGICAL)
         return Value::logicalScalar(v != 0, mr);
     auto r = Value::matrix(1, 1, outType, mr);
@@ -534,7 +534,7 @@ inline void modeFromSliceT(T *data, keel::usize n, T &outVal, double &outCount)
     }
     if (curCount > bestCount) { bestCount = curCount; bestVal = curVal; }
     outVal = bestVal;
-    outCount = static_cast<double>(bestCount);
+    outCount = keel::as<double>(bestCount);
 }
 
 // Walk every output cell along dim `redDim` (1-based). For each cell,
@@ -747,7 +747,7 @@ void centerColumns(double *data, keel::usize n, keel::usize p)
         double s = 0.0;
         for (keel::usize r = 0; r < n; ++r)
             s += data[c * n + r];
-        const double m = s / static_cast<double>(n);
+        const double m = s / keel::as<double>(n);
         for (keel::usize r = 0; r < n; ++r)
             data[c * n + r] -= m;
     }
@@ -824,8 +824,8 @@ enum class CovNan { Include, Omitrows, Partialrows };
     readMatrix(x, data, n, p);
 
     auto divisorOf = [normFlag](keel::usize m) {
-        return (normFlag == 0) ? std::max(1.0, static_cast<double>(m) - 1.0)
-                               : static_cast<double>(m);
+        return (normFlag == 0) ? std::max(1.0, keel::as<double>(m) - 1.0)
+                               : keel::as<double>(m);
     };
 
     // Vector input â†’ scalar variance over the non-NaN elements.
@@ -835,7 +835,7 @@ enum class CovNan { Include, Omitrows, Partialrows };
         for (keel::usize i = 0; i < n; ++i)
             if (!std::isnan(data[i])) { s += data[i]; ++m; }
         if (m == 0) return Value::scalar(std::nan(""), mr);
-        const double mean = s / static_cast<double>(m);
+        const double mean = s / keel::as<double>(m);
         double sq = 0.0;
         for (keel::usize i = 0; i < n; ++i)
             if (!std::isnan(data[i])) { const double d = data[i] - mean; sq += d * d; }
@@ -883,8 +883,8 @@ enum class CovNan { Include, Omitrows, Partialrows };
             if (m == 0) {
                 v = std::nan("");
             } else {
-                const double mi = si / static_cast<double>(m);
-                const double mj = sj / static_cast<double>(m);
+                const double mi = si / keel::as<double>(m);
+                const double mj = sj / keel::as<double>(m);
                 double s = 0.0;
                 for (keel::usize r = 0; r < n; ++r) {
                     const double a = data[i * n + r], b = data[j * n + r];
@@ -1005,13 +1005,13 @@ Value corrcoefPairwiseWithCounts(const Value &X, Value *MCounts,
                 const double a = data[i * n + r], b = data[j * n + r];
                 if (!std::isnan(a) && !std::isnan(b)) { si += a; sj += b; ++m; }
             }
-            if (mc) mc[i + j * p] = static_cast<double>(m);
+            if (mc) mc[i + j * p] = keel::as<double>(m);
             double rij;
             if (m < 2) {
                 rij = std::numeric_limits<double>::quiet_NaN();
             } else {
-                const double mi = si / static_cast<double>(m);
-                const double mj = sj / static_cast<double>(m);
+                const double mi = si / keel::as<double>(m);
+                const double mj = sj / keel::as<double>(m);
                 double sxy = 0.0, sxx = 0.0, syy = 0.0;
                 for (keel::usize r = 0; r < n; ++r) {
                     const double a = data[i * n + r], b = data[j * n + r];
@@ -1060,7 +1060,7 @@ Value corrcoefComplexMatrix(const Value &X, keel::Allocator *mr)
     for (keel::usize c = 0; c < p; ++c) {
         keel::c64 mean(0.0, 0.0);
         for (keel::usize r = 0; r < n; ++r) mean += Z[c * n + r];
-        mean /= static_cast<double>(n);
+        mean /= keel::as<double>(n);
         for (keel::usize r = 0; r < n; ++r) Z[c * n + r] -= mean;
     }
     keel::Array<double> stds(p, scratch.allocator());

@@ -75,8 +75,8 @@ void anova2_argcheck(const Value &Y)
     if (Y.dims().ndim() != 2)
         throw Error("anova2: input must be a 2D matrix",
                     0, 0, "anova2", "", "numkit:anova2:notMatrix");
-    const keel::usize m = static_cast<keel::usize>(Y.dims().dim(0));
-    const keel::usize n = static_cast<keel::usize>(Y.dims().dim(1));
+    const keel::usize m = keel::as<keel::usize>(Y.dims().dim(0));
+    const keel::usize n = keel::as<keel::usize>(Y.dims().dim(1));
     if (m < 2 || n < 2)
         throw Error("anova2: input must be at least 2x2",
                     0, 0, "anova2", "", "numkit:anova2:tooSmall");
@@ -105,11 +105,11 @@ anova2(const Value &Y, keel::Allocator *mr)
 {
     anova2_argcheck(Y);
     const double nan = std::numeric_limits<double>::quiet_NaN();
-    const keel::usize m = static_cast<keel::usize>(Y.dims().dim(0));
-    const keel::usize n = static_cast<keel::usize>(Y.dims().dim(1));
+    const keel::usize m = keel::as<keel::usize>(Y.dims().dim(0));
+    const keel::usize n = keel::as<keel::usize>(Y.dims().dim(1));
 
     const double *yd = Y.doubleData();
-    const double N = static_cast<double>(m * n);
+    const double N = keel::as<double>(m * n);
 
     // Row means (size m), column means (size n), grand mean.
     keel::Array<double> rowSum(m, 0.0);
@@ -124,18 +124,18 @@ anova2(const Value &Y, keel::Allocator *mr)
         }
     const double grandMean = grandSum / N;
     keel::Array<double> rowMean(m), colMean(n);
-    for (keel::usize i = 0; i < m; ++i) rowMean[i] = rowSum[i] / static_cast<double>(n);
-    for (keel::usize j = 0; j < n; ++j) colMean[j] = colSum[j] / static_cast<double>(m);
+    for (keel::usize i = 0; i < m; ++i) rowMean[i] = rowSum[i] / keel::as<double>(n);
+    for (keel::usize j = 0; j < n; ++j) colMean[j] = colSum[j] / keel::as<double>(m);
 
     // Sum of squares.
     double ssRows = 0.0, ssCols = 0.0, ssTotal = 0.0;
     for (keel::usize i = 0; i < m; ++i) {
         const double d = rowMean[i] - grandMean;
-        ssRows += static_cast<double>(n) * d * d;
+        ssRows += keel::as<double>(n) * d * d;
     }
     for (keel::usize j = 0; j < n; ++j) {
         const double d = colMean[j] - grandMean;
-        ssCols += static_cast<double>(m) * d * d;
+        ssCols += keel::as<double>(m) * d * d;
     }
     for (keel::usize j = 0; j < n; ++j)
         for (keel::usize i = 0; i < m; ++i) {
@@ -144,9 +144,9 @@ anova2(const Value &Y, keel::Allocator *mr)
         }
     const double ssErr = ssTotal - ssRows - ssCols;
 
-    const double dfRows = static_cast<double>(m - 1);
-    const double dfCols = static_cast<double>(n - 1);
-    const double dfErr  = static_cast<double>((m - 1) * (n - 1));
+    const double dfRows = keel::as<double>(m - 1);
+    const double dfCols = keel::as<double>(n - 1);
+    const double dfErr  = keel::as<double>((m - 1) * (n - 1));
     if (dfErr <= 0.0)
         return std::make_tuple(nan, nan, nan, nan, dfCols, dfRows, dfErr,
                                ssCols, ssRows, ssErr);
@@ -206,7 +206,7 @@ kruskalwallis(const Value &y, const Value &group, keel::Allocator *mr)
     while (i < N) {
         keel::usize j = i + 1;
         while (j < N && all[ord[j]].val == all[ord[i]].val) ++j;
-        const double avg = static_cast<double>(i + j + 1) / 2.0;
+        const double avg = keel::as<double>(i + j + 1) / 2.0;
         for (keel::usize k = i; k < j; ++k) ranks[ord[k]] = avg;
         if (j - i > 1) tieGroupSizes.push_back(j - i);
         i = j;
@@ -254,7 +254,7 @@ friedman(const Value &x, int reps, keel::Allocator *mr)
     const double nan = std::numeric_limits<double>::quiet_NaN();
     const keel::usize nrows = x.dims().rows();
     const keel::usize k     = x.dims().cols();
-    const keel::usize R     = static_cast<keel::usize>(reps);   // replicates per cell
+    const keel::usize R     = keel::as<keel::usize>(reps);   // replicates per cell
     if (k < 2 || nrows < 2 * R || R == 0 || (nrows % R) != 0)
         return std::make_tuple(Value::scalar(nan, mr), Value::scalar(nan, mr),
                                Value::scalar(0.0, mr));
@@ -280,18 +280,18 @@ friedman(const Value &x, int reps, keel::Allocator *mr)
         while (i < M) {
             keel::usize j = i + 1;
             while (j < M && blkVals[ord[j]] == blkVals[ord[i]]) ++j;
-            const double avg = static_cast<double>(i + j + 1) / 2.0;
+            const double avg = keel::as<double>(i + j + 1) / 2.0;
             for (keel::usize t = i; t < j; ++t) rank[ord[t]] = avg;
-            const double tg = static_cast<double>(j - i);
+            const double tg = keel::as<double>(j - i);
             if (tg > 1.0) tieTerm += tg * tg * tg - tg;
             i = j;
         }
         for (keel::usize m = 0; m < M; ++m) Rj[blkCols[m]] += rank[m];
     }
 
-    const double nd = static_cast<double>(n);
-    const double kd = static_cast<double>(k);
-    const double Rd = static_cast<double>(R);
+    const double nd = keel::as<double>(n);
+    const double kd = keel::as<double>(k);
+    const double Rd = keel::as<double>(R);
     const double Md = Rd * kd;
     double sumRj2 = 0.0;
     for (double v : Rj) sumRj2 += v * v;

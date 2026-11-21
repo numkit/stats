@@ -113,7 +113,7 @@ cholcov(const Value &SIGMA, keel::Allocator *mr)
     for (double v : d) if (v <= -tol) ++p;
     if (p > 0) {
         Value T = Value::matrix(0, 0, ValueType::DOUBLE, mr);
-        return {std::move(T), Value::scalar(static_cast<double>(p), mr)};
+        return {std::move(T), Value::scalar(keel::as<double>(p), mr)};
     }
 
     // 4. PSD: keep eigvals > tol, rebuild T = sqrt(d_keep) .* V_keep'.

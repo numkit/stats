@@ -41,13 +41,13 @@ void centred(const Value &v, keel::Array<double> &out, double &c0)
     out.resize(n);
     double mean = 0.0;
     for (keel::usize i = 0; i < n; ++i) mean += v.elemAsDouble(i);
-    mean = (n > 0) ? mean / static_cast<double>(n) : 0.0;
+    mean = (n > 0) ? mean / keel::as<double>(n) : 0.0;
     c0 = 0.0;
     for (keel::usize i = 0; i < n; ++i) {
         out[i] = v.elemAsDouble(i) - mean;
         c0 += out[i] * out[i];
     }
-    c0 /= static_cast<double>(n);   // biased variance
+    c0 /= keel::as<double>(n);   // biased variance
 }
 
 Value colVec(const keel::Array<double> &v, keel::Allocator *mr)
@@ -104,7 +104,7 @@ std::tuple<Value, Value, Value>
 autocorr(const Value &y, int numLags, double numSTD, keel::Allocator *mr)
 {
     const keel::usize N = y.numel();
-    const keel::usize K = (numLags >= 0) ? static_cast<keel::usize>(numLags) : defaultNumLags(N);
+    const keel::usize K = (numLags >= 0) ? keel::as<keel::usize>(numLags) : defaultNumLags(N);
 
     keel::Array<double> yc;
     double c0 = 0.0;
@@ -115,12 +115,12 @@ autocorr(const Value &y, int numLags, double numSTD, keel::Allocator *mr)
         double ck = 0.0;
         for (keel::usize t = 0; t + k < N; ++t)
             ck += yc[t] * yc[t + k];
-        ck /= static_cast<double>(N);            // biased autocovariance
+        ck /= keel::as<double>(N);            // biased autocovariance
         acf[k]  = (c0 != 0.0) ? ck / c0 : (k == 0 ? 1.0 : 0.0);
-        lags[k] = static_cast<double>(k);
+        lags[k] = keel::as<double>(k);
     }
 
-    const double b = (N > 0) ? numSTD / std::sqrt(static_cast<double>(N)) : 0.0;
+    const double b = (N > 0) ? numSTD / std::sqrt(keel::as<double>(N)) : 0.0;
     keel::Array<double> bounds = { b, -b };
     return std::make_tuple(colVec(acf, mr), colVec(lags, mr), colVec(bounds, mr));
 }
@@ -131,7 +131,7 @@ crosscorr(const Value &y1, const Value &y2, int numLags, double numSTD,
 {
     crosscorr_argcheck(y1, y2);
     const keel::usize N = y1.numel();
-    const keel::usize K = (numLags >= 0) ? static_cast<keel::usize>(numLags) : defaultNumLags(N);
+    const keel::usize K = (numLags >= 0) ? keel::as<keel::usize>(numLags) : defaultNumLags(N);
 
     keel::Array<double> c1, c2;
     double v1 = 0.0, v2 = 0.0;
@@ -140,20 +140,20 @@ crosscorr(const Value &y1, const Value &y2, int numLags, double numSTD,
     const double denom = std::sqrt(v1 * v2);
 
     // xcf at lag k = (1/N) Σ_t c1[t]·c2[t+k] / √(c1(0)·c2(0)), k = -K..K.
-    const long Kl = static_cast<long>(K), Nl = static_cast<long>(N);
+    const long Kl = keel::as<long>(K), Nl = keel::as<long>(N);
     keel::Array<double> xcf(2 * K + 1), lags(2 * K + 1);
     for (long k = -Kl; k <= Kl; ++k) {
         double s = 0.0;
         const long t0 = std::max(0L, -k), t1 = std::min(Nl, Nl - k);
         for (long t = t0; t < t1; ++t)
-            s += c1[static_cast<keel::usize>(t)] * c2[static_cast<keel::usize>(t + k)];
-        s /= static_cast<double>(N);
-        const keel::usize idx = static_cast<keel::usize>(k + Kl);
+            s += c1[keel::as<keel::usize>(t)] * c2[keel::as<keel::usize>(t + k)];
+        s /= keel::as<double>(N);
+        const keel::usize idx = keel::as<keel::usize>(k + Kl);
         xcf[idx]  = (denom != 0.0) ? s / denom : 0.0;
-        lags[idx] = static_cast<double>(k);
+        lags[idx] = keel::as<double>(k);
     }
 
-    const double b = (N > 0) ? numSTD / std::sqrt(static_cast<double>(N)) : 0.0;
+    const double b = (N > 0) ? numSTD / std::sqrt(keel::as<double>(N)) : 0.0;
     keel::Array<double> bounds = { b, -b };
     return std::make_tuple(colVec(xcf, mr), colVec(lags, mr), colVec(bounds, mr));
 }
@@ -162,7 +162,7 @@ std::tuple<Value, Value, Value>
 parcorr(const Value &y, int numLags, double numSTD, keel::Allocator *mr)
 {
     const keel::usize N = y.numel();
-    const keel::usize K = (numLags >= 0) ? static_cast<keel::usize>(numLags) : defaultNumLags(N);
+    const keel::usize K = (numLags >= 0) ? keel::as<keel::usize>(numLags) : defaultNumLags(N);
 
     keel::Array<double> yv(N);
     for (keel::usize i = 0; i < N; ++i) yv[i] = y.elemAsDouble(i);
@@ -176,7 +176,7 @@ parcorr(const Value &y, int numLags, double numSTD, keel::Allocator *mr)
     // deeper, rank-deficient lags are unstable in both engines.
     keel::Array<double> xr;   // predictor row, reused
     for (keel::usize k = 1; k <= K; ++k) {
-        lags[k] = static_cast<double>(k);
+        lags[k] = keel::as<double>(k);
         if (N <= k) continue;                 // no observations → leave 0
         const keel::usize p = k + 1;               // intercept + k lags
         keel::Array<double> A(p * p, 0.0), bb(p, 0.0);
@@ -192,7 +192,7 @@ parcorr(const Value &y, int numLags, double numSTD, keel::Allocator *mr)
         if (solveDense(A, bb, p)) pacf[k] = bb[p - 1];   // φ_k; else leave 0
     }
 
-    const double bnd = (N > 0) ? numSTD / std::sqrt(static_cast<double>(N)) : 0.0;
+    const double bnd = (N > 0) ? numSTD / std::sqrt(keel::as<double>(N)) : 0.0;
     keel::Array<double> bounds = { bnd, -bnd };
     return std::make_tuple(colVec(pacf, mr), colVec(lags, mr), colVec(bounds, mr));
 }

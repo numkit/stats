@@ -82,7 +82,7 @@ ClusterOpts pdist_argcheck(keel::ArrayRef<Value> tail, const char *fn,
                 throw Error(keel::format("{}: the distance function '{}' was not found.", fn, raw),
                             0, 0, fn, "", badMetricTag);
             o.metric = keel::String::from(
-                kMetrics[static_cast<keel::usize>(hit)]);
+                kMetrics[keel::as<keel::usize>(hit)]);
         } else if (v.numel() == 1) {
             o.p = v.elemAsDouble(0);
         } else {
@@ -104,14 +104,14 @@ Value pdist_full(const Value &X, keel::ArrayRef<Value> tail,
     Value d = pdist(X, o.metric, o.p, o.C, mr);
     // Single inputs produce single distances (probe P07).
     if (X.type() == ValueType::SINGLE && d.type() == ValueType::DOUBLE) {
-        const keel::usize n = static_cast<keel::usize>(d.numel());
+        const keel::usize n = keel::as<keel::usize>(d.numel());
         Value out = Value::matrix(
-            static_cast<keel::usize>(d.dims().dim(0)),
-            static_cast<keel::usize>(d.dims().dim(1)),
+            keel::as<keel::usize>(d.dims().dim(0)),
+            keel::as<keel::usize>(d.dims().dim(1)),
             ValueType::SINGLE, mr);
         for (keel::usize k = 0; k < n; ++k)
             out.singleDataMut()[k] =
-                static_cast<float>(d.elemAsDouble(k));
+                keel::as<float>(d.elemAsDouble(k));
         return out;
     }
     return d;
@@ -140,7 +140,7 @@ Pdist2Out pdist2_full(const Value &X, const Value &Y, keel::ArrayRef<Value> tail
                                 0, 0, "pdist2", "", "numkit:pdist2:badK");
                 topk = true;
                 largest = (s == "largest");
-                k = static_cast<keel::usize>(kv);
+                k = keel::as<keel::usize>(kv);
                 ++i;   // consume the count
                 continue;
             }
@@ -178,7 +178,7 @@ Value linkage_full(const Value &Y, keel::ArrayRef<Value> tail,
                                      tail[0].toString()),
                         0, 0, "linkage", "", "numkit:linkage:badMethod");
         method = keel::String::from(
-            kLinkMethods[static_cast<keel::usize>(hit)]);
+            kLinkMethods[keel::as<keel::usize>(hit)]);
     } else if (!tail.empty()) {
         throw Error(keel::format("linkage: METHOD must be one of: single, complete, "
                     "average, weighted, centroid, median, ward (got a {}).",
@@ -201,7 +201,7 @@ Value linkage_full(const Value &Y, keel::ArrayRef<Value> tail,
                             0, 0, "linkage", "",
                             "numkit:linkage:distanceFunctionNotFound");
             metric = keel::String::from(
-                kMetrics[static_cast<keel::usize>(hit)]);
+                kMetrics[keel::as<keel::usize>(hit)]);
             haveMetric = true;
         } else if (v.numel() == 1) {
             p = v.elemAsDouble(0);
@@ -238,9 +238,9 @@ Value cluster_full(const Value &Z, keel::ArrayRef<Value> tail,
         const keel::String rawName = tail[i].toString();
         const keel::String name = lowerCopy(rawName);
         const Value &v = tail[i + 1];
-        if      (name == "maxclust")  maxclust = static_cast<int>(v.elemAsDouble(0));
+        if      (name == "maxclust")  maxclust = keel::as<int>(v.elemAsDouble(0));
         else if (name == "cutoff")    cutoff = v.elemAsDouble(0);
-        else if (name == "depth")     depth = static_cast<int>(v.elemAsDouble(0));
+        else if (name == "depth")     depth = keel::as<int>(v.elemAsDouble(0));
         else if (name == "criterion") {
             const int hit = argcheck::matchStringChoice(
                 v, keel::ArrayRef<keel::StringRef>(kCriteria));
@@ -252,7 +252,7 @@ Value cluster_full(const Value &Z, keel::ArrayRef<Value> tail,
                             0, 0, "cluster", "",
                             "numkit:cluster:badCriterion");
             criterion = keel::String::from(
-                kCriteria[static_cast<keel::usize>(hit)]);
+                kCriteria[keel::as<keel::usize>(hit)]);
         } else {
             throw Error(keel::format("cluster: unrecognized parameter name '{}'.", rawName),
                         0, 0, "cluster", "", "numkit:cluster:badParamName");
@@ -277,7 +277,7 @@ Value inconsistent_full(const Value &Z, keel::ArrayRef<Value> tail,
             throw Error(keel::format("inconsistent: depth must be a positive integer "
                         "scalar (got {}).", d),
                         0, 0, "inconsistent", "", "numkit:inconsistent:badDepth");
-        depth = static_cast<int>(d);
+        depth = keel::as<int>(d);
     }
     return inconsistent(Z, depth, mr);
 }

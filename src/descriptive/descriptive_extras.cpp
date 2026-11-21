@@ -99,9 +99,9 @@ void partialcorr_of_argcheck(const Value &X, const Value &Y, const Value &Z)
     if (X.dims().ndim() != 2 || Y.dims().ndim() != 2 || Z.dims().ndim() != 2)
         throw Error("partialcorr: X, Y, Z must be 2D matrices",
                     0, 0, "partialcorr", "", "numkit:partialcorr:notMatrix");
-    const keel::usize m = static_cast<keel::usize>(X.dims().dim(0));
-    const keel::usize mY = static_cast<keel::usize>(Y.dims().dim(0));
-    const keel::usize mZ = static_cast<keel::usize>(Z.dims().dim(0));
+    const keel::usize m = keel::as<keel::usize>(X.dims().dim(0));
+    const keel::usize mY = keel::as<keel::usize>(Y.dims().dim(0));
+    const keel::usize mZ = keel::as<keel::usize>(Z.dims().dim(0));
     if (mY != m || mZ != m)
         throw Error("partialcorr: X, Y, Z must have the same number of rows",
                     0, 0, "partialcorr", "", "numkit:partialcorr:dimMismatch");
@@ -143,7 +143,7 @@ Value rmse(const Value &f, const Value &a, int dim, keel::Allocator *mr)
             if (k == 0) return std::numeric_limits<double>::quiet_NaN();
             double sum = 0.0;
             for (keel::usize i = 0; i < k; ++i) sum += s[i];
-            return std::sqrt(sum / static_cast<double>(k));
+            return std::sqrt(sum / keel::as<double>(k));
         }, mr);
     return v;
 }
@@ -184,7 +184,7 @@ Value mape(const Value &f, const Value &a, int dim, keel::Allocator *mr)
             if (k == 0) return std::numeric_limits<double>::quiet_NaN();
             double sum = 0.0;
             for (keel::usize i = 0; i < k; ++i) sum += s[i];
-            return sum / static_cast<double>(k);
+            return sum / keel::as<double>(k);
         }, mr);
 }
 
@@ -193,10 +193,10 @@ Value mape(const Value &f, const Value &a, int dim, keel::Allocator *mr)
 Value partialcorr_of(const Value &X, const Value &Y, const Value &Z, keel::Allocator *mr)
 {
     partialcorr_of_argcheck(X, Y, Z);
-    const keel::usize m = static_cast<keel::usize>(X.dims().dim(0));
-    const keel::usize pX = static_cast<keel::usize>(X.dims().dim(1));
-    const keel::usize pY = static_cast<keel::usize>(Y.dims().dim(1));
-    const keel::usize pZ = static_cast<keel::usize>(Z.dims().dim(1));
+    const keel::usize m = keel::as<keel::usize>(X.dims().dim(0));
+    const keel::usize pX = keel::as<keel::usize>(X.dims().dim(1));
+    const keel::usize pY = keel::as<keel::usize>(Y.dims().dim(1));
+    const keel::usize pZ = keel::as<keel::usize>(Z.dims().dim(1));
 
     // Augment Z with intercept column (column of ones) for proper regression.
     // Z_full is m × (pZ + 1).
@@ -221,7 +221,7 @@ Value partialcorr_of(const Value &X, const Value &Y, const Value &Z, keel::Alloc
         }
 
     auto regressOut = [&](const Value &W) -> keel::Array<double> {
-        const keel::usize p = static_cast<keel::usize>(W.dims().dim(1));
+        const keel::usize p = keel::as<keel::usize>(W.dims().dim(1));
         const double *Wd = W.doubleData();
         keel::Array<double> Res(m * p, 0.0, scratch.allocator());
         // For each column of W:
@@ -291,7 +291,7 @@ Value partialcorr_of(const Value &X, const Value &Y, const Value &Z, keel::Alloc
     auto colMean = [&](const keel::Array<double> &v, keel::usize col) {
         double s = 0.0;
         for (keel::usize i = 0; i < m; ++i) s += v[i + col * m];
-        return s / static_cast<double>(m);
+        return s / keel::as<double>(m);
     };
     auto colStd = [&](const keel::Array<double> &v, keel::usize col, double mean) {
         double s = 0.0;
@@ -299,7 +299,7 @@ Value partialcorr_of(const Value &X, const Value &Y, const Value &Z, keel::Alloc
             const double d = v[i + col * m] - mean;
             s += d * d;
         }
-        return std::sqrt(s / static_cast<double>(m - 1));
+        return std::sqrt(s / keel::as<double>(m - 1));
     };
 
     for (keel::usize i = 0; i < pX; ++i) {
@@ -311,7 +311,7 @@ Value partialcorr_of(const Value &X, const Value &Y, const Value &Z, keel::Alloc
             double cov = 0.0;
             for (keel::usize k = 0; k < m; ++k)
                 cov += (Xres_data[k + i * m] - mx) * (Yres_data[k + j * m] - my);
-            cov /= static_cast<double>(m - 1);
+            cov /= keel::as<double>(m - 1);
             R[i + j * pX] = (sx > 0.0 && sy > 0.0) ? cov / (sx * sy) : std::nan("");
         }
     }
@@ -337,8 +337,8 @@ Value partialcorr_xx(const Value &X, keel::Allocator *mr)
     if (X.dims().ndim() != 2)
         throw Error("partialcorr: X must be a 2D matrix",
                     0, 0, "partialcorr", "", "numkit:partialcorr:notMatrix");
-    const keel::usize m = static_cast<keel::usize>(X.dims().dim(0));
-    const keel::usize p = static_cast<keel::usize>(X.dims().dim(1));
+    const keel::usize m = keel::as<keel::usize>(X.dims().dim(0));
+    const keel::usize p = keel::as<keel::usize>(X.dims().dim(1));
 
     auto Rout = Value::matrix(p, p, ValueType::DOUBLE, mr);
     double *R = Rout.doubleDataMut();
@@ -392,7 +392,7 @@ Value partialcorr_xz(const Value &X, const Value &Z, keel::Allocator *mr)
     // Equivalent to partialcorr_of(X, X, Z) with diagonal forced to 1
     // (FP cancellation in self-correlation may drift to 1 - O(ε)).
     auto R = partialcorr_of(X, X, Z, mr);
-    const keel::usize p = static_cast<keel::usize>(R.dims().dim(0));
+    const keel::usize p = keel::as<keel::usize>(R.dims().dim(0));
     double *Rd = R.doubleDataMut();
     for (keel::usize i = 0; i < p; ++i) Rd[i + i * p] = 1.0;
     // Symmetrise: off-diagonal pairs are mathematically equal but may
@@ -419,14 +419,14 @@ Value corr_xy(const Value &X, const Value &Y, keel::Allocator *mr)
     // out(i,j) = corr(X(:,i), Y(:,j)). Matches MATLAB corr(X, Y).
     // Vector × vector returns a 1×1 matrix (scalar-convertible) —
     // differs from corrcoef(x,y) which returns the 2×2 [x;y] matrix.
-    const keel::usize n = static_cast<keel::usize>(X.dims().dim(0));
+    const keel::usize n = keel::as<keel::usize>(X.dims().dim(0));
     const keel::usize p = (X.dims().ndim() >= 2)
-                            ? static_cast<keel::usize>(X.dims().dim(1)) : 1;
-    if (static_cast<keel::usize>(Y.dims().dim(0)) != n)
+                            ? keel::as<keel::usize>(X.dims().dim(1)) : 1;
+    if (keel::as<keel::usize>(Y.dims().dim(0)) != n)
         throw Error("corr: X and Y must have the same number of rows",
                     0, 0, "corr", "", "numkit:corr:rows");
     const keel::usize q = (Y.dims().ndim() >= 2)
-                            ? static_cast<keel::usize>(Y.dims().dim(1)) : 1;
+                            ? keel::as<keel::usize>(Y.dims().dim(1)) : 1;
 
     auto out = Value::matrix(p, q, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
@@ -486,7 +486,7 @@ Value detrend_of(const Value &x, int order, keel::Allocator *mr)
     // Simple public form of the full detrend contract (cleaning.cpp):
     // detrend(x, order). Crosses the same float gate / NaN policy /
     // single + N-D handling as the interpreter path.
-    const Value ord = Value::scalar(static_cast<double>(order), mr);
+    const Value ord = Value::scalar(keel::as<double>(order), mr);
     return detrend_full(x, keel::ArrayRef<Value>(&ord, 1), mr);
 }
 
@@ -501,9 +501,9 @@ Value detrendBP_of(const Value &x, keel::ArrayRef<double> bpUser,
                    keel::Allocator *mr)
 {
     if (x.numel() == 0) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
-    const keel::usize r = static_cast<keel::usize>(x.dims().dim(0));
+    const keel::usize r = keel::as<keel::usize>(x.dims().dim(0));
     const keel::usize c = (x.dims().ndim() >= 2)
-                            ? static_cast<keel::usize>(x.dims().dim(1)) : 1;
+                            ? keel::as<keel::usize>(x.dims().dim(1)) : 1;
     const keel::usize N = (r == 1 || c == 1) ? r * c : r;
     if (N < 2) {                       // nothing to fit
         auto out = Value::matrix(r, c, ValueType::DOUBLE, mr);
@@ -518,9 +518,9 @@ Value detrendBP_of(const Value &x, keel::ArrayRef<double> bpUser,
     bps.push_back(0.0);
     for (double v : bpUser) {
         const double off = std::floor(v + 0.5);
-        if (off > 0.0 && off < static_cast<double>(N - 1)) bps.push_back(off);
+        if (off > 0.0 && off < keel::as<double>(N - 1)) bps.push_back(off);
     }
-    bps.push_back(static_cast<double>(N - 1));
+    bps.push_back(keel::as<double>(N - 1));
     std::sort(bps.begin(), bps.end());
     bps.resize(std::unique(bps.begin(), bps.end()) - bps.begin());
     const keel::usize lb = bps.size() - 1;
@@ -530,10 +530,10 @@ Value detrendBP_of(const Value &x, keel::ArrayRef<double> bpUser,
     keel::Array<double> a(N * k, 0.0, scratch.allocator());     // column-major N×k
     for (keel::usize row = 0; row < N; ++row) a[(k - 1) * N + row] = 1.0;
     for (keel::usize kb = 0; kb < lb; ++kb) {
-        const keel::usize off = static_cast<keel::usize>(bps[kb]);
+        const keel::usize off = keel::as<keel::usize>(bps[kb]);
         const keel::usize M = N - off;
         for (keel::usize i = 0; i < M; ++i)
-            a[kb * N + (off + i)] = static_cast<double>(i + 1) / static_cast<double>(M);
+            a[kb * N + (off + i)] = keel::as<double>(i + 1) / keel::as<double>(M);
     }
 
     auto out = Value::matrix(r, c, ValueType::DOUBLE, mr);
@@ -593,9 +593,9 @@ Value filloutliers_of(const Value &x,
     const keel::usize n = x.numel();
     if (n == 0) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     const double *xd = x.doubleData();
-    const keel::usize r = static_cast<keel::usize>(x.dims().dim(0));
+    const keel::usize r = keel::as<keel::usize>(x.dims().dim(0));
     const keel::usize c = (x.dims().ndim() >= 2)
-                            ? static_cast<keel::usize>(x.dims().dim(1)) : 1;
+                            ? keel::as<keel::usize>(x.dims().dim(1)) : 1;
     auto out = Value::matrix(r, c, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
     std::copy(xd, xd + n, od);
@@ -702,7 +702,7 @@ ErrorMetricOpts parseErrorMetricOpts(keel::ArrayRef<Value> tail,
         const keel::StringRef lref = low.as_ref();
         for (keel::usize i = 0; i < list.size(); ++i)
             if (lref.size() <= list[i].size() && list[i].substr(0, lref.size()) == lref) {
-                ++cnt; hit = static_cast<int>(i);
+                ++cnt; hit = keel::as<int>(i);
             }
         return std::pair<int, int>(hit, cnt);   // (index, match count)
     };
@@ -859,9 +859,9 @@ Value rmse(const Value &f, const Value &a, int dim, const ErrorMetricOpts &o,
     // Reduce along the run layout.
     const int d = (dim == 0) ? 1 : dim;
     const auto &fd = f.dims();
-    const keel::usize r = static_cast<keel::usize>(fd.dim(0));
+    const keel::usize r = keel::as<keel::usize>(fd.dim(0));
     const keel::usize c = (fd.ndim() >= 2)
-        ? static_cast<keel::usize>(fd.numel() / std::max<keel::usize>(r, 1)) : 1;
+        ? keel::as<keel::usize>(fd.numel() / std::max<keel::usize>(r, 1)) : 1;
     // Treat the inputs in the (dim-1 columns) layout like the rest of
     // the family: flatten when the shapes are vectors (the old
     // behaviour) — the reg normalizes vecdim/'all' away.
@@ -946,9 +946,9 @@ Value mape(const Value &f, const Value &a, int dim, const ErrorMetricOpts &o,
     }
     const int d = (dim == 0) ? 1 : dim;
     const auto &fd = f.dims();
-    const keel::usize r = static_cast<keel::usize>(fd.dim(0));
+    const keel::usize r = keel::as<keel::usize>(fd.dim(0));
     const keel::usize c = (fd.ndim() >= 2)
-        ? static_cast<keel::usize>(fd.numel() / std::max<keel::usize>(r, 1)) : 1;
+        ? keel::as<keel::usize>(fd.numel() / std::max<keel::usize>(r, 1)) : 1;
     const bool along2 = (d == 2);
     const keel::usize runLen = along2 ? c : r;
     const keel::usize nRuns = along2 ? r : c;
@@ -1022,10 +1022,10 @@ Value mad_of(const Value &x, int flag, int dim, keel::Allocator *mr)
                 if (k == 0) return std::numeric_limits<double>::quiet_NaN();
                 double mean = 0.0;
                 for (keel::usize i = 0; i < k; ++i) mean += v[i];
-                mean /= static_cast<double>(k);
+                mean /= keel::as<double>(k);
                 double sum = 0.0;
                 for (keel::usize i = 0; i < k; ++i) sum += std::fabs(v[i] - mean);
-                return sum / static_cast<double>(k);
+                return sum / keel::as<double>(k);
             }, mr);
     }
     // Median form. MATLAB mad ignores NaN values.
@@ -1061,7 +1061,7 @@ Value geomean_of(const Value &x, int dim, bool omitnan, keel::Allocator *mr)
                 ++k;
             }
             if (k == 0) return std::numeric_limits<double>::quiet_NaN();
-            return std::exp(sum / static_cast<double>(k));
+            return std::exp(sum / keel::as<double>(k));
         }, mr);
 }
 
@@ -1081,7 +1081,7 @@ Value harmmean_of(const Value &x, int dim, bool omitnan, keel::Allocator *mr)
                 ++k;
             }
             if (k == 0) return std::numeric_limits<double>::quiet_NaN();
-            return static_cast<double>(k) / sum;
+            return keel::as<double>(k) / sum;
         }, mr);
 }
 
@@ -1098,13 +1098,13 @@ Value moment_of(const Value &x, int order, int dim, keel::Allocator *mr)
             if (k == 1) return 0.0;          // central first moment
             double mean = 0.0;
             for (keel::usize i = 0; i < n; ++i) mean += s[i];
-            mean /= static_cast<double>(n);
+            mean /= keel::as<double>(n);
             double sum = 0.0;
             for (keel::usize i = 0; i < n; ++i) {
                 const double d2 = s[i] - mean;
                 sum += std::pow(d2, k);
             }
-            return sum / static_cast<double>(n);
+            return sum / keel::as<double>(n);
         }, mr);
 }
 
@@ -1124,16 +1124,16 @@ Value trimmean_of(const Value &x, double pct, int dim, bool useFloor,
         [p, useFloor](keel::usize, const double *s, keel::usize n) -> double {
             if (n == 0) return std::numeric_limits<double>::quiet_NaN();
             // Number of values to trim from EACH end.
-            const double kf = static_cast<double>(n) * p / 200.0;
+            const double kf = keel::as<double>(n) * p / 200.0;
             const keel::usize k = useFloor
-                ? static_cast<keel::usize>(std::floor(kf))
-                : static_cast<keel::usize>(std::max(0.0, std::ceil(kf - 0.5)));
+                ? keel::as<keel::usize>(std::floor(kf))
+                : keel::as<keel::usize>(std::max(0.0, std::ceil(kf - 0.5)));
             if (2 * k >= n) return std::numeric_limits<double>::quiet_NaN();
             keel::Array<double> buf(keel::ArrayRef<double>(s, n));
             std::sort(buf.begin(), buf.end());
             double sum = 0.0;
             for (keel::usize i = k; i < n - k; ++i) sum += buf[i];
-            return sum / static_cast<double>(n - 2 * k);
+            return sum / keel::as<double>(n - 2 * k);
         }, mr);
 }
 
@@ -1249,9 +1249,9 @@ ksdensity_full(const Value &x, const Value &pts, double bw_user, keel::StringRef
             if (useWindow && N > 0) {
                 const double lo = grid[j] - cutoff;
                 const double hi = grid[j] + cutoff;
-                i0 = static_cast<keel::usize>(
+                i0 = keel::as<keel::usize>(
                     std::lower_bound(xs.begin(), xs.end(), lo) - xs.begin());
-                const keel::usize rIdx = static_cast<keel::usize>(
+                const keel::usize rIdx = keel::as<keel::usize>(
                     std::lower_bound(xs.begin(), xs.end(), hi) - xs.begin());
                 i1 = std::min(N, rIdx + 1);
             }
@@ -1273,9 +1273,9 @@ ksdensity_full(const Value &x, const Value &pts, double bw_user, keel::StringRef
             if (N > 0) {
                 const double lo = grid[j] - cutoff;
                 const double hi = grid[j] + cutoff;
-                i0 = static_cast<keel::usize>(
+                i0 = keel::as<keel::usize>(
                     std::lower_bound(xs.begin(), xs.end(), lo) - xs.begin());
-                const keel::usize rIdx = static_cast<keel::usize>(
+                const keel::usize rIdx = keel::as<keel::usize>(
                     std::lower_bound(xs.begin(), xs.end(), hi) - xs.begin());
                 i1 = std::min(N, rIdx + 1);
             }
@@ -1486,7 +1486,7 @@ datastats(const Value &x, keel::Allocator *mr)
         if (vi > mx) mx = vi;
         sum += vi;
     }
-    const double mean = sum / static_cast<double>(N);
+    const double mean = sum / keel::as<double>(N);
 
     keel::Array<double> sorted = v.clone();
     std::sort(sorted.begin(), sorted.end());
@@ -1498,11 +1498,11 @@ datastats(const Value &x, keel::Allocator *mr)
     if (N > 1) {
         double sq = 0.0;
         for (double vi : v) { const double d = vi - mean; sq += d * d; }
-        sd = std::sqrt(sq / static_cast<double>(N - 1));
+        sd = std::sqrt(sq / keel::as<double>(N - 1));
     }
     const double range = mx - mn;
 
-    return std::make_tuple(Value::scalar(static_cast<double>(N), mr),
+    return std::make_tuple(Value::scalar(keel::as<double>(N), mr),
                            Value::scalar(mx,     mr),
                            Value::scalar(mn,     mr),
                            Value::scalar(mean,   mr),
@@ -1563,8 +1563,8 @@ ecdfhist(const Value &f, const Value &x, int m, keel::Allocator *mr)
         throw Error("ecdfhist: f and x must have the same length",
                     0, 0, "ecdfhist", "", "numkit:ecdfhist:size");
     if (Lf < 2) {
-        Value n_empty = Value::matrix(1, static_cast<keel::usize>(m), ValueType::DOUBLE, mr);
-        Value c_empty = Value::matrix(1, static_cast<keel::usize>(m), ValueType::DOUBLE, mr);
+        Value n_empty = Value::matrix(1, keel::as<keel::usize>(m), ValueType::DOUBLE, mr);
+        Value c_empty = Value::matrix(1, keel::as<keel::usize>(m), ValueType::DOUBLE, mr);
         return {std::move(n_empty), std::move(c_empty)};
     }
 
@@ -1579,11 +1579,11 @@ ecdfhist(const Value &f, const Value &x, int m, keel::Allocator *mr)
     const double xmin = vals.front();
     const double xmax = vals.back();
     const double width = (xmax > xmin)
-        ? (xmax - xmin) / static_cast<double>(m)
+        ? (xmax - xmin) / keel::as<double>(m)
         : 1.0;  // degenerate single-value case: arbitrary width=1
 
-    Value n_out = Value::matrix(1, static_cast<keel::usize>(m), ValueType::DOUBLE, mr);
-    Value c_out = Value::matrix(1, static_cast<keel::usize>(m), ValueType::DOUBLE, mr);
+    Value n_out = Value::matrix(1, keel::as<keel::usize>(m), ValueType::DOUBLE, mr);
+    Value c_out = Value::matrix(1, keel::as<keel::usize>(m), ValueType::DOUBLE, mr);
     double *nd = n_out.doubleDataMut();
     double *cd = c_out.doubleDataMut();
 
@@ -1604,7 +1604,7 @@ ecdfhist(const Value &f, const Value &x, int m, keel::Allocator *mr)
     // boundary values to the upper bin (off-by-one shift in counts).
     for (keel::usize k = 0; k < K; ++k) {
         const double v = vals[k];
-        int bin = static_cast<int>(std::ceil((v - xmin) / width)) - 1;
+        int bin = keel::as<int>(std::ceil((v - xmin) / width)) - 1;
         if (bin < 0)  bin = 0;
         if (bin >= m) bin = m - 1;
         nd[bin] += probs[k];

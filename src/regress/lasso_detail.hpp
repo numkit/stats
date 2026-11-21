@@ -46,13 +46,13 @@ double softThreshold(double z, double g)
     for (keel::usize j = 0; j < p; ++j) {
         double s = 0.0;
         for (keel::usize i = 0; i < n; ++i) s += X[j * n + i];
-        mu[j] = s / static_cast<double>(n);
+        mu[j] = s / keel::as<double>(n);
         double s2 = 0.0;
         for (keel::usize i = 0; i < n; ++i) {
             const double d = X[j * n + i] - mu[j];
             s2 += d * d;
         }
-        sd[j] = std::sqrt(s2 / static_cast<double>(n));
+        sd[j] = std::sqrt(s2 / keel::as<double>(n));
         if (sd[j] < 1e-12) sd[j] = 1.0;   // constant column → keep as 0-coef
         for (keel::usize i = 0; i < n; ++i)
             X[j * n + i] = (X[j * n + i] - mu[j]) / sd[j];
@@ -76,8 +76,8 @@ double softThreshold(double z, double g)
         for (keel::usize i = 0; i < n; ++i)
             xr += Xs[j * n + i] * r[i];
         const double z = xr + XjNormSq[j] * oldB;
-        const double newB = softThreshold(z / static_cast<double>(n), lambda_eff)
-                            / (XjNormSq[j] / static_cast<double>(n) + lambda_l2);
+        const double newB = softThreshold(z / keel::as<double>(n), lambda_eff)
+                            / (XjNormSq[j] / keel::as<double>(n) + lambda_l2);
         beta[j] = newB;
         const double delta = newB - oldB;
         if (delta != 0.0) {

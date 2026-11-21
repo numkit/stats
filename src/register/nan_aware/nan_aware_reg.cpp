@@ -41,7 +41,7 @@ namespace detail {
         if (!vecdimSet.empty()) {                                                \
             Value c = vecdim::collapseDims(args[0], vecdimSet.as_ref(), mr);     \
             outs[0] = vecdim::expandReduced(                                     \
-                fn(c, static_cast<int>(c.dims().ndim()), mr),                    \
+                fn(c, keel::as<int>(c.dims().ndim()), mr),                    \
                 args[0], vecdimSet.as_ref(), mr);                                \
         } else {                                                                 \
             outs[0] = fn(args[0], dim, mr);                                      \
@@ -53,7 +53,7 @@ namespace detail {
                                     ValueType::SINGLE, mr);                      \
             for (keel::usize i = 0; i < outs[0].numel(); ++i)                    \
                 sg.singleDataMut()[i] =                                          \
-                    static_cast<float>(outs[0].elemAsDouble(i));                 \
+                    keel::as<float>(outs[0].elemAsDouble(i));                 \
             outs[0] = keel::move(sg);                                            \
         }                                                                        \
     }
@@ -83,7 +83,7 @@ NUMKIT_NAN_REDUCTION_ADAPTER(nanmedian, nanmedian)
         if (!vecdimSet.empty()) {                                                 \
             Value c = vecdim::collapseDims(args[0], vecdimSet.as_ref(), mr);      \
             outs[0] = vecdim::expandReduced(                                      \
-                fn(c, static_cast<int>(c.dims().ndim()), mr),                     \
+                fn(c, keel::as<int>(c.dims().ndim()), mr),                     \
                 args[0], vecdimSet.as_ref(), mr);                                 \
             return;                                                               \
         }                                                                         \
@@ -104,7 +104,7 @@ void nanvar_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const double wv = argcheck::expectedReal(args[1], 2, "w", "nanvar");
         argcheck::expectedFlag01(wv, 2, "w", "nanvar");
-        w = static_cast<int>(wv);
+        w = keel::as<int>(wv);
     }
     if (args.size() >= 3)
         vecdim::parseDimSlot(args[0], args[2], "nanvar", dim, vecdimSet);
@@ -112,7 +112,7 @@ void nanvar_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
     if (!vecdimSet.empty()) {
         Value c = vecdim::collapseDims(args[0], vecdimSet.as_ref(), mr);
         outs[0] = vecdim::expandReduced(
-            nanvar(c, w, static_cast<int>(c.dims().ndim()), mr),
+            nanvar(c, w, keel::as<int>(c.dims().ndim()), mr),
             args[0], vecdimSet.as_ref(), mr);
         return;
     }
@@ -128,7 +128,7 @@ void nanstd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const double wv = argcheck::expectedReal(args[1], 2, "w", "nanstd");
         argcheck::expectedFlag01(wv, 2, "w", "nanstd");
-        w = static_cast<int>(wv);
+        w = keel::as<int>(wv);
     }
     if (args.size() >= 3)
         vecdim::parseDimSlot(args[0], args[2], "nanstd", dim, vecdimSet);
@@ -136,7 +136,7 @@ void nanstd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
     if (!vecdimSet.empty()) {
         Value c = vecdim::collapseDims(args[0], vecdimSet.as_ref(), mr);
         outs[0] = vecdim::expandReduced(
-            nanstdev(c, w, static_cast<int>(c.dims().ndim()), mr),
+            nanstdev(c, w, keel::as<int>(c.dims().ndim()), mr),
             args[0], vecdimSet.as_ref(), mr);
         return;
     }
@@ -163,13 +163,13 @@ void nancov_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
     if (secondIsScalar) {
         const double wv = argcheck::expectedReal(args[1], 2, "w", "nancov");
         argcheck::expectedFlag01(wv, 2, "w", "nancov");
-        outs[0] = nancov(args[0], static_cast<int>(wv), mr);
+        outs[0] = nancov(args[0], keel::as<int>(wv), mr);
     } else {
         int w = 0;
         if (args.size() >= 3 && !args[2].isEmpty()) {
             const double wv = argcheck::expectedReal(args[2], 3, "w", "nancov");
             argcheck::expectedFlag01(wv, 3, "w", "nancov");
-            w = static_cast<int>(wv);
+            w = keel::as<int>(wv);
         }
         outs[0] = nancov(args[0], args[1], w, mr);
     }

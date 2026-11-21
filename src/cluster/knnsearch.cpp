@@ -52,10 +52,10 @@ knnsearch(const Value &X, const Value &Y, int K, keel::StringRef metric, double 
     const auto &dy = Y.dims();
     const keel::usize Nx = dx.rows();
     const keel::usize Ny = dy.rows();
-    const int Keff = std::min(static_cast<int>(Nx), K);
+    const int Keff = std::min(keel::as<int>(Nx), K);
 
-    Value Idx = Value::matrix(Ny, static_cast<keel::usize>(K), ValueType::DOUBLE, mr);
-    Value Dout = Value::matrix(Ny, static_cast<keel::usize>(K), ValueType::DOUBLE, mr);
+    Value Idx = Value::matrix(Ny, keel::as<keel::usize>(K), ValueType::DOUBLE, mr);
+    Value Dout = Value::matrix(Ny, keel::as<keel::usize>(K), ValueType::DOUBLE, mr);
     double *id = Idx.doubleDataMut();
     double *dd_out = Dout.doubleDataMut();
     if (Nx == 0 || Ny == 0) return {std::move(Idx), std::move(Dout)};
@@ -87,15 +87,15 @@ knnsearch(const Value &X, const Value &Y, int K, keel::StringRef metric, double 
                               return a.second < b.second;
                           });
         for (int k = 0; k < Keff; ++k) {
-            id[q + static_cast<keel::usize>(k) * Ny] =
-                static_cast<double>(heap[k].second + 1);  // 1-based
-            dd_out[q + static_cast<keel::usize>(k) * Ny] = heap[k].first;
+            id[q + keel::as<keel::usize>(k) * Ny] =
+                keel::as<double>(heap[k].second + 1);  // 1-based
+            dd_out[q + keel::as<keel::usize>(k) * Ny] = heap[k].first;
         }
         // K > Nx: pad rest with NaN.
         for (int k = Keff; k < K; ++k) {
-            id[q + static_cast<keel::usize>(k) * Ny] =
+            id[q + keel::as<keel::usize>(k) * Ny] =
                 std::numeric_limits<double>::quiet_NaN();
-            dd_out[q + static_cast<keel::usize>(k) * Ny] =
+            dd_out[q + keel::as<keel::usize>(k) * Ny] =
                 std::numeric_limits<double>::quiet_NaN();
         }
     }
@@ -137,7 +137,7 @@ rangesearch(const Value &X, const Value &Y, double r, keel::StringRef metric, do
             double *ri = rowIdx.doubleDataMut();
             double *rd = rowD.doubleDataMut();
             for (keel::usize k = 0; k < M; ++k) {
-                ri[k] = static_cast<double>(hits[k].second + 1);
+                ri[k] = keel::as<double>(hits[k].second + 1);
                 rd[k] = hits[k].first;
             }
         }

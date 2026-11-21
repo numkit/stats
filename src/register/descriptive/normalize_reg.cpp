@@ -95,7 +95,7 @@ void zscore_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const double fv = argcheck::expectedReal(args[1], 2, "flag", "zscore");
         argcheck::expectedFlag01(fv, 2, "flag", "zscore");
-        flag = static_cast<int>(fv);
+        flag = keel::as<int>(fv);
     }
     if (args.size() >= 3)
         vecdim::parseDimSlot(args[0], args[2], "zscore", dim, vecdimSet);
@@ -104,7 +104,7 @@ void zscore_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     Value mu, sigma;
     if (!vecdimSet.empty()) {
         Value c = vecdim::collapseDims(args[0], vecdimSet, mr);
-        const int lastd = static_cast<int>(c.dims().ndim());
+        const int lastd = keel::as<int>(c.dims().ndim());
         Value zc = zscoreCore(c, flag, lastd,
                               nargout >= 2 ? &mu : nullptr,
                               nargout >= 3 ? &sigma : nullptr, mr);

@@ -114,7 +114,7 @@ namespace {
     for (keel::usize c = 0; c < p; ++c) {
         double s = 0.0;
         for (keel::usize r = 0; r < n; ++r) s += data[c * n + r];
-        const double m = s / static_cast<double>(n);
+        const double m = s / keel::as<double>(n);
         for (keel::usize r = 0; r < n; ++r) data[c * n + r] -= m;
     }
 }

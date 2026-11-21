@@ -26,7 +26,7 @@ namespace numkit::stats {
 namespace {
 void randsample_argcheck(keel::ArrayRef<double> w, int N)
 {
-    if (!w.empty() && static_cast<int>(w.size()) != N)
+    if (!w.empty() && keel::as<int>(w.size()) != N)
         throw Error("randsample: weights length must equal N",
                     0, 0, "randsample", "", "numkit:randsample:size");
 }
@@ -143,7 +143,7 @@ keel::Array<double> parseWeightVector(const Value &w, keel::usize n,
 {
     keel::Array<double> out;
     if (w.isEmpty()) return out;
-    if (!w.dims().isVector() || static_cast<keel::usize>(w.numel()) != n)
+    if (!w.dims().isVector() || keel::as<keel::usize>(w.numel()) != n)
         throw Error(keel::format("{}: W must have length {}.", fn, n),
                     0, 0, fn, "", sizeTag);
     out.resize(n);
@@ -181,17 +181,17 @@ Value randsample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
     if (args[0].isScalar() && args[0].isNumeric()
             && args[0].elemAsDouble(0) == std::floor(args[0].elemAsDouble(0))
             && args[0].elemAsDouble(0) >= 0.0) {
-        N = static_cast<keel::usize>(args[0].elemAsDouble(0));
+        N = keel::as<keel::usize>(args[0].elemAsDouble(0));
     } else {
         havePopulation = true;
         population = args[0];
         if (!population.dims().isVector() || population.numel() == 0)
             throw Error("randsample: POPULATION must be a vector.",
                         0, 0, "randsample", "", "numkit:randsample:badPopulation");
-        N = static_cast<keel::usize>(population.numel());
+        N = keel::as<keel::usize>(population.numel());
     }
     const double kD = args[1].elemAsDouble(0);
-    const keel::usize K = static_cast<keel::usize>(std::max(kD, 0.0));
+    const keel::usize K = keel::as<keel::usize>(std::max(kD, 0.0));
 
     const bool replace = (args.size() >= 3 && !args[2].isEmpty())
         ? parseReplaceFlag(args[2], "randsample", "numkit:randsample:badReplaceValue")
@@ -221,7 +221,7 @@ Value randsample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
     }
 
     keel::Array<int> idx = sample_indices(
-        static_cast<int>(N), static_cast<int>(K), replace, w.as_ref(), rng);
+        keel::as<int>(N), keel::as<int>(K), replace, w.as_ref(), rng);
 
     // Population form: index the population values (orientation kept —
     // a row population returns a row, probe S12); count form returns a
@@ -233,13 +233,13 @@ Value randsample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
         if (population.isCell()) {
             Value out = row ? Value::cell(1, m, mr) : Value::cell(m, 1, mr);
             for (keel::usize i = 0; i < m; ++i)
-                out.cellAt(i) = population.cellAt(static_cast<keel::usize>(idx[i]));
+                out.cellAt(i) = population.cellAt(keel::as<keel::usize>(idx[i]));
             return out;
         }
         if (population.isString()) {
             Value out = row ? Value::stringArray(1, m, mr) : Value::stringArray(m, 1, mr);
             for (keel::usize i = 0; i < m; ++i)
-                out.stringElemSet(i, population.stringElem(static_cast<keel::usize>(idx[i])));
+                out.stringElemSet(i, population.stringElem(keel::as<keel::usize>(idx[i])));
             return out;
         }
         const bool single = (population.type() == ValueType::SINGLE);
@@ -249,8 +249,8 @@ Value randsample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
                                                      : ValueType::DOUBLE, mr);
         for (keel::usize i = 0; i < m; ++i) {
             const double v = population.elemAsDouble(
-                static_cast<keel::usize>(idx[i]));
-            if (single) out.singleDataMut()[i] = static_cast<float>(v);
+                keel::as<keel::usize>(idx[i]));
+            if (single) out.singleDataMut()[i] = keel::as<float>(v);
             else out.doubleDataMut()[i] = v;
         }
         return out;
@@ -258,7 +258,7 @@ Value randsample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
     Value out = Value::matrix(idx.size(), 1, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
     for (keel::usize i = 0; i < idx.size(); ++i)
-        od[i] = static_cast<double>(idx[i] + 1);
+        od[i] = keel::as<double>(idx[i] + 1);
     return out;
 }
 
@@ -275,7 +275,7 @@ Value datasample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
         throw Error("datasample: sample size K must be a non-negative "
                     "integer.",
                     0, 0, "datasample", "", "numkit:datasample:invalidK");
-    const keel::usize K = static_cast<keel::usize>(kD);
+    const keel::usize K = keel::as<keel::usize>(kD);
 
     // dim: a numeric positional 3rd argument, else the first
     // non-singleton dimension.
@@ -283,19 +283,19 @@ Value datasample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
     keel::usize nvStart = 2;
     if (args.size() > 2 && !args[2].isChar() && !args[2].isString()
             && !args[2].isObject()) {
-        dim = static_cast<keel::usize>(std::max(args[2].elemAsDouble(0), 1.0));
+        dim = keel::as<keel::usize>(std::max(args[2].elemAsDouble(0), 1.0));
         nvStart = 3;
     } else {
         for (int d = 0; d < X.dims().ndim(); ++d)
             if (X.dims().dim(d) != 1) {
-                dim = static_cast<keel::usize>(d + 1);
+                dim = keel::as<keel::usize>(d + 1);
                 break;
             }
         if (dim == 0) dim = 1;
     }
-    const keel::usize nd = static_cast<keel::usize>(X.dims().ndim());
+    const keel::usize nd = keel::as<keel::usize>(X.dims().ndim());
     const keel::usize n = dim <= nd
-        ? static_cast<keel::usize>(X.dims().dim(static_cast<int>(dim - 1))) : 1;
+        ? keel::as<keel::usize>(X.dims().dim(keel::as<int>(dim - 1))) : 1;
 
     // NV: Replace (LOGICAL scalar only — a numeric 1 rejects, probe
     // D03) / Weights.
@@ -346,18 +346,18 @@ Value datasample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
     }
 
     keel::Array<int> idx = sample_indices(
-        static_cast<int>(n), static_cast<int>(K), replace, w.as_ref(), rng);
+        keel::as<int>(n), keel::as<int>(K), replace, w.as_ref(), rng);
 
     // Gather along dim (1 → rows, 2 → columns).
     if (dim == 1) {
         const keel::usize cols = nd >= 2
-            ? static_cast<keel::usize>(X.dims().dim(1)) : 1;
+            ? keel::as<keel::usize>(X.dims().dim(1)) : 1;
         if (X.isCell()) {
             Value out = Value::cell(idx.size(), cols, mr);
             for (keel::usize c = 0; c < cols; ++c)
                 for (keel::usize k = 0; k < idx.size(); ++k)
                     out.cellAt(c * idx.size() + k) =
-                        X.cellAt(c * n + static_cast<keel::usize>(idx[k]));
+                        X.cellAt(c * n + keel::as<keel::usize>(idx[k]));
             return out;
         }
         if (X.isString()) {
@@ -365,7 +365,7 @@ Value datasample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
             for (keel::usize c = 0; c < cols; ++c)
                 for (keel::usize k = 0; k < idx.size(); ++k)
                     out.stringElemSet(c * idx.size() + k,
-                        X.stringElem(c * n + static_cast<keel::usize>(idx[k])));
+                        X.stringElem(c * n + keel::as<keel::usize>(idx[k])));
             return out;
         }
         Value out = Value::matrix(idx.size(), cols, ValueType::DOUBLE, mr);
@@ -373,17 +373,17 @@ Value datasample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
         for (keel::usize c = 0; c < cols; ++c)
             for (keel::usize k = 0; k < idx.size(); ++k)
                 od[c * idx.size() + k] =
-                    X.elemAsDouble(c * n + static_cast<keel::usize>(idx[k]));
+                    X.elemAsDouble(c * n + keel::as<keel::usize>(idx[k]));
         return out;
     }
     if (dim == 2) {
-        const keel::usize rows = static_cast<keel::usize>(X.dims().dim(0));
+        const keel::usize rows = keel::as<keel::usize>(X.dims().dim(0));
         if (X.isCell()) {
             Value out = Value::cell(rows, idx.size(), mr);
             for (keel::usize k = 0; k < idx.size(); ++k)
                 for (keel::usize r = 0; r < rows; ++r)
                     out.cellAt(k * rows + r) =
-                        X.cellAt(static_cast<keel::usize>(idx[k]) * rows + r);
+                        X.cellAt(keel::as<keel::usize>(idx[k]) * rows + r);
             return out;
         }
         if (X.isString()) {
@@ -391,7 +391,7 @@ Value datasample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
             for (keel::usize k = 0; k < idx.size(); ++k)
                 for (keel::usize r = 0; r < rows; ++r)
                     out.stringElemSet(k * rows + r,
-                        X.stringElem(static_cast<keel::usize>(idx[k]) * rows + r));
+                        X.stringElem(keel::as<keel::usize>(idx[k]) * rows + r));
             return out;
         }
         Value out = Value::matrix(rows, idx.size(), ValueType::DOUBLE, mr);
@@ -399,35 +399,35 @@ Value datasample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
         for (keel::usize k = 0; k < idx.size(); ++k)
             for (keel::usize r = 0; r < rows; ++r)
                 od[k * rows + r] =
-                    X.elemAsDouble(static_cast<keel::usize>(idx[k]) * rows + r);
+                    X.elemAsDouble(keel::as<keel::usize>(idx[k]) * rows + r);
         return out;
     }
     // dim ≥ 3: each output slice along dim copies the source slice at
     // the sampled index (reference: subs{dim} = i).
     keel::Array<keel::usize> od_(nd, 1);
     for (keel::usize d = 0; d < nd; ++d)
-        od_[d] = static_cast<keel::usize>(X.dims().dim(static_cast<int>(d)));
+        od_[d] = keel::as<keel::usize>(X.dims().dim(keel::as<int>(d)));
     od_[dim - 1] = idx.size();
-    Value out = Value::matrixND(od_.data(), static_cast<int>(nd),
+    Value out = Value::matrixND(od_.data(), keel::as<int>(nd),
                                 ValueType::DOUBLE, mr);
     keel::Array<keel::usize> sstride(nd, 1), ostride(nd, 1);
     for (keel::usize d = 1; d < nd; ++d) {
         sstride[d] = sstride[d - 1]
-            * static_cast<keel::usize>(X.dims().dim(static_cast<int>(d - 1)));
+            * keel::as<keel::usize>(X.dims().dim(keel::as<int>(d - 1)));
         ostride[d] = ostride[d - 1] * od_[d - 1];
     }
     const keel::usize totalOther = [&] {
         keel::usize t = 1;
         for (keel::usize d = 0; d < nd; ++d)
             if (d + 1 != dim)
-                t *= static_cast<keel::usize>(X.dims().dim(static_cast<int>(d)));
+                t *= keel::as<keel::usize>(X.dims().dim(keel::as<int>(d)));
         return t;
     }();
     keel::Array<keel::usize> coord(nd, 0);
     for (keel::usize t = 0; t < totalOther; ++t) {
         // mixed-radix increment over the dims except `dim`.
         for (keel::usize k = 0; k < idx.size(); ++k) {
-            coord[dim - 1] = static_cast<keel::usize>(idx[k]);
+            coord[dim - 1] = keel::as<keel::usize>(idx[k]);
             keel::usize srcLin = 0, outLin = 0;
             for (keel::usize d = 0; d < nd; ++d) {
                 srcLin += coord[d] * sstride[d];
@@ -437,7 +437,7 @@ Value datasample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
         }
         for (keel::usize d = nd; d-- > 0;) {
             if (d + 1 == dim) continue;
-            if (++coord[d] < static_cast<keel::usize>(X.dims().dim(static_cast<int>(d))))
+            if (++coord[d] < keel::as<keel::usize>(X.dims().dim(keel::as<int>(d))))
                 break;
             coord[d] = 0;
         }

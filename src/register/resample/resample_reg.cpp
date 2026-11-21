@@ -51,7 +51,7 @@ void datasample_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
 static void drawBootstrapIndices(::numkit::ops::RngContext &rng, int N, int *idx_out)
 {
     for (int i = 0; i < N; ++i)
-        idx_out[i] = static_cast<int>(keel::random::uniform_i64(rng, 0, N - 1));
+        idx_out[i] = keel::as<int>(keel::random::uniform_i64(rng, 0, N - 1));
 }
 
 // Resample row indices of X into a same-shape Value.
@@ -61,17 +61,17 @@ static Value resampleRows(const Value &X, const int *idx, int N, keel::Allocator
         // Vector input: return same-orientation vector of N samples.
         const bool col = X.dims().ndim() >= 2 && X.dims().dim(1) == 1;
         auto out = col
-            ? Value::matrix(static_cast<keel::usize>(N), 1, ValueType::DOUBLE, mr)
-            : Value::matrix(1, static_cast<keel::usize>(N), ValueType::DOUBLE, mr);
+            ? Value::matrix(keel::as<keel::usize>(N), 1, ValueType::DOUBLE, mr)
+            : Value::matrix(1, keel::as<keel::usize>(N), ValueType::DOUBLE, mr);
         const double *xd = X.doubleData();
         double *od = out.doubleDataMut();
         for (int i = 0; i < N; ++i) od[i] = xd[idx[i]];
         return out;
     }
     // Matrix input: resample rows.
-    const keel::usize m = static_cast<keel::usize>(X.dims().dim(0));
-    const keel::usize cols = static_cast<keel::usize>(X.dims().dim(1));
-    auto out = Value::matrix(static_cast<keel::usize>(N), cols, ValueType::DOUBLE, mr);
+    const keel::usize m = keel::as<keel::usize>(X.dims().dim(0));
+    const keel::usize cols = keel::as<keel::usize>(X.dims().dim(1));
+    auto out = Value::matrix(keel::as<keel::usize>(N), cols, ValueType::DOUBLE, mr);
     const double *xd = X.doubleData();
     double *od = out.doubleDataMut();
     for (int i = 0; i < N; ++i)
@@ -93,7 +93,7 @@ void bootstrp_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
                     0, 0, "bootstrp", "", "numkit:bootstrp:badN");
     auto *mr = ctx.engine->allocator();
     const Value &X = args[2];
-    const int N = static_cast<int>(X.dims().dim(0));
+    const int N = keel::as<int>(X.dims().dim(0));
     if (N == 0)
         throw Error("bootstrp: empty data", 0, 0, "bootstrp", "", "numkit:bootstrp:empty");
 
@@ -112,7 +112,7 @@ void bootstrp_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
                     "numkit:bootstrp:emptyStat");
 
     // Output is nboot × K (each row = one bootstrap statistic).
-    auto out = Value::matrix(static_cast<keel::usize>(nboot), K,
+    auto out = Value::matrix(keel::as<keel::usize>(nboot), K,
                              ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
 
@@ -178,17 +178,17 @@ void crossval_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
                                      "'kfold' supported in this revision)", opt),
                         0, 0, "crossval", "", "numkit:crossval:badOption");
     }
-    if (K < 2 || K > static_cast<int>(m))
-        K = static_cast<int>(std::min(m, keel::usize{10}));
+    if (K < 2 || K > keel::as<int>(m))
+        K = keel::as<int>(std::min(m, keel::usize{10}));
 
-    auto out = Value::matrix(static_cast<keel::usize>(K), 1,
+    auto out = Value::matrix(keel::as<keel::usize>(K), 1,
                              ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
 
     const keel::usize pX = (X.dims().ndim() >= 2)
-        ? static_cast<keel::usize>(X.dims().dim(1)) : 1;
+        ? keel::as<keel::usize>(X.dims().dim(1)) : 1;
     const keel::usize pY = (Y.dims().ndim() >= 2)
-        ? static_cast<keel::usize>(Y.dims().dim(1)) : 1;
+        ? keel::as<keel::usize>(Y.dims().dim(1)) : 1;
     const double *Xd = X.doubleData();
     const double *Yd = Y.doubleData();
 
@@ -204,8 +204,8 @@ void crossval_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     };
 
     for (int k = 0; k < K; ++k) {
-        const keel::usize lo = (static_cast<keel::usize>(k) * m) / static_cast<keel::usize>(K);
-        const keel::usize hi = (static_cast<keel::usize>(k + 1) * m) / static_cast<keel::usize>(K);
+        const keel::usize lo = (keel::as<keel::usize>(k) * m) / keel::as<keel::usize>(K);
+        const keel::usize hi = (keel::as<keel::usize>(k + 1) * m) / keel::as<keel::usize>(K);
         keel::Array<keel::usize> testRows, trainRows;
         testRows.reserve(hi - lo);
         trainRows.reserve(m - (hi - lo));
@@ -260,7 +260,7 @@ void bootci_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
         boot_stats = std::move(local_outs[0]);
     }
 
-    const keel::usize K = static_cast<keel::usize>(boot_stats.dims().dim(1));
+    const keel::usize K = keel::as<keel::usize>(boot_stats.dims().dim(1));
     const double *bd = boot_stats.doubleData();
 
     auto ci = Value::matrix(2, K, ValueType::DOUBLE, mr);
@@ -273,11 +273,11 @@ void bootci_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
         std::sort(col.begin(), col.end());
         // Linear-interpolation percentile (matches MATLAB prctile default).
         auto qFn = [&](double q) {
-            const double pos = q * (static_cast<double>(nboot) - 1.0);
-            const keel::usize lo = static_cast<keel::usize>(std::floor(pos));
-            const keel::usize hi = std::min(static_cast<keel::usize>(lo + 1),
-                                              static_cast<keel::usize>(nboot - 1));
-            const double frac = pos - static_cast<double>(lo);
+            const double pos = q * (keel::as<double>(nboot) - 1.0);
+            const keel::usize lo = keel::as<keel::usize>(std::floor(pos));
+            const keel::usize hi = std::min(keel::as<keel::usize>(lo + 1),
+                                              keel::as<keel::usize>(nboot - 1));
+            const double frac = pos - keel::as<double>(lo);
             return col[lo] * (1.0 - frac) + col[hi] * frac;
         };
         cd[0 + j * 2] = qFn(alpha / 2.0);
@@ -301,14 +301,14 @@ void jackknife_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     const Value &X = args[1];
     const auto &d = X.dims();
     const bool isVec = (d.ndim() <= 1) || (d.dim(0) == 1) || (d.dim(1) == 1);
-    const int n = isVec ? static_cast<int>(X.numel()) : static_cast<int>(d.dim(0));
+    const int n = isVec ? keel::as<int>(X.numel()) : keel::as<int>(d.dim(0));
     if (n < 1)
         throw Error("jackknife: empty data", 0, 0, "jackknife", "",
                     "numkit:jackknife:empty");
 
     // Observations are rows; treat a vector (either orientation) as a column so
     // resampleRows selects one element per observation (not one row of many).
-    const Value Xeff = isVec ? X.reshape(static_cast<keel::usize>(n), 1, mr) : X;
+    const Value Xeff = isVec ? X.reshape(keel::as<keel::usize>(n), 1, mr) : X;
 
     keel::ArenaTemp scratch = keel::get_scratch(mr);
     keel::Array<int> idx(n > 1 ? n - 1 : 0, scratch.allocator());
@@ -329,10 +329,10 @@ void jackknife_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
         throw Error("jackknife: jackfun returned empty", 0, 0, "jackknife", "",
                     "numkit:jackknife:emptyStat");
 
-    auto out = Value::matrix(static_cast<keel::usize>(n), K, ValueType::DOUBLE, mr);
+    auto out = Value::matrix(keel::as<keel::usize>(n), K, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
     for (keel::usize j = 0; j < K; ++j)
-        od[0 + j * static_cast<keel::usize>(n)] = stat0.elemAsDouble(j);
+        od[0 + j * keel::as<keel::usize>(n)] = stat0.elemAsDouble(j);
 
     for (int s = 1; s < n; ++s) {
         Value sample = leaveOneOut(s);
@@ -343,7 +343,7 @@ void jackknife_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
             throw Error("jackknife: jackfun returned varying-size output",
                         0, 0, "jackknife", "", "numkit:jackknife:varyingStat");
         for (keel::usize j = 0; j < K; ++j)
-            od[static_cast<keel::usize>(s) + j * static_cast<keel::usize>(n)] =
+            od[keel::as<keel::usize>(s) + j * keel::as<keel::usize>(n)] =
                 stat.elemAsDouble(j);
     }
     outs[0] = std::move(out);

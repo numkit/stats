@@ -55,13 +55,13 @@ keel::Array<int> rr2_permutation(int p)
 double radical_inverse(long long i, int p, const keel::Array<int> *perm = nullptr)
 {
     double r = 0.0;
-    double f = 1.0 / static_cast<double>(p);
+    double f = 1.0 / keel::as<double>(p);
     while (i > 0) {
-        int d = static_cast<int>(i % p);
-        if (perm) d = (*perm)[static_cast<keel::usize>(d)];
-        r += f * static_cast<double>(d);
+        int d = keel::as<int>(i % p);
+        if (perm) d = (*perm)[keel::as<keel::usize>(d)];
+        r += f * keel::as<double>(d);
         i /= p;
-        f /= static_cast<double>(p);
+        f /= keel::as<double>(p);
     }
     return r;
 }
@@ -82,9 +82,9 @@ Value haltonset(int d, long long skip, long long leap, keel::Allocator *mr)
     haltonset_argcheck(d);
     Value s = Value::structure(mr);
     s.field("kind") = Value::fromString("halton", mr);
-    s.field("dim")  = Value::scalar(static_cast<double>(d), mr);
-    s.field("skip") = Value::scalar(static_cast<double>(skip), mr);
-    s.field("leap") = Value::scalar(static_cast<double>(leap), mr);
+    s.field("dim")  = Value::scalar(keel::as<double>(d), mr);
+    s.field("skip") = Value::scalar(keel::as<double>(skip), mr);
+    s.field("leap") = Value::scalar(keel::as<double>(leap), mr);
     s.field("scramble") = Value::fromString("", mr);
     return s;
 }
@@ -111,9 +111,9 @@ Value net(const Value &stream, long long n, keel::Allocator *mr)
     if (n < 0)
         throw Error("net: n must be >= 0",
                     0, 0, "net", "", "numkit:net:n");
-    const keel::usize d    = static_cast<keel::usize>(stream.field("dim").toScalar());
-    const long long skip = static_cast<long long>(stream.field("skip").toScalar());
-    const long long leap = static_cast<long long>(stream.field("leap").toScalar());
+    const keel::usize d    = keel::as<keel::usize>(stream.field("dim").toScalar());
+    const long long skip = keel::as<long long>(stream.field("skip").toScalar());
+    const long long leap = keel::as<long long>(stream.field("leap").toScalar());
     keel::String scram;
     if (stream.hasField("scramble"))
         scram = stream.field("scramble").toString();
@@ -126,13 +126,13 @@ Value net(const Value &stream, long long n, keel::Allocator *mr)
             perms.push_back(rr2_permutation(primes[k]));
     }
     const long long step = leap + 1;
-    Value X = Value::matrix(static_cast<keel::usize>(n), d, ValueType::DOUBLE, mr);
+    Value X = Value::matrix(keel::as<keel::usize>(n), d, ValueType::DOUBLE, mr);
     if (n == 0) return X;
     double *xd = X.doubleDataMut();
     for (long long row = 0; row < n; ++row) {
         const long long idx = skip + row * step;
         for (keel::usize k = 0; k < d; ++k)
-            xd[static_cast<keel::usize>(row) + k * static_cast<keel::usize>(n)]
+            xd[keel::as<keel::usize>(row) + k * keel::as<keel::usize>(n)]
                 = radical_inverse(idx, primes[k], useRR2 ? &perms[k] : nullptr);
     }
     return X;

@@ -756,7 +756,7 @@ kstest(const Value &x, const Value &cdf, double alpha, TestTail tail, keel::Allo
     }
     // Exact finite-n KS distribution (MATLAB default): two-sided Marsaglia,
     // one-sided Birnbaum-Tingey; critical value by inverting the same p(D).
-    const int ni = static_cast<int>(N);
+    const int ni = keel::as<int>(N);
     double p, cv;
     if (tail == TestTail::Both) {
         p  = ksOneSampleTwoSidedP(ni, D);
@@ -948,9 +948,9 @@ fishertest(const Value &T, double alpha, TestTail tail, keel::Allocator *mr)
         return std::lgamma(n + 1.0) - std::lgamma(k + 1.0) - std::lgamma(n - k + 1.0);
     };
 
-    const long long kmin = static_cast<long long>(std::max(0.0, row1 + col1 - Ntot));
-    const long long kmax = static_cast<long long>(std::min(row1, col1));
-    const long long kobs = static_cast<long long>(a);
+    const long long kmin = keel::as<long long>(std::max(0.0, row1 + col1 - Ntot));
+    const long long kmax = keel::as<long long>(std::min(row1, col1));
+    const long long kobs = keel::as<long long>(a);
     const double logC_den = lb(Ntot, col1);
     const long long K = kmax - kmin + 1;
     keel::Array<double> pmf(K);
@@ -958,9 +958,9 @@ fishertest(const Value &T, double alpha, TestTail tail, keel::Allocator *mr)
         const double lp = lb(row1, double(k))
                         + lb(Ntot - row1, col1 - double(k))
                         - logC_den;
-        pmf[static_cast<keel::usize>(k - kmin)] = std::exp(lp);
+        pmf[keel::as<keel::usize>(k - kmin)] = std::exp(lp);
     }
-    const double pObs = pmf[static_cast<keel::usize>(kobs - kmin)];
+    const double pObs = pmf[keel::as<keel::usize>(kobs - kmin)];
 
     double p = 0.0;
     switch (tail) {
@@ -972,11 +972,11 @@ fishertest(const Value &T, double alpha, TestTail tail, keel::Allocator *mr)
         }
         case TestTail::Right:
             for (long long k = kobs; k <= kmax; ++k)
-                p += pmf[static_cast<keel::usize>(k - kmin)];
+                p += pmf[keel::as<keel::usize>(k - kmin)];
             break;
         case TestTail::Left:
             for (long long k = kmin; k <= kobs; ++k)
-                p += pmf[static_cast<keel::usize>(k - kmin)];
+                p += pmf[keel::as<keel::usize>(k - kmin)];
             break;
     }
     if (p > 1.0) p = 1.0;
@@ -1322,7 +1322,7 @@ ranksum(const Value &x, const Value &y, double alpha, TestTail tail, keel::Strin
     while (i < Neff) {
         keel::usize j = i + 1;
         while (j < Neff && items[ord[j]].v == items[ord[i]].v) ++j;
-        const double avg = static_cast<double>(i + j + 1) / 2.0;  // mean of (i+1)..j
+        const double avg = keel::as<double>(i + j + 1) / 2.0;  // mean of (i+1)..j
         for (keel::usize k = i; k < j; ++k) ranks[ord[k]] = avg;
         if (j - i > 1) tieGroupSizes.push_back(j - i);
         i = j;
@@ -1349,28 +1349,28 @@ ranksum(const Value &x, const Value &y, double alpha, TestTail tail, keel::Strin
         keel::Array<long long> rk2(Neff);
         long long total2 = 0;
         for (keel::usize k = 0; k < Neff; ++k) {
-            rk2[k] = static_cast<long long>(std::llround(ranks[k] * 2.0));
+            rk2[k] = keel::as<long long>(std::llround(ranks[k] * 2.0));
             total2 += rk2[k];
         }
-        const keel::usize S = static_cast<keel::usize>(total2 + 1);
+        const keel::usize S = keel::as<keel::usize>(total2 + 1);
         keel::Array<double> dp((nx_eff + 1) * S, 0.0);
         dp[0] = 1.0;
         for (keel::usize k = 0; k < Neff; ++k) {
             const long long r = rk2[k];
-            for (long long kk = static_cast<long long>(nx_eff) - 1; kk >= 0; --kk) {
-                for (long long s = static_cast<long long>(S) - 1; s >= r; --s)
-                    dp[static_cast<keel::usize>(kk + 1) * S + static_cast<keel::usize>(s)] +=
-                        dp[static_cast<keel::usize>(kk) * S + static_cast<keel::usize>(s - r)];
+            for (long long kk = keel::as<long long>(nx_eff) - 1; kk >= 0; --kk) {
+                for (long long s = keel::as<long long>(S) - 1; s >= r; --s)
+                    dp[keel::as<keel::usize>(kk + 1) * S + keel::as<keel::usize>(s)] +=
+                        dp[keel::as<keel::usize>(kk) * S + keel::as<keel::usize>(s - r)];
             }
         }
-        const long long Wx2 = static_cast<long long>(std::llround(Wx * 2.0));
+        const long long Wx2 = keel::as<long long>(std::llround(Wx * 2.0));
         double total = 0.0;
         for (keel::usize s = 0; s < S; ++s) total += dp[nx_eff * S + s];
         double cdfLE = 0.0, cdfGE = 0.0;
-        for (long long s = 0; s <= Wx2 && s < static_cast<long long>(S); ++s)
-            cdfLE += dp[nx_eff * S + static_cast<keel::usize>(s)];
-        for (long long s = Wx2; s < static_cast<long long>(S); ++s)
-            cdfGE += dp[nx_eff * S + static_cast<keel::usize>(s)];
+        for (long long s = 0; s <= Wx2 && s < keel::as<long long>(S); ++s)
+            cdfLE += dp[nx_eff * S + keel::as<keel::usize>(s)];
+        for (long long s = Wx2; s < keel::as<long long>(S); ++s)
+            cdfGE += dp[nx_eff * S + keel::as<keel::usize>(s)];
         cdfLE /= total;
         cdfGE /= total;
         switch (tail) {
@@ -1379,17 +1379,17 @@ ranksum(const Value &x, const Value &y, double alpha, TestTail tail, keel::Strin
             case TestTail::Left:  p = cdfLE; break;
         }
     } else {
-        const double Nd = static_cast<double>(Neff);
-        const double mean = static_cast<double>(nx_eff) * (Nd + 1) / 2.0;
-        double var = static_cast<double>(nx_eff) * static_cast<double>(ny_eff)
+        const double Nd = keel::as<double>(Neff);
+        const double mean = keel::as<double>(nx_eff) * (Nd + 1) / 2.0;
+        double var = keel::as<double>(nx_eff) * keel::as<double>(ny_eff)
                      * (Nd + 1) / 12.0;
         if (Nd > 1.0) {
             double tieSum = 0.0;
             for (keel::usize t : tieGroupSizes) {
-                const double td = static_cast<double>(t);
+                const double td = keel::as<double>(t);
                 tieSum += td * td * td - td;
             }
-            var -= static_cast<double>(nx_eff) * static_cast<double>(ny_eff)
+            var -= keel::as<double>(nx_eff) * keel::as<double>(ny_eff)
                    / (12.0 * Nd * (Nd - 1.0)) * tieSum;
         }
         const double sd = std::sqrt(std::max(var, 0.0));
@@ -1462,7 +1462,7 @@ signrank(const Value &x, const Value &y_or_m, double alpha, TestTail tail, keel:
     while (i < n) {
         keel::usize j = i + 1;
         while (j < n && ds[ord[j]].absd == ds[ord[i]].absd) ++j;
-        const double avg = (static_cast<double>(i + j + 1)) / 2.0;  // mean of (i+1)..j
+        const double avg = (keel::as<double>(i + j + 1)) / 2.0;  // mean of (i+1)..j
         for (keel::usize k = i; k < j; ++k) ranks[ord[k]] = avg;
         if (j - i > 1) tieGroupSizes.push_back(j - i);
         i = j;
@@ -1490,7 +1490,7 @@ signrank(const Value &x, const Value &y_or_m, double alpha, TestTail tail, keel:
         keel::Array<long long> rk2(n);
         long long total2 = 0;
         for (keel::usize k = 0; k < n; ++k) {
-            rk2[k] = static_cast<long long>(std::llround(ranks[k] * 2.0));
+            rk2[k] = keel::as<long long>(std::llround(ranks[k] * 2.0));
             total2 += rk2[k];
         }
         keel::Array<double> P(total2 + 1, 0.0);
@@ -1501,8 +1501,8 @@ signrank(const Value &x, const Value &y_or_m, double alpha, TestTail tail, keel:
             for (long long s = cur + r; s >= r; --s) P[s] += P[s - r];
             cur += r;
         }
-        const long long W2 = static_cast<long long>(std::llround(Wplus * 2.0));
-        const double total = std::pow(2.0, static_cast<double>(n));
+        const long long W2 = keel::as<long long>(std::llround(Wplus * 2.0));
+        const double total = std::pow(2.0, keel::as<double>(n));
         // P(W ≤ W+) and P(W ≥ W+).
         double cdfLE = 0.0;
         for (long long s = 0; s <= W2; ++s) cdfLE += P[s];
@@ -1517,10 +1517,10 @@ signrank(const Value &x, const Value &y_or_m, double alpha, TestTail tail, keel:
         }
     } else {
         // Normal approximation with tie correction.
-        const double mean = static_cast<double>(n) * (n + 1) / 4.0;
-        double var = static_cast<double>(n) * (n + 1) * (2 * n + 1) / 24.0;
+        const double mean = keel::as<double>(n) * (n + 1) / 4.0;
+        double var = keel::as<double>(n) * (n + 1) * (2 * n + 1) / 24.0;
         for (keel::usize t : tieGroupSizes)
-            var -= static_cast<double>(t * t * t - t) / 48.0;
+            var -= keel::as<double>(t * t * t - t) / 48.0;
         const double sd = std::sqrt(var);
         zval = (sd > 0.0) ? (Wplus - mean) / sd : 0.0;
         Value zV = Value::scalar(zval, mr);
@@ -1593,7 +1593,7 @@ ansaribradley(const Value &x, const Value &y, double alpha, TestTail tail,
     for (keel::usize i = 0; i < N; ++i) {
         const keel::usize pos = i + 1;             // 1-based
         const keel::usize alt = N + 1 - pos;
-        rraw[i] = static_cast<double>(std::min(pos, alt));
+        rraw[i] = keel::as<double>(std::min(pos, alt));
     }
     // Walk in sorted order, distribute mean rank within each tie group.
     keel::Array<double> rsorted(N);
@@ -1605,7 +1605,7 @@ ansaribradley(const Value &x, const Value &y, double alpha, TestTail tail,
             // Group [i, j). Mean of raw V-ranks in this group.
             double s = 0.0;
             for (keel::usize k = i; k < j; ++k) s += rraw[k];
-            const double mr_avg = s / static_cast<double>(j - i);
+            const double mr_avg = s / keel::as<double>(j - i);
             for (keel::usize k = i; k < j; ++k) rsorted[k] = mr_avg;
             i = j;
         }
@@ -1633,7 +1633,7 @@ ansaribradley(const Value &x, const Value &y, double alpha, TestTail tail,
         while (ii < N) {
             keel::usize jj = ii + 1;
             while (jj < N && items[ord[jj]].v == items[ord[ii]].v) ++jj;
-            grp_sizes.push_back(static_cast<long long>(jj - ii));
+            grp_sizes.push_back(keel::as<long long>(jj - ii));
             ii = jj;
         }
         auto lcm = [](long long a, long long b) -> long long {
@@ -1651,7 +1651,7 @@ ansaribradley(const Value &x, const Value &y, double alpha, TestTail tail,
     // with σ² = (1/N) Σ(rᵢ − r̄)².
     double sum_r = 0.0;
     for (double r : rsorted) sum_r += r;
-    const double Nd = static_cast<double>(N);
+    const double Nd = keel::as<double>(N);
     const double mean_r = sum_r / Nd;
     double ss = 0.0;
     for (double r : rsorted) {
@@ -1659,8 +1659,8 @@ ansaribradley(const Value &x, const Value &y, double alpha, TestTail tail,
         ss += d * d;
     }
     const double sigma2_r = ss / Nd;
-    const double EW = static_cast<double>(m) * mean_r;
-    const double VW = static_cast<double>(m) * static_cast<double>(n)
+    const double EW = keel::as<double>(m) * mean_r;
+    const double VW = keel::as<double>(m) * keel::as<double>(n)
                     / (Nd - 1.0) * sigma2_r;
     const double sd = std::sqrt(std::max(VW, 0.0));
     const double Wstar = (sd > 0.0) ? (W - EW) / sd : 0.0;
@@ -1678,30 +1678,30 @@ ansaribradley(const Value &x, const Value &y, double alpha, TestTail tail,
         keel::Array<long long> rk2(N);
         long long total2 = 0;
         for (keel::usize k = 0; k < N; ++k) {
-            rk2[k] = static_cast<long long>(
-                std::llround(rsorted[k] * static_cast<double>(scale)));
+            rk2[k] = keel::as<long long>(
+                std::llround(rsorted[k] * keel::as<double>(scale)));
             total2 += rk2[k];
         }
-        const keel::usize S = static_cast<keel::usize>(total2 + 1);
+        const keel::usize S = keel::as<keel::usize>(total2 + 1);
         keel::Array<double> dp((m + 1) * S, 0.0);
         dp[0] = 1.0;
         for (keel::usize k = 0; k < N; ++k) {
             const long long r = rk2[k];
-            for (long long kk = static_cast<long long>(m) - 1; kk >= 0; --kk) {
-                for (long long s = static_cast<long long>(S) - 1; s >= r; --s)
-                    dp[static_cast<keel::usize>(kk + 1) * S + static_cast<keel::usize>(s)] +=
-                        dp[static_cast<keel::usize>(kk) * S + static_cast<keel::usize>(s - r)];
+            for (long long kk = keel::as<long long>(m) - 1; kk >= 0; --kk) {
+                for (long long s = keel::as<long long>(S) - 1; s >= r; --s)
+                    dp[keel::as<keel::usize>(kk + 1) * S + keel::as<keel::usize>(s)] +=
+                        dp[keel::as<keel::usize>(kk) * S + keel::as<keel::usize>(s - r)];
             }
         }
-        const long long W_scaled = static_cast<long long>(
-            std::llround(W * static_cast<double>(scale)));
+        const long long W_scaled = keel::as<long long>(
+            std::llround(W * keel::as<double>(scale)));
         double total = 0.0;
         for (keel::usize s = 0; s < S; ++s) total += dp[m * S + s];
         double cdfLE = 0.0, cdfGE = 0.0;
-        for (long long s = 0; s <= W_scaled && s < static_cast<long long>(S); ++s)
-            cdfLE += dp[m * S + static_cast<keel::usize>(s)];
-        for (long long s = W_scaled; s < static_cast<long long>(S); ++s)
-            cdfGE += dp[m * S + static_cast<keel::usize>(s)];
+        for (long long s = 0; s <= W_scaled && s < keel::as<long long>(S); ++s)
+            cdfLE += dp[m * S + keel::as<keel::usize>(s)];
+        for (long long s = W_scaled; s < keel::as<long long>(S); ++s)
+            cdfGE += dp[m * S + keel::as<keel::usize>(s)];
         cdfLE /= total;
         cdfGE /= total;
         switch (tail) {
@@ -1724,7 +1724,7 @@ ansaribradley(const Value &x, const Value &y, double alpha, TestTail tail,
 
     const int h = (p_val < alpha) ? 1 : 0;
     return std::make_tuple(
-        Value::scalar(static_cast<double>(h), mr),
+        Value::scalar(keel::as<double>(h), mr),
         Value::scalar(p_val, mr),
         Value::scalar(W, mr),
         Value::scalar(Wstar, mr));
@@ -1753,10 +1753,10 @@ lillietest(const Value &X, double alpha, keel::Allocator *mr)
 
     double sum = 0.0;
     for (double v : xs) sum += v;
-    const double mean = sum / static_cast<double>(N);
+    const double mean = sum / keel::as<double>(N);
     double ss = 0.0;
     for (double v : xs) { const double d = v - mean; ss += d * d; }
-    const double sd = std::sqrt(ss / static_cast<double>(N - 1));
+    const double sd = std::sqrt(ss / keel::as<double>(N - 1));
     if (sd == 0.0)
         throw Error("lillietest: sample has zero variance",
                     0, 0, "lillietest", "", "numkit:lillietest:zeroVar");
@@ -1767,14 +1767,14 @@ lillietest(const Value &X, double alpha, keel::Allocator *mr)
     for (keel::usize i = 0; i < N; ++i) {
         const double z = (xs[i] - mean) / sd;
         const double F = 0.5 * (1.0 + std::erf(z * inv_sqrt2));
-        const double F_emp_lo = static_cast<double>(i)     / static_cast<double>(N);
-        const double F_emp_hi = static_cast<double>(i + 1) / static_cast<double>(N);
+        const double F_emp_lo = keel::as<double>(i)     / keel::as<double>(N);
+        const double F_emp_hi = keel::as<double>(i + 1) / keel::as<double>(N);
         D = std::max(D, std::max(std::fabs(F - F_emp_lo),
                                   std::fabs(F - F_emp_hi)));
     }
 
     // Stephens (1974) modified statistic: D* = D*(sqrt(n) - 0.01 + 0.85/sqrt(n)).
-    const double sqn = std::sqrt(static_cast<double>(N));
+    const double sqn = std::sqrt(keel::as<double>(N));
     const double D_star = D * (sqn - 0.01 + 0.85 / sqn);
 
     auto stephensP = [](double Ds) {
@@ -1824,7 +1824,7 @@ lillietest(const Value &X, double alpha, keel::Allocator *mr)
     const double D_crit = D_critstar / (sqn - 0.01 + 0.85 / sqn);
     const int h = (D > D_crit) ? 1 : 0;
 
-    return std::make_tuple(Value::scalar(static_cast<double>(h), mr),
+    return std::make_tuple(Value::scalar(keel::as<double>(h), mr),
                            Value::scalar(p_val, mr),
                            Value::scalar(D, mr),
                            Value::scalar(D_crit, mr));

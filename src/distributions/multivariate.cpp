@@ -281,7 +281,7 @@ Value mnrnd(::numkit::ops::RngContext &rng, keel::usize N, const Value &P, keel:
             ++counts[cat];
         }
         for (keel::usize j = 0; j < k; ++j)
-            od[j * m + r] = static_cast<double>(counts[j]);
+            od[j * m + r] = keel::as<double>(counts[j]);
     }
     return out;
 }
@@ -322,7 +322,7 @@ wishrnd_factor(::numkit::ops::RngContext &rng, const Value &Sigma, double df, co
         return {Value::matrix(0, 0, ValueType::DOUBLE, mr),
                 Value::matrix(0, 0, ValueType::DOUBLE, mr)};
     }
-    if (!(df > static_cast<double>(d) - 1.0))
+    if (!(df > keel::as<double>(d) - 1.0))
         throw Error("wishrnd: df must exceed p - 1",
                     0, 0, "wishrnd", "", "numkit:wishrnd:badDf");
 
@@ -348,10 +348,10 @@ wishrnd_factor(::numkit::ops::RngContext &rng, const Value &Sigma, double df, co
     }
 
     // Sample Bartlett factor B (lower-tri) or Krzanowski X (when df <= 81+d and integer).
-    if (df <= 81.0 + static_cast<double>(d) && df == std::floor(df)) {
+    if (df <= 81.0 + keel::as<double>(d) && df == std::floor(df)) {
         auto W = Value::matrix(d, d, ValueType::DOUBLE, mr);
         double *od = W.doubleDataMut();
-        const keel::usize m = static_cast<keel::usize>(df);
+        const keel::usize m = keel::as<keel::usize>(df);
         keel::Array<double> X(m * d);
         for (keel::usize c = 0; c < d; ++c)
             for (keel::usize r = 0; r < m; ++r)
@@ -382,7 +382,7 @@ wishrnd_factor(::numkit::ops::RngContext &rng, const Value &Sigma, double df, co
 
     keel::Array<double> B(d * d, 0.0);
     for (keel::usize i = 0; i < d; ++i) {
-        const double dfi = df - static_cast<double>(i);
+        const double dfi = df - keel::as<double>(i);
         B[i * d + i] = std::sqrt(keel::random::chi_squared_f64(gen, dfi));
         for (keel::usize j = 0; j < i; ++j)
             B[i * d + j] = keel::random::normal_f64(gen);
@@ -439,7 +439,7 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, double df, con
         return {Value::matrix(0, 0, ValueType::DOUBLE, mr),
                 Value::matrix(0, 0, ValueType::DOUBLE, mr)};
     }
-    if (!(df > static_cast<double>(d) - 1.0))
+    if (!(df > keel::as<double>(d) - 1.0))
         throw Error("iwishrnd: df must exceed p - 1",
                     0, 0, "iwishrnd", "", "numkit:iwishrnd:badDf");
 
@@ -482,8 +482,8 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, double df, con
 
     // Bartlett sample Y ~ W(inv(Tau), df), or Krzanowski X when df <= 81+d and integer.
     keel::Array<double> Y(d * d, 0.0);
-    if (df <= 81.0 + static_cast<double>(d) && df == std::floor(df)) {
-        const keel::usize m = static_cast<keel::usize>(df);
+    if (df <= 81.0 + keel::as<double>(d) && df == std::floor(df)) {
+        const keel::usize m = keel::as<keel::usize>(df);
         keel::Array<double> X(m * d);
         for (keel::usize c = 0; c < d; ++c)
             for (keel::usize r = 0; r < m; ++r)
@@ -506,7 +506,7 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, double df, con
     } else {
         keel::Array<double> B(d * d, 0.0);
         for (keel::usize i = 0; i < d; ++i) {
-            const double dfi = df - static_cast<double>(i);
+            const double dfi = df - keel::as<double>(i);
             B[i * d + i] = std::sqrt(2.0 * randg(rng, dfi * 0.5, 1, 1, mr).toScalar());
         }
         for (keel::usize j = 1; j < d; ++j)
@@ -534,7 +534,7 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, double df, con
 
     keel::Array<double> B(d * d, 0.0);
     for (keel::usize i = 0; i < d; ++i) {
-        const double dfi = df - static_cast<double>(i);
+        const double dfi = df - keel::as<double>(i);
         B[i * d + i] = std::sqrt(keel::random::chi_squared_f64(gen, dfi));
         for (keel::usize j = 0; j < i; ++j)
             B[i * d + j] = keel::random::normal_f64(gen);

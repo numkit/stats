@@ -62,10 +62,10 @@ Window decodeWindow(keel::ArrayRef<keel::usize> k, const char *fn)
         // and PREVIOUS elements — it leans BACKWARD: kb = floor(k/2),
         // kf = floor((k-1)/2). e.g. movsum([1 2 3 4],2) = [1 3 5 7] (window
         // [i-1, i]). Odd k is symmetric (kb == kf).
-        return {static_cast<long>(n / 2), static_cast<long>((n - 1) / 2)};
+        return {keel::as<long>(n / 2), keel::as<long>((n - 1) / 2)};
     }
     if (k.size() == 2) {
-        return {static_cast<long>(k[0]), static_cast<long>(k[1])};
+        return {keel::as<long>(k[0]), keel::as<long>(k[1])};
     }
     badK();
     return {0, 0}; // unreachable
@@ -87,7 +87,7 @@ keel::Array<keel::usize> decodeWindowValueToScratch(const Value &k, const char *
     if (k.isScalar()) {
         const double v = k.toScalar();
         if (!std::isfinite(v) || v <= 0 || std::floor(v) != v) badK();
-        out.push_back(static_cast<keel::usize>(v));
+        out.push_back(keel::as<keel::usize>(v));
         return out;
     }
     if (k.numel() == 2) {
@@ -95,8 +95,8 @@ keel::Array<keel::usize> decodeWindowValueToScratch(const Value &k, const char *
         const double b = k.elemAsDouble(1);
         if (!std::isfinite(a) || !std::isfinite(b) ||
             a < 0 || b < 0 || std::floor(a) != a || std::floor(b) != b) badK();
-        out.push_back(static_cast<keel::usize>(a));
-        out.push_back(static_cast<keel::usize>(b));
+        out.push_back(keel::as<keel::usize>(a));
+        out.push_back(keel::as<keel::usize>(b));
         return out;
     }
     badK();
@@ -142,7 +142,7 @@ inline keel::String toLower(keel::StringRef sv)
     // appears before any string argument.
     if (i < args.size() && !args[i].isChar() && !args[i].isString()
         && !args[i].isEmpty() && args[i].isScalar()) {
-        o.dim = static_cast<int>(args[i].toScalar());
+        o.dim = keel::as<int>(args[i].toScalar());
         ++i;
     }
 
@@ -279,7 +279,7 @@ void runMoving(const double *src, keel::usize n, keel::isize step,
                bool omit_nan, EndpointMode ep, double ep_fill, F &&fn)
 {
     if (n == 0) return;
-    const long N = static_cast<long>(n);
+    const long N = keel::as<long>(n);
     const long fullLen = w.kb + w.kf + 1;
     auto buf = keel::Array<double>(fullLen, scratch.allocator());
     for (long i = 0; i < N; ++i) {
@@ -357,7 +357,7 @@ Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &o
             for (keel::usize j = 0; j < n; ++j) {
                 if (t[j] < tLo) continue;
                 if (t[j] > tHi) break;
-                const double v = colSrc[static_cast<keel::isize>(j) * step];
+                const double v = colSrc[keel::as<keel::isize>(j) * step];
                 if (opt.omit_nan && std::isnan(v)) continue;
                 buf[bufN++] = v;
             }
@@ -367,7 +367,7 @@ Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &o
                 else if (opt.ep == EndpointMode::Scalar && !(opt.omit_nan && std::isnan(opt.ep_fill)))
                     buf[bufN++] = opt.ep_fill;
             }
-            colDst[static_cast<keel::isize>(outI) * step] =
+            colDst[keel::as<keel::isize>(outI) * step] =
                 (bufN == 0) ? std::numeric_limits<double>::quiet_NaN()
                             : fn(buf.data(), bufN);
             ++outI;
@@ -380,10 +380,10 @@ Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &o
         // i.e. i in [kb, n-1-kf]. Output length = n - (kb+kf) (or 0).
         const long kb = w.kb, kf = w.kf;
         const long fullLen = kb + kf + 1;
-        if (static_cast<long>(n) < fullLen) return;
+        if (keel::as<long>(n) < fullLen) return;
         auto buf = keel::Array<double>(fullLen, scratch.allocator());
         long outI = 0;
-        for (long i = kb; i + kf < static_cast<long>(n); ++i) {
+        for (long i = kb; i + kf < keel::as<long>(n); ++i) {
             keel::usize bufN = 0;
             if (opt.omit_nan) {
                 for (long j = -kb; j <= kf; ++j) {
@@ -392,8 +392,8 @@ Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &o
                 }
             } else {
                 for (long j = -kb; j <= kf; ++j)
-                    buf[static_cast<keel::usize>(j + kb)] = colSrc[(i + j) * step];
-                bufN = static_cast<keel::usize>(fullLen);
+                    buf[keel::as<keel::usize>(j + kb)] = colSrc[(i + j) * step];
+                bufN = keel::as<keel::usize>(fullLen);
             }
             colDst[outI * step] = (bufN == 0)
                                       ? std::numeric_limits<double>::quiet_NaN()
@@ -417,8 +417,8 @@ Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &o
             return cnt;
         }
         const long delta = w.kb + w.kf;
-        if (static_cast<long>(L) <= delta) return 0;
-        return L - static_cast<keel::usize>(delta);
+        if (keel::as<long>(L) <= delta) return 0;
+        return L - keel::as<keel::usize>(delta);
     };
 
     if (x.dims().isVector()) {
@@ -492,14 +492,14 @@ Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &o
             for (keel::usize r = 0; r < R; ++r) {
                 const double *rowSrc = src + p * pageStride + r;
                 double       *rowDst = dst + p * outPageStride + r;
-                run(rowSrc, C, /*step=*/static_cast<keel::isize>(R), rowDst);
+                run(rowSrc, C, /*step=*/keel::as<keel::isize>(R), rowDst);
             }
     } else if (dim == 3 && d.is3D()) {
         for (keel::usize c = 0; c < C; ++c)
             for (keel::usize r = 0; r < R; ++r) {
                 const double *pgSrc = src + c * R + r;
                 double       *pgDst = dst + c * outR + r;
-                run(pgSrc, P, /*step=*/static_cast<keel::isize>(pageStride), pgDst);
+                run(pgSrc, P, /*step=*/keel::as<keel::isize>(pageStride), pgDst);
             }
     } else {
         // Trailing-singleton or out-of-rank: identity copy (legacy behaviour).
@@ -515,7 +515,7 @@ double winMean(const double *w, keel::usize n)
     if (n == 0) return std::numeric_limits<double>::quiet_NaN();
     double s = 0.0;
     for (keel::usize i = 0; i < n; ++i) s += w[i];
-    return s / static_cast<double>(n);
+    return s / keel::as<double>(n);
 }
 
 double winSum(const double *w, keel::usize n)
@@ -576,14 +576,14 @@ double winVar(const double *w, keel::usize n, int normFlag)
     if (n == 1) return 0.0;
     double s = 0.0;
     for (keel::usize i = 0; i < n; ++i) s += w[i];
-    const double mean = s / static_cast<double>(n);
+    const double mean = s / keel::as<double>(n);
     double sq = 0.0;
     for (keel::usize i = 0; i < n; ++i) {
         const double d = w[i] - mean;
         sq += d * d;
     }
-    const double denom = (normFlag == 1) ? static_cast<double>(n)
-                                          : static_cast<double>(n - 1);
+    const double denom = (normFlag == 1) ? keel::as<double>(n)
+                                          : keel::as<double>(n - 1);
     return sq / denom;
 }
 

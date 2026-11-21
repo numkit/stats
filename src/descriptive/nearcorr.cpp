@@ -239,11 +239,11 @@ Value nearcorr_full(const Value &A, keel::ArrayRef<Value> nv,
             default: break;
             }
         });
-    const long maxIter = static_cast<long>(maxIterD);
+    const long maxIter = keel::as<long>(maxIterD);
 
     // Trivial case: a 1×1 unit-diagonal input is already valid.
     if (N == 1)
-        return wantSingle ? Value::scalar(static_cast<float>(1.0))
+        return wantSingle ? Value::scalar(keel::as<float>(1.0))
                           : Value::scalar(1.0);
 
     // ── alternating projections with Dykstra's correction ───────────────
@@ -297,7 +297,7 @@ Value nearcorr_full(const Value &A, keel::ArrayRef<Value> nv,
                            : Value::matrix(N, N, ValueType::DOUBLE, mr);
     auto putElem = [&](keel::usize lin, double v) {
         if (wantSingle)
-            out.singleDataMut()[lin] = static_cast<float>(v);
+            out.singleDataMut()[lin] = keel::as<float>(v);
         else
             out.doubleDataMut()[lin] = v;
     };

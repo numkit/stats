@@ -69,8 +69,8 @@ void ridge_full_argcheck(const Value &y, const Value &X, const Value &flag, bool
     if (X.dims().ndim() != 2)
         throw Error("ridge: X must be a matrix.",
                     0, 0, "ridge", "", "numkit:ridge:invalidData");
-    const keel::usize n = static_cast<keel::usize>(X.dims().dim(0));
-    if (static_cast<keel::usize>(y.dims().dim(0)) != n
+    const keel::usize n = keel::as<keel::usize>(X.dims().dim(0));
+    if (keel::as<keel::usize>(y.dims().dim(0)) != n
         || y.dims().ndim() != 2)
         throw Error(keel::format("ridge: the number of rows in Y must equal the number "
                                  "of rows in X (Y has {}, X has {}).",
@@ -88,10 +88,10 @@ Value ridge_full(const Value &y, const Value &X, const Value &kVec,
 {
     bool scaled = true;
     ridge_full_argcheck(y, X, flag, scaled);
-    const keel::usize n = static_cast<keel::usize>(X.dims().dim(0));
+    const keel::usize n = keel::as<keel::usize>(X.dims().dim(0));
 
     // Missing-value removal: any row with a NaN in y or X (probe76 R07).
-    const keel::usize p = static_cast<keel::usize>(X.dims().dim(1));
+    const keel::usize p = keel::as<keel::usize>(X.dims().dim(1));
     keel::Array<keel::usize> keep;
     keep.reserve(n);
     for (keel::usize i = 0; i < n; ++i) {
@@ -162,13 +162,13 @@ Value nlparci_full(const Value &beta, const Value &resid,
                     0, 0, "nlparci", "", "numkit:nlparci:badAlpha");
 
     // Drop NaN residuals (and their Jacobian rows).
-    const keel::usize nAll = static_cast<keel::usize>(resid.numel());
+    const keel::usize nAll = keel::as<keel::usize>(resid.numel());
     keel::Array<keel::usize> keep;
     keep.reserve(nAll);
     for (keel::usize i = 0; i < nAll; ++i)
         if (!std::isnan(resid.elemAsDouble(i))) keep.push_back(i);
     const keel::usize n = keep.size();
-    const keel::usize pp = static_cast<keel::usize>(beta.numel());
+    const keel::usize pp = keel::as<keel::usize>(beta.numel());
     if (n <= pp)
         throw Error(keel::format("nlparci: the degrees of freedom v = n - p must be "
                                  "positive (n = {}, p = {}).", n, pp),
@@ -180,8 +180,8 @@ Value nlparci_full(const Value &beta, const Value &resid,
         for (keel::usize j = 0; j < pp; ++j)
             se[j] = std::sqrt(Sigma.elemAsDouble(j + j * pp));
     } else {
-        if (static_cast<keel::usize>(J.dims().dim(0)) != nAll
-            || static_cast<keel::usize>(J.dims().dim(1)) != pp)
+        if (keel::as<keel::usize>(J.dims().dim(0)) != nAll
+            || keel::as<keel::usize>(J.dims().dim(1)) != pp)
             throw Error(keel::format("nlparci: the size of J does not match the sizes "
                                      "of BETA and RESID (J is {}x{}, expected {}x{}).",
                                      J.dims().dim(0), J.dims().dim(1), nAll, pp),
@@ -199,7 +199,7 @@ Value nlparci_full(const Value &beta, const Value &resid,
         // The kernel's half-widths: recompute via its covariance route —
         // extract se from ci directly (ci = beta ± se·t).
         const double tcrit = tinv(Value::scalar(1.0 - alpha / 2.0, mr),
-                                  static_cast<double>(n - pp), mr).toScalar();
+                                  keel::as<double>(n - pp), mr).toScalar();
         Value out = Value::matrix(pp, 2, ValueType::DOUBLE, mr);
         double *od = out.doubleDataMut();
         for (keel::usize j = 0; j < pp; ++j) {
@@ -213,7 +213,7 @@ Value nlparci_full(const Value &beta, const Value &resid,
     }
 
     const double tcrit = tinv(Value::scalar(1.0 - alpha / 2.0, mr),
-                              static_cast<double>(n - pp), mr).toScalar();
+                              keel::as<double>(n - pp), mr).toScalar();
     Value out = Value::matrix(pp, 2, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
     for (keel::usize j = 0; j < pp; ++j) {
@@ -345,23 +345,23 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
     Value Xw = X;
     if (X.dims().dim(0) == 1 && X.dims().dim(1) > 1
         && ((b.numel() == 2 && isconst) || (b.numel() == 1 && !isconst))) {
-        Xw = Value::matrix(static_cast<keel::usize>(X.numel()), 1,
+        Xw = Value::matrix(keel::as<keel::usize>(X.numel()), 1,
                            ValueType::DOUBLE, mr);
-        for (keel::usize k = 0; k < static_cast<keel::usize>(X.numel()); ++k)
+        for (keel::usize k = 0; k < keel::as<keel::usize>(X.numel()); ++k)
             Xw.doubleDataMut()[k] = X.elemAsDouble(k);
     }
 
     // BinomialSize / Offset shape gates (probe76: WrongArgSize classes).
-    const keel::usize m = static_cast<keel::usize>(Xw.dims().dim(0));
+    const keel::usize m = keel::as<keel::usize>(Xw.dims().dim(0));
     if (!Nv.isScalar()
         && (Nv.dims().dim(1) != 1
-            || static_cast<keel::usize>(Nv.numel()) != m))
+            || keel::as<keel::usize>(Nv.numel()) != m))
         throw Error("glmval: BinomialSize must be a scalar or a column "
                     "vector with one entry per row of X.",
                     0, 0, "glmval", "", "numkit:glmval:wrongArgSizeBinomialSize");
     if (!offset.isScalar()
         && (offset.dims().dim(1) != 1
-            || static_cast<keel::usize>(offset.numel()) != m))
+            || keel::as<keel::usize>(offset.numel()) != m))
         throw Error("glmval: Offset must be a scalar or a column vector "
                     "with one entry per row of X.",
                     0, 0, "glmval", "", "numkit:glmval:wrongArgSizeOffset");
@@ -383,12 +383,12 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
         return eta;
     };
 
-    const keel::usize rows = static_cast<keel::usize>(Xw.dims().dim(0));
-    const keel::usize cols = static_cast<keel::usize>(Xw.dims().dim(1));
+    const keel::usize rows = keel::as<keel::usize>(Xw.dims().dim(0));
+    const keel::usize cols = keel::as<keel::usize>(Xw.dims().dim(1));
     const bool scalarBeta = b.numel() == 1;
     const keel::usize wantCoef = isconst ? cols + 1 : cols;
     if (!scalarBeta
-        && static_cast<keel::usize>(b.numel()) != wantCoef)
+        && keel::as<keel::usize>(b.numel()) != wantCoef)
         throw Error(keel::format("glmval: length(beta) must equal the number of "
                                  "columns of X plus one when the constant is on (got {} coefficients for {} columns).",
                                  b.numel(), cols),
@@ -432,15 +432,15 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
     // Extract covariance matrix C (wantCoef x wantCoef) from statsVal.
     keel::Array<double> covMat(wantCoef * wantCoef, 0.0);
     if (statsVal.hasField("covb")
-        && static_cast<keel::usize>(statsVal.field("covb").numel()) == wantCoef * wantCoef) {
+        && keel::as<keel::usize>(statsVal.field("covb").numel()) == wantCoef * wantCoef) {
         const Value &cb = statsVal.field("covb");
         for (keel::usize idx = 0; idx < wantCoef * wantCoef; ++idx)
             covMat[idx] = cb.elemAsDouble(idx);
     } else if (statsVal.hasField("se")
-               && static_cast<keel::usize>(statsVal.field("se").numel()) == wantCoef) {
+               && keel::as<keel::usize>(statsVal.field("se").numel()) == wantCoef) {
         const Value &se = statsVal.field("se");
         const bool hasCorr = statsVal.hasField("coeffcorr")
-            && static_cast<keel::usize>(statsVal.field("coeffcorr").numel()) == wantCoef * wantCoef;
+            && keel::as<keel::usize>(statsVal.field("coeffcorr").numel()) == wantCoef * wantCoef;
         for (keel::usize j = 0; j < wantCoef; ++j)
             for (keel::usize k = 0; k < wantCoef; ++k) {
                 const double corr_jk = hasCorr
@@ -460,7 +460,7 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
         ? (statsVal.field("estdisp").elemAsDouble(0) != 0.0)
         : std::isfinite(dfe);
     const double alpha = 1.0 - clev;
-    const double p_df = static_cast<double>(wantCoef);
+    const double p_df = keel::as<double>(wantCoef);
     double crit = 0.0;
     if (!simultaneous) {
         crit = (estdisp && std::isfinite(dfe))

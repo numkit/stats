@@ -55,7 +55,7 @@ LassoResult lasso(const Value &X, const Value &y, const Value &lambdas,
     keel::Array<double> yc(n);
     double yMean = 0.0;
     for (keel::usize i = 0; i < n; ++i) yMean += y.elemAsDouble(i);
-    yMean /= static_cast<double>(n);
+    yMean /= keel::as<double>(n);
     for (keel::usize i = 0; i < n; ++i) yc[i] = y.elemAsDouble(i) - yMean;
 
     // Pre-compute ||X_j||² for each (standardised) column = n.

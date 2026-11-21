@@ -61,7 +61,7 @@ Value nanmean(const Value &x, int dim, keel::Allocator *mr)
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     if ((x.dims().isVector() || x.isScalar()) && x.type() == ValueType::DOUBLE) {
         const auto r = nanSumCountScan(x.doubleData(), x.numel());
-        return Value::scalar(r.count > 0 ? r.sum / static_cast<double>(r.count)
+        return Value::scalar(r.count > 0 ? r.sum / keel::as<double>(r.count)
                                           : std::nan(""), mr);
     }
 
@@ -69,7 +69,7 @@ Value nanmean(const Value &x, int dim, keel::Allocator *mr)
     return applyAlongDim(x, d,
         [](keel::usize, double *slice, keel::usize n) {
             const auto r = nanSumCountScan(slice, n);
-            return r.count > 0 ? r.sum / static_cast<double>(r.count)
+            return r.count > 0 ? r.sum / keel::as<double>(r.count)
                                : std::nan("");
         }, mr);
 }
@@ -179,8 +179,8 @@ Value nancov(const Value &x, int normFlag, keel::Allocator *mr)
 
     centerColumnsLocal(tight.data(), n_kept, p);
     const double divisor = (normFlag == 0)
-        ? std::max(1.0, static_cast<double>(n_kept) - 1.0)
-        : static_cast<double>(n_kept);
+        ? std::max(1.0, keel::as<double>(n_kept) - 1.0)
+        : keel::as<double>(n_kept);
 
     if (p == 1) {
         double s = 0.0;
@@ -223,8 +223,8 @@ Value nancov(const Value &x, const Value &y, int normFlag,
     packKeptRows(data.data(), n, n_kept, 2, tight.data());
     centerColumnsLocal(tight.data(), n_kept, 2);
     const double divisor = (normFlag == 0)
-        ? std::max(1.0, static_cast<double>(n_kept) - 1.0)
-        : static_cast<double>(n_kept);
+        ? std::max(1.0, keel::as<double>(n_kept) - 1.0)
+        : keel::as<double>(n_kept);
     return covFromCenteredLocal(tight.data(), n_kept, 2, divisor, mr);
 }
 

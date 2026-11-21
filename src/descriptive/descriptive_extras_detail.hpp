@@ -195,7 +195,7 @@ namespace {
     // Vector / scalar — single-slice fast path.
     if (x.dims().isVector() || x.isScalar()) {
         const keel::usize n = x.numel();
-        const keel::usize k = std::min<keel::usize>(static_cast<keel::usize>(kReq), n);
+        const keel::usize k = std::min<keel::usize>(keel::as<keel::usize>(kReq), n);
         keel::Array<double> vals(n);
         keel::Array<keel::usize> ord(n);
         for (keel::usize i = 0; i < n; ++i) { vals[i] = x.elemAsDouble(i); ord[i] = i; }
@@ -217,7 +217,7 @@ namespace {
             *idxOut = isRow ? Value::matrix(1, k, ValueType::DOUBLE, mr)
                             : Value::matrix(k, 1, ValueType::DOUBLE, mr);
             for (keel::usize i = 0; i < k; ++i)
-                idxOut->doubleDataMut()[i] = static_cast<double>(ord[i] + 1);
+                idxOut->doubleDataMut()[i] = keel::as<double>(ord[i] + 1);
         }
         return out;
     }
@@ -233,9 +233,9 @@ namespace {
     const keel::usize pageStride = R * C;
     keel::usize Ro = R, Co = C, Po = P;
     keel::usize sliceLen = 0;
-    if (d == 1)      { sliceLen = R; Ro = std::min<keel::usize>(static_cast<keel::usize>(kReq), R); }
-    else if (d == 2) { sliceLen = C; Co = std::min<keel::usize>(static_cast<keel::usize>(kReq), C); }
-    else if (d == 3) { sliceLen = P; Po = std::min<keel::usize>(static_cast<keel::usize>(kReq), P); }
+    if (d == 1)      { sliceLen = R; Ro = std::min<keel::usize>(keel::as<keel::usize>(kReq), R); }
+    else if (d == 2) { sliceLen = C; Co = std::min<keel::usize>(keel::as<keel::usize>(kReq), C); }
+    else if (d == 3) { sliceLen = P; Po = std::min<keel::usize>(keel::as<keel::usize>(kReq), P); }
     else {
         // Out-of-rank → identity copy.
         return createLike(x, ValueType::DOUBLE, mr);
@@ -278,7 +278,7 @@ namespace {
                 for (keel::usize i = 0; i < Ro; ++i) {
                     dst[p * outPageStride + c * Ro + i] = buf[ord[i]];
                     if (idst) idst[p * outPageStride + c * Ro + i] =
-                                  static_cast<double>(ord[i] + 1);
+                                  keel::as<double>(ord[i] + 1);
                 }
             }
     } else if (d == 2) {
@@ -291,7 +291,7 @@ namespace {
                 for (keel::usize i = 0; i < Co; ++i) {
                     dst[p * outPageStride + i * Ro + r] = buf[ord[i]];
                     if (idst) idst[p * outPageStride + i * Ro + r] =
-                                  static_cast<double>(ord[i] + 1);
+                                  keel::as<double>(ord[i] + 1);
                 }
             }
     } else { // d == 3
@@ -304,7 +304,7 @@ namespace {
                 for (keel::usize i = 0; i < Po; ++i) {
                     dst[i * outPageStride + c * Ro + r] = buf[ord[i]];
                     if (idst) idst[i * outPageStride + c * Ro + r] =
-                                  static_cast<double>(ord[i] + 1);
+                                  keel::as<double>(ord[i] + 1);
                 }
             }
     }
@@ -375,8 +375,8 @@ namespace {
     // we still subtract the mean defensively for numerical safety.
     double ma = 0.0, mb = 0.0;
     for (keel::usize k = 0; k < m; ++k) { ma += a[k]; mb += b[k]; }
-    ma /= static_cast<double>(m);
-    mb /= static_cast<double>(m);
+    ma /= keel::as<double>(m);
+    mb /= keel::as<double>(m);
     double sab = 0.0, saa = 0.0, sbb = 0.0;
     for (keel::usize k = 0; k < m; ++k) {
         const double da = a[k] - ma;
@@ -400,7 +400,7 @@ namespace {
 // types are ScratchVec to preserve the per-call arena lifetime.
 keel::Array<double> fitPolyLS(const double *xidx, keel::usize n, const double *y, int order, keel::Allocator *scratch_mr)
 {
-    const keel::usize k = static_cast<keel::usize>(order) + 1;
+    const keel::usize k = keel::as<keel::usize>(order) + 1;
     keel::Array<double> M(k * k, 0.0, scratch_mr);
     keel::Array<double> b(k, 0.0, scratch_mr);
     keel::Array<double> powSums(2 * k - 1, 0.0, scratch_mr);
@@ -413,11 +413,11 @@ keel::Array<double> fitPolyLS(const double *xidx, keel::usize n, const double *y
     }
     for (keel::usize i = 0; i < k; ++i)
         for (keel::usize j = 0; j < k; ++j)
-            M[i + j * k] = powSums[(order - static_cast<int>(i)) +
-                                   (order - static_cast<int>(j))];
+            M[i + j * k] = powSums[(order - keel::as<int>(i)) +
+                                   (order - keel::as<int>(j))];
     for (keel::usize i = 0; i < n; ++i) {
         double xp = 1.0;
-        for (int p = 0; p < static_cast<int>(k); ++p) {
+        for (int p = 0; p < keel::as<int>(k); ++p) {
             b[order - p] += y[i] * xp;
             xp *= xidx[i];
         }
@@ -470,7 +470,7 @@ double evalPoly(const keel::Array<double> &a, double x)
     if (order < 0) order = 1;
     keel::Array<double> xidx(n, scratch_mr);
     for (keel::usize i = 0; i < n; ++i)
-        xidx[i] = static_cast<double>(i);
+        xidx[i] = keel::as<double>(i);
     auto coefs = fitPolyLS(xidx.data(), n, src, order, scratch_mr);
     for (keel::usize i = 0; i < n; ++i)
         dst[i] = src[i] - evalPoly(coefs, xidx[i]);
@@ -589,7 +589,7 @@ struct FoDetect {
         // definition for quartiles by default (R-default '7' percentile rule).
         auto quant = [&](double p) {
             const double h = (double(buf.size()) - 1.0) * p;
-            const keel::usize f = static_cast<keel::usize>(std::floor(h));
+            const keel::usize f = keel::as<keel::usize>(std::floor(h));
             const double frac = h - double(f);
             const keel::usize g = std::min(f + 1, buf.size() - 1);
             return buf[f] + frac * (buf[g] - buf[f]);
@@ -652,13 +652,13 @@ struct FoDetect {
     win.reserve(hb + hf + 1);
     for (keel::usize i = 0; i < n; ++i) {
         if (std::isnan(x[i])) continue;
-        long lo = static_cast<long>(i) - hb; if (lo < 0) lo = 0;
-        long hi = static_cast<long>(i) + hf;
-        if (hi > static_cast<long>(n) - 1) hi = static_cast<long>(n) - 1;
+        long lo = keel::as<long>(i) - hb; if (lo < 0) lo = 0;
+        long hi = keel::as<long>(i) + hf;
+        if (hi > keel::as<long>(n) - 1) hi = keel::as<long>(n) - 1;
         win.clear();
         for (long j = lo; j <= hi; ++j)
-            if (!std::isnan(x[static_cast<keel::usize>(j)]))
-                win.push_back(x[static_cast<keel::usize>(j)]);
+            if (!std::isnan(x[keel::as<keel::usize>(j)]))
+                win.push_back(x[keel::as<keel::usize>(j)]);
         if (win.empty()) continue;
         double center, scale;
         if (isMedian) {
@@ -709,7 +709,7 @@ struct FoDetect {
         const double q = p / 100.0 * double(buf.size()) - 0.5;
         if (q <= 0.0) return buf.front();
         if (q >= double(buf.size() - 1)) return buf.back();
-        const keel::usize f = static_cast<keel::usize>(std::floor(q));
+        const keel::usize f = keel::as<keel::usize>(std::floor(q));
         const double fr = q - double(f);
         return buf[f] + fr * (buf[f + 1] - buf[f]);
     };
@@ -767,7 +767,7 @@ void fill_one_column(double *p, keel::usize len, keel::StringRef method,
     if (len == 0) return;
     auto is_nan = [&](keel::usize i) { return std::isnan(p[i]); };
     auto s_at = [&](keel::usize i) {
-        return s ? s[i] : static_cast<double>(i + 1);
+        return s ? s[i] : keel::as<double>(i + 1);
     };
 
     if (method == "constant") {

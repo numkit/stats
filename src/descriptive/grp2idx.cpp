@@ -75,9 +75,9 @@ Grp2idxResult grp2idx(const Value &s, keel::Allocator *mr)
             keel::String str = e.toString();
             int idx = -1;
             for (keel::usize k = 0; k < names.size(); ++k)
-                if (names[k] == str) { idx = static_cast<int>(k); break; }
-            if (idx < 0) { names.push_back(std::move(str)); idx = static_cast<int>(names.size()) - 1; }
-            g.push_back(static_cast<double>(idx + 1));
+                if (names[k] == str) { idx = keel::as<int>(k); break; }
+            if (idx < 0) { names.push_back(std::move(str)); idx = keel::as<int>(names.size()) - 1; }
+            g.push_back(keel::as<double>(idx + 1));
         }
     } else if (s.isChar() || s.isString()) {
         // A single char row / string scalar is one group label.
@@ -103,7 +103,7 @@ Grp2idxResult grp2idx(const Value &s, keel::Allocator *mr)
                 continue;
             }
             const auto it = std::lower_bound(uniq.begin(), uniq.end(), xi);
-            g.push_back(static_cast<double>((it - uniq.begin()) + 1));
+            g.push_back(keel::as<double>((it - uniq.begin()) + 1));
         }
     }
 

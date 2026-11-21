@@ -52,7 +52,7 @@ void anova1_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         for (keel::usize c = 0; c < C; ++c)
             for (keel::usize r = 0; r < R; ++r) {
                 yd[k] = X.elemAsDouble(c * R + r);
-                gd[k] = static_cast<double>(c + 1);
+                gd[k] = keel::as<double>(c + 1);
                 ++k;
             }
         yp = &yStore;
@@ -126,9 +126,9 @@ void anova1_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             const keel::usize ng = g.values.size();
             double sum = 0.0;
             for (double x : g.values) sum += x;
-            const double m = (ng > 0) ? sum / static_cast<double>(ng) : 0.0;
+            const double m = (ng > 0) ? sum / keel::as<double>(ng) : 0.0;
             mD[k] = m;
-            nD[k] = static_cast<double>(ng);
+            nD[k] = keel::as<double>(ng);
             gD[k] = g.label;
             for (double x : g.values) {
                 const double d = x - m;
@@ -137,7 +137,7 @@ void anova1_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             total += ng;
         }
         const double sPooled = (total > K)
-            ? std::sqrt(sse / static_cast<double>(total - K))
+            ? std::sqrt(sse / keel::as<double>(total - K))
             : std::numeric_limits<double>::quiet_NaN();
 
         Value s = Value::structure(mr);
@@ -181,7 +181,7 @@ void kruskalwallis_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         for (keel::usize c = 0; c < C; ++c)
             for (keel::usize r = 0; r < R; ++r) {
                 yp[c * R + r] = args[0].elemAsDouble(c * R + r);
-                gp[c * R + r] = static_cast<double>(c + 1);
+                gp[c * R + r] = keel::as<double>(c + 1);
             }
         yArg = std::move(yFlat);
         gArg = std::move(gFlat);
@@ -245,7 +245,7 @@ void kruskalwallis_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         while (i < M) {
             keel::usize j = i + 1;
             while (j < M && all[ord[j]].v == all[ord[i]].v) ++j;
-            const double avg = static_cast<double>(i + j + 1) / 2.0;
+            const double avg = keel::as<double>(i + j + 1) / 2.0;
             for (keel::usize k = i; k < j; ++k) rk[ord[k]] = avg;
             if (j - i > 1) tieSizes.push_back(j - i);
             i = j;
@@ -261,13 +261,13 @@ void kruskalwallis_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         keel::Array<double> sumR(K, 0.0);
         for (keel::usize k = 0; k < M; ++k) {
             auto it = std::lower_bound(uniq.begin(), uniq.end(), all[k].g);
-            const keel::usize gi = static_cast<keel::usize>(it - uniq.begin());
+            const keel::usize gi = keel::as<keel::usize>(it - uniq.begin());
             n[gi] += 1;
             sumR[gi] += rk[k];
         }
         double sumt = 0.0;
         for (keel::usize t : tieSizes) {
-            const double td = static_cast<double>(t);
+            const double td = keel::as<double>(t);
             sumt += td * td * td - td;
         }
 
@@ -275,8 +275,8 @@ void kruskalwallis_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         Value mrVec = Value::matrix(K, 1, ValueType::DOUBLE, mr);
         Value gnames = Value::cell(K, 1, mr);
         for (keel::usize k = 0; k < K; ++k) {
-            nVec.doubleDataMut()[k] = static_cast<double>(n[k]);
-            mrVec.doubleDataMut()[k] = (n[k] > 0) ? sumR[k] / static_cast<double>(n[k]) : 0.0;
+            nVec.doubleDataMut()[k] = keel::as<double>(n[k]);
+            mrVec.doubleDataMut()[k] = (n[k] > 0) ? sumR[k] / keel::as<double>(n[k]) : 0.0;
             // gnames as decimal string of the label (matches MATLAB)
             char buf[64];
             std::snprintf(buf, sizeof(buf), "%g", uniq[k]);
@@ -319,7 +319,7 @@ void anova2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                     0, 0, "anova2", "", "numkit:anova2:notMatrix");
     const keel::usize M = Y.dims().rows();
     const keel::usize c = Y.dims().cols();
-    const keel::usize R = static_cast<keel::usize>(reps);
+    const keel::usize R = keel::as<keel::usize>(reps);
     if (c < 2 || M < 2 * R || (M % R) != 0)
         throw Error("anova2: row count must be an integer multiple (>= 2) of reps and columns >= 2",
                     0, 0, "anova2", "", "numkit:anova2:tooSmall");
@@ -343,12 +343,12 @@ void anova2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             }
         }
     }
-    const double N = static_cast<double>(r * c * R);
+    const double N = keel::as<double>(r * c * R);
     const double grandMean = grandSum / N;
     for (keel::usize i = 0; i < r; ++i)
-        rowMean[i] /= static_cast<double>(c * R);
+        rowMean[i] /= keel::as<double>(c * R);
     for (keel::usize j = 0; j < c; ++j)
-        colMean[j] /= static_cast<double>(r * R);
+        colMean[j] /= keel::as<double>(r * R);
 
     if (R == 1) {
         std::tie(pCols, pRows, Fc, Fr, dfC, dfR, dfE, ssC, ssR, ssE) =
@@ -360,32 +360,32 @@ void anova2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                 double s = 0.0;
                 for (keel::usize k = 0; k < R; ++k)
                     s += Y.elemAsDouble((i * R + k) + j * M);
-                cellMean[i + j * r] = s / static_cast<double>(R);
+                cellMean[i + j * r] = s / keel::as<double>(R);
             }
         }
         for (keel::usize i = 0; i < r; ++i) {
             const double d = rowMean[i] - grandMean;
-            ssR += static_cast<double>(c * R) * d * d;
+            ssR += keel::as<double>(c * R) * d * d;
         }
         for (keel::usize j = 0; j < c; ++j) {
             const double d = colMean[j] - grandMean;
-            ssC += static_cast<double>(r * R) * d * d;
+            ssC += keel::as<double>(r * R) * d * d;
         }
         for (keel::usize j = 0; j < c; ++j) {
             for (keel::usize i = 0; i < r; ++i) {
                 const double cm = cellMean[i + j * r];
                 const double di = cm - rowMean[i] - colMean[j] + grandMean;
-                ssI += static_cast<double>(R) * di * di;
+                ssI += keel::as<double>(R) * di * di;
                 for (keel::usize k = 0; k < R; ++k) {
                     const double de = Y.elemAsDouble((i * R + k) + j * M) - cm;
                     ssE += de * de;
                 }
             }
         }
-        dfC = static_cast<double>(c - 1);
-        dfR = static_cast<double>(r - 1);
-        dfI = static_cast<double>((r - 1) * (c - 1));
-        dfE = static_cast<double>(r * c * (R - 1));
+        dfC = keel::as<double>(c - 1);
+        dfR = keel::as<double>(r - 1);
+        dfI = keel::as<double>((r - 1) * (c - 1));
+        dfE = keel::as<double>(r * c * (R - 1));
         const double msE = (dfE > 0.0) ? (ssE / dfE) : nan;
         if (msE > 0.0) {
             Fc = (ssC / dfC) / msE;
@@ -471,9 +471,9 @@ void anova2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         s.field("source")   = Value::fromString("anova2", mr);
         s.field("sigmasq")  = Value::scalar(dfE > 0 ? ssE / dfE : nan, mr);
         s.field("colmeans") = std::move(colMeansV);
-        s.field("coln")     = Value::scalar(static_cast<double>(r * R), mr);
+        s.field("coln")     = Value::scalar(keel::as<double>(r * R), mr);
         s.field("rowmeans") = std::move(rowMeansV);
-        s.field("rown")     = Value::scalar(static_cast<double>(c * R), mr);
+        s.field("rown")     = Value::scalar(keel::as<double>(c * R), mr);
         s.field("inter")    = Value::logicalScalar(R > 1, mr);
         s.field("pval")     = Value::scalar(pInter, mr);
         s.field("df")       = Value::scalar(dfE, mr);

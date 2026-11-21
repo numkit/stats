@@ -271,7 +271,7 @@ NlinfitResult nlinfit(const Value &X, const Value &y,
     J = numericalJacobian(model, beta.as_ref(), n, p, X, mr);
 
     // MSE = SSE / (n - p).
-    const double mse = (n > p) ? sse / static_cast<double>(n - p) : sse;
+    const double mse = (n > p) ? sse / keel::as<double>(n - p) : sse;
     auto Inv = invJtJ(J.as_ref(), n, p);
     keel::Array<double> CovB(p * p);
     for (keel::usize i = 0; i < p * p; ++i) CovB[i] = mse * Inv[i];
@@ -303,7 +303,7 @@ Value nlparci(const Value &beta, const Value &R, const Value &J,
         const double r = R.elemAsDouble(i);
         sse += r * r;
     }
-    const double mse = sse / static_cast<double>(n - p);
+    const double mse = sse / keel::as<double>(n - p);
 
     // CovB = MSE · (J' · J)^{-1}.
     auto Jvec = toFlatDouble(J);
@@ -311,7 +311,7 @@ Value nlparci(const Value &beta, const Value &R, const Value &J,
 
     // t_{α/2, n-p}.
     Value pHi = Value::scalar(1.0 - alpha / 2.0, mr);
-    const double tcrit = tinv(pHi, static_cast<double>(n - p), mr).toScalar();
+    const double tcrit = tinv(pHi, keel::as<double>(n - p), mr).toScalar();
 
     auto out = Value::matrix(p, 2, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
@@ -345,7 +345,7 @@ nlpredci(FnHandle model, const Value &X, const Value &beta,
         const double r = R.elemAsDouble(i);
         sse += r * r;
     }
-    const double mse = sse / static_cast<double>(n - p);
+    const double mse = sse / keel::as<double>(n - p);
     auto Jvec = toFlatDouble(J);
     auto Inv = invJtJ(Jvec.as_ref(), n, p);
 
@@ -376,7 +376,7 @@ nlpredci(FnHandle model, const Value &X, const Value &beta,
 
     // t critical.
     Value pHi = Value::scalar(1.0 - alpha / 2.0, mr);
-    const double tcrit = tinv(pHi, static_cast<double>(n - p), mr).toScalar();
+    const double tcrit = tinv(pHi, keel::as<double>(n - p), mr).toScalar();
 
     auto ypred = flatToMatrix(ypredFlat.data(), m, 1, mr);
     auto delta = Value::matrix(m, 1, ValueType::DOUBLE, mr);

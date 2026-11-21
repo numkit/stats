@@ -84,7 +84,7 @@ Value geornd(::numkit::ops::RngContext &rng, double p, keel::usize rows, keel::u
     double *od = out.doubleDataMut();
     const keel::usize cnt = rows * cols;
     for (keel::usize i = 0; i < cnt; ++i)
-        od[i] = static_cast<double>(keel::random::geometric_u64(gen, p));
+        od[i] = keel::as<double>(keel::random::geometric_u64(gen, p));
     return out;
 }
 

@@ -64,7 +64,7 @@ double aggregate(Agg fn, const keel::Array<double> &vals)
 
     switch (fn) {
         case Agg::Numel:
-            return static_cast<double>(n);
+            return keel::as<double>(n);
         case Agg::Sum: {
             double s = 0.0;
             for (double x : v) s += x;
@@ -86,7 +86,7 @@ double aggregate(Agg fn, const keel::Array<double> &vals)
             if (n == 0) return std::numeric_limits<double>::quiet_NaN();
             double s = 0.0;
             for (double x : v) s += x;
-            return s / static_cast<double>(n);
+            return s / keel::as<double>(n);
         }
         case Agg::Std:
         case Agg::Var:
@@ -99,17 +99,17 @@ double aggregate(Agg fn, const keel::Array<double> &vals)
             }
             double s = 0.0;
             for (double x : v) s += x;
-            const double m = s / static_cast<double>(n);
+            const double m = s / keel::as<double>(n);
             double ss = 0.0;
             for (double x : v) {
                 const double d = x - m;
                 ss += d * d;
             }
-            const double var = ss / static_cast<double>(n - 1);
+            const double var = ss / keel::as<double>(n - 1);
             if (fn == Agg::Var) return var;
             const double sd = std::sqrt(var);
             if (fn == Agg::Std) return sd;
-            return sd / std::sqrt(static_cast<double>(n));   // Sem
+            return sd / std::sqrt(keel::as<double>(n));   // Sem
         }
     }
     return std::numeric_limits<double>::quiet_NaN();

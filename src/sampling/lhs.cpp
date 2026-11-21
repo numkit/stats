@@ -32,7 +32,7 @@ void buildOneLhs(double *od, keel::usize n, keel::usize p, bool smooth,
                  Rng &gen)
 {
     keel::Array<keel::usize> perm(n);
-    const double inv_n = 1.0 / static_cast<double>(n);
+    const double inv_n = 1.0 / keel::as<double>(n);
     for (keel::usize j = 0; j < p; ++j) {
         std::iota(perm.begin(), perm.end(), keel::usize(1));
         for (keel::usize i = n - 1; i > 0; --i) {
@@ -41,10 +41,10 @@ void buildOneLhs(double *od, keel::usize n, keel::usize p, bool smooth,
         }
         if (smooth) {
             for (keel::usize i = 0; i < n; ++i)
-                od[j * n + i] = (static_cast<double>(perm[i]) - keel::random::uniform_f64(gen)) * inv_n;
+                od[j * n + i] = (keel::as<double>(perm[i]) - keel::random::uniform_f64(gen)) * inv_n;
         } else {
             for (keel::usize i = 0; i < n; ++i)
-                od[j * n + i] = (static_cast<double>(perm[i]) - 0.5) * inv_n;
+                od[j * n + i] = (keel::as<double>(perm[i]) - 0.5) * inv_n;
         }
     }
 }
@@ -76,7 +76,7 @@ double maxAbsColCorrelation(const double *X, keel::usize n, keel::usize p)
     for (keel::usize j = 0; j < p; ++j) {
         double s = 0.0;
         for (keel::usize i = 0; i < n; ++i) s += X[j * n + i];
-        mu[j] = s / static_cast<double>(n);
+        mu[j] = s / keel::as<double>(n);
     }
     for (keel::usize j = 0; j < p; ++j) {
         double v = 0.0;
@@ -84,7 +84,7 @@ double maxAbsColCorrelation(const double *X, keel::usize n, keel::usize p)
             const double d = X[j * n + i] - mu[j];
             v += d * d;
         }
-        sd[j] = std::sqrt(v / static_cast<double>(n - 1));
+        sd[j] = std::sqrt(v / keel::as<double>(n - 1));
         if (sd[j] < 1e-300) sd[j] = 1e-300;
     }
     double best = 0.0;
@@ -93,7 +93,7 @@ double maxAbsColCorrelation(const double *X, keel::usize n, keel::usize p)
             double s = 0.0;
             for (keel::usize i = 0; i < n; ++i)
                 s += (X[a * n + i] - mu[a]) * (X[b * n + i] - mu[b]);
-            const double r = s / (static_cast<double>(n - 1) * sd[a] * sd[b]);
+            const double r = s / (keel::as<double>(n - 1) * sd[a] * sd[b]);
             const double abr = std::fabs(r);
             if (abr > best) best = abr;
         }
@@ -181,10 +181,10 @@ Value lhsnorm(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigm
     Value muRow = Value::matrix(1, d, ValueType::DOUBLE, mr);
     for (keel::usize j = 0; j < d; ++j)
         muRow.doubleDataMut()[j] = mu.elemAsDouble(j);
-    Value casesVal = Value::scalar(static_cast<double>(n), mr);
+    Value casesVal = Value::scalar(keel::as<double>(n), mr);
     MvnrndOut mv = mvnrnd_full(rng, muRow, Sigma, casesVal, /*wantT=*/false, mr);
 
-    const double invN = 1.0 / static_cast<double>(n);
+    const double invN = 1.0 / keel::as<double>(n);
     keel::Array<keel::usize> ord(n), rank(n);
     Value uCol = Value::matrix(n, 1, ValueType::DOUBLE, mr);
     double *ud = uCol.doubleDataMut();
@@ -198,7 +198,7 @@ Value lhsnorm(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigm
             rank[ord[r]] = r + 1;
         for (keel::usize i = 0; i < n; ++i) {
             const double xi = smooth ? keel::random::uniform_f64(rng) : 0.5;
-            ud[i] = (static_cast<double>(rank[i]) - xi) * invN;
+            ud[i] = (keel::as<double>(rank[i]) - xi) * invN;
         }
         const double muj = mu.elemAsDouble(j);
         const double sdj = std::sqrt(std::max(0.0, Sigma.elemAsDouble(j + j * d)));

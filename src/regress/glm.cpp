@@ -154,7 +154,7 @@ GlmfitResult glmfit(const Value &X, const Value &y,
         pearsonChi2 += (r * r) / V;
     }
 
-    const double dfe = static_cast<double>(n - p);
+    const double dfe = keel::as<double>(n - p);
     const double sfit = std::sqrt(dev / dfe);
     const bool estdisp = (distr == GlmDistribution::Normal
                           || distr == GlmDistribution::Gamma

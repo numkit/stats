@@ -69,7 +69,7 @@ crosstab(const Value &x, const Value &y_opt, keel::Allocator *mr)
         }
         Value T = Value::matrix(R, 1, ValueType::DOUBLE, mr);
         double *o = T.doubleDataMut();
-        for (keel::usize i = 0; i < R; ++i) o[i] = static_cast<double>(count[i]);
+        for (keel::usize i = 0; i < R; ++i) o[i] = keel::as<double>(count[i]);
         return {std::move(T), 0.0, 1.0};
     }
 
@@ -104,7 +104,7 @@ crosstab(const Value &x, const Value &y_opt, keel::Allocator *mr)
         for (keel::usize j = 0; j < C; ++j) {
             for (keel::usize i = 0; i < R; ++i) {
                 const double E = row_tot[i] * col_tot[j]
-                               / static_cast<double>(Ntot);
+                               / keel::as<double>(Ntot);
                 if (E > 0.0) {
                     const double diff = o[i + j * R] - E;
                     chi2 += (diff * diff) / E;
@@ -114,7 +114,7 @@ crosstab(const Value &x, const Value &y_opt, keel::Allocator *mr)
     }
     double p = 1.0;
     if (R > 1 && C > 1) {
-        const double df = static_cast<double>((R - 1) * (C - 1));
+        const double df = keel::as<double>((R - 1) * (C - 1));
         // p = 1 - chi2cdf(chi2, df); chi2cdf returns a Value of input shape.
         Value chi2_v = Value::scalar(chi2, mr);
         Value cdf_v  = chi2cdf(chi2_v, df, mr);

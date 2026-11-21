@@ -49,7 +49,7 @@ void dwtest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
 
     auto toLowerAscii = [](keel::StringRef sv) {
         keel::String s = keel::String::from(sv);
-        for (char &c : s) if (c >= 'A' && c <= 'Z') c = static_cast<char>(c + 32);
+        for (char &c : s) if (c >= 'A' && c <= 'Z') c = keel::as<char>(c + 32);
         return s;
     };
 

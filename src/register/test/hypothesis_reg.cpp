@@ -97,8 +97,8 @@ void ttest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                     throw Error("ttest: missing value for 'Dim'",
                                 0, 0, "ttest", "", "numkit:ttest:dim");
                 dim = argcheck::expectedPositiveInteger(
-                    argcheck::expectedReal(args[i + 1], static_cast<int>(i + 2), "dim", "ttest"),
-                    static_cast<int>(i + 2), "dim", "ttest");
+                    argcheck::expectedReal(args[i + 1], keel::as<int>(i + 2), "dim", "ttest"),
+                    keel::as<int>(i + 2), "dim", "ttest");
                 i += 2;
             } else {
                 tail = parse_tail(sl.as_ref(), tail); ++i;
@@ -132,8 +132,8 @@ void ttest2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             else if (k == "alpha")   alpha = args[i + 1].toScalar();
             else if (k == "dim") {
                 dim = argcheck::expectedPositiveInteger(
-                    argcheck::expectedReal(args[i + 1], static_cast<int>(i + 2), "dim", "ttest2"),
-                    static_cast<int>(i + 2), "dim", "ttest2");
+                    argcheck::expectedReal(args[i + 1], keel::as<int>(i + 2), "dim", "ttest2"),
+                    keel::as<int>(i + 2), "dim", "ttest2");
             }
         }
     }
@@ -166,8 +166,8 @@ void ztest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                     throw Error("ztest: missing value for 'Dim'",
                                 0, 0, "ztest", "", "numkit:ztest:dim");
                 dim = argcheck::expectedPositiveInteger(
-                    argcheck::expectedReal(args[i + 1], static_cast<int>(i + 2), "dim", "ztest"),
-                    static_cast<int>(i + 2), "dim", "ztest");
+                    argcheck::expectedReal(args[i + 1], keel::as<int>(i + 2), "dim", "ztest"),
+                    keel::as<int>(i + 2), "dim", "ztest");
                 i += 2;
             }
             else { tail = parse_tail(sl.as_ref(), tail); ++i; }
@@ -201,8 +201,8 @@ void vartest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                     throw Error("vartest: missing value for 'Dim'",
                                 0, 0, "vartest", "", "numkit:vartest:dim");
                 dim = argcheck::expectedPositiveInteger(
-                    argcheck::expectedReal(args[i + 1], static_cast<int>(i + 2), "dim", "vartest"),
-                    static_cast<int>(i + 2), "dim", "vartest");
+                    argcheck::expectedReal(args[i + 1], keel::as<int>(i + 2), "dim", "vartest"),
+                    keel::as<int>(i + 2), "dim", "vartest");
                 i += 2;
             }
             else { tail = parse_tail(sl.as_ref(), tail); ++i; }
@@ -235,8 +235,8 @@ void vartest2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                     throw Error("vartest2: missing value for 'Dim'",
                                 0, 0, "vartest2", "", "numkit:vartest2:dim");
                 dim = argcheck::expectedPositiveInteger(
-                    argcheck::expectedReal(args[i + 1], static_cast<int>(i + 2), "dim", "vartest2"),
-                    static_cast<int>(i + 2), "dim", "vartest2");
+                    argcheck::expectedReal(args[i + 1], keel::as<int>(i + 2), "dim", "vartest2"),
+                    keel::as<int>(i + 2), "dim", "vartest2");
                 i += 2;
             }
             else { tail = parse_tail(sl.as_ref(), tail); ++i; }

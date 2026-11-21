@@ -19,7 +19,7 @@ namespace numkit::stats {
 namespace {
 void aveknt_argcheck(keel::usize N, int k)
 {
-    if (k < 2 || static_cast<keel::usize>(k) > N)
+    if (k < 2 || keel::as<keel::usize>(k) > N)
         throw Error("aveknt: order k must satisfy 2 ≤ k ≤ length(t)",
                     0, 0, "aveknt", "", "numkit:aveknt:k");
 }
@@ -29,14 +29,14 @@ Value aveknt(const Value &t, int k, keel::Allocator *mr)
 {
     const keel::usize N = t.numel();
     aveknt_argcheck(N, k);
-    const keel::usize M = N - static_cast<keel::usize>(k);
+    const keel::usize M = N - keel::as<keel::usize>(k);
     Value out = Value::matrix(1, M, ValueType::DOUBLE, mr);
     if (M == 0) return out;
     double *od = out.doubleDataMut();
-    const double inv = 1.0 / static_cast<double>(k - 1);
+    const double inv = 1.0 / keel::as<double>(k - 1);
     for (keel::usize i = 0; i < M; ++i) {
         double sum = 0.0;
-        for (keel::usize j = 1; j < static_cast<keel::usize>(k); ++j)
+        for (keel::usize j = 1; j < keel::as<keel::usize>(k); ++j)
             sum += t.elemAsDouble(i + j);
         od[i] = sum * inv;
     }
@@ -51,7 +51,7 @@ Value augknt(const Value &knots, int k, keel::Allocator *mr)
                     0, 0, "augknt", "", "numkit:augknt:k");
     // The first knot becomes k copies; the last knot becomes k copies;
     // any interior knots stay single. So size = N + 2*(k-1).
-    const keel::usize outN = N + 2 * (static_cast<keel::usize>(k) - 1);
+    const keel::usize outN = N + 2 * (keel::as<keel::usize>(k) - 1);
     Value out = Value::matrix(1, outN, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
     const double first = knots.elemAsDouble(0);
@@ -75,14 +75,14 @@ Value brk2knt(const Value &breaks, const Value &mults, keel::Allocator *mr)
         if (!(mi >= 0.0))
             throw Error("brk2knt: multiplicities must be non-negative",
                         0, 0, "brk2knt", "", "numkit:brk2knt:m");
-        total += static_cast<keel::usize>(mi);
+        total += keel::as<keel::usize>(mi);
     }
     Value out = Value::matrix(1, total, ValueType::DOUBLE, mr);
     if (total == 0) return out;
     double *od = out.doubleDataMut();
     keel::usize idx = 0;
     for (keel::usize i = 0; i < N; ++i) {
-        const keel::usize mi = static_cast<keel::usize>(mults.elemAsDouble(i));
+        const keel::usize mi = keel::as<keel::usize>(mults.elemAsDouble(i));
         const double bi = breaks.elemAsDouble(i);
         for (keel::usize j = 0; j < mi; ++j) od[idx++] = bi;
     }
@@ -144,7 +144,7 @@ Value ppmak(const Value &breaks, const Value &coefs, int d, keel::Allocator *mr)
     const keel::usize cR = coefs.dims().rows();
     const keel::usize cC = coefs.dims().cols();
     if (d < 1) d = 1;
-    keel::usize effD = static_cast<keel::usize>(d);
+    keel::usize effD = keel::as<keel::usize>(d);
     keel::usize effK = cC;
     bool reshapeDbyLK = false;
     if (cR != effD * L) {
@@ -198,9 +198,9 @@ Value fnval(const Value &pp, const Value &xv, keel::Allocator *mr)
                     0, 0, "fnval", "", "numkit:fnval:form");
     const Value &breaks = pp.field("breaks");
     const Value &coefs  = pp.field("coefs");
-    const keel::usize L  = static_cast<keel::usize>(pp.field("pieces").toScalar());
-    const keel::usize K  = static_cast<keel::usize>(pp.field("order").toScalar());
-    const keel::usize d  = static_cast<keel::usize>(pp.field("dim").toScalar());
+    const keel::usize L  = keel::as<keel::usize>(pp.field("pieces").toScalar());
+    const keel::usize K  = keel::as<keel::usize>(pp.field("order").toScalar());
+    const keel::usize d  = keel::as<keel::usize>(pp.field("dim").toScalar());
     const keel::usize cR = coefs.dims().rows();
     if (cR != d * L || coefs.dims().cols() != K || breaks.numel() != L + 1)
         throw Error("fnval: pp struct fields are inconsistent",
@@ -261,9 +261,9 @@ PPView readPP(const Value &pp)
     PPView v;
     v.breaks = pp.field("breaks");
     v.coefs  = pp.field("coefs");
-    v.L = static_cast<keel::usize>(pp.field("pieces").toScalar());
-    v.K = static_cast<keel::usize>(pp.field("order").toScalar());
-    v.d = static_cast<keel::usize>(pp.field("dim").toScalar());
+    v.L = keel::as<keel::usize>(pp.field("pieces").toScalar());
+    v.K = keel::as<keel::usize>(pp.field("order").toScalar());
+    v.d = keel::as<keel::usize>(pp.field("dim").toScalar());
     return v;
 }
 
@@ -302,13 +302,13 @@ Value fnder(const Value &pp, int order, keel::Allocator *mr)
         for (keel::usize i = 0; i < coefs.size(); ++i) coefs[i] = v.coefs.elemAsDouble(i);
         return buildPP(v.breaks, coefs.as_ref(), v.coefs.dims().rows(), v.coefs.dims().cols(), v.L, v.d, mr);
     }
-    if (static_cast<keel::usize>(order) >= v.K) {
+    if (keel::as<keel::usize>(order) >= v.K) {
         const keel::usize cR = v.d * v.L;
         keel::Array<double> zero(cR, 0.0);
         return buildPP(v.breaks, zero.as_ref(), cR, 1, v.L, v.d, mr);
     }
     const keel::usize cR = v.d * v.L;
-    const keel::usize newK = v.K - static_cast<keel::usize>(order);
+    const keel::usize newK = v.K - keel::as<keel::usize>(order);
     keel::Array<double> nc(cR * newK, 0.0);
 
     for (keel::usize r = 0; r < cR; ++r) {
@@ -406,7 +406,7 @@ Value csapi(const Value &x, const Value &y, keel::Allocator *mr)
     }
 
     keel::Array<int> perm(N);
-    for (keel::usize i = 0; i < N; ++i) perm[i] = static_cast<int>(i);
+    for (keel::usize i = 0; i < N; ++i) perm[i] = keel::as<int>(i);
     for (keel::usize k = 0; k < N; ++k) {
         keel::usize piv = k;
         double best = keel::abs(A[k + k * N]);

@@ -77,7 +77,7 @@ bool psdQuadForms(const Value &X0, keel::usize n, keel::usize d,
     eigSymmetric(Sig, d, eval, evec, mr);
     double maxAbs = 0.0;
     for (double e : eval) maxAbs = std::max(maxAbs, keel::abs(e));
-    const double tol = static_cast<double>(d) * std::numeric_limits<double>::epsilon()
+    const double tol = keel::as<double>(d) * std::numeric_limits<double>::epsilon()
                      * std::max(maxAbs, 1.0);
     for (double e : eval)
         if (e < -tol) return false;
@@ -121,12 +121,12 @@ void diagQuadForms(const Value &X0, keel::usize n, keel::usize d,
 Value castDown(const Value &X, bool single, keel::Allocator *mr)
 {
     if (!single || X.type() == ValueType::SINGLE) return X;
-    const keel::usize r = static_cast<keel::usize>(X.dims().dim(0));
-    const keel::usize c = static_cast<keel::usize>(X.dims().dim(1));
+    const keel::usize r = keel::as<keel::usize>(X.dims().dim(0));
+    const keel::usize c = keel::as<keel::usize>(X.dims().dim(1));
     Value out = Value::matrix(r, c, ValueType::SINGLE, mr);
     const keel::usize cnt = r * c;
     for (keel::usize k = 0; k < cnt; ++k)
-        out.singleDataMut()[k] = static_cast<float>(X.elemAsDouble(k));
+        out.singleDataMut()[k] = keel::as<float>(X.elemAsDouble(k));
     return out;
 }
 
@@ -139,7 +139,7 @@ void mvnpdf_argcheck(const Value &X)
         throw Error(keel::format("mvnpdf: X must be a non-empty matrix (got a {} array).",
                                  mtypeName(X.type())),
                     0, 0, "mvnpdf", "", "numkit:mvnpdf:invalidData");
-    const keel::usize d = static_cast<keel::usize>(X.dims().dim(1));
+    const keel::usize d = keel::as<keel::usize>(X.dims().dim(1));
     if (d < 1)
         throw Error("mvnpdf: X must have at least one column.",
                     0, 0, "mvnpdf", "", "numkit:mvnpdf:tooFewDimensions");
@@ -151,8 +151,8 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
 {
     // ── X gate ──────────────────────────────────────────────────────
     mvnpdf_argcheck(X);
-    keel::usize n = static_cast<keel::usize>(X.dims().dim(0));
-    keel::usize d = static_cast<keel::usize>(X.dims().dim(1));
+    keel::usize n = keel::as<keel::usize>(X.dims().dim(0));
+    keel::usize d = keel::as<keel::usize>(X.dims().dim(1));
     bool single = (X.type() == ValueType::SINGLE);
 
     // ── mu: empty | scalar | matrix (row, full, or rep-when-single) ──
@@ -165,8 +165,8 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
         for (keel::usize k = 0; k < n * d; ++k)
             X0.doubleDataMut()[k] = X.elemAsDouble(k) - m;
     } else if (isMatrixValue(mu)) {
-        const keel::usize n2 = static_cast<keel::usize>(mu.dims().dim(0));
-        const keel::usize d2 = static_cast<keel::usize>(mu.dims().dim(1));
+        const keel::usize n2 = keel::as<keel::usize>(mu.dims().dim(0));
+        const keel::usize d2 = keel::as<keel::usize>(mu.dims().dim(1));
         if (d2 != d)
             throw Error(keel::format("mvnpdf: X and MU must have the same number of "
                                      "columns (X has {}, MU has {}).", d, d2),
@@ -216,8 +216,8 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
         sigmaIsDiag = true;
         sd = keel::Array<double>(d, 1.0);
     } else {
-        sz1 = static_cast<keel::usize>(Sigma.dims().dim(0));
-        sz2 = static_cast<keel::usize>(Sigma.dims().dim(1));
+        sz1 = keel::as<keel::usize>(Sigma.dims().dim(0));
+        sz2 = keel::as<keel::usize>(Sigma.dims().dim(1));
         if (Sigma.dims().ndim() <= 2 && sz1 == 1 && sz2 > 1) {
             sigmaIsDiag = true;
             sz1 = sz2;
@@ -233,7 +233,7 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
         }
         single = single || (Sigma.type() == ValueType::SINGLE);
         pages = Sigma.dims().ndim() >= 3
-                  ? static_cast<keel::usize>(Sigma.dims().dim(2)) : 1;
+                  ? keel::as<keel::usize>(Sigma.dims().dim(2)) : 1;
         if (pages == 1) {
             if (sz1 != sz2)
                 throw Error("mvnpdf: SIGMA must be a square covariance "
@@ -314,7 +314,7 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
     // ── density ─────────────────────────────────────────────────────
     Value out = Value::matrix(n, 1, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
-    const double base = -0.5 * static_cast<double>(d) * kLog2Pi;
+    const double base = -0.5 * keel::as<double>(d) * kLog2Pi;
     auto fillRows = [&](keel::ArrayRef<double> quad, double logHalfDet) {
         for (keel::usize r = 0; r < n; ++r)
             od[r] = std::exp(base - logHalfDet - 0.5 * quad[r]);
@@ -379,8 +379,8 @@ Value mvtpdf(const Value &X, const Value &C, const Value &df,
     if (X.dims().ndim() != 2)
         throw Error("mvtpdf: X must be a matrix.",
                     0, 0, "mvtpdf", "", "numkit:mvtpdf:invalidData");
-    keel::usize n = static_cast<keel::usize>(X.dims().dim(0));
-    keel::usize d = static_cast<keel::usize>(X.dims().dim(1));
+    keel::usize n = keel::as<keel::usize>(X.dims().dim(0));
+    keel::usize d = keel::as<keel::usize>(X.dims().dim(1));
     if (d < 1)
         throw Error("mvtpdf: X must have at least one column.",
                     0, 0, "mvtpdf", "", "numkit:mvtpdf:tooFewDimensions");
@@ -400,11 +400,11 @@ Value mvtpdf(const Value &X, const Value &C, const Value &df,
 Value mvtpdfCompute(const Value &X, const Value &C, const Value &df,
                     bool single, keel::Allocator *mr)
 {
-    keel::usize n = static_cast<keel::usize>(X.dims().dim(0));
-    keel::usize d = static_cast<keel::usize>(X.dims().dim(1));
+    keel::usize n = keel::as<keel::usize>(X.dims().dim(0));
+    keel::usize d = keel::as<keel::usize>(X.dims().dim(1));
 
-    const keel::usize cr = static_cast<keel::usize>(C.dims().dim(0));
-    const keel::usize cc = static_cast<keel::usize>(C.dims().dim(1));
+    const keel::usize cr = keel::as<keel::usize>(C.dims().dim(0));
+    const keel::usize cc = keel::as<keel::usize>(C.dims().dim(1));
     if (cr != cc)
         throw Error(keel::format("mvtpdf: C must be a square matrix (got {}-by-{}).", cr, cc),
                     0, 0, "mvtpdf", "", "numkit:mvtpdf:badCorrelationNotSquare");
@@ -460,11 +460,11 @@ Value mvtpdfCompute(const Value &X, const Value &C, const Value &df,
     for (keel::usize r = 0; r < n; ++r) {
         const double nu = dfv[r];
         const double logpdf =
-            std::lgamma((nu + static_cast<double>(d)) / 2.0)
+            std::lgamma((nu + keel::as<double>(d)) / 2.0)
             - std::lgamma(nu / 2.0)
-            - 0.5 * static_cast<double>(d) * std::log(nu * M_PI)
+            - 0.5 * keel::as<double>(d) * std::log(nu * M_PI)
             - logHalfDet
-            - ((nu + static_cast<double>(d)) / 2.0) * std::log1p(quad[r] / nu);
+            - ((nu + keel::as<double>(d)) / 2.0) * std::log1p(quad[r] / nu);
         od[r] = std::exp(logpdf);
     }
     return castDown(out, single, mr);
@@ -481,30 +481,30 @@ Value mnpdf(const Value &X, const Value &P, keel::Allocator *mr)
     // transpose it (and a column x alongside it).
     if (p.dims().dim(1) == 1 && p.dims().dim(0) > 1) {
         double s = 0.0;
-        const keel::usize len = static_cast<keel::usize>(p.numel());
+        const keel::usize len = keel::as<keel::usize>(p.numel());
         for (keel::usize k = 0; k < len; ++k) s += p.elemAsDouble(k);
-        if (keel::abs(s - 1.0) <= static_cast<double>(len) * epsD) {
+        if (keel::abs(s - 1.0) <= keel::as<double>(len) * epsD) {
             Value pt = Value::matrix(1, len, ValueType::DOUBLE, mr);
             for (keel::usize k = 0; k < len; ++k)
                 pt.doubleDataMut()[k] = p.elemAsDouble(k);
             p = pt;
             if (x.dims().dim(1) == 1 && x.dims().dim(0) > 1) {
                 Value xt = Value::matrix(1, x.numel(), ValueType::DOUBLE, mr);
-                for (keel::usize k = 0; k < static_cast<keel::usize>(x.numel()); ++k)
+                for (keel::usize k = 0; k < keel::as<keel::usize>(x.numel()); ++k)
                     xt.doubleDataMut()[k] = x.elemAsDouble(k);
                 x = xt;
             }
         }
     }
 
-    keel::usize m = static_cast<keel::usize>(x.dims().dim(0));
-    const keel::usize k = static_cast<keel::usize>(x.dims().dim(1));
+    keel::usize m = keel::as<keel::usize>(x.dims().dim(0));
+    const keel::usize k = keel::as<keel::usize>(x.dims().dim(1));
     if (k < 1)
         throw Error("mnpdf: X must have at least one column.",
                     0, 0, "mnpdf", "", "numkit:mnpdf:noCategories");
 
-    const keel::usize mm = static_cast<keel::usize>(p.dims().dim(0));
-    const keel::usize kk = static_cast<keel::usize>(p.dims().dim(1));
+    const keel::usize mm = keel::as<keel::usize>(p.dims().dim(0));
+    const keel::usize kk = keel::as<keel::usize>(p.dims().dim(1));
     if (kk != k)
         throw Error(keel::format("mnpdf: P and X must have the same number of columns "
                                  "(X has {}, P has {}).", k, kk),
@@ -543,7 +543,7 @@ Value mnpdf(const Value &X, const Value &P, keel::Allocator *mr)
                 pSum += v;
             }
             if (keel::abs(pSum - 1.0)
-                    > static_cast<double>(k) * epsD)
+                    > keel::as<double>(k) * epsD)
                 pBad = true;
             const bool nBad = (n < 0.0) || (std::round(n) != n);
             if (pBad || nBad) {

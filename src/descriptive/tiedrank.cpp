@@ -67,14 +67,14 @@ double rankOneColumn(const double *col, keel::usize N, double *ranks)
         while (j < M && nz[j].first == nz[i].first) ++j;
         const keel::usize group_len = j - i;
         // Average rank for positions i..j-1 (1-based ranks).
-        const double avg_rank = (static_cast<double>(i + 1)
-                                + static_cast<double>(j))
+        const double avg_rank = (keel::as<double>(i + 1)
+                                + keel::as<double>(j))
                               * 0.5;
         for (keel::usize k = i; k < j; ++k) {
             ranks[nz[k].second] = avg_rank;
         }
         if (group_len > 1) {
-            const double t = static_cast<double>(group_len);
+            const double t = keel::as<double>(group_len);
             tieadj += (t * t * t - t) * 0.5;
         }
         i = j;

@@ -33,7 +33,7 @@ void skewness_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mut
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const double fv = argcheck::expectedReal(args[1], 2, "flag", "skewness");
         argcheck::expectedFlag01(fv, 2, "flag", "skewness");
-        normFlag = static_cast<int>(fv);
+        normFlag = keel::as<int>(fv);
     }
     if (args.size() >= 3 && !args[2].isEmpty())
         dim = argcheck::dimArg(args[2], "skewness");
@@ -49,7 +49,7 @@ void kurtosis_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mut
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const double fv = argcheck::expectedReal(args[1], 2, "flag", "kurtosis");
         argcheck::expectedFlag01(fv, 2, "flag", "kurtosis");
-        normFlag = static_cast<int>(fv);
+        normFlag = keel::as<int>(fv);
     }
     if (args.size() >= 3 && !args[2].isEmpty())
         dim = argcheck::dimArg(args[2], "kurtosis");

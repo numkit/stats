@@ -103,7 +103,7 @@ classify(const Value &sample, const Value &training, const Value &group, keel::S
     keel::Array<double> mu(K * d, 0.0);
     for (keel::usize i = 0; i < Ntr; ++i) {
         const auto it = std::find(uniq.begin(), uniq.end(), labels[i]);
-        const keel::usize k = static_cast<keel::usize>(it - uniq.begin());
+        const keel::usize k = keel::as<keel::usize>(it - uniq.begin());
         ++n_k[k];
         for (keel::usize j = 0; j < d; ++j)
             mu[j + k * d] += training.elemAsDouble(i + j * Ntr);
@@ -121,7 +121,7 @@ classify(const Value &sample, const Value &training, const Value &group, keel::S
 
     for (keel::usize i = 0; i < Ntr; ++i) {
         const auto it = std::find(uniq.begin(), uniq.end(), labels[i]);
-        const keel::usize k = static_cast<keel::usize>(it - uniq.begin());
+        const keel::usize k = keel::as<keel::usize>(it - uniq.begin());
         keel::Array<double> diff(d);
         for (keel::usize j = 0; j < d; ++j)
             diff[j] = training.elemAsDouble(i + j * Ntr) - mu[j + k * d];

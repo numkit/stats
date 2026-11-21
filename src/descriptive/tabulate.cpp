@@ -95,16 +95,16 @@ Value tabulate(const Value &x, keel::Allocator *mr)
                 uniq.push_back(s.clone());
                 cnt.push_back(1);
             } else {
-                cnt[static_cast<keel::usize>(it - uniq.begin())]++;
+                cnt[keel::as<keel::usize>(it - uniq.begin())]++;
             }
         }
         const keel::usize K = uniq.size();
         Value T = Value::cell(K, 3, mr);
         for (keel::usize k = 0; k < K; ++k) {
             T.cellAt(k)         = Value::fromString(uniq[k], mr);
-            T.cellAt(k + K)     = Value::scalar(static_cast<double>(cnt[k]), mr);
-            T.cellAt(k + 2 * K) = Value::scalar(static_cast<double>(cnt[k]) * 100.0
-                                                / static_cast<double>(N), mr);
+            T.cellAt(k + K)     = Value::scalar(keel::as<double>(cnt[k]), mr);
+            T.cellAt(k + 2 * K) = Value::scalar(keel::as<double>(cnt[k]) * 100.0
+                                                / keel::as<double>(N), mr);
         }
         return T;
     }
@@ -132,23 +132,23 @@ Value tabulate(const Value &x, keel::Allocator *mr)
         return Value::matrix(0, 1, ValueType::DOUBLE, mr);
 
     if (all_pos_int) {
-        const keel::usize K = static_cast<keel::usize>(max_val);
+        const keel::usize K = keel::as<keel::usize>(max_val);
         keel::Array<keel::usize> count(K, 0);
         for (double xi : v) {
-            count[static_cast<keel::usize>(xi) - 1]++;
+            count[keel::as<keel::usize>(xi) - 1]++;
         }
         Value T = Value::matrix(K, 3, ValueType::DOUBLE, mr);
         double *o = T.doubleDataMut();
         for (keel::usize k = 0; k < K; ++k) {
-            o[k]            = static_cast<double>(k + 1);   // value
-            o[k + K]        = static_cast<double>(count[k]); // count
+            o[k]            = keel::as<double>(k + 1);   // value
+            o[k + K]        = keel::as<double>(count[k]); // count
             // count * (100/N) precomputed reciprocal is 1 ulp off MATLAB's
             // count*100/N; arithmetic-coding-style loops amplify that ulp
             // into 1e-7 output divergence (bugs/closed/math/
             // numeric-divergence-chap10-7.md) — multiply-then-divide, no
             // hoisted reciprocal.
-            o[k + 2 * K]    = static_cast<double>(count[k]) * 100.0
-                              / static_cast<double>(N);
+            o[k + 2 * K]    = keel::as<double>(count[k]) * 100.0
+                              / keel::as<double>(N);
         }
         return T;
     }
@@ -173,9 +173,9 @@ Value tabulate(const Value &x, keel::Allocator *mr)
     double *o = T.doubleDataMut();
     for (keel::usize k = 0; k < K; ++k) {
         o[k]            = uniq[k];
-        o[k + K]        = static_cast<double>(cnt[k]);
-        o[k + 2 * K]    = static_cast<double>(cnt[k]) * 100.0
-                          / static_cast<double>(N);
+        o[k + K]        = keel::as<double>(cnt[k]);
+        o[k + 2 * K]    = keel::as<double>(cnt[k]) * 100.0
+                          / keel::as<double>(N);
     }
     return T;
 }

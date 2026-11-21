@@ -96,7 +96,7 @@ void movvar_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
         // Could be normFlag or dim — disambiguate: normFlag is 0 or 1.
         const double v = args[2].toScalar();
         if (v == 0.0 || v == 1.0) {
-            normFlag = static_cast<int>(v);
+            normFlag = keel::as<int>(v);
             extras_start = 3;
         }
     }
@@ -116,7 +116,7 @@ void movstd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
         && args[2].isScalar()) {
         const double v = args[2].toScalar();
         if (v == 0.0 || v == 1.0) {
-            normFlag = static_cast<int>(v);
+            normFlag = keel::as<int>(v);
             extras_start = 3;
         }
     }
