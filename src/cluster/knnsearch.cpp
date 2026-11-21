@@ -22,7 +22,7 @@ namespace numkit::stats {
 
 namespace {
 
-void knnsearch_argcheck(const Value &X, const Value &Y, int K)
+void knnsearch_argcheck(const Value &X, const Value &Y, keel::i32 K)
 {
     if (X.dims().cols() != Y.dims().cols())
         throw Error("knnsearch: X and Y must have the same column count",
@@ -45,14 +45,14 @@ void rangesearch_argcheck(const Value &X, const Value &Y, keel::f64 r)
 } // namespace
 
 std::tuple<Value, Value>
-knnsearch(const Value &X, const Value &Y, int K, keel::StringRef metric, keel::f64 p, keel::Allocator *mr)
+knnsearch(const Value &X, const Value &Y, keel::i32 K, keel::StringRef metric, keel::f64 p, keel::Allocator *mr)
 {
     knnsearch_argcheck(X, Y, K);
     const auto &dx = X.dims();
     const auto &dy = Y.dims();
     const keel::usize Nx = dx.rows();
     const keel::usize Ny = dy.rows();
-    const int Keff = std::min(keel::as<int>(Nx), K);
+    const keel::i32 Keff = std::min(keel::as<keel::i32>(Nx), K);
 
     Value Idx = Value::matrix(Ny, keel::as<keel::usize>(K), ValueType::DOUBLE, mr);
     Value Dout = Value::matrix(Ny, keel::as<keel::usize>(K), ValueType::DOUBLE, mr);
@@ -86,13 +86,13 @@ knnsearch(const Value &X, const Value &Y, int K, keel::StringRef metric, keel::f
                               if (a.first != b.first) return a.first < b.first;
                               return a.second < b.second;
                           });
-        for (int k = 0; k < Keff; ++k) {
+        for (keel::i32 k = 0; k < Keff; ++k) {
             id[q + keel::as<keel::usize>(k) * Ny] =
                 keel::as<keel::f64>(heap[k].second + 1);  // 1-based
             dd_out[q + keel::as<keel::usize>(k) * Ny] = heap[k].first;
         }
         // K > Nx: pad rest with NaN.
-        for (int k = Keff; k < K; ++k) {
+        for (keel::i32 k = Keff; k < K; ++k) {
             id[q + keel::as<keel::usize>(k) * Ny] =
                 std::numeric_limits<keel::f64>::quiet_NaN();
             dd_out[q + keel::as<keel::usize>(k) * Ny] =

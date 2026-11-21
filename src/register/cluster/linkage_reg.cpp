@@ -62,9 +62,9 @@ void clusterdata_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
                      keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "clusterdata");  // no max: name-value tail in the reference
-    int maxclust = -1;
+    keel::i32 maxclust = -1;
     keel::f64 cutoff = -1.0;
-    int depth = 2;
+    keel::i32 depth = 2;
     keel::f64 p = 2.0;
     keel::String method     = keel::String::from("single");
     keel::String criterion  = keel::String::from("inconsistent");
@@ -81,17 +81,17 @@ void clusterdata_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     if (args.size() >= 2 && args[1].numel() == 1
         && !(args[1].isChar() || args[1].isString())) {
         const keel::f64 c = args[1].toScalar();
-        if (c >= 2.0) maxclust = (int)c;
+        if (c >= 2.0) maxclust = (keel::i32)c;
         else if (c > 0.0) cutoff = c;
     }
     for (keel::usize i = 1; i + 1 < args.size(); ++i) {
         if (args[i].isChar() || args[i].isString()) {
             const auto s = lower(args[i].toString());
-            if      (s == "maxclust")  maxclust  = (int)args[i + 1].toScalar();
+            if      (s == "maxclust")  maxclust  = (keel::i32)args[i + 1].toScalar();
             else if (s == "cutoff")    cutoff    = args[i + 1].toScalar();
             else if (s == "linkage")   method    = lower(args[i + 1].toString());
             else if (s == "criterion") criterion = lower(args[i + 1].toString());
-            else if (s == "depth")     depth     = (int)args[i + 1].toScalar();
+            else if (s == "depth")     depth     = (keel::i32)args[i + 1].toScalar();
             else if (s == "distance")  distance_metric = lower(args[i + 1].toString());
             else if (s == "p")         p         = args[i + 1].toScalar();
             // 'savememory' and other doc'd N-V silently ignored.

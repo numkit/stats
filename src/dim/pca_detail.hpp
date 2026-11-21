@@ -5,6 +5,6 @@
 #include <numkit/value/value.hpp>
 #include <tuple>
 namespace numkit::stats {
-std::tuple<Value, Value> pcares_full(const Value &X, int ndim,
+std::tuple<Value, Value> pcares_full(const Value &X, keel::i32 ndim,
                                      keel::Allocator *mr);
 } // namespace numkit::stats

@@ -92,18 +92,18 @@ namespace {
 // asymptotic. Critical values come from inverting the matching p-function.
 
 void mMultiply(keel::ArrayRef<keel::f64> A, keel::ArrayRef<keel::f64> B,
-               keel::Array<keel::f64> &C, int m) {
-    for (int i = 0; i < m; ++i)
-        for (int j = 0; j < m; ++j) {
+               keel::Array<keel::f64> &C, keel::i32 m) {
+    for (keel::i32 i = 0; i < m; ++i)
+        for (keel::i32 j = 0; j < m; ++j) {
             keel::f64 s = 0.0;
-            for (int k = 0; k < m; ++k) s += A[i*m+k] * B[k*m+j];
+            for (keel::i32 k = 0; k < m; ++k) s += A[i*m+k] * B[k*m+j];
             C[i*m+j] = s;
         }
 }
 
 // V = A^n with an explicit base-10 exponent eV (rescaled to dodge overflow).
-void mPower(keel::ArrayRef<keel::f64> A, int eA, keel::Array<keel::f64> &V,
-            int &eV, int m, int n) {
+void mPower(keel::ArrayRef<keel::f64> A, keel::i32 eA, keel::Array<keel::f64> &V,
+            keel::i32 &eV, keel::i32 m, keel::i32 n) {
     if (n == 1) {
         V.resize(A.size());
         std::copy(A.begin(), A.end(), V.begin());
@@ -113,7 +113,7 @@ void mPower(keel::ArrayRef<keel::f64> A, int eA, keel::Array<keel::f64> &V,
     mPower(A, eA, V, eV, m, n / 2);
     keel::Array<keel::f64> B(keel::as<keel::usize>(m) * m);
     mMultiply(V.as_ref(), V.as_ref(), B, m);
-    int eB = 2 * eV;
+    keel::i32 eB = 2 * eV;
     if (n % 2 == 0) { V = keel::move(B); eV = eB; }
     else { mMultiply(A, B.as_ref(), V, m); eV = eA + eB; }
     if (V[(m/2)*m + (m/2)] > 1e140) {
@@ -123,30 +123,30 @@ void mPower(keel::ArrayRef<keel::f64> A, int eA, keel::Array<keel::f64> &V,
 }
 
 // P(D_n < d) — exact two-sided Kolmogorov CDF (Marsaglia-Tsang-Wang 2003).
-keel::f64 marsagliaK(int n, keel::f64 d) {
+keel::f64 marsagliaK(keel::i32 n, keel::f64 d) {
     if (d <= 0.0) return 0.0;
     if (d >= 1.0) return 1.0;
     const keel::f64 nd = n * d;
-    const int k = keel::as<int>(nd) + 1;
-    const int m = 2 * k - 1;
+    const keel::i32 k = keel::as<keel::i32>(nd) + 1;
+    const keel::i32 m = 2 * k - 1;
     const keel::f64 h = k - nd;
     keel::Array<keel::f64> H(keel::as<keel::usize>(m) * m), Q(keel::as<keel::usize>(m) * m, 0.0);
-    for (int i = 0; i < m; ++i)
-        for (int j = 0; j < m; ++j)
+    for (keel::i32 i = 0; i < m; ++i)
+        for (keel::i32 j = 0; j < m; ++j)
             H[i*m+j] = (i - j + 1 < 0) ? 0.0 : 1.0;
-    for (int i = 0; i < m; ++i) {
+    for (keel::i32 i = 0; i < m; ++i) {
         H[i*m + 0]     -= std::pow(h, i + 1);
         H[(m-1)*m + i] -= std::pow(h, m - i);
     }
     H[(m-1)*m + 0] += (2.0*h - 1.0 > 0.0) ? std::pow(2.0*h - 1.0, m) : 0.0;
-    for (int i = 0; i < m; ++i)
-        for (int j = 0; j < m; ++j)
+    for (keel::i32 i = 0; i < m; ++i)
+        for (keel::i32 j = 0; j < m; ++j)
             if (i - j + 1 > 0)
-                for (int g = 1; g <= i - j + 1; ++g) H[i*m+j] /= g;
-    int eQ = 0;
+                for (keel::i32 g = 1; g <= i - j + 1; ++g) H[i*m+j] /= g;
+    keel::i32 eQ = 0;
     mPower(H.as_ref(), 0, Q, eQ, m, n);
     keel::f64 s = Q[(k-1)*m + (k-1)];
-    for (int i = 1; i <= n; ++i) {
+    for (keel::i32 i = 1; i <= n; ++i) {
         s = s * i / n;
         if (s < 1e-140) { s *= 1e140; eQ -= 140; }
     }
@@ -154,13 +154,13 @@ keel::f64 marsagliaK(int n, keel::f64 d) {
 }
 
 // P(D_n^+ >= d) — exact one-sided KS survival (Birnbaum-Tingey 1951), log space.
-keel::f64 birnbaumTingey(int n, keel::f64 d) {
+keel::f64 birnbaumTingey(keel::i32 n, keel::f64 d) {
     if (d <= 0.0) return 1.0;
     if (d >= 1.0) return 0.0;
     const keel::f64 dn = keel::as<keel::f64>(n);
-    const int jmax = keel::as<int>(std::floor(dn * (1.0 - d)));
+    const keel::i32 jmax = keel::as<keel::i32>(std::floor(dn * (1.0 - d)));
     keel::f64 sum = 0.0;
-    for (int j = 0; j <= jmax; ++j) {
+    for (keel::i32 j = 0; j <= jmax; ++j) {
         const keel::f64 a = 1.0 - d - j / dn;
         const keel::f64 b = d + j / dn;
         if (a <= 0.0 && n - j > 0) continue;     // a^(n-j) == 0
@@ -175,7 +175,7 @@ keel::f64 birnbaumTingey(int n, keel::f64 d) {
 
 // Two-sided one-sample p: exact for small statistics; MATLAB's corrected
 // asymptotic 2·exp(-(2.000071 + .331/√n + 1.409/n)·n·D²) for large ones.
-[[maybe_unused]] keel::f64 ksOneSampleTwoSidedP(int n, keel::f64 D) {
+[[maybe_unused]] keel::f64 ksOneSampleTwoSidedP(keel::i32 n, keel::f64 D) {
     const keel::f64 s = keel::as<keel::f64>(n) * D * D;
     if (s > 7.24 || (s > 3.76 && n > 99))
         return std::min(1.0, 2.0 * std::exp(-(2.000071 + 0.331/std::sqrt((keel::f64)n)
@@ -184,7 +184,7 @@ keel::f64 birnbaumTingey(int n, keel::f64 d) {
 }
 
 // One-sided one-sample p (exact Birnbaum-Tingey on the directional statistic).
-[[maybe_unused]] keel::f64 ksOneSampleOneSidedP(int n, keel::f64 D) { return birnbaumTingey(n, D); }
+[[maybe_unused]] keel::f64 ksOneSampleOneSidedP(keel::i32 n, keel::f64 D) { return birnbaumTingey(n, D); }
 
 // Two-sample KS p (Stephens' corrected asymptotic): two-sided is the
 // alternating series, one-sided the single leading term.
@@ -193,7 +193,7 @@ keel::f64 birnbaumTingey(int n, keel::f64 d) {
     if (!twoSided)
         return std::min(1.0, std::max(0.0, std::exp(-2.0 * lambda * lambda)));
     keel::f64 total = 0.0;
-    for (int k = 1; k <= 101; ++k) {
+    for (keel::i32 k = 1; k <= 101; ++k) {
         const keel::f64 term = std::exp(-2.0 * lambda * lambda * k * k);
         total += (k & 1) ? term : -term;
         if (term < 1e-20 && k > 4) break;
@@ -205,7 +205,7 @@ keel::f64 birnbaumTingey(int n, keel::f64 d) {
 template <typename PFn>
 keel::f64 ksCriticalValue(PFn pfn, keel::f64 alpha) {
     keel::f64 lo = 0.0, hi = 1.0;
-    for (int it = 0; it < 100; ++it) {
+    for (keel::i32 it = 0; it < 100; ++it) {
         const keel::f64 mid = 0.5 * (lo + hi);
         if (pfn(mid) > alpha) lo = mid; else hi = mid;
     }
@@ -316,16 +316,16 @@ struct Groups {
     labels.reserve(8);
     keel::Array<keel::usize> counts(scratch_mr);
     counts.reserve(8);
-    keel::Array<int> bucket_for(Nx, -1, scratch_mr);
+    keel::Array<keel::i32> bucket_for(Nx, -1, scratch_mr);
     for (keel::usize i = 0; i < Nx; ++i) {
         const keel::f64 xi = x.elemAsDouble(i);
         const keel::f64 gi = group.elemAsDouble(i);
         if (std::isnan(xi) || std::isnan(gi)) continue;
-        int b = -1;
+        keel::i32 b = -1;
         for (keel::usize j = 0; j < labels.size(); ++j)
-            if (labels[j] == gi) { b = (int)j; break; }
+            if (labels[j] == gi) { b = (keel::i32)j; break; }
         if (b < 0) {
-            b = (int)labels.size();
+            b = (keel::i32)labels.size();
             labels.push_back(gi);
             counts.push_back(0);
         }
@@ -340,7 +340,7 @@ struct Groups {
     G.data.resize(G.offsets[k]);
     keel::Array<keel::usize> cursor(k, 0, scratch_mr);
     for (keel::usize i = 0; i < Nx; ++i) {
-        const int b = bucket_for[i];
+        const keel::i32 b = bucket_for[i];
         if (b < 0) continue;
         G.data[G.offsets[b] + cursor[b]++] = x.elemAsDouble(i);
     }
@@ -402,18 +402,18 @@ inline keel::f64 log_binom(keel::f64 n, keel::f64 k) {
 
 // Exact P(R = r) under H0 for a sequence with n1 ones and n0 zeros.
 // r in [1, n1+n0]; returns 0 outside the support.
-[[maybe_unused]] keel::f64 exact_runs_pmf(int r, int n1, int n0)
+[[maybe_unused]] keel::f64 exact_runs_pmf(keel::i32 r, keel::i32 n1, keel::i32 n0)
 {
     if (r < 2) return 0.0;
     const keel::f64 logC = log_binom(keel::f64(n1 + n0), keel::f64(n1));
     if (r % 2 == 0) {
-        const int k = r / 2;
+        const keel::i32 k = r / 2;
         if (k < 1 || k > n1 || k > n0) return 0.0;
         const keel::f64 lp = std::log(2.0) + log_binom(keel::f64(n1 - 1), keel::f64(k - 1))
                         + log_binom(keel::f64(n0 - 1), keel::f64(k - 1)) - logC;
         return std::exp(lp);
     }
-    const int k = (r - 1) / 2;            // r = 2k+1
+    const keel::i32 k = (r - 1) / 2;            // r = 2k+1
     keel::f64 t1 = -std::numeric_limits<keel::f64>::infinity();
     keel::f64 t2 = -std::numeric_limits<keel::f64>::infinity();
     // Start with 1: (k+1) ones-blocks, k zero-blocks → C(n1-1, k)·C(n0-1, k-1)
@@ -436,28 +436,28 @@ inline keel::f64 log_binom(keel::f64 n, keel::f64 k) {
 
 // vartestn_full: vartestn worker -> [p, stat, df1, df2]. Def in hypothesis.cpp.
 std::tuple<Value, Value, Value, Value>
-vartestn_full(const Value &x, const Value &group, int test,
+vartestn_full(const Value &x, const Value &group, keel::i32 test,
               keel::Allocator *mr);
 
 std::tuple<Value, Value, Value, Value>
-ttest_dim(const Value &x, keel::f64 m, keel::f64 alpha, TestTail tail, int dim,
+ttest_dim(const Value &x, keel::f64 m, keel::f64 alpha, TestTail tail, keel::i32 dim,
           keel::Allocator *mr);
 
 std::tuple<Value, Value, Value, Value>
 ttest2_dim(const Value &x, const Value &y, keel::f64 alpha, TestTail tail,
-           keel::StringRef vartype, int dim,
+           keel::StringRef vartype, keel::i32 dim,
            keel::Allocator *mr);
 
 std::tuple<Value, Value, Value, Value>
 ztest_dim(const Value &x, keel::f64 m, keel::f64 sigma, keel::f64 alpha, TestTail tail,
-          int dim, keel::Allocator *mr);
+          keel::i32 dim, keel::Allocator *mr);
 
 std::tuple<Value, Value, Value, Value>
-vartest_dim(const Value &x, keel::f64 v, keel::f64 alpha, TestTail tail, int dim,
+vartest_dim(const Value &x, keel::f64 v, keel::f64 alpha, TestTail tail, keel::i32 dim,
             keel::Allocator *mr);
 
 std::tuple<Value, Value, Value, Value>
 vartest2_dim(const Value &x, const Value &y, keel::f64 alpha, TestTail tail,
-             int dim, keel::Allocator *mr);
+             keel::i32 dim, keel::Allocator *mr);
 
 } // namespace numkit::stats

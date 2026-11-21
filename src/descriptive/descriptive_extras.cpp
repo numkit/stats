@@ -36,9 +36,9 @@ namespace numkit::stats {
 
 // ── bounds ────────────────────────────────────────────────────────────
 std::tuple<Value, Value>
-bounds(const Value &x, int dim, keel::Allocator *mr)
+bounds(const Value &x, keel::i32 dim, keel::Allocator *mr)
 {
-    const int d = resolveDim(x, dim, "bounds");
+    const keel::i32 d = resolveDim(x, dim, "bounds");
     auto lo = applyAlongDim(x, d,
         [](keel::usize, const keel::f64 *s, keel::usize n) { return sliceMin(s, n); }, mr);
     auto hi = applyAlongDim(x, d,
@@ -47,9 +47,9 @@ bounds(const Value &x, int dim, keel::Allocator *mr)
 }
 
 // ── iqr ───────────────────────────────────────────────────────────────
-Value iqr(const Value &x, int dim, keel::Allocator *mr)
+Value iqr(const Value &x, keel::i32 dim, keel::Allocator *mr)
 {
-    const int d = resolveDim(x, dim, "iqr");
+    const keel::i32 d = resolveDim(x, dim, "iqr");
     return applyAlongDim(x, d,
         [](keel::usize, const keel::f64 *s, keel::usize n) -> keel::f64 {
             // MATLAB iqr ignores NaN values.
@@ -68,12 +68,12 @@ Value iqr(const Value &x, int dim, keel::Allocator *mr)
 
 
 // ── maxk / mink ───────────────────────────────────────────────────────
-Value maxk(const Value &x, int k, int dim, keel::Allocator *mr)
+Value maxk(const Value &x, keel::i32 k, keel::i32 dim, keel::Allocator *mr)
 {
     return topKAlongDim(x, dim, k, /*ascending=*/false, "maxk", mr);
 }
 
-Value mink(const Value &x, int k, int dim, keel::Allocator *mr)
+Value mink(const Value &x, keel::i32 k, keel::i32 dim, keel::Allocator *mr)
 {
     return topKAlongDim(x, dim, k, /*ascending=*/true, "mink", mr);
 }
@@ -110,7 +110,7 @@ void partialcorr_of_argcheck(const Value &X, const Value &Y, const Value &Z)
 } // namespace
 
 // ── rmse ──────────────────────────────────────────────────────────────
-Value rmse(const Value &f, const Value &a, int dim, keel::Allocator *mr)
+Value rmse(const Value &f, const Value &a, keel::i32 dim, keel::Allocator *mr)
 {
     rmse_argcheck(f, a);
     // Build the squared-difference array, then reduce.
@@ -137,7 +137,7 @@ Value rmse(const Value &f, const Value &a, int dim, keel::Allocator *mr)
             dst[i] = d * d;
         }
     }
-    const int dResolved = resolveDim(diff, dim, "rmse");
+    const keel::i32 dResolved = resolveDim(diff, dim, "rmse");
     auto v = applyAlongDim(diff, dResolved,
         [](keel::usize, const keel::f64 *s, keel::usize k) -> keel::f64 {
             if (k == 0) return std::numeric_limits<keel::f64>::quiet_NaN();
@@ -149,7 +149,7 @@ Value rmse(const Value &f, const Value &a, int dim, keel::Allocator *mr)
 }
 
 // ── mape ──────────────────────────────────────────────────────────────
-Value mape(const Value &f, const Value &a, int dim, keel::Allocator *mr)
+Value mape(const Value &f, const Value &a, keel::i32 dim, keel::Allocator *mr)
 {
     mape_argcheck(f, a);
     const keel::usize n = std::max(f.numel(), a.numel());
@@ -178,7 +178,7 @@ Value mape(const Value &f, const Value &a, int dim, keel::Allocator *mr)
         }
     }
 
-    const int dResolved = resolveDim(pct, dim, "mape");
+    const keel::i32 dResolved = resolveDim(pct, dim, "mape");
     return applyAlongDim(pct, dResolved,
         [](keel::usize, const keel::f64 *s, keel::usize k) -> keel::f64 {
             if (k == 0) return std::numeric_limits<keel::f64>::quiet_NaN();
@@ -481,7 +481,7 @@ Value corr_xy(const Value &X, const Value &Y, keel::Allocator *mr)
 // ── detrend (polynomial trend removal) ──────────────────────────────
 
 
-Value detrend_of(const Value &x, int order, keel::Allocator *mr)
+Value detrend_of(const Value &x, keel::i32 order, keel::Allocator *mr)
 {
     // Simple public form of the full detrend contract (cleaning.cpp):
     // detrend(x, order). Crosses the same float gate / NaN policy /
@@ -698,27 +698,27 @@ ErrorMetricOpts parseErrorMetricOpts(keel::ArrayRef<Value> tail,
             for (char &c : low)
                 c = keel::to_ascii_lower(c);
         }
-        int hit = -1; int cnt = 0;
+        keel::i32 hit = -1; keel::i32 cnt = 0;
         const keel::StringRef lref = low.as_ref();
         for (keel::usize i = 0; i < list.size(); ++i)
             if (lref.size() <= list[i].size() && list[i].substr(0, lref.size()) == lref) {
-                ++cnt; hit = keel::as<int>(i);
+                ++cnt; hit = keel::as<keel::i32>(i);
             }
-        return std::pair<int, int>(hit, cnt);   // (index, match count)
+        return std::pair<keel::i32, keel::i32>(hit, cnt);   // (index, match count)
     };
     keel::usize i = start;
     // Up to two positional flags (mape only; rmse takes one). A string
     // that matches no flag starts the Weights NV region when more args
     // follow, and is the lone-string UnknownFlag error otherwise
     // (reference: mape(F,A,'bogus') errors, mape(F,A,'Weights',w) is NV).
-    for (int flagPos = 0; flagPos < (forMape ? 2 : 1); ++flagPos) {
+    for (keel::i32 flagPos = 0; flagPos < (forMape ? 2 : 1); ++flagPos) {
         if (i >= tail.size() || !(tail[i].isChar() || tail[i].isString()))
             break;
         const auto nanM = matchFamily(tail[i],
             keel::ArrayRef<keel::StringRef>(kNanFlags));
         const auto zeroM = matchFamily(tail[i],
             keel::ArrayRef<keel::StringRef>(kZeroFlags));
-        const int total = nanM.second + zeroM.second;
+        const keel::i32 total = nanM.second + zeroM.second;
         if (total == 0) {
             if (i + 1 >= tail.size()) {
                 keel::String rawFlag = tail[i].toString();
@@ -817,7 +817,7 @@ keel::f64 reduceMetricRun(const keel::f64 *X, const keel::f64 *w, keel::usize n,
 } // anonymous
 
 // rmse with the full flag/weight contract (probe71 E-section).
-Value rmse(const Value &f, const Value &a, int dim, const ErrorMetricOpts &o,
+Value rmse(const Value &f, const Value &a, keel::i32 dim, const ErrorMetricOpts &o,
            keel::Allocator *mr)
 {
     const char *fn = "rmse";
@@ -857,7 +857,7 @@ Value rmse(const Value &f, const Value &a, int dim, const ErrorMetricOpts &o,
     }
     const bool omit = o.omitnan;
     // Reduce along the run layout.
-    const int d = (dim == 0) ? 1 : dim;
+    const keel::i32 d = (dim == 0) ? 1 : dim;
     const auto &fd = f.dims();
     const keel::usize r = keel::as<keel::usize>(fd.dim(0));
     const keel::usize c = (fd.ndim() >= 2)
@@ -904,7 +904,7 @@ Value rmse(const Value &f, const Value &a, int dim, const ErrorMetricOpts &o,
 }
 
 // mape with the full flag/weight contract (probe71 E-section).
-Value mape(const Value &f, const Value &a, int dim, const ErrorMetricOpts &o,
+Value mape(const Value &f, const Value &a, keel::i32 dim, const ErrorMetricOpts &o,
            keel::Allocator *mr)
 {
     const char *fn = "mape";
@@ -944,7 +944,7 @@ Value mape(const Value &f, const Value &a, int dim, const ErrorMetricOpts &o,
         return single ? narrowToSingle(Value::scalar(v, mr), mr)
                       : Value::scalar(v, mr);
     }
-    const int d = (dim == 0) ? 1 : dim;
+    const keel::i32 d = (dim == 0) ? 1 : dim;
     const auto &fd = f.dims();
     const keel::usize r = keel::as<keel::usize>(fd.dim(0));
     const keel::usize c = (fd.ndim() >= 2)
@@ -990,9 +990,9 @@ Value mape(const Value &f, const Value &a, int dim, const ErrorMetricOpts &o,
 // ── range / mad / geomean / harmmean / moment / trimmean ─────────────
 
 // range(x) = max(x) - min(x) along dim.
-Value range_of(const Value &x, int dim, keel::Allocator *mr)
+Value range_of(const Value &x, keel::i32 dim, keel::Allocator *mr)
 {
-    const int d = resolveDim(x, dim, "range");
+    const keel::i32 d = resolveDim(x, dim, "range");
     return applyAlongDim(x, d,
         [](keel::usize, const keel::f64 *s, keel::usize n) -> keel::f64 {
             if (n == 0) return std::numeric_limits<keel::f64>::quiet_NaN();
@@ -1007,9 +1007,9 @@ Value range_of(const Value &x, int dim, keel::Allocator *mr)
 
 // mad(x) -- mean absolute deviation: mean(abs(x - mean(x))).
 // mad(x, 1) -- median absolute deviation: median(abs(x - median(x))).
-Value mad_of(const Value &x, int flag, int dim, keel::Allocator *mr)
+Value mad_of(const Value &x, keel::i32 flag, keel::i32 dim, keel::Allocator *mr)
 {
-    const int d = resolveDim(x, dim, "mad");
+    const keel::i32 d = resolveDim(x, dim, "mad");
     if (flag == 0) {
         // Mean form. MATLAB mad ignores NaN values.
         return applyAlongDim(x, d,
@@ -1045,9 +1045,9 @@ Value mad_of(const Value &x, int flag, int dim, keel::Allocator *mr)
 }
 
 // geomean(x) = (prod(x))^(1/n) = exp(mean(log(x))). x must be >= 0.
-Value geomean_of(const Value &x, int dim, bool omitnan, keel::Allocator *mr)
+Value geomean_of(const Value &x, keel::i32 dim, bool omitnan, keel::Allocator *mr)
 {
-    const int d = resolveDim(x, dim, "geomean");
+    const keel::i32 d = resolveDim(x, dim, "geomean");
     return applyAlongDim(x, d,
         [omitnan](keel::usize, const keel::f64 *s, keel::usize n) -> keel::f64 {
             keel::f64 sum = 0.0;
@@ -1066,9 +1066,9 @@ Value geomean_of(const Value &x, int dim, bool omitnan, keel::Allocator *mr)
 }
 
 // harmmean(x) = n / sum(1./x). x must be > 0.
-Value harmmean_of(const Value &x, int dim, bool omitnan, keel::Allocator *mr)
+Value harmmean_of(const Value &x, keel::i32 dim, bool omitnan, keel::Allocator *mr)
 {
-    const int d = resolveDim(x, dim, "harmmean");
+    const keel::i32 d = resolveDim(x, dim, "harmmean");
     return applyAlongDim(x, d,
         [omitnan](keel::usize, const keel::f64 *s, keel::usize n) -> keel::f64 {
             keel::f64 sum = 0.0;
@@ -1086,10 +1086,10 @@ Value harmmean_of(const Value &x, int dim, bool omitnan, keel::Allocator *mr)
 }
 
 // moment(x, k) = mean((x - mean(x))^k). k >= 2.
-Value moment_of(const Value &x, int order, int dim, keel::Allocator *mr)
+Value moment_of(const Value &x, keel::i32 order, keel::i32 dim, keel::Allocator *mr)
 {
-    const int d = resolveDim(x, dim, "moment");
-    const int k = order;
+    const keel::i32 d = resolveDim(x, dim, "moment");
+    const keel::i32 k = order;
     return applyAlongDim(x, d,
         [k](keel::usize, const keel::f64 *s, keel::usize n) -> keel::f64 {
             if (n == 0) return std::numeric_limits<keel::f64>::quiet_NaN();
@@ -1112,13 +1112,13 @@ Value moment_of(const Value &x, int order, int dim, keel::Allocator *mr)
 // `useFloor` selects MATLAB's flag: false ('round', the default) rounds the
 // per-end count n*p/200 to the nearest integer with ties going DOWN (so
 // k = ceil(n*p/200 - 0.5)); true ('floor') takes the plain floor.
-Value trimmean_of(const Value &x, keel::f64 pct, int dim, bool useFloor,
+Value trimmean_of(const Value &x, keel::f64 pct, keel::i32 dim, bool useFloor,
                   keel::Allocator *mr)
 {
     if (pct < 0.0 || pct >= 100.0)
         throw Error("trimmean: percent must be in [0, 100)",
                     0, 0, "trimmean", "", "numkit:trimmean:badPct");
-    const int d = resolveDim(x, dim, "trimmean");
+    const keel::i32 d = resolveDim(x, dim, "trimmean");
     const keel::f64 p = pct;
     return applyAlongDim(x, d,
         [p, useFloor](keel::usize, const keel::f64 *s, keel::usize n) -> keel::f64 {
@@ -1338,7 +1338,7 @@ ksdensity_full(const Value &x, const Value &pts, keel::f64 bw_user, keel::String
                 x0 = gx[lo] + t * (gx[lo + 1] - gx[lo]);
             }
             // Newton refinement on the smoothed CDF.
-            for (int iter = 0; iter < 100; ++iter) {
+            for (keel::i32 iter = 0; iter < 100; ++iter) {
                 const keel::f64 F0 = cdf_at(x0);
                 keel::f64 dF0 = pdf_at(x0);
                 if (dF0 < min_dF0) dF0 = min_dF0;
@@ -1552,7 +1552,7 @@ Value filloutliers(const Value &A, const Value &fillMethod,
 // data values). Bin into m equal-width bins over [min(x), max(x)],
 // each height = sum(probs in bin) / bin_width.
 std::tuple<Value, Value>
-ecdfhist(const Value &f, const Value &x, int m, keel::Allocator *mr)
+ecdfhist(const Value &f, const Value &x, keel::i32 m, keel::Allocator *mr)
 {
     if (m < 1)
         throw Error("ecdfhist: number of bins must be >= 1",
@@ -1587,7 +1587,7 @@ ecdfhist(const Value &f, const Value &x, int m, keel::Allocator *mr)
     keel::f64 *nd = n_out.doubleDataMut();
     keel::f64 *cd = c_out.doubleDataMut();
 
-    for (int k = 0; k < m; ++k) {
+    for (keel::i32 k = 0; k < m; ++k) {
         cd[k] = xmin + (k + 0.5) * width;
         nd[k] = 0.0;
     }
@@ -1604,12 +1604,12 @@ ecdfhist(const Value &f, const Value &x, int m, keel::Allocator *mr)
     // boundary values to the upper bin (off-by-one shift in counts).
     for (keel::usize k = 0; k < K; ++k) {
         const keel::f64 v = vals[k];
-        int bin = keel::as<int>(std::ceil((v - xmin) / width)) - 1;
+        keel::i32 bin = keel::as<keel::i32>(std::ceil((v - xmin) / width)) - 1;
         if (bin < 0)  bin = 0;
         if (bin >= m) bin = m - 1;
         nd[bin] += probs[k];
     }
-    for (int k = 0; k < m; ++k) nd[k] /= width;
+    for (keel::i32 k = 0; k < m; ++k) nd[k] /= width;
     return {std::move(n_out), std::move(c_out)};
 }
 
@@ -1738,7 +1738,7 @@ EcdfFull ecdf_full(const Value &y, const Value *freq, keel::StringRef function_m
     // z = -norminv(α/2). For α=0.05 → ~1.959964.
     const keel::f64 z = std::sqrt(2.0) * [&]{
         keel::f64 e = 1.0 - alpha;
-        for (int it = 0; it < 50; ++it) {
+        for (keel::i32 it = 0; it < 50; ++it) {
             const keel::f64 f = std::erf(e) - (1.0 - alpha);
             const keel::f64 fp = (2.0 / std::sqrt(3.14159265358979323846))
                               * std::exp(-e * e);

@@ -42,12 +42,12 @@ Value silhouette(const Value &X, const Value &clust, keel::StringRef metric, kee
 
     // Pull labels into int vector. The reference engine allows numeric or char/string —
     // we accept anything that elemAsDouble can read (round to int).
-    keel::Array<int> lbl(N);
+    keel::Array<keel::i32> lbl(N);
     for (keel::usize i = 0; i < N; ++i)
-        lbl[i] = keel::as<int>(std::lround(clust.elemAsDouble(i)));
+        lbl[i] = keel::as<keel::i32>(std::lround(clust.elemAsDouble(i)));
 
     // Catalogue labels and their member indices.
-    keel::HashMap<int, keel::Array<keel::usize>> groups;
+    keel::HashMap<keel::i32, keel::Array<keel::usize>> groups;
     groups.reserve(N);
     for (keel::usize i = 0; i < N; ++i)
         groups.try_insert(lbl[i], keel::Array<keel::usize>{}).value->push_back(i);
@@ -63,7 +63,7 @@ Value silhouette(const Value &X, const Value &clust, keel::StringRef metric, kee
     keel::f64 *od = out.doubleDataMut();
 
     for (keel::usize i = 0; i < N; ++i) {
-        const int k = lbl[i];
+        const keel::i32 k = lbl[i];
         const auto &mine = *groups.get(k);
 
         // a(i): mean distance to other points in same cluster.

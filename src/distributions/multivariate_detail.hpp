@@ -97,7 +97,7 @@ keel::f64 phiCdf(keel::f64 x) { return 0.5 * std::erfc(-x / std::sqrt(2.0)); }
     };
 
     keel::f64 integral = 0.0;
-    for (int i = 0; i < 16; ++i) {
+    for (keel::i32 i = 0; i < 16; ++i) {
         const keel::f64 t = rho * GL_X[i];   // map [0, 1] → [0, ρ]
         const keel::f64 r2 = 1.0 - t * t;
         // φ_2(h, k; t) at point (h, k) with corr t.
@@ -121,7 +121,7 @@ keel::f64 phiCdf(keel::f64 x) { return 0.5 * std::erfc(-x / std::sqrt(2.0)); }
     for (keel::usize s = 0; s < halfN; ++s) {
         for (keel::usize k = 0; k < d; ++k) z[k] = keel::random::normal_f64(gen);
         // sample1 = mu + L * z, sample2 = mu - L * z  (antithetic).
-        for (int sign = 0; sign < 2; ++sign) {
+        for (keel::i32 sign = 0; sign < 2; ++sign) {
             const keel::f64 sz = (sign == 0) ? 1.0 : -1.0;
             bool ok = true;
             for (keel::usize j = 0; j < d; ++j) {
@@ -189,7 +189,7 @@ inline keel::f64 genzSovCdf(const keel::f64 *L, keel::usize d,
     if (f0 == 0.0 || d <= 1) return f0;
 
     // First 32 primes for Richtmyer quasi-random generators sqrt(p_k) mod 1.
-    static constexpr int kPrimes[32] = {
+    static constexpr keel::i32 kPrimes[32] = {
         2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53,
         59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131
     };
@@ -291,11 +291,11 @@ mvtcdf_shape_check(const Value &X, const Value &C, const char *fn)
 
 // Sample-count from tol: standard error of indicator MC ≈ 1/(2·sqrt(N))
 // for p near 0.5; pick N = max(10000, 1/tol²).
-[[maybe_unused]] int mvtcdf_N_from_tol(keel::f64 tol)
+[[maybe_unused]] keel::i32 mvtcdf_N_from_tol(keel::f64 tol)
 {
     if (!(tol > 0.0)) tol = 0.01;
     const keel::f64 n_d = 1.0 / (tol * tol);
-    int N = (n_d > 1e7) ? 10000000 : keel::as<int>(std::ceil(n_d));
+    keel::i32 N = (n_d > 1e7) ? 10000000 : keel::as<keel::i32>(std::ceil(n_d));
     if (N < 10000) N = 10000;
     if (N % 2) ++N;   // antithetic pairs
     return N;
@@ -305,7 +305,7 @@ mvtcdf_shape_check(const Value &X, const Value &C, const char *fn)
 // Lvec / Uvec are length-d (-Inf / +Inf allowed). Returns probability.
 template <typename FetchLU>
 keel::f64 mvtcdf_mc(const keel::Array<keel::f64> &Lchol, keel::usize d,
-                 keel::f64 df, int N, keel::random::Xoshiro256PlusPlus &gen,
+                 keel::f64 df, keel::i32 N, keel::random::Xoshiro256PlusPlus &gen,
                  FetchLU &&fetch_LU /* (j) -> {Lj, Uj} */)
 {
     keel::Array<keel::f64> z(d), y(d), Lvec(d), Uvec(d);
@@ -313,8 +313,8 @@ keel::f64 mvtcdf_mc(const keel::Array<keel::f64> &Lchol, keel::usize d,
         auto [lj, uj] = fetch_LU(j);
         Lvec[j] = lj; Uvec[j] = uj;
     }
-    int hits = 0;
-    for (int k = 0; k < N / 2; ++k) {
+    keel::i32 hits = 0;
+    for (keel::i32 k = 0; k < N / 2; ++k) {
         for (keel::usize j = 0; j < d; ++j) z[j] = keel::random::normal_f64(gen);
         const keel::f64 scale = std::sqrt(df / keel::random::chi_squared_f64(gen, df));
         // Pass 1: z direct.

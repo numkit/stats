@@ -97,7 +97,7 @@ CorrTail parseTailChoice(const Value &v, keel::StringRef fn)
 {
     static constexpr keel::StringRef kTail[] = {"left", "both", "right"};
     static constexpr keel::StringRef kAlias[] = {"lt", "ne", "gt"};
-    int m = argcheck::matchStringChoice(v, keel::ArrayRef<keel::StringRef>(kTail));
+    keel::i32 m = argcheck::matchStringChoice(v, keel::ArrayRef<keel::StringRef>(kTail));
     if (m >= 0) return static_cast<CorrTail>(m);
     m = argcheck::matchStringChoice(v, keel::ArrayRef<keel::StringRef>(kAlias));
     if (m >= 0) return static_cast<CorrTail>(m);
@@ -622,9 +622,9 @@ std::pair<keel::f64, keel::f64> corrKendallExactLU(keel::f64 tau, keel::usize n,
 {
     if (n < 2 || std::isnan(tau)) return { kNaN, kNaN };
     const keel::usize Dmax = n * (n - 1) / 2;
-    long Dobs = std::lround(keel::as<keel::f64>(Dmax) * (1.0 - tau) / 2.0);
+    keel::i64 Dobs = std::lround(keel::as<keel::f64>(Dmax) * (1.0 - tau) / 2.0);
     if (Dobs < 0) Dobs = 0;
-    if (Dobs > keel::as<long>(Dmax)) Dobs = keel::as<long>(Dmax);
+    if (Dobs > keel::as<keel::i64>(Dmax)) Dobs = keel::as<keel::i64>(Dmax);
     keel::ArenaTemp sc = keel::get_scratch(mr);
     keel::Array<keel::f64> prob(Dmax + 1, 0.0, sc.allocator());      // P(#inversions == d)
     keel::Array<keel::f64> next(Dmax + 1, 0.0, sc.allocator());
@@ -642,8 +642,8 @@ std::pair<keel::f64, keel::f64> corrKendallExactLU(keel::f64 tau, keel::usize n,
         curLen = newLen;
     }
     keel::f64 lower = 0.0, upper = 0.0;
-    for (long d = 0; d <= Dobs; ++d) lower += prob[keel::as<keel::usize>(d)];
-    for (long d = Dobs; d < keel::as<long>(curLen); ++d)
+    for (keel::i64 d = 0; d <= Dobs; ++d) lower += prob[keel::as<keel::usize>(d)];
+    for (keel::i64 d = Dobs; d < keel::as<keel::i64>(curLen); ++d)
         upper += prob[keel::as<keel::usize>(d)];
     return { lower, upper };
 }
@@ -654,16 +654,16 @@ std::pair<keel::f64, keel::f64> corrSpearmanExactLU(keel::f64 rho, keel::usize n
                                               keel::Allocator *mr)
 {
     const keel::f64 scale = keel::as<keel::f64>(n) * (keel::as<keel::f64>(n) * n - 1.0) / 6.0;
-    long Dobs = std::lround((1.0 - rho) * scale);
+    keel::i64 Dobs = std::lround((1.0 - rho) * scale);
     if (Dobs < 0) Dobs = 0;
     keel::ArenaTemp sc = keel::get_scratch(mr);
-    keel::Array<int> perm(n, sc.allocator());
-    for (keel::usize i = 0; i < n; ++i) perm[i] = keel::as<int>(i);
+    keel::Array<keel::i32> perm(n, sc.allocator());
+    for (keel::usize i = 0; i < n; ++i) perm[i] = keel::as<keel::i32>(i);
     keel::usize total = 0, leCount = 0, geCount = 0;
     do {
-        long D = 0;
+        keel::i64 D = 0;
         for (keel::usize i = 0; i < n; ++i) {
-            const long d = perm[i] - keel::as<long>(i);
+            const keel::i64 d = perm[i] - keel::as<keel::i64>(i);
             D += d * d;
         }
         if (D <= Dobs) ++leCount;
@@ -735,8 +735,8 @@ std::pair<keel::f64, keel::f64> spearmanExactMidrankLU(const keel::f64 *xr,
                                                  keel::Allocator *mr)
 {
     keel::ArenaTemp sc = keel::get_scratch(mr);
-    keel::Array<int> perm(n, sc.allocator());
-    for (keel::usize i = 0; i < n; ++i) perm[i] = keel::as<int>(i);
+    keel::Array<keel::i32> perm(n, sc.allocator());
+    for (keel::usize i = 0; i < n; ++i) perm[i] = keel::as<keel::i32>(i);
     keel::usize total = 0, leCount = 0, geCount = 0;
     do {
         keel::f64 D = 0.0;
@@ -1212,7 +1212,7 @@ CorrOut corr_full(const Value &x, const Value *Y, keel::ArrayRef<Value> nv,
     if (!rowsRaw.isEmpty()) {
         static constexpr keel::StringRef kRows[] = { "all", "complete",
                                                      "pairwise" };
-        const int m = argcheck::matchStringChoice(
+        const keel::i32 m = argcheck::matchStringChoice(
             rowsRaw, keel::ArrayRef<keel::StringRef>(kRows));
         if (m < 0) {
             keel::String rowsStr = rowsRaw.toString();
@@ -1265,7 +1265,7 @@ CorrOut corr_full(const Value &x, const Value *Y, keel::ArrayRef<Value> nv,
     if (!typeRaw.isEmpty()) {
         static constexpr keel::StringRef kTypes[] = { "pearson", "kendall",
                                                       "spearman" };
-        const int m = argcheck::matchStringChoice(
+        const keel::i32 m = argcheck::matchStringChoice(
             typeRaw, keel::ArrayRef<keel::StringRef>(kTypes));
         if (m < 0) {
             keel::String typeStr = typeRaw.toString();
@@ -1453,7 +1453,7 @@ CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
                 static constexpr keel::StringRef kRows[] = { "all",
                                                              "complete",
                                                              "pairwise" };
-                const int m = argcheck::matchStringChoice(
+                const keel::i32 m = argcheck::matchStringChoice(
                     v, keel::ArrayRef<keel::StringRef>(kRows));
                 if (m < 0) {
                     keel::String vStr = v.toString();
@@ -1470,7 +1470,7 @@ CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
                 static constexpr keel::StringRef kTypes[] = { "pearson",
                                                               "kendall",
                                                               "spearman" };
-                const int m = argcheck::matchStringChoice(
+                const keel::i32 m = argcheck::matchStringChoice(
                     v, keel::ArrayRef<keel::StringRef>(kTypes));
                 if (m < 0) {
                     keel::String vStr = v.toString();
@@ -1509,7 +1509,7 @@ CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
         return co;
     };
 
-    auto buildPMatrix = [&](const Value &R, long df) -> Value {
+    auto buildPMatrix = [&](const Value &R, keel::i64 df) -> Value {
         Value P = Value::matrix(dx, dy, ValueType::DOUBLE, mr);
         keel::f64 *pd = P.doubleDataMut();
         const keel::f64 *rd = R.doubleData();
@@ -1539,8 +1539,8 @@ CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
         M.push_back(xD);
         if (rows != CorrRows::All) dropNaNRowsAny(M, mr);
         const keel::usize m = keel::as<keel::usize>(M[0].dims().dim(0));
-        const long dz = (d >= 2) ? keel::as<long>(d - 2) : 0;
-        const long df = keel::as<long>(m) - dz - 2;
+        const keel::i64 dz = (d >= 2) ? keel::as<keel::i64>(d - 2) : 0;
+        const keel::i64 df = keel::as<keel::i64>(m) - dz - 2;
         if (!allFinite(M[0]) || m < 2 || df < 0)
             return makeNanOut();
         if (ct == CorrType::Spearman) M[0] = tiedrank(M[0], mr).first;
@@ -1600,7 +1600,7 @@ CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
                     zSub = tiedrank(zSub, mr).first;
                 }
                 const keel::usize dz0 = centeredRank(zSub, mr);
-                const long df = keel::as<long>(m) - keel::as<long>(dz0) - 2;
+                const keel::i64 df = keel::as<keel::i64>(m) - keel::as<keel::i64>(dz0) - 2;
                 if (df < 0) {
                     rd[i + j * dx] = kNaN;
                     if (pd) pd[i + j * dx] = kNaN;
@@ -1651,7 +1651,7 @@ CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
             if (y) Yv = tiedrank(Yv, mr).first;
         }
         const keel::usize dz0 = centeredRank(Zv, mr);
-        const long df = keel::as<long>(m) - keel::as<long>(dz0) - 2;
+        const keel::i64 df = keel::as<keel::i64>(m) - keel::as<keel::i64>(dz0) - 2;
         if (df < 0)
             return makeNanOut();
         R = y ? partialcorr_of(Xv, Yv, Zv, mr)

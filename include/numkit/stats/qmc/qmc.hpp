@@ -28,7 +28,7 @@ namespace numkit::stats {
 /// @param mr    Memory resource (nullptr → process default).
 /// @return      Stream descriptor.
 /// @see net
-Value haltonset(int d, long long skip, long long leap,
+Value haltonset(keel::i32 d, keel::i64 skip, keel::i64 leap,
                 keel::Allocator *mr = nullptr);
 
 /// @brief Extract points from a quasi-random stream (`X = net(p, n)`).
@@ -43,7 +43,7 @@ Value haltonset(int d, long long skip, long long leap,
 /// @return        `n × dim` matrix of quasi-random points in `[0, 1)^d`.
 /// @throws Error  Unknown stream kind (`m:net:badStream`).
 /// @see haltonset
-Value net(const Value &stream, long long n,
+Value net(const Value &stream, keel::i64 n,
           keel::Allocator *mr = nullptr);
 
 /// @brief Apply scrambling to a quasi-random stream (`p = scramble(p, type)`).

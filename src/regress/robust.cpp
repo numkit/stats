@@ -67,10 +67,10 @@ RobustfitResult robustfit(const Value &X, const Value &y,
     keel::Array<keel::f64> beta = weightedLS(Xv.data(), n, p, yv.data(), w.data());
 
     keel::Array<keel::f64> r(n), radj(n), beta_prev(p, 0.0);
-    const int maxIter = 50;
+    const keel::i32 maxIter = 50;
     const keel::f64 D = 1.4901161193847656e-08;   // sqrt(eps)
     keel::f64 s = 1.0;
-    for (int it = 0; it < maxIter; ++it) {
+    for (keel::i32 it = 0; it < maxIter; ++it) {
         // Residuals from the current fit, then the leverage-adjusted scale.
         for (keel::usize i = 0; i < n; ++i) {
             keel::f64 pred = 0.0;
@@ -126,7 +126,7 @@ RobustcovResult robustcov(const Value &X, keel::Allocator *mr)
         std::ceil(0.75 * keel::as<keel::f64>(n)));
 
     keel::Array<keel::usize> prevKeep;
-    for (int it = 0; it < 30; ++it) {
+    for (keel::i32 it = 0; it < 30; ++it) {
         if (!invertSPD(C.as_ref(), d, invC)) break;
         auto dist = mahalanobisDist(Xv.data(), n, d, mu.data(), invC.data());
         // Pick h rows with smallest distance.

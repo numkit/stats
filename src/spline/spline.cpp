@@ -17,7 +17,7 @@
 namespace numkit::stats {
 
 namespace {
-void aveknt_argcheck(keel::usize N, int k)
+void aveknt_argcheck(keel::usize N, keel::i32 k)
 {
     if (k < 2 || keel::as<keel::usize>(k) > N)
         throw Error("aveknt: order k must satisfy 2 ≤ k ≤ length(t)",
@@ -25,7 +25,7 @@ void aveknt_argcheck(keel::usize N, int k)
 }
 } // namespace
 
-Value aveknt(const Value &t, int k, keel::Allocator *mr)
+Value aveknt(const Value &t, keel::i32 k, keel::Allocator *mr)
 {
     const keel::usize N = t.numel();
     aveknt_argcheck(N, k);
@@ -43,7 +43,7 @@ Value aveknt(const Value &t, int k, keel::Allocator *mr)
     return out;
 }
 
-Value augknt(const Value &knots, int k, keel::Allocator *mr)
+Value augknt(const Value &knots, keel::i32 k, keel::Allocator *mr)
 {
     const keel::usize N = knots.numel();
     if (k < 1 || N == 0)
@@ -57,9 +57,9 @@ Value augknt(const Value &knots, int k, keel::Allocator *mr)
     const keel::f64 first = knots.elemAsDouble(0);
     const keel::f64 last  = knots.elemAsDouble(N - 1);
     keel::usize idx = 0;
-    for (int i = 0; i < k; ++i) od[idx++] = first;
+    for (keel::i32 i = 0; i < k; ++i) od[idx++] = first;
     for (keel::usize i = 1; i + 1 < N; ++i) od[idx++] = knots.elemAsDouble(i);
-    for (int i = 0; i < k; ++i) od[idx++] = last;
+    for (keel::i32 i = 0; i < k; ++i) od[idx++] = last;
     return out;
 }
 
@@ -125,7 +125,7 @@ knt2brk(const Value &knots, keel::Allocator *mr)
     return {std::move(bv), std::move(mv)};
 }
 
-Value ppmak(const Value &breaks, const Value &coefs, int d, keel::Allocator *mr)
+Value ppmak(const Value &breaks, const Value &coefs, keel::i32 d, keel::Allocator *mr)
 {
     const keel::usize L1 = breaks.numel();
     if (L1 < 2)
@@ -291,7 +291,7 @@ Value buildPP(const Value &breaks, keel::ArrayRef<keel::f64> coefsCM, keel::usiz
 
 } // anonymous
 
-Value fnder(const Value &pp, int order, keel::Allocator *mr)
+Value fnder(const Value &pp, keel::i32 order, keel::Allocator *mr)
 {
     if (order < 0)
         throw Error("fnder: order must be >= 0",
@@ -315,7 +315,7 @@ Value fnder(const Value &pp, int order, keel::Allocator *mr)
         keel::Array<keel::f64> cur(v.K);
         for (keel::usize m = 0; m < v.K; ++m) cur[m] = v.coefs.elemAsDouble(r + m * cR);
         keel::usize curK = v.K;
-        for (int it = 0; it < order; ++it) {
+        for (keel::i32 it = 0; it < order; ++it) {
             keel::Array<keel::f64> nxt(curK - 1, 0.0);
             for (keel::usize m = 0; m + 1 < curK; ++m)
                 nxt[m] = cur[m] * keel::f64(curK - 1 - m);
@@ -405,8 +405,8 @@ Value csapi(const Value &x, const Value &y, keel::Allocator *mr)
         rhs[r] = 0.0;
     }
 
-    keel::Array<int> perm(N);
-    for (keel::usize i = 0; i < N; ++i) perm[i] = keel::as<int>(i);
+    keel::Array<keel::i32> perm(N);
+    for (keel::usize i = 0; i < N; ++i) perm[i] = keel::as<keel::i32>(i);
     for (keel::usize k = 0; k < N; ++k) {
         keel::usize piv = k;
         keel::f64 best = keel::abs(A[k + k * N]);

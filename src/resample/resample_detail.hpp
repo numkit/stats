@@ -33,44 +33,44 @@ namespace numkit::stats {
 namespace {
 
 // Sample K indices in [0..N-1] given (optional) weights.
-[[maybe_unused]] keel::Array<int> sample_indices(int N, int K, bool with_replacement,
+[[maybe_unused]] keel::Array<keel::i32> sample_indices(keel::i32 N, keel::i32 K, bool with_replacement,
                                 keel::ArrayRef<keel::f64> weights,
                                 numkit::ops::RngContext &rng)
 {
-    keel::Array<int> out;
+    keel::Array<keel::i32> out;
     out.reserve((keel::usize)K);
 
     if (weights.empty()) {
         if (with_replacement) {
-            for (int i = 0; i < K; ++i) {
+            for (keel::i32 i = 0; i < K; ++i) {
                 const keel::f64 u = rng.nextUniform();
-                int idx = keel::as<int>(std::floor(u * keel::as<keel::f64>(N)));
+                keel::i32 idx = keel::as<keel::i32>(std::floor(u * keel::as<keel::f64>(N)));
                 if (idx >= N) idx = N - 1;
                 out.push_back(idx);
             }
         } else {
-            const int take = std::min(K, N);
+            const keel::i32 take = std::min(K, N);
             Value rp = numkit::ops::randperm(rng, keel::as<keel::usize>(N),
                                              keel::as<keel::usize>(take), nullptr);
             const keel::f64 *rpd = rp.doubleData();
-            for (int i = 0; i < take; ++i)
-                out.push_back(keel::as<int>(rpd[i]) - 1);
+            for (keel::i32 i = 0; i < take; ++i)
+                out.push_back(keel::as<keel::i32>(rpd[i]) - 1);
         }
     } else {
         auto &gen = rng.engine();
         // Weighted sampling.
         if (with_replacement) {
             const keel::ArrayRef<keel::f64> wref(weights.data(), weights.size());
-            for (int i = 0; i < K; ++i)
-                out.push_back(keel::as<int>(keel::random::discrete_index(gen, wref)));
+            for (keel::i32 i = 0; i < K; ++i)
+                out.push_back(keel::as<keel::i32>(keel::random::discrete_index(gen, wref)));
         } else {
             // Without replacement: Efraimidis-Spirakis (2006) wswor algorithm.
             // Each positive-weight item i receives key k_i = u_i^(1/w_i), or
             // equivalently log(u_i)/w_i = -Exp(1)/w_i; the top K keys are drawn
             // in descending key order. Exact O(N log N) with zero rejection risk.
-            keel::Array<std::pair<keel::f64, int>> keyed;
+            keel::Array<std::pair<keel::f64, keel::i32>> keyed;
             keyed.reserve(N);
-            for (int i = 0; i < N; ++i) {
+            for (keel::i32 i = 0; i < N; ++i) {
                 const keel::f64 w = weights[keel::as<keel::usize>(i)];
                 if (w > 0.0) {
                     const keel::f64 e = std::max(keel::random::exponential_f64(gen, 1.0), 1e-300);
@@ -97,10 +97,10 @@ namespace {
 } // anonymous
 namespace {
 // Shared enumeration: combinations of `items` taken `K` at a time.
-[[maybe_unused]] Value combnkImpl(keel::ArrayRef<keel::f64> items, int K,
+[[maybe_unused]] Value combnkImpl(keel::ArrayRef<keel::f64> items, keel::i32 K,
                  keel::Allocator *mr)
 {
-    const int N = keel::as<int>(items.size());
+    const keel::i32 N = keel::as<keel::i32>(items.size());
     if (K < 0)
         throw Error("combnk: K must be non-negative", 0, 0, "combnk", "",
                     "numkit:combnk:badK");
@@ -111,8 +111,8 @@ namespace {
         return Value::matrix(0, keel::as<keel::usize>(K), ValueType::DOUBLE, mr);
 
     // Number of combinations.
-    long long C = 1;
-    for (int i = 0; i < K; ++i) C = C * (N - i) / (i + 1);
+    keel::i64 C = 1;
+    for (keel::i32 i = 0; i < K; ++i) C = C * (N - i) / (i + 1);
 
     Value out = Value::matrix((keel::usize)C, (keel::usize)K, ValueType::DOUBLE, mr);
     if (C == 0) return out;
@@ -120,19 +120,19 @@ namespace {
     if (K == 0) return out;
 
     // Enumerate combinations in lex order by index recursion.
-    keel::Array<int> idx((keel::usize)K);
-    for (int i = 0; i < K; ++i) idx[(keel::usize)i] = i;
-    long long row = 0;
+    keel::Array<keel::i32> idx((keel::usize)K);
+    for (keel::i32 i = 0; i < K; ++i) idx[(keel::usize)i] = i;
+    keel::i64 row = 0;
     while (true) {
-        for (int j = 0; j < K; ++j)
+        for (keel::i32 j = 0; j < K; ++j)
             od[(keel::usize)j * (keel::usize)C + (keel::usize)row] =
                 items[(keel::usize)idx[(keel::usize)j]];
         ++row;
-        int j = K - 1;
+        keel::i32 j = K - 1;
         while (j >= 0 && idx[(keel::usize)j] == N - K + j) --j;
         if (j < 0) break;
         ++idx[(keel::usize)j];
-        for (int k = j + 1; k < K; ++k) idx[(keel::usize)k] = idx[(keel::usize)k - 1] + 1;
+        for (keel::i32 k = j + 1; k < K; ++k) idx[(keel::usize)k] = idx[(keel::usize)k - 1] + 1;
     }
     return out;
 }

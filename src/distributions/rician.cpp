@@ -72,13 +72,13 @@ Value riceinv(const Value &p, keel::f64 s, keel::f64 sigma, keel::Allocator *mr)
         keel::f64 lo = 0.0;
         keel::f64 hi = s + 8.0 * sigma;
         // Expand `hi` if needed.
-        for (int iter = 0; iter < 50; ++iter) {
+        for (keel::i32 iter = 0; iter < 50; ++iter) {
             const keel::f64 Fhi = 1.0 - marcumq_scalar(s / sigma, hi / sigma, mr);
             if (Fhi >= pi) break;
             hi *= 2.0;
         }
         // Bisection to ~1e-12 relative tolerance.
-        for (int iter = 0; iter < 80; ++iter) {
+        for (keel::i32 iter = 0; iter < 80; ++iter) {
             const keel::f64 mid = 0.5 * (lo + hi);
             if (mid == lo || mid == hi) return mid;
             const keel::f64 F = 1.0 - marcumq_scalar(s / sigma, mid / sigma, mr);

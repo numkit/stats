@@ -111,7 +111,7 @@ ttest_1d(const Value &x, keel::f64 m, keel::f64 alpha, TestTail tail, keel::Allo
     const keel::f64 t   = (mu_hat - m) / se;
     const keel::f64 df  = keel::f64(n - 1);
     const keel::f64 p   = tpvalue(t, df, tail, mr);
-    const int    h   = (p < alpha) ? 1 : 0;
+    const keel::i32    h   = (p < alpha) ? 1 : 0;
 
     // Confidence interval for the mean.
     keel::f64 clo, chi;
@@ -181,7 +181,7 @@ ttest2_1d(const Value &x, const Value &y, keel::f64 alpha, TestTail tail, keel::
     }
     t = (mx - my) / se;
     const keel::f64 p = tpvalue(t, df, tail, mr);
-    const int    h = (p < alpha) ? 1 : 0;
+    const keel::i32    h = (p < alpha) ? 1 : 0;
 
     Value half = Value::scalar(1.0 - 0.5 * alpha, mr);
     const keel::f64 tcrit = tinv(half, df, mr).toScalar();
@@ -215,7 +215,7 @@ ztest_1d(const Value &x, keel::f64 m, keel::f64 sigma, keel::f64 alpha, TestTail
     const keel::f64 se = sigma / std::sqrt(keel::f64(n));
     const keel::f64 z  = (mu_hat - m) / se;
     const keel::f64 p  = zpvalue(z, tail, mr);
-    const int    h  = (p < alpha) ? 1 : 0;
+    const keel::i32    h  = (p < alpha) ? 1 : 0;
 
     Value half = Value::scalar(1.0 - 0.5 * alpha, mr);
     const keel::f64 zcrit = norminv(half, 0.0, 1.0, mr).toScalar();
@@ -253,7 +253,7 @@ vartest_1d(const Value &x, keel::f64 v, keel::f64 alpha, TestTail tail, keel::Al
         case TestTail::Left:  p = cdf;                            break;
         default:              p = 1.0;
     }
-    const int h = (p < alpha) ? 1 : 0;
+    const keel::i32 h = (p < alpha) ? 1 : 0;
 
     Value lo_v = Value::scalar(0.5 * alpha, mr);
     Value hi_v = Value::scalar(1.0 - 0.5 * alpha, mr);
@@ -300,7 +300,7 @@ vartest2_1d(const Value &x, const Value &y, keel::f64 alpha, TestTail tail, keel
         case TestTail::Left:  p = cdf;                            break;
         default:              p = 1.0;
     }
-    const int h = (p < alpha) ? 1 : 0;
+    const keel::i32 h = (p < alpha) ? 1 : 0;
 
     Value lo_v = Value::scalar(0.5 * alpha, mr);
     Value hi_v = Value::scalar(1.0 - 0.5 * alpha, mr);
@@ -329,18 +329,18 @@ vartest2_1d(const Value &x, const Value &y, keel::f64 alpha, TestTail tail, keel
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value, Value>
-ttest_dim(const Value &x, keel::f64 m, keel::f64 alpha, TestTail tail, int dim, keel::Allocator *mr)
+ttest_dim(const Value &x, keel::f64 m, keel::f64 alpha, TestTail tail, keel::i32 dim, keel::Allocator *mr)
 {
     ttest_argcheck(x);
     const keel::usize R = x.dims().rows();
     const keel::usize C = x.dims().cols();
     const bool isVec = (R <= 1 || C <= 1);
     if (isVec) {
-        const int nsDim = (R == 1 && C > 1) ? 2 : 1;
+        const keel::i32 nsDim = (R == 1 && C > 1) ? 2 : 1;
         if (dim == 0 || dim == nsDim)
             return ttest_1d(x, m, alpha, tail, mr);
     }
-    const int effDim = (dim == 0) ? 1 : dim;
+    const keel::i32 effDim = (dim == 0) ? 1 : dim;
     if (effDim == 1) {
         Value hOut     = Value::matrix(1, C, ValueType::DOUBLE, mr);
         Value pOut     = Value::matrix(1, C, ValueType::DOUBLE, mr);
@@ -403,18 +403,18 @@ ttest(const Value &x, keel::f64 m, keel::f64 alpha, TestTail tail, keel::Allocat
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value, Value>
-ttest2_dim(const Value &x, const Value &y, keel::f64 alpha, TestTail tail, keel::StringRef vartype, int dim, keel::Allocator *mr)
+ttest2_dim(const Value &x, const Value &y, keel::f64 alpha, TestTail tail, keel::StringRef vartype, keel::i32 dim, keel::Allocator *mr)
 {
     ttest2_argcheck(x, y);
     const keel::usize Rx = x.dims().rows(), Cx = x.dims().cols();
     const keel::usize Ry = y.dims().rows(), Cy = y.dims().cols();
     const bool isVec = (Rx <= 1 || Cx <= 1) && (Ry <= 1 || Cy <= 1);
     if (isVec) {
-        const int nsDim = (Rx == 1 && Cx > 1) ? 2 : 1;
+        const keel::i32 nsDim = (Rx == 1 && Cx > 1) ? 2 : 1;
         if (dim == 0 || dim == nsDim)
             return ttest2_1d(x, y, alpha, tail, vartype, mr);
     }
-    const int effDim = (dim == 0) ? 1 : dim;
+    const keel::i32 effDim = (dim == 0) ? 1 : dim;
     const bool equalVar = (vartype == "equal");
     if (effDim == 1) {
         if (Cx != Cy)
@@ -496,18 +496,18 @@ ttest2(const Value &x, const Value &y, keel::f64 alpha, TestTail tail, keel::Str
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value, Value>
-ztest_dim(const Value &x, keel::f64 m, keel::f64 sigma, keel::f64 alpha, TestTail tail, int dim, keel::Allocator *mr)
+ztest_dim(const Value &x, keel::f64 m, keel::f64 sigma, keel::f64 alpha, TestTail tail, keel::i32 dim, keel::Allocator *mr)
 {
     ztest_argcheck(sigma);
     const keel::usize R = x.dims().rows();
     const keel::usize C = x.dims().cols();
     const bool isVec = (R <= 1 || C <= 1);
     if (isVec) {
-        const int nsDim = (R == 1 && C > 1) ? 2 : 1;
+        const keel::i32 nsDim = (R == 1 && C > 1) ? 2 : 1;
         if (dim == 0 || dim == nsDim)
             return ztest_1d(x, m, sigma, alpha, tail, mr);
     }
-    const int effDim = (dim == 0) ? 1 : dim;
+    const keel::i32 effDim = (dim == 0) ? 1 : dim;
     if (effDim == 1) {
         Value hOut  = Value::matrix(1, C, ValueType::DOUBLE, mr);
         Value pOut  = Value::matrix(1, C, ValueType::DOUBLE, mr);
@@ -554,18 +554,18 @@ ztest(const Value &x, keel::f64 m, keel::f64 sigma, keel::f64 alpha, TestTail ta
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value, Value>
-vartest_dim(const Value &x, keel::f64 v, keel::f64 alpha, TestTail tail, int dim, keel::Allocator *mr)
+vartest_dim(const Value &x, keel::f64 v, keel::f64 alpha, TestTail tail, keel::i32 dim, keel::Allocator *mr)
 {
     vartest_argcheck(v);
     const keel::usize R = x.dims().rows();
     const keel::usize C = x.dims().cols();
     const bool isVec = (R <= 1 || C <= 1);
     if (isVec) {
-        const int nsDim = (R == 1 && C > 1) ? 2 : 1;
+        const keel::i32 nsDim = (R == 1 && C > 1) ? 2 : 1;
         if (dim == 0 || dim == nsDim)
             return vartest_1d(x, v, alpha, tail, mr);
     }
-    const int effDim = (dim == 0) ? 1 : dim;
+    const keel::i32 effDim = (dim == 0) ? 1 : dim;
     if (effDim == 1) {
         Value hOut     = Value::matrix(1, C, ValueType::DOUBLE, mr);
         Value pOut     = Value::matrix(1, C, ValueType::DOUBLE, mr);
@@ -622,18 +622,18 @@ vartest(const Value &x, keel::f64 v, keel::f64 alpha, TestTail tail, keel::Alloc
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value, Value>
-vartest2_dim(const Value &x, const Value &y, keel::f64 alpha, TestTail tail, int dim, keel::Allocator *mr)
+vartest2_dim(const Value &x, const Value &y, keel::f64 alpha, TestTail tail, keel::i32 dim, keel::Allocator *mr)
 {
     vartest2_argcheck(x, y);
     const keel::usize Rx = x.dims().rows(), Cx = x.dims().cols();
     const keel::usize Ry = y.dims().rows(), Cy = y.dims().cols();
     const bool isVec = (Rx <= 1 || Cx <= 1) && (Ry <= 1 || Cy <= 1);
     if (isVec) {
-        const int nsDim = (Rx == 1 && Cx > 1) ? 2 : 1;
+        const keel::i32 nsDim = (Rx == 1 && Cx > 1) ? 2 : 1;
         if (dim == 0 || dim == nsDim)
             return vartest2_1d(x, y, alpha, tail, mr);
     }
-    const int effDim = (dim == 0) ? 1 : dim;
+    const keel::i32 effDim = (dim == 0) ? 1 : dim;
     if (effDim == 1) {
         if (Cx != Cy)
             throw Error("vartest2: X and Y must have the same number of columns along Dim=1",
@@ -756,7 +756,7 @@ kstest(const Value &x, const Value &cdf, keel::f64 alpha, TestTail tail, keel::A
     }
     // Exact finite-n KS distribution (MATLAB default): two-sided Marsaglia,
     // one-sided Birnbaum-Tingey; critical value by inverting the same p(D).
-    const int ni = keel::as<int>(N);
+    const keel::i32 ni = keel::as<keel::i32>(N);
     keel::f64 p, cv;
     if (tail == TestTail::Both) {
         p  = ksOneSampleTwoSidedP(ni, D);
@@ -765,7 +765,7 @@ kstest(const Value &x, const Value &cdf, keel::f64 alpha, TestTail tail, keel::A
         p  = ksOneSampleOneSidedP(ni, D);
         cv = ksCriticalValue([ni](keel::f64 dd){ return ksOneSampleOneSidedP(ni, dd); }, alpha);
     }
-    const int h = (p < alpha) ? 1 : 0;
+    const keel::i32 h = (p < alpha) ? 1 : 0;
 
     return std::make_tuple(Value::scalar(keel::f64(h), mr),
                            Value::scalar(p, mr),
@@ -811,7 +811,7 @@ kstest2(const Value &x, const Value &y, keel::f64 alpha, TestTail tail, keel::Al
     // path). Two-sided = alternating series, one-sided = single leading term.
     const bool twoSided = (tail == TestTail::Both);
     const keel::f64 p  = ksTwoSampleP(n_eff, D, twoSided);
-    const int    h  = (p < alpha) ? 1 : 0;
+    const keel::i32    h  = (p < alpha) ? 1 : 0;
     const keel::f64 cv = ksCriticalValue([n_eff, twoSided](keel::f64 dd){
                           return ksTwoSampleP(n_eff, dd, twoSided); }, alpha);
 
@@ -859,7 +859,7 @@ jbtest(const Value &x, keel::f64 alpha, keel::f64 mctol, keel::Allocator *mr)
         Value oneMinusAlpha = Value::scalar(1.0 - alpha, mr);
         cv = chi2inv(oneMinusAlpha, 2.0, mr).toScalar();
     }
-    const int h = (p < alpha) ? 1 : 0;
+    const keel::i32 h = (p < alpha) ? 1 : 0;
 
     return std::make_tuple(Value::scalar(keel::f64(h), mr),
                            Value::scalar(p, mr),
@@ -889,8 +889,8 @@ signtest(const Value &x, const Value &y_or_m, keel::f64 alpha, TestTail tail, ke
     const keel::f64 m0 = (paired || y_or_m.isEmpty()) ? 0.0 : y_or_m.toScalar();
 
     // Count positive and non-zero diffs.
-    long long n_pos = 0;
-    long long n_eff = 0;
+    keel::i64 n_pos = 0;
+    keel::i64 n_eff = 0;
     for (keel::usize i = 0; i < Nx; ++i) {
         const keel::f64 xi = x.elemAsDouble(i);
         const keel::f64 yi = paired ? y_or_m.elemAsDouble(i) : m0;
@@ -919,7 +919,7 @@ signtest(const Value &x, const Value &y_or_m, keel::f64 alpha, TestTail tail, ke
         }
     }
 
-    const int h = (p < alpha) ? 1 : 0;
+    const keel::i32 h = (p < alpha) ? 1 : 0;
     return std::make_tuple(Value::scalar(p, mr),
                            Value::scalar(keel::f64(h), mr),
                            Value::scalar(keel::f64(n_pos), mr));
@@ -948,13 +948,13 @@ fishertest(const Value &T, keel::f64 alpha, TestTail tail, keel::Allocator *mr)
         return std::lgamma(n + 1.0) - std::lgamma(k + 1.0) - std::lgamma(n - k + 1.0);
     };
 
-    const long long kmin = keel::as<long long>(std::max(0.0, row1 + col1 - Ntot));
-    const long long kmax = keel::as<long long>(std::min(row1, col1));
-    const long long kobs = keel::as<long long>(a);
+    const keel::i64 kmin = keel::as<keel::i64>(std::max(0.0, row1 + col1 - Ntot));
+    const keel::i64 kmax = keel::as<keel::i64>(std::min(row1, col1));
+    const keel::i64 kobs = keel::as<keel::i64>(a);
     const keel::f64 logC_den = lb(Ntot, col1);
-    const long long K = kmax - kmin + 1;
+    const keel::i64 K = kmax - kmin + 1;
     keel::Array<keel::f64> pmf(K);
-    for (long long k = kmin; k <= kmax; ++k) {
+    for (keel::i64 k = kmin; k <= kmax; ++k) {
         const keel::f64 lp = lb(row1, keel::f64(k))
                         + lb(Ntot - row1, col1 - keel::f64(k))
                         - logC_den;
@@ -971,16 +971,16 @@ fishertest(const Value &T, keel::f64 alpha, TestTail tail, keel::Allocator *mr)
             break;
         }
         case TestTail::Right:
-            for (long long k = kobs; k <= kmax; ++k)
+            for (keel::i64 k = kobs; k <= kmax; ++k)
                 p += pmf[keel::as<keel::usize>(k - kmin)];
             break;
         case TestTail::Left:
-            for (long long k = kmin; k <= kobs; ++k)
+            for (keel::i64 k = kmin; k <= kobs; ++k)
                 p += pmf[keel::as<keel::usize>(k - kmin)];
             break;
     }
     if (p > 1.0) p = 1.0;
-    const int h = (p < alpha) ? 1 : 0;
+    const keel::i32 h = (p < alpha) ? 1 : 0;
 
     const keel::f64 OR = (b * c == 0.0)
                        ? std::numeric_limits<keel::f64>::infinity()
@@ -1007,7 +1007,7 @@ fishertest(const Value &T, keel::f64 alpha, TestTail tail, keel::Allocator *mr)
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value, Value>
-chi2gof(const Value &observed, const Value &expected, int nparams, keel::f64 alpha, keel::Allocator *mr)
+chi2gof(const Value &observed, const Value &expected, keel::i32 nparams, keel::f64 alpha, keel::Allocator *mr)
 {
     const keel::usize K = observed.numel();
     if (expected.numel() != K)
@@ -1038,7 +1038,7 @@ chi2gof(const Value &observed, const Value &expected, int nparams, keel::f64 alp
     Value xv = Value::scalar(chi2, mr);
     const keel::f64 cdf = chi2cdf(xv, df, mr).toScalar();
     const keel::f64 p = std::max(0.0, 1.0 - cdf);
-    const int h = (p < alpha) ? 1 : 0;
+    const keel::i32 h = (p < alpha) ? 1 : 0;
     return std::make_tuple(Value::scalar(p, mr),
                            Value::scalar(keel::f64(h), mr),
                            Value::scalar(chi2, mr),
@@ -1053,7 +1053,7 @@ chi2gof(const Value &observed, const Value &expected, int nparams, keel::f64 alp
 // Public API. test = 0 Bartlett, 1 LeveneQuadratic, 2 LeveneAbsolute,
 // 3 BrownForsythe, 4 OBrien.
 std::tuple<Value, Value, Value, Value>
-vartestn_full(const Value &x, const Value &group, int test, keel::Allocator *mr)
+vartestn_full(const Value &x, const Value &group, keel::i32 test, keel::Allocator *mr)
 {
     const keel::usize Nx = x.numel();
     const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
@@ -1195,7 +1195,7 @@ runstest(const Value &x, keel::f64 v_in, keel::f64 alpha, TestTail tail, keel::S
     }
 
     // Build binary sequence; drop values equal to v.
-    keel::Array<int> bin;
+    keel::Array<keel::i32> bin;
     bin.reserve(Nx);
     for (keel::usize i = 0; i < Nx; ++i) {
         const keel::f64 xi = x.elemAsDouble(i);
@@ -1204,11 +1204,11 @@ runstest(const Value &x, keel::f64 v_in, keel::f64 alpha, TestTail tail, keel::S
         else if (xi < v) bin.push_back(0);
         // == v → drop
     }
-    int n1 = 0, n0 = 0;
-    for (int b : bin) (b ? n1 : n0) += 1;
-    int R = 0;
-    int prev = -1;
-    for (int b : bin) { if (b != prev) { ++R; prev = b; } }
+    keel::i32 n1 = 0, n0 = 0;
+    for (keel::i32 b : bin) (b ? n1 : n0) += 1;
+    keel::i32 R = 0;
+    keel::i32 prev = -1;
+    for (keel::i32 b : bin) { if (b != prev) { ++R; prev = b; } }
 
     const auto retNan = [&]() {
         return std::make_tuple(Value::scalar(std::numeric_limits<keel::f64>::quiet_NaN(), mr),
@@ -1231,9 +1231,9 @@ runstest(const Value &x, keel::f64 v_in, keel::f64 alpha, TestTail tail, keel::S
 
     if (exact) {
         // P(R ≤ R_obs) and P(R ≥ R_obs) by enumeration.
-        const int N = n1 + n0;
+        const keel::i32 N = n1 + n0;
         keel::f64 cdfLE = 0.0, cdfGE = 0.0;
-        for (int r = 2; r <= N; ++r) {
+        for (keel::i32 r = 2; r <= N; ++r) {
             const keel::f64 pr = exact_runs_pmf(r, n1, n0);
             if (r <= R) cdfLE += pr;
             if (r >= R) cdfGE += pr;
@@ -1261,7 +1261,7 @@ runstest(const Value &x, keel::f64 v_in, keel::f64 alpha, TestTail tail, keel::S
         }
     }
 
-    const int h = (p < alpha) ? 1 : 0;
+    const keel::i32 h = (p < alpha) ? 1 : 0;
     return std::make_tuple(Value::scalar(p, mr),
                            Value::scalar(keel::f64(h), mr),
                            Value::scalar(keel::f64(R),  mr),
@@ -1346,30 +1346,30 @@ ranksum(const Value &x, const Value &y, keel::f64 alpha, TestTail tail, keel::St
 
     if (exact) {
         // 2D DP: dp[k][s] = # size-k subsets of (2·ranks) summing to s.
-        keel::Array<long long> rk2(Neff);
-        long long total2 = 0;
+        keel::Array<keel::i64> rk2(Neff);
+        keel::i64 total2 = 0;
         for (keel::usize k = 0; k < Neff; ++k) {
-            rk2[k] = keel::as<long long>(std::llround(ranks[k] * 2.0));
+            rk2[k] = keel::as<keel::i64>(std::llround(ranks[k] * 2.0));
             total2 += rk2[k];
         }
         const keel::usize S = keel::as<keel::usize>(total2 + 1);
         keel::Array<keel::f64> dp((nx_eff + 1) * S, 0.0);
         dp[0] = 1.0;
         for (keel::usize k = 0; k < Neff; ++k) {
-            const long long r = rk2[k];
-            for (long long kk = keel::as<long long>(nx_eff) - 1; kk >= 0; --kk) {
-                for (long long s = keel::as<long long>(S) - 1; s >= r; --s)
+            const keel::i64 r = rk2[k];
+            for (keel::i64 kk = keel::as<keel::i64>(nx_eff) - 1; kk >= 0; --kk) {
+                for (keel::i64 s = keel::as<keel::i64>(S) - 1; s >= r; --s)
                     dp[keel::as<keel::usize>(kk + 1) * S + keel::as<keel::usize>(s)] +=
                         dp[keel::as<keel::usize>(kk) * S + keel::as<keel::usize>(s - r)];
             }
         }
-        const long long Wx2 = keel::as<long long>(std::llround(Wx * 2.0));
+        const keel::i64 Wx2 = keel::as<keel::i64>(std::llround(Wx * 2.0));
         keel::f64 total = 0.0;
         for (keel::usize s = 0; s < S; ++s) total += dp[nx_eff * S + s];
         keel::f64 cdfLE = 0.0, cdfGE = 0.0;
-        for (long long s = 0; s <= Wx2 && s < keel::as<long long>(S); ++s)
+        for (keel::i64 s = 0; s <= Wx2 && s < keel::as<keel::i64>(S); ++s)
             cdfLE += dp[nx_eff * S + keel::as<keel::usize>(s)];
-        for (long long s = Wx2; s < keel::as<long long>(S); ++s)
+        for (keel::i64 s = Wx2; s < keel::as<keel::i64>(S); ++s)
             cdfGE += dp[nx_eff * S + keel::as<keel::usize>(s)];
         cdfLE /= total;
         cdfGE /= total;
@@ -1407,7 +1407,7 @@ ranksum(const Value &x, const Value &y, keel::f64 alpha, TestTail tail, keel::St
         }
     }
 
-    const int h = (p < alpha) ? 1 : 0;
+    const keel::i32 h = (p < alpha) ? 1 : 0;
     return std::make_tuple(Value::scalar(p, mr),
                            Value::scalar(keel::f64(h), mr),
                            Value::scalar(Wx, mr),
@@ -1429,7 +1429,7 @@ signrank(const Value &x, const Value &y_or_m, keel::f64 alpha, TestTail tail, ke
     const keel::f64 m0 = (paired || y_or_m.isEmpty()) ? 0.0 : y_or_m.toScalar();
 
     // Collect (|d|, sign) for non-zero diffs.
-    struct DSign { keel::f64 absd; int sign; };
+    struct DSign { keel::f64 absd; keel::i32 sign; };
     keel::Array<DSign> ds;
     ds.reserve(Nx);
     for (keel::usize i = 0; i < Nx; ++i) {
@@ -1487,28 +1487,28 @@ signrank(const Value &x, const Value &y_or_m, keel::f64 alpha, TestTail tail, ke
     if (exact) {
         // Convolve subset-sum count polynomial. Scale ranks by 2 so all
         // (mid-rank averaged) values are integers.
-        keel::Array<long long> rk2(n);
-        long long total2 = 0;
+        keel::Array<keel::i64> rk2(n);
+        keel::i64 total2 = 0;
         for (keel::usize k = 0; k < n; ++k) {
-            rk2[k] = keel::as<long long>(std::llround(ranks[k] * 2.0));
+            rk2[k] = keel::as<keel::i64>(std::llround(ranks[k] * 2.0));
             total2 += rk2[k];
         }
         keel::Array<keel::f64> P(total2 + 1, 0.0);
         P[0] = 1.0;
-        long long cur = 0;
+        keel::i64 cur = 0;
         for (keel::usize k = 0; k < n; ++k) {
-            const long long r = rk2[k];
-            for (long long s = cur + r; s >= r; --s) P[s] += P[s - r];
+            const keel::i64 r = rk2[k];
+            for (keel::i64 s = cur + r; s >= r; --s) P[s] += P[s - r];
             cur += r;
         }
-        const long long W2 = keel::as<long long>(std::llround(Wplus * 2.0));
+        const keel::i64 W2 = keel::as<keel::i64>(std::llround(Wplus * 2.0));
         const keel::f64 total = std::pow(2.0, keel::as<keel::f64>(n));
         // P(W ≤ W+) and P(W ≥ W+).
         keel::f64 cdfLE = 0.0;
-        for (long long s = 0; s <= W2; ++s) cdfLE += P[s];
+        for (keel::i64 s = 0; s <= W2; ++s) cdfLE += P[s];
         cdfLE /= total;
         keel::f64 cdfGE = 0.0;
-        for (long long s = W2; s <= total2; ++s) cdfGE += P[s];
+        for (keel::i64 s = W2; s <= total2; ++s) cdfGE += P[s];
         cdfGE /= total;
         switch (tail) {
             case TestTail::Both:  p = std::min(1.0, 2.0 * std::min(cdfLE, cdfGE)); break;
@@ -1532,7 +1532,7 @@ signrank(const Value &x, const Value &y_or_m, keel::f64 alpha, TestTail tail, ke
         }
     }
 
-    const int h = (p < alpha) ? 1 : 0;
+    const keel::i32 h = (p < alpha) ? 1 : 0;
     return std::make_tuple(Value::scalar(p, mr),
                            Value::scalar(keel::f64(h), mr),
                            Value::scalar(Wplus, mr),
@@ -1625,24 +1625,24 @@ ansaribradley(const Value &x, const Value &y, keel::f64 alpha, TestTail tail,
     // sizes so scaled ranks are exact integers (mid-rank in a tie
     // group of size k has denominator k).
     const bool exact_path = (std::min(m, n) <= 10);
-    long long scale = 1;
+    keel::i64 scale = 1;
     if (exact_path) {
         // Build set of unique tie-group sizes by walking sorted order.
-        keel::Array<long long> grp_sizes;
+        keel::Array<keel::i64> grp_sizes;
         keel::usize ii = 0;
         while (ii < N) {
             keel::usize jj = ii + 1;
             while (jj < N && items[ord[jj]].v == items[ord[ii]].v) ++jj;
-            grp_sizes.push_back(keel::as<long long>(jj - ii));
+            grp_sizes.push_back(keel::as<keel::i64>(jj - ii));
             ii = jj;
         }
-        auto lcm = [](long long a, long long b) -> long long {
+        auto lcm = [](keel::i64 a, keel::i64 b) -> keel::i64 {
             if (a == 0 || b == 0) return 0;
-            long long g = a, h = b;
-            while (h != 0) { long long t = g % h; g = h; h = t; }
+            keel::i64 g = a, h = b;
+            while (h != 0) { keel::i64 t = g % h; g = h; h = t; }
             return a / g * b;
         };
-        for (long long s : grp_sizes) scale = lcm(scale, s);
+        for (keel::i64 s : grp_sizes) scale = lcm(scale, s);
         if (scale > 10000) scale = 10000;   // safety bound
     }
 
@@ -1675,10 +1675,10 @@ ansaribradley(const Value &x, const Value &y, keel::f64 alpha, TestTail tail,
     if (exact_path) {
         // Scale ranks by `scale` (LCM of tie-group sizes) for exact
         // integer DP.
-        keel::Array<long long> rk2(N);
-        long long total2 = 0;
+        keel::Array<keel::i64> rk2(N);
+        keel::i64 total2 = 0;
         for (keel::usize k = 0; k < N; ++k) {
-            rk2[k] = keel::as<long long>(
+            rk2[k] = keel::as<keel::i64>(
                 std::llround(rsorted[k] * keel::as<keel::f64>(scale)));
             total2 += rk2[k];
         }
@@ -1686,21 +1686,21 @@ ansaribradley(const Value &x, const Value &y, keel::f64 alpha, TestTail tail,
         keel::Array<keel::f64> dp((m + 1) * S, 0.0);
         dp[0] = 1.0;
         for (keel::usize k = 0; k < N; ++k) {
-            const long long r = rk2[k];
-            for (long long kk = keel::as<long long>(m) - 1; kk >= 0; --kk) {
-                for (long long s = keel::as<long long>(S) - 1; s >= r; --s)
+            const keel::i64 r = rk2[k];
+            for (keel::i64 kk = keel::as<keel::i64>(m) - 1; kk >= 0; --kk) {
+                for (keel::i64 s = keel::as<keel::i64>(S) - 1; s >= r; --s)
                     dp[keel::as<keel::usize>(kk + 1) * S + keel::as<keel::usize>(s)] +=
                         dp[keel::as<keel::usize>(kk) * S + keel::as<keel::usize>(s - r)];
             }
         }
-        const long long W_scaled = keel::as<long long>(
+        const keel::i64 W_scaled = keel::as<keel::i64>(
             std::llround(W * keel::as<keel::f64>(scale)));
         keel::f64 total = 0.0;
         for (keel::usize s = 0; s < S; ++s) total += dp[m * S + s];
         keel::f64 cdfLE = 0.0, cdfGE = 0.0;
-        for (long long s = 0; s <= W_scaled && s < keel::as<long long>(S); ++s)
+        for (keel::i64 s = 0; s <= W_scaled && s < keel::as<keel::i64>(S); ++s)
             cdfLE += dp[m * S + keel::as<keel::usize>(s)];
-        for (long long s = W_scaled; s < keel::as<long long>(S); ++s)
+        for (keel::i64 s = W_scaled; s < keel::as<keel::i64>(S); ++s)
             cdfGE += dp[m * S + keel::as<keel::usize>(s)];
         cdfLE /= total;
         cdfGE /= total;
@@ -1722,7 +1722,7 @@ ansaribradley(const Value &x, const Value &y, keel::f64 alpha, TestTail tail,
     }
     p_val = std::min(1.0, std::max(0.0, p_val));
 
-    const int h = (p_val < alpha) ? 1 : 0;
+    const keel::i32 h = (p_val < alpha) ? 1 : 0;
     return std::make_tuple(
         Value::scalar(keel::as<keel::f64>(h), mr),
         Value::scalar(p_val, mr),
@@ -1822,7 +1822,7 @@ lillietest(const Value &X, keel::f64 alpha, keel::Allocator *mr)
     const keel::f64 D_critstar = stephensCV(alpha);
     // Convert critical D* back to plain D (MATLAB convention).
     const keel::f64 D_crit = D_critstar / (sqn - 0.01 + 0.85 / sqn);
-    const int h = (D > D_crit) ? 1 : 0;
+    const keel::i32 h = (D > D_crit) ? 1 : 0;
 
     return std::make_tuple(Value::scalar(keel::as<keel::f64>(h), mr),
                            Value::scalar(p_val, mr),

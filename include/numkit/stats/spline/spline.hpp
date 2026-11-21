@@ -29,7 +29,7 @@ namespace numkit::stats {
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Row vector of length `length(t) - k`.
 /// @see augknt
-Value aveknt(const Value &t, int k, keel::Allocator *mr = nullptr);
+Value aveknt(const Value &t, keel::i32 k, keel::Allocator *mr = nullptr);
 
 /// @brief Augment knot sequence (`aug = augknt(knots, k)`).
 ///
@@ -41,7 +41,7 @@ Value aveknt(const Value &t, int k, keel::Allocator *mr = nullptr);
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Augmented knot vector.
 /// @see aveknt, brk2knt
-Value augknt(const Value &knots, int k,
+Value augknt(const Value &knots, keel::i32 k,
              keel::Allocator *mr = nullptr);
 
 /// @brief Replicate breaks by multiplicities (`t = brk2knt(breaks, mults)`).
@@ -81,7 +81,7 @@ knt2brk(const Value &knots, keel::Allocator *mr = nullptr);
 /// @param mr      Memory resource (nullptr → process default).
 /// @return        pp-form spline struct.
 /// @see fnval, fnbrk
-Value ppmak(const Value &breaks, const Value &coefs, int d,
+Value ppmak(const Value &breaks, const Value &coefs, keel::i32 d,
             keel::Allocator *mr = nullptr);
 
 /// @brief Evaluate a pp-form spline (`y = fnval(pp, x)`).
@@ -107,7 +107,7 @@ Value fnval(const Value &pp, const Value &x,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Derivative spline (pp form).
 /// @see fnval, fnint
-Value fnder(const Value &pp, int order,
+Value fnder(const Value &pp, keel::i32 order,
             keel::Allocator *mr = nullptr);
 
 /// @brief Antiderivative of a pp-form spline (`ipp = fnint(pp)`).

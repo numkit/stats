@@ -105,7 +105,7 @@ inline constexpr argcheck::ClassMask kFloatReal =
 // Window semantics shared by isoutlier('mov*') and fillmissing('mov*'):
 // scalar k > 0 → centered (odd k: (k-1)/2 each side; even: one more in
 // back); 2-element [back forward] → as given.
-void parseWindowHalfSpans(const Value &wl, const char *fn, long &hb, long &hf,
+void parseWindowHalfSpans(const Value &wl, const char *fn, keel::i64 &hb, keel::i64 &hf,
                           keel::f64 *hbSpan = nullptr, keel::f64 *hfSpan = nullptr,
                           bool *twoElem = nullptr)
 {
@@ -120,7 +120,7 @@ void parseWindowHalfSpans(const Value &wl, const char *fn, long &hb, long &hf,
     if (wl.numel() == 1) {
         const keel::f64 k = wl.elemAsDouble(0);
         if (!(k > 0.0) || !std::isfinite(k)) bad();
-        const long ki = keel::as<long>(k);
+        const keel::i64 ki = keel::as<keel::i64>(k);
         if (ki % 2 == 1) { hb = hf = (ki - 1) / 2; }
         else             { hb = ki / 2; hf = ki / 2 - 1; }
         if (hbSpan) *hbSpan = 0.5 * k;
@@ -129,8 +129,8 @@ void parseWindowHalfSpans(const Value &wl, const char *fn, long &hb, long &hf,
     } else if (wl.numel() == 2) {
         const keel::f64 b = wl.elemAsDouble(0), f = wl.elemAsDouble(1);
         if (b < 0.0 || f < 0.0 || !std::isfinite(b) || !std::isfinite(f)) bad();
-        hb = keel::as<long>(b);
-        hf = keel::as<long>(f);
+        hb = keel::as<keel::i64>(b);
+        hf = keel::as<keel::i64>(f);
         if (hbSpan) *hbSpan = b;
         if (hfSpan) *hfSpan = f;
         if (twoElem) *twoElem = true;
@@ -254,7 +254,7 @@ ColStats grubbsColumn(const keel::f64 *x, keel::usize n, keel::f64 alpha,
 // from iteration tindex = (last exceeding R)+1 clamped; the mask is the
 // STATIC rule at tindex — exactly locateoutliers 'gesd'.
 ColStats gesdColumn(const keel::f64 *x, keel::usize n, keel::f64 alpha,
-                    long maxOutArg, keel::Allocator *mr)
+                    keel::i64 maxOutArg, keel::Allocator *mr)
 {
     ColStats r;
     r.mask.assign(n, 0);
@@ -292,8 +292,8 @@ ColStats gesdColumn(const keel::f64 *x, keel::usize n, keel::f64 alpha,
         const keel::f64 t = tinv(Value::scalar(pp, mr), dof, mr).toScalar();
         lam[it] = (keel::f64(nm1) - 1.0) * t / std::sqrt((dof + t * t) * keel::f64(nm1));
     }
-    long last = -1;
-    for (long it = 0; it < keel::as<long>(rounds); ++it)
+    keel::i64 last = -1;
+    for (keel::i64 it = 0; it < keel::as<keel::i64>(rounds); ++it)
         if (R[keel::as<keel::usize>(it)] > lam[keel::as<keel::usize>(it)])
             last = it;
     const keel::usize tindex = (last < 0)
@@ -311,8 +311,8 @@ ColStats gesdColumn(const keel::f64 *x, keel::usize n, keel::f64 alpha,
 // One detection run. Moving methods fill per-element center/lo/hi
 // arrays instead of the scalar bounds.
 ColStats detectRun(keel::ArrayRef<keel::f64> x, keel::StringRef method,
-                   keel::f64 tf, long hb, long hf, keel::f64 loP, keel::f64 hiP,
-                   long maxOut, keel::Array<keel::f64> *movCenter,
+                   keel::f64 tf, keel::i64 hb, keel::i64 hf, keel::f64 loP, keel::f64 hiP,
+                   keel::i64 maxOut, keel::Array<keel::f64> *movCenter,
                    keel::Array<keel::f64> *movLo, keel::Array<keel::f64> *movHi,
                    keel::Allocator *mr,
                    const keel::f64 *sp = nullptr, keel::f64 hbSpan = 0.0,
@@ -354,10 +354,10 @@ ColStats detectRun(keel::ArrayRef<keel::f64> x, keel::StringRef method,
                     if (inWin && !std::isnan(x[j])) win.push_back(x[j]);
                 }
             } else {
-                long lo = keel::as<long>(i) - hb; if (lo < 0) lo = 0;
-                long hi = keel::as<long>(i) + hf;
-                if (hi > keel::as<long>(n) - 1) hi = keel::as<long>(n) - 1;
-                for (long j = lo; j <= hi; ++j)
+                keel::i64 lo = keel::as<keel::i64>(i) - hb; if (lo < 0) lo = 0;
+                keel::i64 hi = keel::as<keel::i64>(i) + hf;
+                if (hi > keel::as<keel::i64>(n) - 1) hi = keel::as<keel::i64>(n) - 1;
+                for (keel::i64 j = lo; j <= hi; ++j)
                     if (!std::isnan(x[keel::as<keel::usize>(j)]))
                         win.push_back(x[keel::as<keel::usize>(j)]);
             }
@@ -432,7 +432,7 @@ void isoutlierParse(const Value &A, keel::ArrayRef<Value> in, bool forRmoutliers
         all.reserve(std::size(kMethods) + nvNames.size());
         for (keel::StringRef s : kMethods) all.push_back(s);
         for (keel::StringRef s : nvNames) all.push_back(s);
-        const int hit = argcheck::matchStringChoice(in[0], all.as_ref());
+        const keel::i32 hit = argcheck::matchStringChoice(in[0], all.as_ref());
         if (hit < 0) {
             keel::String in0Str = in[0].toString();
             throw Error(keel::format("isoutlier: unrecognized method or parameter name '{}' "
@@ -485,7 +485,7 @@ void isoutlierParse(const Value &A, keel::ArrayRef<Value> in, bool forRmoutliers
         if (!(dd >= 1.0) || std::floor(dd) != dd)
             throw Error("isoutlier: dim must be a positive integer scalar",
                         0, 0, "isoutlier", "", "numkit:isoutlier:badDim");
-        p.dim = keel::as<int>(dd);
+        p.dim = keel::as<keel::i32>(dd);
         if (p.dim > 2 && A.dims().ndim() > 2)
             throw Error("isoutlier: reducing beyond dimension 2 is not "
                         "supported for N-D arrays in this revision",
@@ -501,7 +501,7 @@ void isoutlierParse(const Value &A, keel::ArrayRef<Value> in, bool forRmoutliers
                     0, 0, "isoutlier", "", "numkit:isoutlier:nvMismatch");
     for (; i + 1 < in.size(); i += 2) {
         if (!isStringValue(in[i])) continue;
-        const int hit = argcheck::matchStringChoice(in[i], nvNames);
+        const keel::i32 hit = argcheck::matchStringChoice(in[i], nvNames);
         if (hit < 0) {
             keel::String iniStr = in[i].toString();
             throw Error(keel::format("isoutlier: unrecognized parameter name '{}'",
@@ -537,7 +537,7 @@ void isoutlierParse(const Value &A, keel::ArrayRef<Value> in, bool forRmoutliers
                 throw Error("isoutlier: MaxNumOutliers must be a positive "
                             "integer scalar",
                             0, 0, "isoutlier", "", "numkit:isoutlier:badMaxNum");
-            p.maxOut = keel::as<long>(mo);
+            p.maxOut = keel::as<keel::i64>(mo);
         } else if (name == "minnumoutliers") {
             const keel::f64 mo = (v.isNumeric() && !v.isComplex() && v.numel() == 1)
                                   ? v.elemAsDouble(0) : -1.0;
@@ -545,7 +545,7 @@ void isoutlierParse(const Value &A, keel::ArrayRef<Value> in, bool forRmoutliers
                 throw Error("rmoutliers: MinNumOutliers must be a nonnegative "
                             "integer scalar",
                             0, 0, "rmoutliers", "", "numkit:rmoutliers:badMinNum");
-            p.minNum = keel::as<long>(mo);
+            p.minNum = keel::as<keel::i64>(mo);
             p.dropIdx.push_back(i);
             p.dropIdx.push_back(i + 1);
         } else if (name == "outlierlocations") {
@@ -589,7 +589,7 @@ void isoutlierApplyTfDefaults(IsOutlierPlan &p, const Value &A)
             dlen = keel::as<keel::usize>(A.dims().dim(p.dim - 1));
         } else {
             // first non-singleton dim (row vectors operate along dim 2)
-            for (int k = 0; k < A.dims().ndim(); ++k) {
+            for (keel::i32 k = 0; k < A.dims().ndim(); ++k) {
                 if (A.dims().dim(k) > 1) {
                     dlen = keel::as<keel::usize>(A.dims().dim(k));
                     break;
@@ -632,10 +632,10 @@ IsOutlierOut isoutlier_full(const Value &A, keel::ArrayRef<Value> in,
                     0, 0, "isoutlier", "", "numkit:isoutlier:outlierLocations");
     isoutlierApplyTfDefaults(p, A);
 
-    int dim = p.dim;
+    keel::i32 dim = p.dim;
     if (dim == 0) {
         dim = 1;
-        for (int k = 0; k < A.dims().ndim(); ++k) {
+        for (keel::i32 k = 0; k < A.dims().ndim(); ++k) {
             if (A.dims().dim(k) > 1) { dim = k + 1; break; }
         }
         if (dim > 2) dim = 2;   // N-D beyond dim 2: reduce in the dim-2 view
@@ -742,7 +742,7 @@ RmOutliersOut rmoutliers_full(const Value &A, keel::ArrayRef<Value> in,
     // Outlier map: explicit override or the detector. The 3rd..6th
     // outputs mirror isoutlier's (NaN bounds with an explicit override).
     Value map;
-    int dim = p.dim;
+    keel::i32 dim = p.dim;
     if (dim == 0) dim = 1;
     IsOutlierOut iso;
     if (locs) {
@@ -785,7 +785,7 @@ RmOutliersOut rmoutliers_full(const Value &A, keel::ArrayRef<Value> in,
     }
 
     const bool isVec = (A.dims().isVector() || A.isScalar());
-    const long minNum = std::max<long>(p.minNum, 1);
+    const keel::i64 minNum = std::max<keel::i64>(p.minNum, 1);
     auto putB = [&](Value &B, keel::usize lin, keel::f64 v) {
         if (single) B.singleDataMut()[lin] = keel::as<keel::f32>(v);
         else        B.doubleDataMut()[lin] = v;
@@ -891,8 +891,8 @@ RmMissingOut rmmissing_full(const Value &A, keel::ArrayRef<Value> in,
         throw Error("rmmissing: N-D arrays are not supported",
                     0, 0, "rmmissing", "", "numkit:rmmissing:ndArrays");
 
-    int dim = 0;
-    long minNum = 1;
+    keel::i32 dim = 0;
+    keel::i64 minNum = 1;
     if (!in.empty() && !isStringValue(in[0])) {
         const Value &dv = in[0];
         const keel::f64 dd = (dv.isNumeric() && !dv.isComplex() && dv.numel() == 1)
@@ -900,7 +900,7 @@ RmMissingOut rmmissing_full(const Value &A, keel::ArrayRef<Value> in,
         if (std::floor(dd) != dd || dd < 1.0 || dd > 2.0)
             throw Error("rmmissing: dimension must be 1 or 2",
                         0, 0, "rmmissing", "", "numkit:rmmissing:badDim");
-        dim = keel::as<int>(dd);
+        dim = keel::as<keel::i32>(dd);
     }
     for (keel::usize i = isStringValue(in.empty() ? Value() : in[0]) || in.empty()
                              ? 0 : 1;
@@ -908,7 +908,7 @@ RmMissingOut rmmissing_full(const Value &A, keel::ArrayRef<Value> in,
         if (i >= in.size() || !isStringValue(in[i])) continue;
         static constexpr keel::StringRef kRmNv[] = {"minnummissing",
                                                     "datavariables"};
-        const int hit = argcheck::matchStringChoice(
+        const keel::i32 hit = argcheck::matchStringChoice(
             in[i], keel::ArrayRef<keel::StringRef>(kRmNv));
         if (hit == 0) {
             const Value &v = in[i + 1];
@@ -918,7 +918,7 @@ RmMissingOut rmmissing_full(const Value &A, keel::ArrayRef<Value> in,
                 throw Error("rmmissing: MinNumMissing must be a nonnegative "
                             "integer scalar",
                             0, 0, "rmmissing", "", "numkit:rmmissing:badMinNum");
-            minNum = keel::as<long>(mo);
+            minNum = keel::as<keel::i64>(mo);
         } else if (hit == 1) {
             throw Error("rmmissing: 'DataVariables' is supported only for "
                         "table inputs",
@@ -1135,7 +1135,7 @@ FillMissingOut fillmissing_full(
     keel::f64 fhA = 0.0, fhB = 0.0;
     bool fhTwoElem = false;
     keel::String m;
-    long hb = 0, hf = 0;
+    keel::i64 hb = 0, hf = 0;
     keel::f64 hbSpan = 0.0, hfSpan = 0.0;
     bool winTwoElem = false;
     keel::usize knnK = 1;
@@ -1177,7 +1177,7 @@ FillMissingOut fillmissing_full(
         }
         i = 2;
     } else if (isStringValue(in[0])) {
-        const int mhit = argcheck::matchStringChoice(in[0], methods);
+        const keel::i32 mhit = argcheck::matchStringChoice(in[0], methods);
         if (mhit < 0) {
             keel::String in0Str = in[0].toString();
             throw Error(keel::format("{}: fill method must be one of "
@@ -1220,7 +1220,7 @@ FillMissingOut fillmissing_full(
     }
 
     // Optional positional dim.
-    int dim = 0;
+    keel::i32 dim = 0;
     if (i < in.size() && !isStringValue(in[i]) &&
         (in[i].isNumeric() || in[i].isLogical())) {
         const Value &dv = in[i];
@@ -1231,7 +1231,7 @@ FillMissingOut fillmissing_full(
                                      "integer scalar", fn),
                         0, 0, fn, "",
                         keel::format("numkit:{}:dimensionInvalid", fn));
-        dim = keel::as<int>(dd);
+        dim = keel::as<keel::i32>(dd);
         ++i;
     }
 
@@ -1243,7 +1243,7 @@ FillMissingOut fillmissing_full(
         keel::ArrayRef<keel::StringRef>(kFmNv);
     const Value *constRaw = (m.as_ref() == "constant") ? &in[1] : nullptr;
     const Value *endRaw = nullptr;
-    int endMode = 0;   // 0 extrap / 1 none / 2 nearest / 3 prevEnd / 4 nextEnd / 5 const
+    keel::i32 endMode = 0;   // 0 extrap / 1 none / 2 nearest / 3 prevEnd / 4 nextEnd / 5 const
     bool haveEnd = false;
     keel::f64 endConst = 0.0;
     const Value *missingLocations = nullptr;
@@ -1261,7 +1261,7 @@ FillMissingOut fillmissing_full(
         if (!isStringValue(in[i]))
             throw Error(keel::format("{}: expected a parameter name", fn),
                         0, 0, fn, "", keel::format("numkit:{}:nameValuePairs", fn));
-        const int hit = argcheck::matchStringChoice(in[i], nvNames);
+        const keel::i32 hit = argcheck::matchStringChoice(in[i], nvNames);
         if (hit < 0) {
             keel::String iniStr = in[i].toString();
             throw Error(keel::format("{}: unrecognized parameter name '{}'",
@@ -1280,7 +1280,7 @@ FillMissingOut fillmissing_full(
             if (isStringValue(v)) {
                 static constexpr keel::StringRef kEndModes[] = {
                     "extrap", "previous", "next", "nearest", "none"};
-                const int eh = argcheck::matchStringChoice(
+                const keel::i32 eh = argcheck::matchStringChoice(
                     v, keel::ArrayRef<keel::StringRef>(kEndModes));
                 if (eh < 0)
                     throw Error(keel::format("{}: 'EndValues' must be "
@@ -1332,7 +1332,7 @@ FillMissingOut fillmissing_full(
             if (isStringValue(v)) {
                 static constexpr keel::StringRef kDist[] = {
                     "euclidean", "seuclidean"};
-                const int dh = argcheck::matchStringChoice(
+                const keel::i32 dh = argcheck::matchStringChoice(
                     v, keel::ArrayRef<keel::StringRef>(kDist));
                 if (dh < 0)
                     throw Error(keel::format("{}: 'Distance' must be "
@@ -1841,11 +1841,11 @@ FillMissingOut fillmissing_full(
                         }
                     }
                 } else {
-                    long lo = keel::as<long>(j) - hb; if (lo < 0) lo = 0;
-                    long hi = keel::as<long>(j) + hf;
-                    if (hi > keel::as<long>(runLen) - 1)
-                        hi = keel::as<long>(runLen) - 1;
-                    for (long q = lo; q <= hi; ++q) {
+                    keel::i64 lo = keel::as<keel::i64>(j) - hb; if (lo < 0) lo = 0;
+                    keel::i64 hi = keel::as<keel::i64>(j) + hf;
+                    if (hi > keel::as<keel::i64>(runLen) - 1)
+                        hi = keel::as<keel::i64>(runLen) - 1;
+                    for (keel::i64 q = lo; q <= hi; ++q) {
                         const keel::usize qi = keel::as<keel::usize>(q);
                         if (!origMiss[qi]) {
                             winRe.push_back(origRe[qi]);
@@ -2030,7 +2030,7 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
     // degree / bp / nanflag / NV contracts.
     argcheck::requireClassSet(x, kFloatComplex, "detrend");
 
-    int polyDeg = 1;
+    keel::i32 polyDeg = 1;
     keel::Array<keel::f64> bp;                  // sample-axis positions (raw)
     bool bpLogical = false;
     keel::Array<keel::usize> bpLogIdx;
@@ -2061,7 +2061,7 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
                             "non-negative integer scalar, 'constant', or "
                             "'linear'",
                             0, 0, "detrend", "", "numkit:detrend:invalidTrendInput");
-            polyDeg = keel::as<int>(a0.elemAsDouble(0));
+            polyDeg = keel::as<keel::i32>(a0.elemAsDouble(0));
             i = 1;
         } else {
             throw Error("detrend: polynomial degree must be a non-negative "
@@ -2204,7 +2204,7 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
             keel::Array<keel::f64> V(m * nb, 0.0, sc.allocator());
             for (keel::usize j = 0; j < m; ++j) {
                 const keel::f64 a = xs[j] / scale;
-                for (int pw = polyDeg; pw >= 1; --pw)
+                for (keel::i32 pw = polyDeg; pw >= 1; --pw)
                     V[keel::as<keel::usize>(polyDeg - pw) * m + j] =
                         std::pow(a, keel::f64(pw));
                 V[keel::as<keel::usize>(polyDeg) * m + j] = 1.0;
@@ -2245,7 +2245,7 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
                 keel::Array<keel::f64> yseg(seg.size(), sc.allocator());
                 for (keel::usize q = 0; q < seg.size(); ++q) {
                     const keel::f64 a = (sd > 0.0) ? (xs[seg[q]] - ms) / sd : 0.0;
-                    for (int pw = polyDeg; pw >= 1; --pw)
+                    for (keel::i32 pw = polyDeg; pw >= 1; --pw)
                         V[keel::as<keel::usize>(polyDeg - pw) * seg.size() + q] =
                             std::pow(a, keel::f64(pw));
                     V[keel::as<keel::usize>(polyDeg) * seg.size() + q] = 1.0;
@@ -2288,7 +2288,7 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
         keel::Array<keel::f64> W(m * nb, 0.0, sc.allocator());
         for (keel::usize rr = 0; rr < nRamp; ++rr) {
             const keel::f64 bk = knots[rr] / scaleS;
-            for (int pw = polyDeg; pw >= 1; --pw) {
+            for (keel::i32 pw = polyDeg; pw >= 1; --pw) {
                 keel::f64 *col = W.data() +
                     (rr * keel::as<keel::usize>(polyDeg) +
                      keel::as<keel::usize>(polyDeg - pw)) * m;

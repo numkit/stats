@@ -138,7 +138,7 @@ Value gamfit(const Value &x, const Value &censoring, const Value &freq,
         }
         keel::f64 a = (3.0 - s + std::sqrt((s - 3.0) * (s - 3.0) + 24.0 * s))
                    / (12.0 * s);
-        for (int it = 0; it < 50; ++it) {
+        for (keel::i32 it = 0; it < 50; ++it) {
             const keel::f64 fa = std::log(a) - digamma(a) - s;
             const keel::f64 fpa = 1.0 / a - trigamma(a);
             const keel::f64 step = fa / fpa;
@@ -180,7 +180,7 @@ Value gamfit(const Value &x, const Value &censoring, const Value &freq,
 
     auto nll = [&](keel::f64 aa, keel::f64 bb) { return nll_gam_full(aa, bb, xv, cens, wf, mr); };
     keel::f64 f_cur = nll(a, b);
-    for (int it = 0; it < 100; ++it) {
+    for (keel::i32 it = 0; it < 100; ++it) {
         const keel::f64 ha = std::max(std::fabs(a), 1.0) * 1e-5;
         const keel::f64 hb = std::max(std::fabs(b), 1.0) * 1e-5;
         const keel::f64 ga = (nll(a + ha, b) - nll(a - ha, b)) / (2.0 * ha);
@@ -197,7 +197,7 @@ Value gamfit(const Value &x, const Value &censoring, const Value &freq,
         const keel::f64 db = (-gb * Haa + ga * Hab) / det;
         keel::f64 sc = 1.0;
         bool ok = false;
-        for (int bt = 0; bt < 30; ++bt) {
+        for (keel::i32 bt = 0; bt < 30; ++bt) {
             const keel::f64 an = a + sc * da;
             const keel::f64 bn = b + sc * db;
             if (an > 0.0 && bn > 0.0) {
@@ -302,7 +302,7 @@ Value wblfit(const Value &x, const Value &censoring, const Value &freq,
         keel::f64 b = 3.141592653589793 / (sdLog * std::sqrt(6.0) + 1e-12);
         if (!(b > 0.1) || !std::isfinite(b)) b = 1.0;
 
-        for (int it = 0; it < 100; ++it) {
+        for (keel::i32 it = 0; it < 100; ++it) {
             keel::f64 S0 = 0.0, S1 = 0.0, S2 = 0.0;
             for (keel::usize i = 0; i < n; ++i) {
                 const keel::f64 w = std::pow(xv[i], b);
@@ -369,7 +369,7 @@ Value wblfit(const Value &x, const Value &censoring, const Value &freq,
         return nll_wbl_full(a, b, xv, cens, wf);
     };
     keel::f64 f_cur = nll_at_b(bcur);
-    for (int it = 0; it < 100; ++it) {
+    for (keel::i32 it = 0; it < 100; ++it) {
         const keel::f64 h = std::max(std::fabs(bcur), 1.0) * 1e-6;
         const keel::f64 g = (nll_at_b(bcur + h) - nll_at_b(bcur - h)) / (2.0 * h);
         const keel::f64 H = (nll_at_b(bcur + h) - 2.0 * f_cur + nll_at_b(bcur - h))
@@ -380,7 +380,7 @@ Value wblfit(const Value &x, const Value &censoring, const Value &freq,
         // Backtracking.
         keel::f64 sc = 1.0;
         bool ok = false;
-        for (int bt = 0; bt < 30; ++bt) {
+        for (keel::i32 bt = 0; bt < 30; ++bt) {
             bn = bcur - sc * step;
             if (bn > 0.0) {
                 const keel::f64 f_new = nll_at_b(bn);
@@ -445,7 +445,7 @@ Value betafit(const Value &x, keel::Allocator *mr)
 
     // Newton on (a, b). 2x2 system with diagonal trigamma minus
     // ψ'(a+b) on both off-diagonal entries.
-    for (int it = 0; it < 100; ++it) {
+    for (keel::i32 it = 0; it < 100; ++it) {
         const keel::f64 psiAB = digamma(a + b);
         const keel::f64 f1 = digamma(a) - psiAB - sLogX;
         const keel::f64 f2 = digamma(b) - psiAB - sLog1X;
@@ -502,7 +502,7 @@ Value nbinfit(const Value &x, keel::Allocator *mr)
 
     // Newton on the profile log-likelihood in r (p = r/(r + meanX)).
     //   d/dr log L = sum [ψ(x_i + r) - ψ(r)] + n [log(r/(r + meanX))]
-    for (int it = 0; it < 100; ++it) {
+    for (keel::i32 it = 0; it < 100; ++it) {
         const keel::f64 frac = r / (r + meanX);
         keel::f64 S1 = 0.0, S2 = 0.0;
         for (keel::f64 v : xv) {
@@ -654,7 +654,7 @@ Value evfit(const Value &x, const Value &censoring, const Value &freq,
         keel::f64 x_max = xv[0];
         for (keel::f64 v : xv) if (v > x_max) x_max = v;
         keel::f64 T = 0.0;
-        for (int it = 0; it < 100; ++it) {
+        for (keel::i32 it = 0; it < 100; ++it) {
             T = 0.0; keel::f64 U = 0.0, V = 0.0;
             for (keel::f64 v : xv) {
                 const keel::f64 e = std::exp((v - x_max) / sigma);
@@ -685,7 +685,7 @@ Value evfit(const Value &x, const Value &censoring, const Value &freq,
                 - nll_ev_full(m, s - hs, xv, cens, wf)) / (2 * hs);
         };
         keel::f64 f_cur = nll_ev_full(mu, sigma, xv, cens, wf);
-        for (int it = 0; it < 100; ++it) {
+        for (keel::i32 it = 0; it < 100; ++it) {
             keel::f64 gm, gs;
             grad(mu, sigma, gm, gs);
             if (std::sqrt(gm * gm + gs * gs) < 1e-12) break;
@@ -707,7 +707,7 @@ Value evfit(const Value &x, const Value &censoring, const Value &freq,
             const keel::f64 ds = (-gs * Hmm + gm * Hms) / det;
             keel::f64 step = 1.0;
             bool ok = false;
-            for (int bt = 0; bt < 30; ++bt) {
+            for (keel::i32 bt = 0; bt < 30; ++bt) {
                 const keel::f64 mu_new = mu + step * dm;
                 const keel::f64 s_new  = sigma + step * ds;
                 if (s_new > 0.0) {
@@ -826,7 +826,7 @@ Value gpfit(const Value &x, keel::Allocator *mr)
         f0 = gp_nll(k_hat, sigma_hat, xv);
     }
 
-    for (int it = 0; it < 100; ++it) {
+    for (keel::i32 it = 0; it < 100; ++it) {
         keel::f64 gk, gs;
         gp_nll_grad(k_hat, sigma_hat, xv, gk, gs);
         const keel::f64 gnorm = std::sqrt(gk * gk + gs * gs);
@@ -854,7 +854,7 @@ Value gpfit(const Value &x, keel::Allocator *mr)
         // Backtracking line search with feasibility guard.
         keel::f64 step = 1.0;
         bool improved = false;
-        for (int bt = 0; bt < 30; ++bt) {
+        for (keel::i32 bt = 0; bt < 30; ++bt) {
             const keel::f64 k_new = k_hat + step * dk;
             const keel::f64 s_new = sigma_hat + step * ds;
             if (s_new > 0.0 && (k_new >= 0.0
@@ -1169,7 +1169,7 @@ Value gevfit(const Value &x, keel::Allocator *mr)
     }
 
     auto nll = [&](keel::f64 K, keel::f64 S, keel::f64 M) { return nll_gev(K, S, M, xv); };
-    for (int it = 0; it < 200; ++it) {
+    for (keel::i32 it = 0; it < 200; ++it) {
         const keel::f64 hk = std::max(std::fabs(k), 0.5) * 1e-5;
         const keel::f64 hs = std::max(std::fabs(sigma), 1.0) * 1e-5;
         const keel::f64 hm = std::max(std::fabs(mu), 1.0) * 1e-5;
@@ -1214,7 +1214,7 @@ Value gevfit(const Value &x, keel::Allocator *mr)
         // Backtracking line search.
         keel::f64 sc = 1.0;
         bool ok = false;
-        for (int bt = 0; bt < 30; ++bt) {
+        for (keel::i32 bt = 0; bt < 30; ++bt) {
             const keel::f64 kn = k + sc * dk;
             const keel::f64 sn = sigma + sc * ds;
             const keel::f64 mn = mu + sc * dm;
@@ -1278,7 +1278,7 @@ Value gevfit_ci(const Value &x, keel::f64 alpha, keel::Allocator *mr)
     Value out = Value::matrix(2, 3, ValueType::DOUBLE, mr);
     keel::f64 *od = out.doubleDataMut();
     if (std::fabs(det) < 1e-300) {
-        for (int i = 0; i < 6; ++i) od[i] = std::numeric_limits<keel::f64>::quiet_NaN();
+        for (keel::i32 i = 0; i < 6; ++i) od[i] = std::numeric_limits<keel::f64>::quiet_NaN();
         return out;
     }
     // V_jj = cofactor_jj / det.

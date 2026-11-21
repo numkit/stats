@@ -225,12 +225,12 @@ inline keel::f64 row_distance(const keel::f64 *x, const keel::f64 *y, keel::usiz
         case Metric::Correlation:
             return correlation_distance(x, y, D);
         case Metric::Hamming: {
-            int diff = 0;
+            keel::i32 diff = 0;
             for (keel::usize k = 0; k < D; ++k) if (x[k] != y[k]) ++diff;
             return keel::f64(diff) / keel::f64(D);
         }
         case Metric::Jaccard: {
-            int diff = 0, considered = 0;
+            keel::i32 diff = 0, considered = 0;
             for (keel::usize k = 0; k < D; ++k) {
                 const bool xi = x[k] != 0.0, yi = y[k] != 0.0;
                 if (xi || yi) {

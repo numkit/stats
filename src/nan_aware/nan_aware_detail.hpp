@@ -29,7 +29,7 @@ namespace numkit::stats {
 
 namespace {
 
-[[maybe_unused]] void validateNormFlag(int w, const char *fn)
+[[maybe_unused]] void validateNormFlag(keel::i32 w, const char *fn)
 {
     if (w != 0 && w != 1)
         throw Error(keel::format("{}: normalization flag must be 0 or 1", fn),

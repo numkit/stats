@@ -159,8 +159,8 @@ lognfit(const Value &x, keel::f64 alpha, const Value &cens, const Value &freq, k
     keel::f64 *pd = parm.doubleDataMut();
     keel::f64 *cd = pci.doubleDataMut();
     auto fail = [&]() {
-        for (int i = 0; i < 2; ++i) pd[i] = nan;
-        for (int i = 0; i < 4; ++i) cd[i] = nan;
+        for (keel::i32 i = 0; i < 2; ++i) pd[i] = nan;
+        for (keel::i32 i = 0; i < 4; ++i) cd[i] = nan;
         return std::make_tuple(std::move(parm), std::move(pci));
     };
     if (N < 2) return fail();
@@ -417,7 +417,7 @@ keel::f64 lognlike_full(keel::f64 mu, keel::f64 sigma, const Value &x,
 {
     const keel::f64 NaNd = std::numeric_limits<keel::f64>::quiet_NaN();
     auto setAvarNaN = [&]() {
-        if (avarOut) { for (int i = 0; i < 4; ++i) avarOut[i] = NaNd; }
+        if (avarOut) { for (keel::i32 i = 0; i < 4; ++i) avarOut[i] = NaNd; }
     };
     const keel::usize N = x.numel();
     if (N == 0) { setAvarNaN(); return 0.0; }

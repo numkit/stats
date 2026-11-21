@@ -67,8 +67,8 @@ inline keel::f64 gammainc_scalar(keel::f64 xx, keel::f64 a, keel::Allocator *mr)
     const keel::f64 halfX = x / 2.0;
     keel::f64 Pj = std::exp(-halfL);
     keel::f64 sum = 0.0;
-    const int maxIter = 2000;
-    for (int j = 0; j < maxIter; ++j) {
+    const keel::i32 maxIter = 2000;
+    for (keel::i32 j = 0; j < maxIter; ++j) {
         const keel::f64 cdfTerm = gammainc_scalar(halfX, k / 2.0 + keel::f64(j), mr);
         const keel::f64 contrib = Pj * cdfTerm;
         sum += contrib;

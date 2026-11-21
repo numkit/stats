@@ -31,9 +31,9 @@ void kmeans_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                 keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "kmeans");  // no max: name-value tail in the reference
-    const int K = (int)args[1].toScalar();
-    int max_iter  = 100;
-    int replicates = 1;
+    const keel::i32 K = (keel::i32)args[1].toScalar();
+    keel::i32 max_iter  = 100;
+    keel::i32 replicates = 1;
     auto lower = [](keel::StringRef sv) {
         keel::String s = keel::String::from(sv);
         for (auto &c : s) c = keel::to_ascii_lower(c);
@@ -43,8 +43,8 @@ void kmeans_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         if (!(args[i].isChar() || args[i].isString())) continue;
         const keel::String key = lower(args[i].toString());
         const Value &v = args[i + 1];
-        if      (key == "maxiter")    max_iter   = (int)v.toScalar();
-        else if (key == "replicates") replicates = (int)v.toScalar();
+        if      (key == "maxiter")    max_iter   = (keel::i32)v.toScalar();
+        else if (key == "replicates") replicates = (keel::i32)v.toScalar();
         else if (key == "distance") {
             const keel::String dn = lower(v.toString());
             if (dn != "sqeuclidean" && dn != "squaredeuclidean")

@@ -43,7 +43,7 @@ namespace numkit::stats {
 /// @return          Variance reduced along `dim`.
 /// @throws Error    `normFlag` not in `{0, 1}` (`m:var:badNormFlag`).
 /// @see stdev
-Value var(const Value &x, int normFlag = 0, int dim = 0, keel::Allocator *mr = nullptr);
+Value var(const Value &x, keel::i32 normFlag = 0, keel::i32 dim = 0, keel::Allocator *mr = nullptr);
 
 /// @brief Sample / population standard deviation (`y = std(X, normFlag, dim)`).
 ///
@@ -55,7 +55,7 @@ Value var(const Value &x, int normFlag = 0, int dim = 0, keel::Allocator *mr = n
 /// @param mr        Memory resource (nullptr → process default).
 /// @return          Standard deviation reduced along `dim`.
 /// @see var
-Value stdev(const Value &x, int normFlag = 0, int dim = 0, keel::Allocator *mr = nullptr);
+Value stdev(const Value &x, keel::i32 normFlag = 0, keel::i32 dim = 0, keel::Allocator *mr = nullptr);
 
 /// @brief Median along `dim` (`y = median(X, dim)`).
 ///
@@ -67,7 +67,7 @@ Value stdev(const Value &x, int normFlag = 0, int dim = 0, keel::Allocator *mr =
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     Median reduced along `dim`.
 /// @see quantile, prctile
-Value median(const Value &x, int dim = 0, keel::Allocator *mr = nullptr);
+Value median(const Value &x, keel::i32 dim = 0, keel::Allocator *mr = nullptr);
 
 /// @brief Empirical quantile (`q = quantile(X, p, dim)`).
 ///
@@ -81,7 +81,7 @@ Value median(const Value &x, int dim = 0, keel::Allocator *mr = nullptr);
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     Quantile(s) along `dim`.
 /// @see prctile, median
-Value quantile(const Value &x, const Value &p, int dim = 0, keel::Allocator *mr = nullptr);
+Value quantile(const Value &x, const Value &p, keel::i32 dim = 0, keel::Allocator *mr = nullptr);
 
 /// @brief Empirical percentile (`q = prctile(X, p, dim)`).
 ///
@@ -93,7 +93,7 @@ Value quantile(const Value &x, const Value &p, int dim = 0, keel::Allocator *mr 
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     Percentile(s) along `dim`.
 /// @see quantile
-Value prctile(const Value &x, const Value &p, int dim = 0, keel::Allocator *mr = nullptr);
+Value prctile(const Value &x, const Value &p, keel::i32 dim = 0, keel::Allocator *mr = nullptr);
 
 /// @brief Mode and frequency (`[m, f] = mode(X, dim)`).
 ///
@@ -105,7 +105,7 @@ Value prctile(const Value &x, const Value &p, int dim = 0, keel::Allocator *mr =
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     `(mode_value, frequency)` along `dim`.
 std::tuple<Value, Value>
-mode(const Value &x, int dim = 0, keel::Allocator *mr = nullptr);
+mode(const Value &x, keel::i32 dim = 0, keel::Allocator *mr = nullptr);
 
 // nan-aware reductions and higher moments moved to companion headers:
 //   <nk/stats/nan_aware/nan_aware.hpp>
@@ -122,7 +122,7 @@ mode(const Value &x, int dim = 0, keel::Allocator *mr = nullptr);
 /// @param mr        Memory resource (nullptr → process default).
 /// @return          Covariance matrix.
 /// @see corrcoef
-Value cov(const Value &x, int normFlag = 0, keel::Allocator *mr = nullptr);
+Value cov(const Value &x, keel::i32 normFlag = 0, keel::Allocator *mr = nullptr);
 
 /// @brief Joint covariance of two vectors (`C = cov(X, Y, normFlag)`).
 ///
@@ -134,7 +134,7 @@ Value cov(const Value &x, int normFlag = 0, keel::Allocator *mr = nullptr);
 /// @param mr        Memory resource (nullptr → process default).
 /// @return          `2 × 2` joint covariance matrix.
 /// @see corrcoef
-Value cov(const Value &x, const Value &y, int normFlag = 0, keel::Allocator *mr = nullptr);
+Value cov(const Value &x, const Value &y, keel::i32 normFlag = 0, keel::Allocator *mr = nullptr);
 
 /// @brief Pearson correlation matrix (`R = corrcoef(X)`).
 ///
@@ -162,7 +162,7 @@ Value corrcoef(const Value &x, const Value &y, keel::Allocator *mr = nullptr);
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     `(min, max)` reduced along `dim`.
 std::tuple<Value, Value>
-bounds(const Value &x, int dim = 0, keel::Allocator *mr = nullptr);
+bounds(const Value &x, keel::i32 dim = 0, keel::Allocator *mr = nullptr);
 
 /// @brief Interquartile range (`r = iqr(X, dim)`).
 ///
@@ -173,7 +173,7 @@ bounds(const Value &x, int dim = 0, keel::Allocator *mr = nullptr);
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     IQR reduced along `dim`.
 /// @see quantile
-Value iqr(const Value &x, int dim = 0, keel::Allocator *mr = nullptr);
+Value iqr(const Value &x, keel::i32 dim = 0, keel::Allocator *mr = nullptr);
 
 /// @brief `k` largest values along `dim` (`y = maxk(X, k, dim)`).
 ///
@@ -185,7 +185,7 @@ Value iqr(const Value &x, int dim = 0, keel::Allocator *mr = nullptr);
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     `k` largest values along `dim`.
 /// @see mink
-Value maxk(const Value &x, int k, int dim = 0, keel::Allocator *mr = nullptr);
+Value maxk(const Value &x, keel::i32 k, keel::i32 dim = 0, keel::Allocator *mr = nullptr);
 
 /// @brief `k` smallest values along `dim` (`y = mink(X, k, dim)`).
 ///
@@ -197,7 +197,7 @@ Value maxk(const Value &x, int k, int dim = 0, keel::Allocator *mr = nullptr);
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     `k` smallest values along `dim`.
 /// @see maxk
-Value mink(const Value &x, int k, int dim = 0, keel::Allocator *mr = nullptr);
+Value mink(const Value &x, keel::i32 k, keel::i32 dim = 0, keel::Allocator *mr = nullptr);
 
 /// @brief Root-mean-square error (`e = rmse(F, A, dim)`).
 ///
@@ -209,11 +209,11 @@ Value mink(const Value &x, int k, int dim = 0, keel::Allocator *mr = nullptr);
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     RMSE reduced along `dim`.
 /// @see mape
-Value rmse(const Value &f, const Value &a, int dim = 0, keel::Allocator *mr = nullptr);
+Value rmse(const Value &f, const Value &a, keel::i32 dim = 0, keel::Allocator *mr = nullptr);
 struct ErrorMetricOpts;
 /// @brief RMSE with the full flag/Weights contract (omitnan + weights).
 /// @see parseErrorMetricOpts in descriptive_extras_detail.hpp
-Value rmse(const Value &f, const Value &a, int dim, const ErrorMetricOpts &o,
+Value rmse(const Value &f, const Value &a, keel::i32 dim, const ErrorMetricOpts &o,
            keel::Allocator *mr = nullptr);
 
 /// @brief Mean absolute percentage error (`e = mape(F, A, dim)`).
@@ -227,10 +227,10 @@ Value rmse(const Value &f, const Value &a, int dim, const ErrorMetricOpts &o,
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     MAPE reduced along `dim`.
 /// @see rmse
-Value mape(const Value &f, const Value &a, int dim = 0, keel::Allocator *mr = nullptr);
+Value mape(const Value &f, const Value &a, keel::i32 dim = 0, keel::Allocator *mr = nullptr);
 /// @brief MAPE with the full flag/Weights contract (omitnan/omitzero +
 /// weights).
-Value mape(const Value &f, const Value &a, int dim, const ErrorMetricOpts &o,
+Value mape(const Value &f, const Value &a, keel::i32 dim, const ErrorMetricOpts &o,
            keel::Allocator *mr = nullptr);
 
 /// @brief Partial correlation controlling for Z
@@ -353,7 +353,7 @@ Value corr_xy(const Value &X, const Value &Y, keel::Allocator *mr = nullptr);
 /// @param order  Polynomial order (default 1 = linear).
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       Detrended array, same shape as `x`.
-Value detrend_of(const Value &x, int order = 1, keel::Allocator *mr = nullptr);
+Value detrend_of(const Value &x, keel::i32 order = 1, keel::Allocator *mr = nullptr);
 
 /// @brief Outlier mask (`tf = isoutlier(x)`).
 ///
@@ -422,7 +422,7 @@ Value standardizeMissing_of(const Value &x, const Value &indicators,
 /// @param dim  1-based dimension; 0 → first non-singleton dim.
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     Range reduced along `dim`.
-Value range_of(const Value &x, int dim = 0, keel::Allocator *mr = nullptr);
+Value range_of(const Value &x, keel::i32 dim = 0, keel::Allocator *mr = nullptr);
 
 /// @brief Mean absolute deviation (`y = mad(x, flag, dim)`).
 ///
@@ -435,7 +435,7 @@ Value range_of(const Value &x, int dim = 0, keel::Allocator *mr = nullptr);
 /// @param dim   1-based dimension; 0 → first non-singleton dim.
 /// @param mr    Memory resource (nullptr → process default).
 /// @return      MAD reduced along `dim`.
-Value mad_of(const Value &x, int flag = 0, int dim = 0, keel::Allocator *mr = nullptr);
+Value mad_of(const Value &x, keel::i32 flag = 0, keel::i32 dim = 0, keel::Allocator *mr = nullptr);
 
 /// @brief Geometric mean (`g = geomean(x, dim)`).
 ///
@@ -446,7 +446,7 @@ Value mad_of(const Value &x, int flag = 0, int dim = 0, keel::Allocator *mr = nu
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     Geometric mean reduced along `dim`.
 /// @see harmmean_of
-Value geomean_of(const Value &x, int dim = 0, keel::Allocator *mr = nullptr);
+Value geomean_of(const Value &x, keel::i32 dim = 0, keel::Allocator *mr = nullptr);
 
 /// @brief Harmonic mean (`h = harmmean(x, dim)`).
 ///
@@ -457,7 +457,7 @@ Value geomean_of(const Value &x, int dim = 0, keel::Allocator *mr = nullptr);
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     Harmonic mean reduced along `dim`.
 /// @see geomean_of
-Value harmmean_of(const Value &x, int dim = 0, keel::Allocator *mr = nullptr);
+Value harmmean_of(const Value &x, keel::i32 dim = 0, keel::Allocator *mr = nullptr);
 
 /// @brief k-th central moment (`m = moment(x, k, dim)`).
 ///
@@ -469,7 +469,7 @@ Value harmmean_of(const Value &x, int dim = 0, keel::Allocator *mr = nullptr);
 /// @param dim    1-based dimension; 0 → first non-singleton dim.
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `order`-th central moment reduced along `dim`.
-Value moment_of(const Value &x, int order, int dim = 0, keel::Allocator *mr = nullptr);
+Value moment_of(const Value &x, keel::i32 order, keel::i32 dim = 0, keel::Allocator *mr = nullptr);
 
 /// @brief Trimmed mean (`m = trimmean(x, pct, dim)`).
 ///
@@ -483,7 +483,7 @@ Value moment_of(const Value &x, int order, int dim = 0, keel::Allocator *mr = nu
 ///                  (MATLAB `'floor'`) takes the floor.
 /// @param mr        Memory resource (nullptr → process default).
 /// @return          Trimmed mean reduced along `dim`.
-Value trimmean_of(const Value &x, keel::f64 pct, int dim = 0, bool useFloor = false,
+Value trimmean_of(const Value &x, keel::f64 pct, keel::i32 dim = 0, bool useFloor = false,
                   keel::Allocator *mr = nullptr);
 
 /// @brief Curve-data cleanup (`[xo, yo, wo] = prepareCurveData(x, y, w)`).
@@ -565,7 +565,7 @@ ksdensity(const Value &x, const Value &pts, keel::f64 bw_user, keel::Allocator *
 /// @return    `(n, c)` — bin heights, bin centres.
 /// @see ecdf
 std::tuple<Value, Value>
-ecdfhist(const Value &f, const Value &x, int m = 10, keel::Allocator *mr = nullptr);
+ecdfhist(const Value &f, const Value &x, keel::i32 m = 10, keel::Allocator *mr = nullptr);
 
 /// @brief Column-wise normalisation (`Y = normalize(A, method)`).
 ///
@@ -663,7 +663,7 @@ tiedrank(const Value &x, keel::Allocator *mr = nullptr);
 ///                 `numLags+1` entries (lags `0..numLags`), `bounds` is `[+b; -b]`.
 /// @see crosscorr, xcorr
 std::tuple<Value, Value, Value>
-autocorr(const Value &y, int numLags = -1, keel::f64 numSTD = 2.0,
+autocorr(const Value &y, keel::i32 numLags = -1, keel::f64 numSTD = 2.0,
          keel::Allocator *mr = nullptr);
 
 /// @brief Sample cross-correlation function (`[xcf, lags, bounds] = crosscorr(y1, y2)`).
@@ -681,7 +681,7 @@ autocorr(const Value &y, int numLags = -1, keel::f64 numSTD = 2.0,
 ///                 `2·numLags+1` entries (lags `-numLags..numLags`).
 /// @see autocorr, xcorr
 std::tuple<Value, Value, Value>
-crosscorr(const Value &y1, const Value &y2, int numLags = -1, keel::f64 numSTD = 2.0,
+crosscorr(const Value &y1, const Value &y2, keel::i32 numLags = -1, keel::f64 numSTD = 2.0,
           keel::Allocator *mr = nullptr);
 
 /// @brief Sample partial autocorrelation function (`[pacf, lags, bounds] = parcorr(y)`).
@@ -700,7 +700,7 @@ crosscorr(const Value &y1, const Value &y2, int numLags = -1, keel::f64 numSTD =
 /// @return         `(pacf, lags, bounds)` column vectors (`numLags+1` entries).
 /// @see autocorr, crosscorr
 std::tuple<Value, Value, Value>
-parcorr(const Value &y, int numLags = -1, keel::f64 numSTD = 2.0,
+parcorr(const Value &y, keel::i32 numLags = -1, keel::f64 numSTD = 2.0,
         keel::Allocator *mr = nullptr);
 
 /// @brief Correlation matrix from covariance (`[R, sigma] = corrcov(C)`).

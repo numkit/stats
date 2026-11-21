@@ -72,7 +72,7 @@ keel::f64 weightedVarFlat(const keel::f64 *x, const keel::f64 *w, keel::usize n,
 }
 
 // Helper: scalar-normFlag variance/std on a flat 1-D array.
-keel::f64 scalarVarFlat(const keel::f64 *x, keel::usize n, int normFlag,
+keel::f64 scalarVarFlat(const keel::f64 *x, keel::usize n, keel::i32 normFlag,
                      bool sqrtIt, bool omitNan)
 {
     if (n == 0) return std::numeric_limits<keel::f64>::quiet_NaN();
@@ -128,7 +128,7 @@ Value varStdDispatch(keel::ArrayRef<Value> args, bool sqrtIt, const char *fn,
 
     // Parse args[1] (w) and args[2] (dim/'all'/vecdim) into a normalised
     // shape: scalar normFlag (0 or 1), or weight vector + flatten flag.
-    int normFlag = 0;
+    keel::i32 normFlag = 0;
     bool isWeightVec = false;
     const Value *wVec = nullptr;
 
@@ -147,22 +147,22 @@ Value varStdDispatch(keel::ArrayRef<Value> args, bool sqrtIt, const char *fn,
                                          "single vector of nonnegative weights.", fn),
                             0, 0, fn, "",
                             keel::format("numkit:{}:invalidWgts", fn));
-            normFlag = keel::as<int>(wf);
+            normFlag = keel::as<keel::i32>(wf);
         } else {
             isWeightVec = true;
             wVec = &args[1];
         }
     }
 
-    int dim = 0;
+    keel::i32 dim = 0;
     bool flattenAll = false;
-    keel::Array<int> vecdimSet;
+    keel::Array<keel::i32> vecdimSet;
     if (n >= 3 && !args[2].isEmpty()) {
         const Value &a = args[2];
         if (a.isChar() || a.isString()) {
             keel::String s = a.toString();
             std::transform(s.begin(), s.end(), s.begin(),
-                           [](unsigned char c) { return keel::to_ascii_lower(c); });
+                           [](keel::u8 c) { return keel::to_ascii_lower(c); });
             if (s.as_ref() == "all") flattenAll = true;
             else throw Error(keel::format("{}: unknown dim flag '{}'", fn, s.as_ref()),
                               0, 0, fn, "", keel::format("numkit:{}:dim", fn));
@@ -171,7 +171,7 @@ Value varStdDispatch(keel::ArrayRef<Value> args, bool sqrtIt, const char *fn,
         } else {
             // vecdim: full coverage reduces like 'all'; a partial set
             // collapses the listed dims into one trailing dim below.
-            keel::Array<int> set = vecdim::parseDimSet(a, fn);
+            keel::Array<keel::i32> set = vecdim::parseDimSet(a, fn);
             if (vecdim::coversAllDims(set, x))
                 flattenAll = true;
             else {
@@ -193,12 +193,12 @@ Value varStdDispatch(keel::ArrayRef<Value> args, bool sqrtIt, const char *fn,
             if (flattenAll) {
                 wLen = x.numel();
             } else if (!vecdimSet.empty()) {
-                for (int d : vecdimSet) {
+                for (keel::i32 d : vecdimSet) {
                     if (d >= 1 && d <= x.dims().ndim())
                         wLen *= x.dims().dim(d - 1);
                 }
             } else {
-                const int effDim = (dim == 0) ? firstNonSingletonDim(x) : dim;
+                const keel::i32 effDim = (dim == 0) ? firstNonSingletonDim(x) : dim;
                 if (effDim >= 1 && effDim <= x.dims().ndim())
                     wLen = x.dims().dim(effDim - 1);
             }
@@ -233,7 +233,7 @@ Value varStdDispatch(keel::ArrayRef<Value> args, bool sqrtIt, const char *fn,
             throw Error(keel::format("{}: weight vector along a dimension "
                                      "is supported for 2-D inputs only (N-D deferred)", fn),
                         0, 0, fn, "", keel::format("numkit:{}:wND", fn));
-        const int d = (dim == 0) ? firstNonSingletonDim(x) : dim;
+        const keel::i32 d = (dim == 0) ? firstNonSingletonDim(x) : dim;
         if (d != 1 && d != 2)
             throw Error(keel::format("{}: dim out of range", fn),
                         0, 0, fn, "", keel::format("numkit:{}:dim", fn));
@@ -270,7 +270,7 @@ Value varStdDispatch(keel::ArrayRef<Value> args, bool sqrtIt, const char *fn,
     // path, so every flag combination carries over).
     if (!vecdimSet.empty()) {
         Value c = vecdim::collapseDims(x, vecdimSet, mr);
-        const int lastd = keel::as<int>(c.dims().ndim());
+        const keel::i32 lastd = keel::as<keel::i32>(c.dims().ndim());
         if (omitNan) {
             if (x.type() == ValueType::COMPLEX)
                 return vecdim::expandReduced(
@@ -370,15 +370,15 @@ void median_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
     } logicalGuard{&outs[0], args[0].type() == ValueType::LOGICAL};
     bool omitNan = false;
     keel::usize n = stripNanFlag(args, omitNan, "median");
-    int dim = 0;
+    keel::i32 dim = 0;
     bool isAll = false;
-    keel::Array<int> vecdimSet;
+    keel::Array<keel::i32> vecdimSet;
     if (n >= 2 && !args[1].isEmpty()) {
         const Value &a = args[1];
         if (a.isChar() || a.isString()) {
             keel::String s = a.toString();
             std::transform(s.begin(), s.end(), s.begin(),
-                           [](unsigned char c) { return keel::to_ascii_lower(c); });
+                           [](keel::u8 c) { return keel::to_ascii_lower(c); });
             if (s.as_ref() == "all") isAll = true;
             else throw Error(keel::format("median: unknown option '{}'", s.as_ref()),
                               0, 0, "median", "", "numkit:median:unknownOption");
@@ -387,7 +387,7 @@ void median_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
         } else {
             // vecdim: full coverage reduces like 'all'; a partial set
             // collapses the listed dims into one trailing dim below.
-            keel::Array<int> set = vecdim::parseDimSet(a, "median");
+            keel::Array<keel::i32> set = vecdim::parseDimSet(a, "median");
             if (vecdim::coversAllDims(set, args[0]))
                 isAll = true;
             else
@@ -399,7 +399,7 @@ void median_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
         // NarrowGuard above still narrows an all-zero-imaginary result).
         Value c = vecdim::collapseDims(args[0], vecdimSet,
                                        ctx.engine->allocator());
-        const int lastd = keel::as<int>(c.dims().ndim());
+        const keel::i32 lastd = keel::as<keel::i32>(c.dims().ndim());
         if (omitNan) {
             rejectComplexOmitNan(args[0], "median");
             Value r = ::numkit::stats::nanmedian(c, lastd, ctx.engine->allocator());
@@ -469,7 +469,7 @@ void median_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
 //   * Method N-V pair: 'midpoint' (default) | 'inclusive' | 'exclusive'
 //                       | 'approximate' (falls back to midpoint).
 struct QArgs {
-    int dim = 0;
+    keel::i32 dim = 0;
     bool flatten = false;
     QMethod method = QMethod::Midpoint;
 };
@@ -485,20 +485,20 @@ QArgs parseQArgs(keel::ArrayRef<Value> args, keel::usize start, const Value &x,
             q.dim = argcheck::dimArg(args[i], "median");
         } else {
             // Vecdim: covers-all-dims â†’ flatten; otherwise error.
-            keel::Array<int> dims;
+            keel::Array<keel::i32> dims;
             for (keel::usize j = 0; j < args[i].numel(); ++j)
                 dims.push_back(argcheck::dimArg(args[i].elemAsDouble(j), "median"));
-            const int rank = x.dims().is3D() ? 3
+            const keel::i32 rank = x.dims().is3D() ? 3
                               : (x.dims().isVector() || x.isScalar() ? 1 : 2);
             keel::Array<keel::u8> seen(keel::as<keel::usize>(rank) + 1, 0);
-            for (int d : dims) {
+            for (keel::i32 d : dims) {
                 if (d < 1 || d > rank)
                     throw Error(keel::format("{}: vecdim entries out of range", fn),
                                 0, 0, fn, "", keel::format("numkit:{}:vecdim", fn));
                 seen[keel::as<keel::usize>(d)] = 1;
             }
             bool allCovered = true;
-            for (int d = 1; d <= rank; ++d) if (!seen[keel::as<keel::usize>(d)]) allCovered = false;
+            for (keel::i32 d = 1; d <= rank; ++d) if (!seen[keel::as<keel::usize>(d)]) allCovered = false;
             if (!allCovered)
                 throw Error(keel::format("{}: partial vecdim reduction is "
                                          "not yet supported in nk (only full-flatten "
@@ -510,7 +510,7 @@ QArgs parseQArgs(keel::ArrayRef<Value> args, keel::usize start, const Value &x,
     } else if (i < args.size() && (args[i].isChar() || args[i].isString())) {
         keel::String s = args[i].toString();
         std::transform(s.begin(), s.end(), s.begin(),
-                       [](unsigned char c) { return keel::to_ascii_lower(c); });
+                       [](keel::u8 c) { return keel::to_ascii_lower(c); });
         if (s.as_ref() == "all") {
             q.flatten = true;
             ++i;
@@ -524,14 +524,14 @@ QArgs parseQArgs(keel::ArrayRef<Value> args, keel::usize start, const Value &x,
                         0, 0, fn, "", keel::format("numkit:{}:nv", fn));
         keel::String name = args[i].toString();
         std::transform(name.begin(), name.end(), name.begin(),
-                       [](unsigned char c) { return keel::to_ascii_lower(c); });
+                       [](keel::u8 c) { return keel::to_ascii_lower(c); });
         if (name.as_ref() == "method") {
             if (!args[i + 1].isChar() && !args[i + 1].isString())
                 throw Error(keel::format("{}: Method must be a string", fn),
                             0, 0, fn, "", keel::format("numkit:{}:method", fn));
             keel::String m = args[i + 1].toString();
             std::transform(m.begin(), m.end(), m.begin(),
-                           [](unsigned char c) { return keel::to_ascii_lower(c); });
+                           [](keel::u8 c) { return keel::to_ascii_lower(c); });
             // MATLAB's documented values are 'exact' (default) and
             // 'approximate'. 'exact' is the linear-interpolation order-
             // statistic method, which is nk's Midpoint. The
@@ -574,7 +574,7 @@ void prctile_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
 // column vector of the values that attain the modal frequency in that
 // slice, sorted ascending; MATLAB ignores NaN. Supported for a real DOUBLE
 // vector, 2-D matrix, or 'all'-flattened input.
-Value computeModeCell(const Value &x, int dim, bool flatten,
+Value computeModeCell(const Value &x, keel::i32 dim, bool flatten,
                       keel::Allocator *mr)
 {
     if (x.type() != ValueType::DOUBLE || x.dims().is3D() || x.dims().ndim() > 2)
@@ -615,7 +615,7 @@ Value computeModeCell(const Value &x, int dim, bool flatten,
         return cell;
     }
     const keel::usize R = x.dims().rows(), Cn = x.dims().cols();
-    const int rdim = (dim == 0) ? 1 : dim;
+    const keel::i32 rdim = (dim == 0) ? 1 : dim;
     if (rdim == 1) {
         Value cell = Value::cell(1, Cn, mr);
         for (keel::usize c = 0; c < Cn; ++c) cell.cellAt(c) = tiedCol(data + c * R, 1, R);
@@ -630,15 +630,15 @@ void mode_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef
               CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 2, "mode");
-    int dim = 0;
+    keel::i32 dim = 0;
     bool flatten = false;
-    keel::Array<int> vecdimSet;
+    keel::Array<keel::i32> vecdimSet;
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const Value &a = args[1];
         if (a.isChar() || a.isString()) {
             keel::String s = a.toString();
             std::transform(s.begin(), s.end(), s.begin(),
-                [](unsigned char c){ return keel::to_ascii_lower(c); });
+                [](keel::u8 c){ return keel::to_ascii_lower(c); });
             if (s.as_ref() == "all") flatten = true;
             else throw Error(keel::format("mode: unknown flag '{}'", s.as_ref()),
                               0, 0, "mode", "", "numkit:mode:badFlag");
@@ -647,7 +647,7 @@ void mode_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef
         } else {
             // vecdim: full coverage reduces like 'all'; a partial set
             // collapses the listed dims into one trailing dim below.
-            keel::Array<int> set = vecdim::parseDimSet(a, "mode");
+            keel::Array<keel::i32> set = vecdim::parseDimSet(a, "mode");
             if (vecdim::coversAllDims(set, args[0]))
                 flatten = true;
             else
@@ -660,7 +660,7 @@ void mode_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef
         // 3rd output's cell array reshapes through the same mechanism
         // (permute/reshape support cell values).
         Value c = vecdim::collapseDims(args[0], vecdimSet, mr);
-        const int lastd = keel::as<int>(c.dims().ndim());
+        const keel::i32 lastd = keel::as<keel::i32>(c.dims().ndim());
         auto [v, cnt] = mode(c, lastd, mr);
         outs[0] = vecdim::expandReduced(std::move(v), args[0], vecdimSet, mr);
         if (nargout > 1)
@@ -718,7 +718,7 @@ void cov_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArray
             if (args[1].isScalar()) {
                 const keel::f64 v = args[1].toScalar();
                 if (v == 0.0 || v == 1.0) {
-                    outs[0] = covNanAware(args[0], keel::as<int>(v),
+                    outs[0] = covNanAware(args[0], keel::as<keel::i32>(v),
                                           nanMode, mr);
                     return;
                 }
@@ -730,7 +730,7 @@ void cov_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArray
         const keel::f64 wv = argcheck::expectedReal(args[2], 3, "w", "cov");
         argcheck::expectedFlag01(wv, 3, "w", "cov");
         outs[0] = covNanAware(assembleXY(args[0], args[1], mr),
-                              keel::as<int>(wv), nanMode, mr);
+                              keel::as<keel::i32>(wv), nanMode, mr);
         return;
     }
 
@@ -746,7 +746,7 @@ void cov_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArray
         if (args[1].isScalar()) {
             const keel::f64 v = args[1].toScalar();
             if (v == 0.0 || v == 1.0) {
-                outs[0] = cov(args[0], keel::as<int>(v), mr);
+                outs[0] = cov(args[0], keel::as<keel::i32>(v), mr);
                 return;
             }
         }
@@ -756,7 +756,7 @@ void cov_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArray
     // 3-arg form: cov(x, y, normFlag).
     const keel::f64 wv = argcheck::expectedReal(args[2], 3, "w", "cov");
     argcheck::expectedFlag01(wv, 3, "w", "cov");
-    outs[0] = cov(args[0], args[1], keel::as<int>(wv), mr);
+    outs[0] = cov(args[0], args[1], keel::as<keel::i32>(wv), mr);
 }
 
 // Widen a single matrix to double (stats kernels are double-based; the

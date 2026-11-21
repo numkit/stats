@@ -626,7 +626,7 @@ Value mvtcdf(const Value &X, const Value &C, keel::f64 df, keel::f64 tol,
             L[i * d + j] = C.elemAsDouble(j * d + i);
     choleskyLowerInPlace(L.data(), d);
 
-    const int N = mvtcdf_N_from_tol(tol);
+    const keel::i32 N = mvtcdf_N_from_tol(tol);
     keel::random::Xoshiro256PlusPlus mc_gen(12345ULL);
     const keel::f64 NEG_INF = -std::numeric_limits<keel::f64>::infinity();
 
@@ -686,7 +686,7 @@ Value mvtcdf_box(const Value &Lb, const Value &Ub, const Value &C, keel::f64 df,
             Lc[i * d + j] = C.elemAsDouble(j * d + i);
     choleskyLowerInPlace(Lc.data(), d);
 
-    const int N = mvtcdf_N_from_tol(tol);
+    const keel::i32 N = mvtcdf_N_from_tol(tol);
     keel::random::Xoshiro256PlusPlus mc_gen(12345ULL);
 
     const keel::usize nRows = n;   // plain local (see mvtcdf above): avoid

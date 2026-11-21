@@ -33,15 +33,15 @@ namespace detail {
                     keel::MutArrayRef<Value> outs, CallContext &ctx)                        \
     {                                                                            \
         argcheck::checkNargin(args.size(), 1, 2, #name);                         \
-        int dim = 0;                                                             \
-        keel::Array<int> vecdimSet;                                              \
+        keel::i32 dim = 0;                                                             \
+        keel::Array<keel::i32> vecdimSet;                                              \
         if (args.size() >= 2)                                                    \
             vecdim::parseDimSlot(args[0], args[1], #name, dim, vecdimSet);       \
         auto *mr = ctx.engine->allocator();                                       \
         if (!vecdimSet.empty()) {                                                \
             Value c = vecdim::collapseDims(args[0], vecdimSet.as_ref(), mr);     \
             outs[0] = vecdim::expandReduced(                                     \
-                fn(c, keel::as<int>(c.dims().ndim()), mr),                    \
+                fn(c, keel::as<keel::i32>(c.dims().ndim()), mr),                    \
                 args[0], vecdimSet.as_ref(), mr);                                \
         } else {                                                                 \
             outs[0] = fn(args[0], dim, mr);                                      \
@@ -73,8 +73,8 @@ NUMKIT_NAN_REDUCTION_ADAPTER(nanmedian, nanmedian)
                     keel::MutArrayRef<Value> outs, CallContext &ctx)                         \
     {                                                                             \
         argcheck::checkNargin(args.size(), 1, #name);  /* no max: flag/option tail in the reference */ \
-        int dim = 0;                                                              \
-        keel::Array<int> vecdimSet;                                               \
+        keel::i32 dim = 0;                                                              \
+        keel::Array<keel::i32> vecdimSet;                                               \
         if (args.size() == 2 && !args[1].isEmpty())                               \
             vecdim::parseDimSlot(args[0], args[1], #name, dim, vecdimSet);        \
         else if (args.size() >= 3 && !args[2].isEmpty())                          \
@@ -83,7 +83,7 @@ NUMKIT_NAN_REDUCTION_ADAPTER(nanmedian, nanmedian)
         if (!vecdimSet.empty()) {                                                 \
             Value c = vecdim::collapseDims(args[0], vecdimSet.as_ref(), mr);      \
             outs[0] = vecdim::expandReduced(                                      \
-                fn(c, keel::as<int>(c.dims().ndim()), mr),                     \
+                fn(c, keel::as<keel::i32>(c.dims().ndim()), mr),                     \
                 args[0], vecdimSet.as_ref(), mr);                                 \
             return;                                                               \
         }                                                                         \
@@ -99,12 +99,12 @@ void nanvar_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
                 CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 3, "nanvar");
-    int w = 0, dim = 0;
-    keel::Array<int> vecdimSet;
+    keel::i32 w = 0, dim = 0;
+    keel::Array<keel::i32> vecdimSet;
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const keel::f64 wv = argcheck::expectedReal(args[1], 2, "w", "nanvar");
         argcheck::expectedFlag01(wv, 2, "w", "nanvar");
-        w = keel::as<int>(wv);
+        w = keel::as<keel::i32>(wv);
     }
     if (args.size() >= 3)
         vecdim::parseDimSlot(args[0], args[2], "nanvar", dim, vecdimSet);
@@ -112,7 +112,7 @@ void nanvar_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
     if (!vecdimSet.empty()) {
         Value c = vecdim::collapseDims(args[0], vecdimSet.as_ref(), mr);
         outs[0] = vecdim::expandReduced(
-            nanvar(c, w, keel::as<int>(c.dims().ndim()), mr),
+            nanvar(c, w, keel::as<keel::i32>(c.dims().ndim()), mr),
             args[0], vecdimSet.as_ref(), mr);
         return;
     }
@@ -123,12 +123,12 @@ void nanstd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
                 CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 3, "nanstd");
-    int w = 0, dim = 0;
-    keel::Array<int> vecdimSet;
+    keel::i32 w = 0, dim = 0;
+    keel::Array<keel::i32> vecdimSet;
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const keel::f64 wv = argcheck::expectedReal(args[1], 2, "w", "nanstd");
         argcheck::expectedFlag01(wv, 2, "w", "nanstd");
-        w = keel::as<int>(wv);
+        w = keel::as<keel::i32>(wv);
     }
     if (args.size() >= 3)
         vecdim::parseDimSlot(args[0], args[2], "nanstd", dim, vecdimSet);
@@ -136,7 +136,7 @@ void nanstd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
     if (!vecdimSet.empty()) {
         Value c = vecdim::collapseDims(args[0], vecdimSet.as_ref(), mr);
         outs[0] = vecdim::expandReduced(
-            nanstdev(c, w, keel::as<int>(c.dims().ndim()), mr),
+            nanstdev(c, w, keel::as<keel::i32>(c.dims().ndim()), mr),
             args[0], vecdimSet.as_ref(), mr);
         return;
     }
@@ -163,13 +163,13 @@ void nancov_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
     if (secondIsScalar) {
         const keel::f64 wv = argcheck::expectedReal(args[1], 2, "w", "nancov");
         argcheck::expectedFlag01(wv, 2, "w", "nancov");
-        outs[0] = nancov(args[0], keel::as<int>(wv), mr);
+        outs[0] = nancov(args[0], keel::as<keel::i32>(wv), mr);
     } else {
-        int w = 0;
+        keel::i32 w = 0;
         if (args.size() >= 3 && !args[2].isEmpty()) {
             const keel::f64 wv = argcheck::expectedReal(args[2], 3, "w", "nancov");
             argcheck::expectedFlag01(wv, 3, "w", "nancov");
-            w = keel::as<int>(wv);
+            w = keel::as<keel::i32>(wv);
         }
         outs[0] = nancov(args[0], args[1], w, mr);
     }

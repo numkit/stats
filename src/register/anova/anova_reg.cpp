@@ -306,7 +306,7 @@ void anova2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                 keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 3, "anova2");
-    int reps = 1;
+    keel::i32 reps = 1;
     if (args.size() >= 2 && !args[1].isEmpty()
         && !args[1].isChar() && !args[1].isString()) {
         reps = argcheck::expectedPositiveInteger(
@@ -489,7 +489,7 @@ void friedman_reg(keel::ArrayRef<Value> args, keel::usize nargout,
 
     // reps: numeric 2nd arg (default 1). A char 2nd/3rd arg is the
     // 'off'/'on' display flag — accepted and ignored.
-    int reps = 1;
+    keel::i32 reps = 1;
     if (args.size() >= 2 && !args[1].isChar() && !args[1].isString()
         && !args[1].isEmpty())
         reps = argcheck::expectedPositiveInteger(

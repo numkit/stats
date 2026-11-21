@@ -40,7 +40,7 @@ inline keel::f64 sq_dist(const keel::f64 *a, const keel::f64 *b, keel::usize D) 
 // k-means++ centroid initialisation. Returns K rows of D values each
 // (flattened K*D-length buffer).
 [[maybe_unused]] keel::Array<keel::f64> kmeanspp_init(const keel::Array<keel::f64> &X,
-                                 keel::usize N, keel::usize D, int K,
+                                 keel::usize N, keel::usize D, keel::i32 K,
                                  numkit::ops::MatlabMT19937 &gen,
                                  keel::Allocator *scratch_mr)
 {
@@ -50,7 +50,7 @@ inline keel::f64 sq_dist(const keel::f64 *a, const keel::f64 *b, keel::usize D) 
 
     keel::Array<keel::f64> dist(N, std::numeric_limits<keel::f64>::infinity(),
                             scratch_mr);
-    for (int k = 1; k < K; ++k) {
+    for (keel::i32 k = 1; k < K; ++k) {
         // Update each point's nearest-centroid distance against the new
         // centroid (k-1).
         const keel::f64 *cprev = &C[(keel::usize)(k - 1) * D];
@@ -85,7 +85,7 @@ inline keel::f64 sq_dist(const keel::f64 *a, const keel::f64 *b, keel::usize D) 
 // per cluster, total-WCSS). Stops when no assignment changes or when
 // max_iter reached.
 struct LloydResult {
-    keel::Array<int>    idx;
+    keel::Array<keel::i32>    idx;
     keel::Array<keel::f64> C;
     keel::Array<keel::f64> sumd;
     keel::f64             total{};
@@ -94,8 +94,8 @@ struct LloydResult {
         : idx(scratch_mr), C(scratch_mr), sumd(scratch_mr) {}
 };
 
-[[maybe_unused]] LloydResult lloyd(const keel::Array<keel::f64> &X, keel::usize N, keel::usize D, int K,
-                  keel::Array<keel::f64> &&C0, int max_iter,
+[[maybe_unused]] LloydResult lloyd(const keel::Array<keel::f64> &X, keel::usize N, keel::usize D, keel::i32 K,
+                  keel::Array<keel::f64> &&C0, keel::i32 max_iter,
                   keel::Allocator *scratch_mr)
 {
     LloydResult res(scratch_mr);
@@ -104,10 +104,10 @@ struct LloydResult {
     res.sumd.assign(K, 0.0);
     res.total = 0.0;
 
-    keel::Array<int>    counts((keel::usize)K, 0, scratch_mr);
+    keel::Array<keel::i32>    counts((keel::usize)K, 0, scratch_mr);
     keel::Array<keel::f64> Cnext((keel::usize)K * D, 0.0, scratch_mr);
 
-    for (int iter = 0; iter < max_iter; ++iter) {
+    for (keel::i32 iter = 0; iter < max_iter; ++iter) {
         // Assign each point to nearest centroid.
         bool changed = false;
         std::fill(counts.begin(), counts.end(), 0);
@@ -117,9 +117,9 @@ struct LloydResult {
 
         for (keel::usize i = 0; i < N; ++i) {
             const keel::f64 *xi = &X[i * D];
-            int best = 0;
+            keel::i32 best = 0;
             keel::f64 bd = std::numeric_limits<keel::f64>::infinity();
-            for (int k = 0; k < K; ++k) {
+            for (keel::i32 k = 0; k < K; ++k) {
                 const keel::f64 d = sq_dist(xi, &res.C[(keel::usize)k * D], D);
                 if (d < bd) { bd = d; best = k; }
             }
@@ -130,7 +130,7 @@ struct LloydResult {
             res.total += bd;
         }
         // Update centroids.
-        for (int k = 0; k < K; ++k) {
+        for (keel::i32 k = 0; k < K; ++k) {
             if (counts[k] > 0) {
                 const keel::f64 inv = 1.0 / keel::f64(counts[k]);
                 for (keel::usize d = 0; d < D; ++d)
@@ -147,7 +147,7 @@ struct LloydResult {
     res.total = 0.0;
     for (keel::usize i = 0; i < N; ++i) {
         const keel::f64 *xi = &X[i * D];
-        const int k = res.idx[i];
+        const keel::i32 k = res.idx[i];
         const keel::f64 d = sq_dist(xi, &res.C[(keel::usize)k * D], D);
         res.sumd[k] += d;
         res.total   += d;
@@ -164,7 +164,7 @@ struct KmeansResult {
     Value sumd;
     Value D;     // optional N×K
 };
-KmeansResult kmeans_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates,
+KmeansResult kmeans_full(::numkit::ops::RngContext &rng, const Value &X, keel::i32 K, keel::i32 max_iter, keel::i32 replicates,
                          keel::Allocator *mr);
 
 } // namespace numkit::stats

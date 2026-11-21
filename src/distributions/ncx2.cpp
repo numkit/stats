@@ -74,11 +74,11 @@ Value ncx2inv(const Value &p, keel::f64 k, keel::f64 lambda, keel::Allocator *mr
         const keel::f64 var  = 2.0 * (k + 2.0 * lambda);
         keel::f64 lo = 0.0;
         keel::f64 hi = mean + 10.0 * std::sqrt(var) + 1.0;
-        for (int iter = 0; iter < 50; ++iter) {
+        for (keel::i32 iter = 0; iter < 50; ++iter) {
             if (ncx2cdf_one(hi, k, lambda, mr) >= pi) break;
             hi *= 2.0;
         }
-        for (int iter = 0; iter < 80; ++iter) {
+        for (keel::i32 iter = 0; iter < 80; ++iter) {
             const keel::f64 mid = 0.5 * (lo + hi);
             if (mid == lo || mid == hi) return mid;
             const keel::f64 F = ncx2cdf_one(mid, k, lambda, mr);

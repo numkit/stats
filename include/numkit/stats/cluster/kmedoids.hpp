@@ -35,7 +35,7 @@ namespace numkit::stats {
 ///
 /// @see kmeans, dbscan
 std::tuple<Value, Value, Value>
-kmedoids(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates,
+kmedoids(::numkit::ops::RngContext &rng, const Value &X, keel::i32 K, keel::i32 max_iter, keel::i32 replicates,
          keel::StringRef metric,
          keel::Allocator *mr = nullptr);
 
@@ -59,14 +59,14 @@ kmedoids(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter, in
 ///
 /// @see kmedoids, kmeans
 std::tuple<Value, Value>
-dbscan(const Value &X, keel::f64 eps, int minpts, keel::StringRef metric,
+dbscan(const Value &X, keel::f64 eps, keel::i32 minpts, keel::StringRef metric,
        keel::Allocator *mr = nullptr);
 
 /// DBSCAN with explicit Minkowski exponent `p` (for `metric = "minkowski"`).
 ///
 /// @see dbscan(X, eps, minpts, metric, mr)
 std::tuple<Value, Value>
-dbscan(const Value &X, keel::f64 eps, int minpts, keel::StringRef metric,
+dbscan(const Value &X, keel::f64 eps, keel::i32 minpts, keel::StringRef metric,
        keel::f64 p,
        keel::Allocator *mr = nullptr);
 

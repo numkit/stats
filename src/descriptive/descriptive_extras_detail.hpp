@@ -64,15 +64,15 @@ Value nearcorr_full(const Value &A, keel::ArrayRef<Value> nv,
 struct IsOutlierPlan {
     keel::String method = keel::String::from("median");
     bool haveWin = false;
-    long hb = 0, hf = 0;
+    keel::i64 hb = 0, hf = 0;
     bool winTwoElem = false;
     keel::f64 hbSpan = 0.0, hfSpan = 0.0;
     bool haveTf = false;
     keel::f64 tf = 0.0;
     keel::f64 loP = 0.0, hiP = 100.0;
-    long maxOut = -1;
-    long minNum = 1;
-    int dim = 0;                 // 0 → first non-singleton dim
+    keel::i64 maxOut = -1;
+    keel::i64 minNum = 1;
+    keel::i32 dim = 0;                 // 0 → first non-singleton dim
     const Value *samplePointsRaw = nullptr;
     keel::Array<keel::f64> samplePoints;
     keel::Array<keel::usize> dropIdx;  // rm-only NV positions to strip
@@ -126,19 +126,19 @@ ErrorMetricOpts parseErrorMetricOpts(keel::ArrayRef<Value> tail, keel::usize sta
 Value corr_xx(const Value &X, keel::Allocator *mr);
 Value partialcorr_xx(const Value &X, keel::Allocator *mr);
 Value rmmissing_of(const Value &x, keel::Allocator *mr);
-Value detrend_of(const Value &x, int order, keel::Allocator *mr);
-Value range_of(const Value &x, int dim, keel::Allocator *mr);
-Value geomean_of(const Value &x, int dim, bool omitnan, keel::Allocator *mr);
-Value harmmean_of(const Value &x, int dim, bool omitnan, keel::Allocator *mr);
-Value mad_of(const Value &x, int flag, int dim, keel::Allocator *mr);
-Value moment_of(const Value &x, int order, int dim, keel::Allocator *mr);
+Value detrend_of(const Value &x, keel::i32 order, keel::Allocator *mr);
+Value range_of(const Value &x, keel::i32 dim, keel::Allocator *mr);
+Value geomean_of(const Value &x, keel::i32 dim, bool omitnan, keel::Allocator *mr);
+Value harmmean_of(const Value &x, keel::i32 dim, bool omitnan, keel::Allocator *mr);
+Value mad_of(const Value &x, keel::i32 flag, keel::i32 dim, keel::Allocator *mr);
+Value moment_of(const Value &x, keel::i32 order, keel::i32 dim, keel::Allocator *mr);
 Value standardizeMissing_of(const Value &x, keel::f64 sentinel, keel::Allocator *mr);
 Value fillmissing_of(const Value &x, keel::StringRef method, keel::f64 constVal, keel::Allocator *mr);
 Value partialcorr_of(const Value &X, const Value &Y, const Value &Z, keel::Allocator *mr);
 Value partialcorr_xz(const Value &X, const Value &Z, keel::Allocator *mr);
 Value detrendBP_of(const Value &x, keel::ArrayRef<keel::f64> bpUser, keel::Allocator *mr);
 Value filloutliers_of(const Value &x, const Value &fillArg, keel::StringRef detect, keel::f64 thresholdFactor, keel::f64 loP, keel::f64 hiP, keel::Allocator *mr);
-Value trimmean_of(const Value &x, keel::f64 pct, int dim, bool useFloor, keel::Allocator *mr);
+Value trimmean_of(const Value &x, keel::f64 pct, keel::i32 dim, bool useFloor, keel::Allocator *mr);
 EcdfFull ecdf_full(const Value &y, const Value *freq, keel::StringRef function_mode, keel::f64 alpha, bool want_bounds, keel::Allocator *mr);
 KsdensityFull ksdensity_full(const Value &x, const Value &pts, keel::f64 bw_user, keel::StringRef kernel_name, keel::StringRef function_mode, keel::usize numpoints, const Value *weights, keel::Allocator *mr);
 
@@ -182,7 +182,7 @@ namespace {
 // When `idxOut` is non-null it receives the 1-based indices (along the
 // operating dimension) of the returned elements, like MATLAB's
 // [M, I] = mink/maxk(...). Ties keep the lower original index (stable sort).
-[[maybe_unused]] Value topKAlongDim(const Value &x, int dim, int kReq, bool ascending, const char *fn, keel::Allocator *mr, Value *idxOut = nullptr, bool byAbs = false)
+[[maybe_unused]] Value topKAlongDim(const Value &x, keel::i32 dim, keel::i32 kReq, bool ascending, const char *fn, keel::Allocator *mr, Value *idxOut = nullptr, bool byAbs = false)
 {
     if (kReq < 0)
         throw Error(keel::format("{}: k must be non-negative", fn),
@@ -222,7 +222,7 @@ namespace {
         return out;
     }
 
-    const int d = resolveDim(x, dim, fn);
+    const keel::i32 d = resolveDim(x, dim, fn);
     const auto &dd = x.dims();
     if (dd.ndim() >= 4)
         throw Error(keel::format("{}: ND (rank>=4) input not yet supported", fn),
@@ -398,7 +398,7 @@ namespace {
 //
 // PMR HARD RULE: scratch via the supplied scratch arena. The vector
 // types are ScratchVec to preserve the per-call arena lifetime.
-keel::Array<keel::f64> fitPolyLS(const keel::f64 *xidx, keel::usize n, const keel::f64 *y, int order, keel::Allocator *scratch_mr)
+keel::Array<keel::f64> fitPolyLS(const keel::f64 *xidx, keel::usize n, const keel::f64 *y, keel::i32 order, keel::Allocator *scratch_mr)
 {
     const keel::usize k = keel::as<keel::usize>(order) + 1;
     keel::Array<keel::f64> M(k * k, 0.0, scratch_mr);
@@ -413,11 +413,11 @@ keel::Array<keel::f64> fitPolyLS(const keel::f64 *xidx, keel::usize n, const kee
     }
     for (keel::usize i = 0; i < k; ++i)
         for (keel::usize j = 0; j < k; ++j)
-            M[i + j * k] = powSums[(order - keel::as<int>(i)) +
-                                   (order - keel::as<int>(j))];
+            M[i + j * k] = powSums[(order - keel::as<keel::i32>(i)) +
+                                   (order - keel::as<keel::i32>(j))];
     for (keel::usize i = 0; i < n; ++i) {
         keel::f64 xp = 1.0;
-        for (int p = 0; p < keel::as<int>(k); ++p) {
+        for (keel::i32 p = 0; p < keel::as<keel::i32>(k); ++p) {
             b[order - p] += y[i] * xp;
             xp *= xidx[i];
         }
@@ -464,7 +464,7 @@ keel::f64 evalPoly(const keel::Array<keel::f64> &a, keel::f64 x)
     return r;
 }
 
-[[maybe_unused]] void detrendColumn(const keel::f64 *src, keel::f64 *dst, keel::usize n, int order, keel::Allocator *scratch_mr)
+[[maybe_unused]] void detrendColumn(const keel::f64 *src, keel::f64 *dst, keel::usize n, keel::i32 order, keel::Allocator *scratch_mr)
 {
     if (n == 0) return;
     if (order < 0) order = 1;
@@ -639,7 +639,7 @@ struct FoDetect {
 // The element is an outlier when |x_i - center| > tf * scale. NaNs are
 // never flagged. Returns the per-column mask (1 == outlier).
 [[maybe_unused]] keel::Array<keel::u8> detect_moving_column(const keel::f64 *x, keel::usize n,
-                                          bool isMedian, long hb, long hf,
+                                          bool isMedian, keel::i64 hb, keel::i64 hf,
                                           keel::f64 tf)
 {
     keel::Array<keel::u8> mask(n, 0);
@@ -652,11 +652,11 @@ struct FoDetect {
     win.reserve(hb + hf + 1);
     for (keel::usize i = 0; i < n; ++i) {
         if (std::isnan(x[i])) continue;
-        long lo = keel::as<long>(i) - hb; if (lo < 0) lo = 0;
-        long hi = keel::as<long>(i) + hf;
-        if (hi > keel::as<long>(n) - 1) hi = keel::as<long>(n) - 1;
+        keel::i64 lo = keel::as<keel::i64>(i) - hb; if (lo < 0) lo = 0;
+        keel::i64 hi = keel::as<keel::i64>(i) + hf;
+        if (hi > keel::as<keel::i64>(n) - 1) hi = keel::as<keel::i64>(n) - 1;
         win.clear();
-        for (long j = lo; j <= hi; ++j)
+        for (keel::i64 j = lo; j <= hi; ++j)
             if (!std::isnan(x[keel::as<keel::usize>(j)]))
                 win.push_back(x[keel::as<keel::usize>(j)]);
         if (win.empty()) continue;

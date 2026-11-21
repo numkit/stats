@@ -265,7 +265,7 @@ vartestn(const Value &x, const Value &group, keel::f64 alpha,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(p, stat, df1, df2)`.
 std::tuple<Value, Value, Value, Value>
-vartestn_full(const Value &x, const Value &group, int test,
+vartestn_full(const Value &x, const Value &group, keel::i32 test,
               keel::Allocator *mr = nullptr);
 
 /// @brief Fisher's exact test for a 2×2 table
@@ -297,7 +297,7 @@ fishertest(const Value &T, keel::f64 alpha, TestTail tail,
 /// @param mr        Memory resource (nullptr → process default).
 /// @return          `(h, p, chi2stat, df)`.
 std::tuple<Value, Value, Value, Value>
-chi2gof(const Value &observed, const Value &expected, int nparams,
+chi2gof(const Value &observed, const Value &expected, keel::i32 nparams,
         keel::f64 alpha, keel::Allocator *mr = nullptr);
 
 /// @brief Wald-Wolfowitz runs test for randomness

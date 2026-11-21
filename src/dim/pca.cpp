@@ -41,10 +41,10 @@ void jacobi(keel::Array<keel::f64> &A, keel::Array<keel::f64> &V, keel::usize D)
     V.assign(D * D, 0.0);
     for (keel::usize i = 0; i < D; ++i) V[i * D + i] = 1.0;
 
-    const int max_sweeps = 50;
+    const keel::i32 max_sweeps = 50;
     const keel::f64 tol = 1e-12;
 
-    for (int sweep = 0; sweep < max_sweeps; ++sweep) {
+    for (keel::i32 sweep = 0; sweep < max_sweeps; ++sweep) {
         // Sum of squared off-diagonals.
         keel::f64 off = 0.0;
         for (keel::usize p = 0; p < D; ++p)
@@ -143,16 +143,16 @@ pca(const Value &X, keel::Allocator *mr)
 
     // Extract eigenvalues from C diagonal; sort descending.
     keel::Array<keel::f64> latent(D);
-    keel::Array<int> order(D);
-    for (keel::usize i = 0; i < D; ++i) { latent[i] = C[i * D + i]; order[i] = (int)i; }
+    keel::Array<keel::i32> order(D);
+    for (keel::usize i = 0; i < D; ++i) { latent[i] = C[i * D + i]; order[i] = (keel::i32)i; }
     std::sort(order.begin(), order.end(),
-              [&](int a, int b) { return latent[a] > latent[b]; });
+              [&](keel::i32 a, keel::i32 b) { return latent[a] > latent[b]; });
 
     // Reorder eigenvalues + eigenvectors.
     keel::Array<keel::f64> latent_s(D);
     keel::Array<keel::f64> coeff(D * D, 0.0);  // D×D row-major; cols = eigenvectors
     for (keel::usize i = 0; i < D; ++i) {
-        const int src = order[i];
+        const keel::i32 src = order[i];
         latent_s[i] = latent[src];
         for (keel::usize r = 0; r < D; ++r) coeff[r * D + i] = Vmat[r * D + src];
     }
@@ -222,15 +222,15 @@ pcacov(const Value &C, keel::Allocator *mr) {
     jacobi(A, V, D);
 
     keel::Array<keel::f64> latent(D);
-    keel::Array<int> order(D);
-    for (keel::usize i = 0; i < D; ++i) { latent[i] = A[i * D + i]; order[i] = (int)i; }
+    keel::Array<keel::i32> order(D);
+    for (keel::usize i = 0; i < D; ++i) { latent[i] = A[i * D + i]; order[i] = (keel::i32)i; }
     std::sort(order.begin(), order.end(),
-              [&](int a, int b) { return latent[a] > latent[b]; });
+              [&](keel::i32 a, keel::i32 b) { return latent[a] > latent[b]; });
 
     keel::Array<keel::f64> latent_s(D);
     keel::Array<keel::f64> coeff(D * D, 0.0);
     for (keel::usize i = 0; i < D; ++i) {
-        const int src = order[i];
+        const keel::i32 src = order[i];
         latent_s[i] = latent[src];
         for (keel::usize r = 0; r < D; ++r) coeff[r * D + i] = V[r * D + src];
     }
@@ -257,7 +257,7 @@ pcacov(const Value &C, keel::Allocator *mr) {
 
 // Internal: returns both residuals and reconstruction (MATLAB form).
 std::tuple<Value, Value>
-pcares_full(const Value &X, int ndim, keel::Allocator *mr) {
+pcares_full(const Value &X, keel::i32 ndim, keel::Allocator *mr) {
     auto [coeff, score, latent, tsq, explained, mu] = pca(X, mr);
     const keel::usize N = X.dims().rows();
     const keel::usize D = X.dims().cols();
@@ -273,7 +273,7 @@ pcares_full(const Value &X, int ndim, keel::Allocator *mr) {
     for (keel::usize i = 0; i < N; ++i)
         for (keel::usize j = 0; j < D; ++j) {
             keel::f64 r = mu.elemAsDouble(j);
-            for (int k = 0; k < ndim; ++k) {
+            for (keel::i32 k = 0; k < ndim; ++k) {
                 r += score.elemAsDouble((keel::usize)k * N + i)
                    * coeff.elemAsDouble((keel::usize)k * D + j);
             }
@@ -283,7 +283,7 @@ pcares_full(const Value &X, int ndim, keel::Allocator *mr) {
     return {std::move(res), std::move(recon)};
 }
 
-Value pcares(const Value &X, int ndim, keel::Allocator *mr) {
+Value pcares(const Value &X, keel::i32 ndim, keel::Allocator *mr) {
     auto [res, recon] = pcares_full(X, ndim, mr);
     (void)recon;
     return res;

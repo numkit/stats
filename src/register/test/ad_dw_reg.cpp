@@ -55,7 +55,7 @@ void dwtest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
 
     // Optional name/value options: 'Tail' (both|right|left, default both) and
     // 'Method' (exact|approximate, default exact — matches MATLAB).
-    int  tail  = 0;        // 0=both, 1=right (positive ac), 2=left (negative ac)
+    keel::i32  tail  = 0;        // 0=both, 1=right (positive ac), 2=left (negative ac)
     bool exact = true;
     for (keel::usize i = 2; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar() && !args[i].isString())

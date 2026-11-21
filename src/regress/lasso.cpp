@@ -85,14 +85,14 @@ LassoResult lasso(const Value &X, const Value &y, const Value &lambdas,
 
     keel::Array<keel::f64> beta(p, 0.0);
     keel::Array<keel::f64> r = yc.clone();         // residual on standardised X
-    const int maxIter = 1000;
+    const keel::i32 maxIter = 1000;
     const keel::f64 tol = 1e-7;
 
     for (keel::usize k : idx) {
         const keel::f64 lambda = lambdas.elemAsDouble(k);
         const keel::f64 lambda_eff = alpha * lambda;
         const keel::f64 lambda_l2  = (1.0 - alpha) * lambda;
-        for (int it = 0; it < maxIter; ++it) {
+        for (keel::i32 it = 0; it < maxIter; ++it) {
             if (coordDescentSweep(Xs.data(), n, p, yc.data(),
                                    r, beta, XjNormSq.as_ref(),
                                    lambda_eff, lambda_l2, tol)) {
@@ -184,8 +184,8 @@ LassoResult lassoglm(const Value &X, const Value &y,
         const keel::f64 lambda = lambdas.elemAsDouble(k);
         const keel::f64 lambda_eff = alpha * lambda;
         const keel::f64 lambda_l2  = (1.0 - alpha) * lambda;
-        constexpr int outerIter = 25;
-        for (int outer = 0; outer < outerIter; ++outer) {
+        constexpr keel::i32 outerIter = 25;
+        for (keel::i32 outer = 0; outer < outerIter; ++outer) {
             // Working response and weights.
             keel::Array<keel::f64> z(n), w(n);
             for (keel::usize i = 0; i < n; ++i) {
@@ -222,9 +222,9 @@ LassoResult lassoglm(const Value &X, const Value &y,
                 for (keel::usize j = 0; j < p; ++j)
                     r[i] -= Xw[j * n + i] * beta[j];
 
-            constexpr int innerIter = 500;
+            constexpr keel::i32 innerIter = 500;
             const keel::f64 tol = 1e-6;
-            for (int inner = 0; inner < innerIter; ++inner) {
+            for (keel::i32 inner = 0; inner < innerIter; ++inner) {
                 if (coordDescentSweep(Xw.data(), n, p, zw.data(),
                                        r, beta, XjNorm.as_ref(),
                                        lambda_eff, lambda_l2, tol)) {

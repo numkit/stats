@@ -101,7 +101,7 @@ void crosscorr_argcheck(const Value &y1, const Value &y2)
 } // namespace
 
 std::tuple<Value, Value, Value>
-autocorr(const Value &y, int numLags, keel::f64 numSTD, keel::Allocator *mr)
+autocorr(const Value &y, keel::i32 numLags, keel::f64 numSTD, keel::Allocator *mr)
 {
     const keel::usize N = y.numel();
     const keel::usize K = (numLags >= 0) ? keel::as<keel::usize>(numLags) : defaultNumLags(N);
@@ -126,7 +126,7 @@ autocorr(const Value &y, int numLags, keel::f64 numSTD, keel::Allocator *mr)
 }
 
 std::tuple<Value, Value, Value>
-crosscorr(const Value &y1, const Value &y2, int numLags, keel::f64 numSTD,
+crosscorr(const Value &y1, const Value &y2, keel::i32 numLags, keel::f64 numSTD,
           keel::Allocator *mr)
 {
     crosscorr_argcheck(y1, y2);
@@ -140,12 +140,12 @@ crosscorr(const Value &y1, const Value &y2, int numLags, keel::f64 numSTD,
     const keel::f64 denom = std::sqrt(v1 * v2);
 
     // xcf at lag k = (1/N) Σ_t c1[t]·c2[t+k] / √(c1(0)·c2(0)), k = -K..K.
-    const long Kl = keel::as<long>(K), Nl = keel::as<long>(N);
+    const keel::i64 Kl = keel::as<keel::i64>(K), Nl = keel::as<keel::i64>(N);
     keel::Array<keel::f64> xcf(2 * K + 1), lags(2 * K + 1);
-    for (long k = -Kl; k <= Kl; ++k) {
+    for (keel::i64 k = -Kl; k <= Kl; ++k) {
         keel::f64 s = 0.0;
-        const long t0 = std::max(0L, -k), t1 = std::min(Nl, Nl - k);
-        for (long t = t0; t < t1; ++t)
+        const keel::i64 t0 = std::max(0L, -k), t1 = std::min(Nl, Nl - k);
+        for (keel::i64 t = t0; t < t1; ++t)
             s += c1[keel::as<keel::usize>(t)] * c2[keel::as<keel::usize>(t + k)];
         s /= keel::as<keel::f64>(N);
         const keel::usize idx = keel::as<keel::usize>(k + Kl);
@@ -159,7 +159,7 @@ crosscorr(const Value &y1, const Value &y2, int numLags, keel::f64 numSTD,
 }
 
 std::tuple<Value, Value, Value>
-parcorr(const Value &y, int numLags, keel::f64 numSTD, keel::Allocator *mr)
+parcorr(const Value &y, keel::i32 numLags, keel::f64 numSTD, keel::Allocator *mr)
 {
     const keel::usize N = y.numel();
     const keel::usize K = (numLags >= 0) ? keel::as<keel::usize>(numLags) : defaultNumLags(N);

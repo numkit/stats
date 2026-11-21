@@ -34,7 +34,7 @@ namespace numkit::stats {
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     Sum along `dim`, NaN entries skipped.
 /// @see nanmean
-Value nansum(const Value &x, int dim = 0,
+Value nansum(const Value &x, keel::i32 dim = 0,
              keel::Allocator *mr = nullptr);
 
 /// @brief NaN-aware mean along `dim` (`y = nanmean(x, dim)`).
@@ -46,7 +46,7 @@ Value nansum(const Value &x, int dim = 0,
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     Mean along `dim`, NaN entries skipped.
 /// @see nansum, nanvar
-Value nanmean(const Value &x, int dim = 0,
+Value nanmean(const Value &x, keel::i32 dim = 0,
               keel::Allocator *mr = nullptr);
 
 /// @brief NaN-aware maximum along `dim` (`y = nanmax(x, dim)`).
@@ -56,7 +56,7 @@ Value nanmean(const Value &x, int dim = 0,
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     Maximum along `dim`, NaN entries skipped.
 /// @see nanmin
-Value nanmax(const Value &x, int dim = 0,
+Value nanmax(const Value &x, keel::i32 dim = 0,
              keel::Allocator *mr = nullptr);
 
 /// @brief NaN-aware minimum along `dim` (`y = nanmin(x, dim)`).
@@ -66,7 +66,7 @@ Value nanmax(const Value &x, int dim = 0,
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     Minimum along `dim`, NaN entries skipped.
 /// @see nanmax
-Value nanmin(const Value &x, int dim = 0,
+Value nanmin(const Value &x, keel::i32 dim = 0,
              keel::Allocator *mr = nullptr);
 
 /// @brief NaN-aware variance (`y = nanvar(x, normFlag, dim)`).
@@ -81,7 +81,7 @@ Value nanmin(const Value &x, int dim = 0,
 /// @param mr        Memory resource (nullptr → process default).
 /// @return          Variance along `dim`, NaN entries skipped.
 /// @see nanstdev, nanmean
-Value nanvar(const Value &x, int normFlag = 0, int dim = 0,
+Value nanvar(const Value &x, keel::i32 normFlag = 0, keel::i32 dim = 0,
              keel::Allocator *mr = nullptr);
 
 /// @brief NaN-aware standard deviation (`y = nanstdev(x, normFlag, dim)`).
@@ -94,7 +94,7 @@ Value nanvar(const Value &x, int normFlag = 0, int dim = 0,
 /// @param mr        Memory resource (nullptr → process default).
 /// @return          Standard deviation along `dim`, NaN entries skipped.
 /// @see nanvar
-Value nanstdev(const Value &x, int normFlag = 0, int dim = 0,
+Value nanstdev(const Value &x, keel::i32 normFlag = 0, keel::i32 dim = 0,
                keel::Allocator *mr = nullptr);
 
 /// @brief NaN-aware median along `dim` (`y = nanmedian(x, dim)`).
@@ -104,7 +104,7 @@ Value nanstdev(const Value &x, int normFlag = 0, int dim = 0,
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     Median along `dim`, NaN entries skipped.
 /// @see nanmean
-Value nanmedian(const Value &x, int dim = 0,
+Value nanmedian(const Value &x, keel::i32 dim = 0,
                 keel::Allocator *mr = nullptr);
 
 /// @brief NaN-aware covariance matrix (`C = nancov(X [, normFlag])`).
@@ -124,7 +124,7 @@ Value nanmedian(const Value &x, int dim = 0,
 /// @return          `p × p` covariance matrix where `p = size(X, 2)`.
 ///                  Vector input → scalar variance.
 /// @see nanvar, cov
-Value nancov(const Value &x, int normFlag = 0,
+Value nancov(const Value &x, keel::i32 normFlag = 0,
              keel::Allocator *mr = nullptr);
 
 /// @brief NaN-aware covariance from two vectors (`C = nancov(x, y)`).
@@ -137,7 +137,7 @@ Value nancov(const Value &x, int normFlag = 0,
 /// @param normFlag  0 → unbiased (default), 1 → population.
 /// @param mr        Memory resource.
 /// @see nancov
-Value nancov(const Value &x, const Value &y, int normFlag = 0,
+Value nancov(const Value &x, const Value &y, keel::i32 normFlag = 0,
              keel::Allocator *mr = nullptr);
 
 

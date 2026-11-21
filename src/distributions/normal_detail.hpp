@@ -68,7 +68,7 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
     keel::f64 x = std::copysign(std::sqrt(std::sqrt(term * term - ln1m / a) - term), y);
     const keel::f64 invSqrtPi2 = 2.0 / std::sqrt(M_PI);
     // 4 Halley iterations for full 53-bit precision across central and tail regions.
-    for (int i = 0; i < 4; ++i) {
+    for (keel::i32 i = 0; i < 4; ++i) {
         keel::f64 err;
         if (ay <= 0.5) {
             err = std::erf(x) - y;

@@ -76,7 +76,7 @@ inline keel::f64 inv_mills(keel::f64 a) {
 keel::f64 zNorm(keel::f64 alpha) {
     const keel::f64 y_target = 1.0 - alpha;
     keel::f64 e = y_target;
-    for (int it = 0; it < 50; ++it) {
+    for (keel::i32 it = 0; it < 50; ++it) {
         const keel::f64 f  = std::erf(e) - y_target;
         const keel::f64 fp = (2.0 / std::sqrt(kPi)) * std::exp(-e * e);
         const keel::f64 step = f / fp;
@@ -105,14 +105,14 @@ normal_fit_mle(const keel::Array<keel::f64> &y, const keel::Array<keel::f64> &fr
     if (N < 2) return R;
 
     keel::f64 sumf = 0.0;
-    int nuncens = 0;
+    keel::i32 nuncens = 0;
     for (keel::usize i = 0; i < N; ++i) {
         sumf += fr[i];
         if (!cn[i]) ++nuncens;
     }
     if (sumf < 2.0 || nuncens < 1) return R;
 
-    const bool any_cens = (nuncens != (int)N);
+    const bool any_cens = (nuncens != (keel::i32)N);
 
     if (!any_cens) {
         // Closed-form weighted moments.
@@ -153,9 +153,9 @@ normal_fit_mle(const keel::Array<keel::f64> &y, const keel::Array<keel::f64> &fr
         }
         sd = std::sqrt(std::max(sq / std::max(w_un - 1.0, 1.0), 1e-12));
     }
-    const int    maxIter = 200;
+    const keel::i32    maxIter = 200;
     const keel::f64 tolFun  = 1e-10;
-    for (int it = 0; it < maxIter; ++it) {
+    for (keel::i32 it = 0; it < maxIter; ++it) {
         keel::f64 sumfy = 0.0, sumfy2 = 0.0;
         for (keel::usize i = 0; i < N; ++i) {
             const keel::f64 yi = y[i], fi = fr[i];

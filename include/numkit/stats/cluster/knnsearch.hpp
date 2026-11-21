@@ -37,7 +37,7 @@ namespace numkit::stats {
 ///
 /// @see rangesearch, pdist
 std::tuple<Value, Value>
-knnsearch(const Value &X, const Value &Y, int K = 1,
+knnsearch(const Value &X, const Value &Y, keel::i32 K = 1,
           keel::StringRef metric = "euclidean", keel::f64 p = 2.0,
           keel::Allocator *mr = nullptr);
 

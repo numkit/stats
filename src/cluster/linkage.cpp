@@ -47,7 +47,7 @@ keel::usize solve_N_from_pdist(keel::usize k) {
 
 // Lance-Williams update: d(c, k) where c = merge(a, b).
 inline keel::f64 lance_williams(LinkMethod m, keel::f64 d_ak, keel::f64 d_bk, keel::f64 d_ab,
-                             int n_a, int n_b, int n_k) {
+                             keel::i32 n_a, keel::i32 n_b, keel::i32 n_k) {
     switch (m) {
         case LinkMethod::Single:   return std::min(d_ak, d_bk);
         case LinkMethod::Complete: return std::max(d_ak, d_bk);
@@ -130,15 +130,15 @@ Value linkage(const Value &Y, keel::StringRef method, keel::StringRef metric, ke
         }
 
     // Active cluster set.
-    keel::Array<int> ids(N, scratch.allocator());
-    keel::Array<int> sizes(N, 1, scratch.allocator());
-    for (keel::usize i = 0; i < N; ++i) ids[i] = (int)i;  // 0-based; emit 1-based later
+    keel::Array<keel::i32> ids(N, scratch.allocator());
+    keel::Array<keel::i32> sizes(N, 1, scratch.allocator());
+    for (keel::usize i = 0; i < N; ++i) ids[i] = (keel::i32)i;  // 0-based; emit 1-based later
 
     keel::Array<keel::f64> Zflat(scratch.allocator());
     Zflat.reserve(3 * (N - 1));
     keel::Array<keel::f64> newrow(N, scratch.allocator());  // re-used per step
 
-    int next_id = (int)N;
+    keel::i32 next_id = (keel::i32)N;
     for (keel::usize step = 0; step + 1 < N; ++step) {
         // Find smallest distance among active rows. On ties, prefer the
         // pair with the largest (i, j) lex-order — MATLAB R2025b's
@@ -152,15 +152,15 @@ Value linkage(const Value &Y, keel::StringRef method, keel::StringRef metric, ke
                 if (dm[i * N + j] <= bd) { bd = dm[i * N + j]; bi = i; bj = j; }
 
         // Record merge: lower id first (per MATLAB convention).
-        int a_id = ids[bi];
-        int b_id = ids[bj];
+        keel::i32 a_id = ids[bi];
+        keel::i32 b_id = ids[bj];
         if (a_id > b_id) std::swap(a_id, b_id);
         Zflat.push_back(keel::f64(a_id + 1));
         Zflat.push_back(keel::f64(b_id + 1));
         Zflat.push_back(bd);
 
         // Build new row: distances from new cluster to every other.
-        const int n_a = sizes[bi], n_b = sizes[bj];
+        const keel::i32 n_a = sizes[bi], n_b = sizes[bj];
         for (keel::usize k = 0; k < M; ++k) {
             if (k == bi || k == bj) { newrow[k] = 0.0; continue; }
             const keel::f64 d_ak = dm[bi * N + k];
@@ -210,7 +210,7 @@ Value linkage(const Value &Y, keel::StringRef method, keel::Allocator *mr)
 // ════════════════════════════════════════════════════════════════════
 
 // Forward decl for inconsistency cutoff.
-Value inconsistent(const Value &Z, int depth, keel::Allocator *mr);
+Value inconsistent(const Value &Z, keel::i32 depth, keel::Allocator *mr);
 
 namespace {
 
@@ -242,61 +242,61 @@ void inconsistent_argcheck(const Value &Z)
 
 } // namespace
 
-Value cluster_from_linkage(const Value &Z, int maxclust, keel::f64 cutoff, keel::StringRef criterion, int depth, keel::Allocator *mr)
+Value cluster_from_linkage(const Value &Z, keel::i32 maxclust, keel::f64 cutoff, keel::StringRef criterion, keel::i32 depth, keel::Allocator *mr)
 {
     cluster_from_linkage_argcheck(Z);
     const keel::usize M = Z.dims().rows();
     const keel::usize N = M + 1;
     keel::ArenaTemp scratch = keel::get_scratch(mr);
-    keel::Array<int>    a(M, scratch.allocator()), b(M, scratch.allocator());
+    keel::Array<keel::i32>    a(M, scratch.allocator()), b(M, scratch.allocator());
     keel::Array<keel::f64> d(M, scratch.allocator());
     for (keel::usize i = 0; i < M; ++i) {
-        a[i] = (int)Z.doubleData()[0 * M + i] - 1;
-        b[i] = (int)Z.doubleData()[1 * M + i] - 1;
+        a[i] = (keel::i32)Z.doubleData()[0 * M + i] - 1;
+        b[i] = (keel::i32)Z.doubleData()[1 * M + i] - 1;
         d[i] = Z.doubleData()[2 * M + i];
     }
 
     // Determine cluster assignment via tree-walk for the inconsistency
     // criterion (MATLAB default for 'cutoff'); use distance threshold for
     // 'distance'; use prefix merges for maxclust.
-    keel::Array<int> labels(N, 0, scratch.allocator());
+    keel::Array<keel::i32> labels(N, 0, scratch.allocator());
 
     if (maxclust > 0 && maxclust >= 1 && (keel::usize)maxclust <= N) {
-        const int merges = (int)N - maxclust;
+        const keel::i32 merges = (keel::i32)N - maxclust;
         // Union-find.
-        keel::Array<int> parent(N + M, scratch.allocator());
-        for (keel::usize i = 0; i < parent.size(); ++i) parent[i] = (int)i;
-        auto find = [&](int x) -> int {
+        keel::Array<keel::i32> parent(N + M, scratch.allocator());
+        for (keel::usize i = 0; i < parent.size(); ++i) parent[i] = (keel::i32)i;
+        auto find = [&](keel::i32 x) -> keel::i32 {
             while (parent[x] != x) { parent[x] = parent[parent[x]]; x = parent[x]; }
             return x;
         };
-        for (int i = 0; i < merges; ++i) {
-            const int newid = (int)N + i;
-            int x = find(a[i]), y = find(newid);
+        for (keel::i32 i = 0; i < merges; ++i) {
+            const keel::i32 newid = (keel::i32)N + i;
+            keel::i32 x = find(a[i]), y = find(newid);
             if (x != y) parent[x] = y;
             x = find(b[i]); y = find(newid);
             if (x != y) parent[x] = y;
         }
-        keel::Array<int> root2lab(scratch.allocator());
+        keel::Array<keel::i32> root2lab(scratch.allocator());
         for (keel::usize i = 0; i < N; ++i) {
-            const int r = find((int)i);
-            int lab = -1;
+            const keel::i32 r = find((keel::i32)i);
+            keel::i32 lab = -1;
             for (keel::usize j = 0; j < root2lab.size(); ++j)
-                if (root2lab[j] == r) { lab = (int)j; break; }
-            if (lab < 0) { lab = (int)root2lab.size(); root2lab.push_back(r); }
+                if (root2lab[j] == r) { lab = (keel::i32)j; break; }
+            if (lab < 0) { lab = (keel::i32)root2lab.size(); root2lab.push_back(r); }
             labels[i] = lab + 1;
         }
     } else if (cutoff > 0.0 && criterion == "distance") {
         // A non-leaf node id (= N + i) is "kept" iff its merge distance d[i]
         // is <= cutoff. Walk top-down: at each node, if kept then collect
         // all leaves under it into one cluster; else recurse into children.
-        int next_label = 0;
-        auto assign = [&](auto &&self, int id, int lab) -> void {
+        keel::i32 next_label = 0;
+        auto assign = [&](auto &&self, keel::i32 id, keel::i32 lab) -> void {
             if ((keel::usize)id < N) { labels[(keel::usize)id] = lab; return; }
             self(self, a[(keel::usize)id - N], lab);
             self(self, b[(keel::usize)id - N], lab);
         };
-        auto walk = [&](auto &&self, int id) -> void {
+        auto walk = [&](auto &&self, keel::i32 id) -> void {
             if ((keel::usize)id < N) {
                 labels[(keel::usize)id] = ++next_label;
                 return;
@@ -310,7 +310,7 @@ Value cluster_from_linkage(const Value &Z, int maxclust, keel::f64 cutoff, keel:
                 self(self, b[i]);
             }
         };
-        walk(walk, (int)N + (int)M - 1);
+        walk(walk, (keel::i32)N + (keel::i32)M - 1);
     } else if (cutoff > 0.0) {
         // Inconsistency criterion (MATLAB default).
         Value Yinc = inconsistent(Z, depth, mr);
@@ -318,13 +318,13 @@ Value cluster_from_linkage(const Value &Z, int maxclust, keel::f64 cutoff, keel:
         // inc per non-leaf node: column 4 (= 3 in 0-based), row layout col-major M×4.
         keel::Array<keel::f64> inc(M, scratch.allocator());
         for (keel::usize i = 0; i < M; ++i) inc[i] = yi[3 * M + i];
-        int next_label = 0;
-        auto assign = [&](auto &&self, int id, int lab) -> void {
+        keel::i32 next_label = 0;
+        auto assign = [&](auto &&self, keel::i32 id, keel::i32 lab) -> void {
             if ((keel::usize)id < N) { labels[(keel::usize)id] = lab; return; }
             self(self, a[(keel::usize)id - N], lab);
             self(self, b[(keel::usize)id - N], lab);
         };
-        auto walk = [&](auto &&self, int id) -> void {
+        auto walk = [&](auto &&self, keel::i32 id) -> void {
             if ((keel::usize)id < N) {
                 labels[(keel::usize)id] = ++next_label;
                 return;
@@ -338,16 +338,16 @@ Value cluster_from_linkage(const Value &Z, int maxclust, keel::f64 cutoff, keel:
                 self(self, b[i]);
             }
         };
-        walk(walk, (int)N + (int)M - 1);
+        walk(walk, (keel::i32)N + (keel::i32)M - 1);
     } else {
         // No criterion — every leaf is its own cluster.
-        for (keel::usize i = 0; i < N; ++i) labels[i] = (int)i + 1;
+        for (keel::usize i = 0; i < N; ++i) labels[i] = (keel::i32)i + 1;
     }
 
     // Compact labels to 1..K in first-encountered order.
-    keel::Array<int> remap(N + 1, 0, scratch.allocator());
-    int next = 0;
-    keel::Array<int> compact(N, scratch.allocator());
+    keel::Array<keel::i32> remap(N + 1, 0, scratch.allocator());
+    keel::i32 next = 0;
+    keel::Array<keel::i32> compact(N, scratch.allocator());
     for (keel::usize i = 0; i < N; ++i) {
         if (remap[(keel::usize)labels[i]] == 0) remap[(keel::usize)labels[i]] = ++next;
         compact[i] = remap[(keel::usize)labels[i]];
@@ -360,24 +360,24 @@ Value cluster_from_linkage(const Value &Z, int maxclust, keel::f64 cutoff, keel:
 }
 
 // Backward-compat wrapper without depth.
-Value cluster_from_linkage(const Value &Z, int maxclust, keel::f64 cutoff, keel::StringRef criterion, keel::Allocator *mr)
+Value cluster_from_linkage(const Value &Z, keel::i32 maxclust, keel::f64 cutoff, keel::StringRef criterion, keel::Allocator *mr)
 {
     return cluster_from_linkage(Z, maxclust, cutoff, criterion, 2, mr);
 }
 
-Value clusterdata(const Value &X, int maxclust, keel::f64 cutoff, keel::StringRef linkage_method, keel::StringRef criterion, int depth, keel::StringRef distance_metric, keel::f64 p, keel::Allocator *mr)
+Value clusterdata(const Value &X, keel::i32 maxclust, keel::f64 cutoff, keel::StringRef linkage_method, keel::StringRef criterion, keel::i32 depth, keel::StringRef distance_metric, keel::f64 p, keel::Allocator *mr)
 {
     Value Y = pdist(X, distance_metric, p, mr);
     Value Z = linkage(Y, linkage_method, mr);
     return cluster_from_linkage(Z, maxclust, cutoff, criterion, depth, mr);
 }
 
-Value clusterdata(const Value &X, int maxclust, keel::f64 cutoff, keel::StringRef linkage_method, keel::StringRef criterion, int depth, keel::Allocator *mr)
+Value clusterdata(const Value &X, keel::i32 maxclust, keel::f64 cutoff, keel::StringRef linkage_method, keel::StringRef criterion, keel::i32 depth, keel::Allocator *mr)
 {
     return clusterdata(X, maxclust, cutoff, linkage_method, criterion, depth, "euclidean", 2.0, mr);
 }
 
-Value clusterdata(const Value &X, int maxclust, keel::f64 cutoff, keel::StringRef linkage_method, keel::StringRef criterion, keel::Allocator *mr)
+Value clusterdata(const Value &X, keel::i32 maxclust, keel::f64 cutoff, keel::StringRef linkage_method, keel::StringRef criterion, keel::Allocator *mr)
 {
     return clusterdata(X, maxclust, cutoff, linkage_method, criterion, 2, mr);
 }
@@ -400,11 +400,11 @@ std::tuple<Value, Value> cophenet_full(const Value &Z, const Value &Y, keel::All
     const keel::usize Yn = Y.numel();
 
     keel::ArenaTemp scratch = keel::get_scratch(mr);
-    keel::Array<int>    a(M, scratch.allocator()), b(M, scratch.allocator());
+    keel::Array<keel::i32>    a(M, scratch.allocator()), b(M, scratch.allocator());
     keel::Array<keel::f64> d(M, scratch.allocator());
     for (keel::usize i = 0; i < M; ++i) {
-        a[i] = (int)Z.doubleData()[0 * M + i] - 1;
-        b[i] = (int)Z.doubleData()[1 * M + i] - 1;
+        a[i] = (keel::i32)Z.doubleData()[0 * M + i] - 1;
+        b[i] = (keel::i32)Z.doubleData()[1 * M + i] - 1;
         d[i] = Z.doubleData()[2 * M + i];
     }
 
@@ -414,10 +414,10 @@ std::tuple<Value, Value> cophenet_full(const Value &Z, const Value &Y, keel::All
     // The outer container needs uses-allocator construction; plain
     // std::pmr::vector<int> satisfies that (ScratchVec deletes copy ctor
     // and breaks the trait — use plain pmr::vector for nested cases).
-    keel::Array<keel::Array<int>> members(scratch.allocator());
+    keel::Array<keel::Array<keel::i32>> members(scratch.allocator());
     members.reserve(N + M);
     for (keel::usize i = 0; i < N + M; ++i) members.emplace_back(scratch.allocator());
-    for (keel::usize i = 0; i < N; ++i) members[i].push_back((int)i);
+    for (keel::usize i = 0; i < N; ++i) members[i].push_back((keel::i32)i);
     keel::Array<keel::f64> dcoph(Yn, 0.0, scratch.allocator());
 
     auto pdist_idx = [&](keel::usize i, keel::usize j) {
@@ -426,11 +426,11 @@ std::tuple<Value, Value> cophenet_full(const Value &Z, const Value &Y, keel::All
     };
 
     for (keel::usize i = 0; i < M; ++i) {
-        const int newid = (int)N + (int)i;
+        const keel::i32 newid = (keel::i32)N + (keel::i32)i;
         const auto &lhs = members[a[i]];
         const auto &rhs = members[b[i]];
-        for (int x : lhs)
-            for (int y : rhs)
+        for (keel::i32 x : lhs)
+            for (keel::i32 y : rhs)
                 dcoph[pdist_idx(x, y)] = d[i];
         members[newid].append(lhs);
         members[newid].append(rhs);
@@ -466,29 +466,29 @@ Value cophenet(const Value &Z, const Value &Y, keel::Allocator *mr)
 // inconsistent — inconsistency coefficient
 // ════════════════════════════════════════════════════════════════════
 
-Value inconsistent(const Value &Z, int depth, keel::Allocator *mr) {
+Value inconsistent(const Value &Z, keel::i32 depth, keel::Allocator *mr) {
     inconsistent_argcheck(Z);
     const keel::usize M = Z.dims().rows();
     if (depth <= 0) depth = 2;
     const keel::usize N = M + 1;
 
     keel::ArenaTemp scratch = keel::get_scratch(mr);
-    keel::Array<int>    a(M, scratch.allocator()), b(M, scratch.allocator());
+    keel::Array<keel::i32>    a(M, scratch.allocator()), b(M, scratch.allocator());
     keel::Array<keel::f64> d(M, scratch.allocator());
     for (keel::usize i = 0; i < M; ++i) {
-        a[i] = (int)Z.doubleData()[0 * M + i] - 1;
-        b[i] = (int)Z.doubleData()[1 * M + i] - 1;
+        a[i] = (keel::i32)Z.doubleData()[0 * M + i] - 1;
+        b[i] = (keel::i32)Z.doubleData()[1 * M + i] - 1;
         d[i] = Z.doubleData()[2 * M + i];
     }
 
-    auto child_dist = [&](int id) -> keel::f64 {
+    auto child_dist = [&](keel::i32 id) -> keel::f64 {
         if ((keel::usize)id < N) return -1.0;  // leaf
         return d[(keel::usize)id - N];
     };
 
     // For each merge node, walk down `depth` levels, collecting all link
     // distances; compute mean, std, count, inconsistency (= (d - mean)/std).
-    auto collect = [&](auto &&self, int id, int rem, keel::Array<keel::f64> &acc) -> void {
+    auto collect = [&](auto &&self, keel::i32 id, keel::i32 rem, keel::Array<keel::f64> &acc) -> void {
         if ((keel::usize)id < N) return;
         if (rem == 0) return;
         acc.push_back(d[(keel::usize)id - N]);
@@ -501,7 +501,7 @@ Value inconsistent(const Value &Z, int depth, keel::Allocator *mr) {
 
     for (keel::usize i = 0; i < M; ++i) {
         keel::Array<keel::f64> ds(scratch.allocator());
-        collect(collect, (int)N + (int)i, depth, ds);
+        collect(collect, (keel::i32)N + (keel::i32)i, depth, ds);
         const keel::f64 n = keel::f64(ds.size());
         keel::f64 mu = 0.0; for (keel::f64 v : ds) mu += v; mu /= n;
         keel::f64 var = 0.0; for (keel::f64 v : ds) var += (v - mu) * (v - mu);

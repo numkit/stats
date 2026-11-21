@@ -111,7 +111,7 @@ Value wald_ci_2d(NllFn &&nll, keel::f64 t1, keel::f64 t2,
     Value out = Value::matrix(2, 2, ValueType::DOUBLE, mr);
     keel::f64 *od = out.doubleDataMut();
     if (std::fabs(det) < 1e-300 || H11 < 0.0 || H22 < 0.0) {
-        for (int i = 0; i < 4; ++i) od[i] = std::numeric_limits<keel::f64>::quiet_NaN();
+        for (keel::i32 i = 0; i < 4; ++i) od[i] = std::numeric_limits<keel::f64>::quiet_NaN();
         return out;
     }
     const keel::f64 V11 = H22 / det;
@@ -287,7 +287,7 @@ namespace {
     keel::f64 *od = out.doubleDataMut();
     const keel::f64 det = H11 * H22 - H12 * H12;
     if (std::fabs(det) < 1e-300 || H11 < 0.0 || H22 < 0.0) {
-        for (int i = 0; i < 4; ++i) od[i] = std::numeric_limits<keel::f64>::quiet_NaN();
+        for (keel::i32 i = 0; i < 4; ++i) od[i] = std::numeric_limits<keel::f64>::quiet_NaN();
         return out;
     }
     const keel::f64 V11 = H22 / det;

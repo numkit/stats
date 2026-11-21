@@ -73,10 +73,10 @@ Grp2idxResult grp2idx(const Value &s, keel::Allocator *mr)
         g.reserve(vec.size());
         for (const auto &e : vec) {
             keel::String str = e.toString();
-            int idx = -1;
+            keel::i32 idx = -1;
             for (keel::usize k = 0; k < names.size(); ++k)
-                if (names[k] == str) { idx = keel::as<int>(k); break; }
-            if (idx < 0) { names.push_back(std::move(str)); idx = keel::as<int>(names.size()) - 1; }
+                if (names[k] == str) { idx = keel::as<keel::i32>(k); break; }
+            if (idx < 0) { names.push_back(std::move(str)); idx = keel::as<keel::i32>(names.size()) - 1; }
             g.push_back(keel::as<keel::f64>(idx + 1));
         }
     } else if (s.isChar() || s.isString()) {

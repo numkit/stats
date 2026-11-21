@@ -44,7 +44,7 @@ enum class QMethod { Midpoint, Inclusive, Exclusive, Approximate };
 
 namespace {
 
-[[maybe_unused]] void validateNormFlag(int w, const char *fn)
+[[maybe_unused]] void validateNormFlag(keel::i32 w, const char *fn)
 {
     if (w != 0 && w != 1)
         throw Error(keel::format("{}: normalization flag must be 0 or 1", fn),
@@ -111,7 +111,7 @@ inline bool isComplexNaNStats(keel::c64 c)
     return std::isnan(c.real()) || std::isnan(c.imag());
 }
 
-keel::f64 complexVarianceFromSlice(const keel::c64 *data, keel::usize n, int normFlag,
+keel::f64 complexVarianceFromSlice(const keel::c64 *data, keel::usize n, keel::i32 normFlag,
                                 bool omitNan = false)
 {
     keel::c64 mean(0.0, 0.0);
@@ -134,12 +134,12 @@ keel::f64 complexVarianceFromSlice(const keel::c64 *data, keel::usize n, int nor
     return acc / divisor;
 }
 
-inline Value allocVarianceOutput(const Value &x, int redDim, keel::Allocator *mr)
+inline Value allocVarianceOutput(const Value &x, keel::i32 redDim, keel::Allocator *mr)
 {
     if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
         keel::ArenaTemp scratch = keel::get_scratch(mr);
         auto shape = outShapeForDimND(x, redDim, scratch.allocator());
-        return Value::matrixND(shape.data(), (int) shape.size(), ValueType::DOUBLE, mr);
+        return Value::matrixND(shape.data(), (keel::i32) shape.size(), ValueType::DOUBLE, mr);
     }
     auto outShape = outShapeForDim(x, redDim);
     return createMatrix(outShape, ValueType::DOUBLE, mr);
@@ -153,17 +153,17 @@ inline Value allocVarianceOutput(const Value &x, int redDim, keel::Allocator *mr
 //     collapses to 1 and the result is NaN-filled.
 // A size-0 sibling dim keeps the result empty, e.g. var(zeros(3,0))=1x0,
 // median([],2)=0x1. nk previously returned a 0x0 empty for all of these.
-inline Value emptyStatReductionFill(const Value &x, int dim, keel::f64 fill,
+inline Value emptyStatReductionFill(const Value &x, keel::i32 dim, keel::f64 fill,
                                     keel::Allocator *mr)
 {
     const auto &dd = x.dims();
     if (dim < 1 && dd.ndim() == 2 && dd.rows() == 0 && dd.cols() == 0)
         return Value::scalar(fill, mr);
-    int opDim = dim;
+    keel::i32 opDim = dim;
     if (opDim < 1) {
         opDim = 1;
-        const int nd = dd.ndim();
-        for (int i = 0; i < nd; ++i)
+        const keel::i32 nd = dd.ndim();
+        for (keel::i32 i = 0; i < nd; ++i)
             if (dd.dim(i) != 1) { opDim = i + 1; break; }
     }
     DimsArg o{dd.rows(), dd.cols(), dd.is3D() ? dd.pages() : 0};
@@ -180,7 +180,7 @@ inline Value emptyStatReductionFill(const Value &x, int dim, keel::f64 fill,
     return out;
 }
 
-inline Value emptyStatReductionNaN(const Value &x, int dim, keel::Allocator *mr)
+inline Value emptyStatReductionNaN(const Value &x, keel::i32 dim, keel::Allocator *mr)
 {
     return emptyStatReductionFill(x, dim, std::nan(""), mr);
 }
@@ -188,15 +188,15 @@ inline Value emptyStatReductionNaN(const Value &x, int dim, keel::Allocator *mr)
 // Complex variance along dim: walks slices via stride math, gathers
 // each slice into a Complex scratch buffer, computes per-slice complex
 // variance, writes DOUBLE output.
-void complexVarianceAlongDim(const Value &x, int redDim, keel::f64 *dst, int normFlag, bool omitNan, keel::Allocator *mr)
+void complexVarianceAlongDim(const Value &x, keel::i32 redDim, keel::f64 *dst, keel::i32 normFlag, bool omitNan, keel::Allocator *mr)
 {
     const auto &d = x.dims();
-    const int redAxis = redDim - 1;
+    const keel::i32 redAxis = redDim - 1;
     const keel::usize sliceLen = d.dim(redAxis);
     keel::usize B = 1;
-    for (int i = 0; i < redAxis; ++i) B *= d.dim(i);
+    for (keel::i32 i = 0; i < redAxis; ++i) B *= d.dim(i);
     keel::usize O = 1;
-    for (int i = redAxis + 1; i < d.ndim(); ++i) O *= d.dim(i);
+    for (keel::i32 i = redAxis + 1; i < d.ndim(); ++i) O *= d.dim(i);
 
     const keel::c64 *src = x.complexData();
     keel::Array<keel::c64> scratch(sliceLen, mr);
@@ -214,7 +214,7 @@ void complexVarianceAlongDim(const Value &x, int redDim, keel::f64 *dst, int nor
             reduceSlice(o * B + b, o * sliceLen * B + b, B);
 }
 
-[[maybe_unused]] Value varianceComplex(const Value &x, int normFlag, int dim,
+[[maybe_unused]] Value varianceComplex(const Value &x, keel::i32 normFlag, keel::i32 dim,
                        keel::Allocator *mr, bool sqrtIt, bool omitNan = false)
 {
     if (x.isEmpty())
@@ -225,7 +225,7 @@ void complexVarianceAlongDim(const Value &x, int redDim, keel::f64 *dst, int nor
         if (sqrtIt && !std::isnan(v)) v = std::sqrt(v);
         return Value::scalar(v, mr);
     }
-    const int d = (dim > 0) ? dim : firstNonSingletonDim(x);
+    const keel::i32 d = (dim > 0) ? dim : firstNonSingletonDim(x);
     Value out = allocVarianceOutput(x, d, mr);
     keel::ArenaTemp scratch = keel::get_scratch(mr);
     complexVarianceAlongDim(x, d, out.doubleDataMut(), normFlag, omitNan, scratch.allocator());
@@ -284,16 +284,16 @@ keel::c64 complexMedianFromSlice(keel::c64 *s, keel::usize n)
 }
 
 // Per-dim complex median (mirrors complexVarianceAlongDim; COMPLEX output).
-void complexMedianAlongDim(const Value &x, int redDim, keel::c64 *dst,
+void complexMedianAlongDim(const Value &x, keel::i32 redDim, keel::c64 *dst,
                            keel::Allocator *mr)
 {
     const auto &d = x.dims();
-    const int redAxis = redDim - 1;
+    const keel::i32 redAxis = redDim - 1;
     const keel::usize sliceLen = d.dim(redAxis);
     keel::usize B = 1;
-    for (int i = 0; i < redAxis; ++i) B *= d.dim(i);
+    for (keel::i32 i = 0; i < redAxis; ++i) B *= d.dim(i);
     keel::usize O = 1;
-    for (int i = redAxis + 1; i < d.ndim(); ++i) O *= d.dim(i);
+    for (keel::i32 i = redAxis + 1; i < d.ndim(); ++i) O *= d.dim(i);
     const keel::c64 *src = x.complexData();
     keel::Array<keel::c64> scratch(sliceLen, mr);
     auto reduceSlice = [&](keel::usize outOff, keel::usize baseOff, keel::usize stride) {
@@ -309,16 +309,16 @@ void complexMedianAlongDim(const Value &x, int redDim, keel::c64 *dst,
             reduceSlice(o * B + b, o * sliceLen * B + b, B);
 }
 
-[[maybe_unused]] Value medianComplex(const Value &x, int dim, keel::Allocator *mr)
+[[maybe_unused]] Value medianComplex(const Value &x, keel::i32 dim, keel::Allocator *mr)
 {
     if (x.isEmpty()) return emptyStatReductionNaN(x, dim, mr);
     if (x.isScalar()) return Value::complexScalar(x.complexData()[0], mr);
-    const int d = resolveDim(x, dim, "median");
+    const keel::i32 d = resolveDim(x, dim, "median");
     Value out;
     if (x.dims().ndim() >= 4 && d >= 1 && d <= x.dims().ndim()) {
         keel::ArenaTemp sc = keel::get_scratch(mr);
         auto shape = outShapeForDimND(x, d, sc.allocator());
-        out = Value::matrixND(shape.data(), keel::as<int>(shape.size()),
+        out = Value::matrixND(shape.data(), keel::as<keel::i32>(shape.size()),
                               ValueType::COMPLEX, mr);
     } else {
         auto outShape = outShapeForDim(x, d);
@@ -366,7 +366,7 @@ keel::f64 quantileFromSortedSlice(const keel::f64 *sorted, keel::usize n, keel::
 // raw user input to a [0,1] probability (1.0 for quantile, 1/100 for
 // prctile). `method` selects the interpolation rule (default Midpoint
 // = MATLAB R2025b default).
-[[maybe_unused]] Value quantileImpl(const Value &x, const Value &p, int dim, keel::f64 pScale, QMethod method, const char *fn, keel::Allocator *mr)
+[[maybe_unused]] Value quantileImpl(const Value &x, const Value &p, keel::i32 dim, keel::f64 pScale, QMethod method, const char *fn, keel::Allocator *mr)
 {
     if (p.numel() == 0)
         throw Error(keel::format("{}: p must be non-empty", fn),
@@ -385,7 +385,7 @@ keel::f64 quantileFromSortedSlice(const keel::f64 *sorted, keel::usize n, keel::
     }
 
     const keel::usize k = probs.size();
-    const int d = resolveDim(x, dim, fn);
+    const keel::i32 d = resolveDim(x, dim, fn);
 
     // Scalar p â†’ standard one-output-per-slice path.
     if (k == 1) {
@@ -419,9 +419,9 @@ keel::f64 quantileFromSortedSlice(const keel::f64 *sorted, keel::usize n, keel::
 
     // Build output shape: same as input but the reduced dim has size k.
     const auto &dd = x.dims();
-    const int nd = std::max(dd.ndim(), d);
+    const keel::i32 nd = std::max(dd.ndim(), d);
     keel::Array<keel::usize> outShape(nd, scratch.allocator());
-    for (int i = 0; i < nd; ++i)
+    for (keel::i32 i = 0; i < nd; ++i)
         outShape[i] = (i == d - 1) ? k : ((i < dd.ndim()) ? dd.dim(i) : 1);
     Value out = (nd <= 2) ? Value::matrix(outShape[0], outShape[1], ValueType::DOUBLE, mr)
               : (nd == 3) ? Value::matrix3d(outShape[0], outShape[1], outShape[2], ValueType::DOUBLE, mr)
@@ -429,11 +429,11 @@ keel::f64 quantileFromSortedSlice(const keel::f64 *sorted, keel::usize n, keel::
     keel::f64 *dst = out.doubleDataMut();
 
     keel::usize B = 1;
-    for (int i = 0; i < d - 1; ++i)
+    for (keel::i32 i = 0; i < d - 1; ++i)
         B *= (i < dd.ndim()) ? dd.dim(i) : 1;
     const keel::usize N = (d - 1 < dd.ndim()) ? dd.dim(d - 1) : 1;
     keel::usize O = 1;
-    for (int i = d; i < nd; ++i)
+    for (keel::i32 i = d; i < nd; ++i)
         O *= (i < dd.ndim()) ? dd.dim(i) : 1;
 
     auto sorted = keel::Array<keel::f64>(N, scratch.allocator());
@@ -543,15 +543,15 @@ inline void modeFromSliceT(T *data, keel::usize n, T &outVal, keel::f64 &outCoun
 // On empty slices (sliceLen == 0) fills outputs with NaN/0 (or 0/0 for
 // integer T) â€” matches MATLAB's mode-of-empty-slice convention.
 template <typename T>
-void modeAlongDim(const Value &x, int redDim, T *dst, keel::f64 *dstC, bool typeMatch, keel::Allocator *mr)
+void modeAlongDim(const Value &x, keel::i32 redDim, T *dst, keel::f64 *dstC, bool typeMatch, keel::Allocator *mr)
 {
     const auto &d = x.dims();
-    const int redAxis = redDim - 1;
+    const keel::i32 redAxis = redDim - 1;
     const keel::usize sliceLen = d.dim(redAxis);
     keel::usize B = 1;
-    for (int i = 0; i < redAxis; ++i) B *= d.dim(i);
+    for (keel::i32 i = 0; i < redAxis; ++i) B *= d.dim(i);
     keel::usize O = 1;
-    for (int i = redAxis + 1; i < d.ndim(); ++i) O *= d.dim(i);
+    for (keel::i32 i = redAxis + 1; i < d.ndim(); ++i) O *= d.dim(i);
 
     if (sliceLen == 0) {
         const T defVal = modeEmptyValue<T>();
@@ -584,13 +584,13 @@ void modeAlongDim(const Value &x, int redDim, T *dst, keel::f64 *dstC, bool type
 }
 
 inline std::pair<Value, Value>
-allocModeOutputs(const Value &x, int redDim, ValueType outType, keel::Allocator *mr)
+allocModeOutputs(const Value &x, keel::i32 redDim, ValueType outType, keel::Allocator *mr)
 {
     if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
         keel::ArenaTemp scratch = keel::get_scratch(mr);
         auto shape = outShapeForDimND(x, redDim, scratch.allocator());
-        return {Value::matrixND(shape.data(), (int) shape.size(), outType, mr),
-                Value::matrixND(shape.data(), (int) shape.size(), ValueType::DOUBLE, mr)};
+        return {Value::matrixND(shape.data(), (keel::i32) shape.size(), outType, mr),
+                Value::matrixND(shape.data(), (keel::i32) shape.size(), ValueType::DOUBLE, mr)};
     }
     auto outShape = outShapeForDim(x, redDim);
     return {createMatrix(outShape, outType, mr),
@@ -616,7 +616,7 @@ modeAllT(const Value &x, ValueType outType, keel::Allocator *mr)
         return std::make_tuple(makeScalarT<T>(v, outType, mr),
                                Value::scalar(c, mr));
     }
-    const int redDim = firstNonSingletonDim(x);
+    const keel::i32 redDim = firstNonSingletonDim(x);
     auto [out, outC] = allocModeOutputs(x, redDim, outType, mr);
     modeAlongDim<T>(x, redDim, static_cast<T *>(out.rawDataMut()), outC.doubleDataMut(), typeMatch, scratch.allocator());
     return std::make_tuple(std::move(out), std::move(outC));
@@ -624,7 +624,7 @@ modeAllT(const Value &x, ValueType outType, keel::Allocator *mr)
 
 template <typename T>
 std::tuple<Value, Value>
-modeAlongDimT(const Value &x, int dim, ValueType outType, keel::Allocator *mr)
+modeAlongDimT(const Value &x, keel::i32 dim, ValueType outType, keel::Allocator *mr)
 {
     const bool typeMatch = (x.type() == outType);
     if (x.isEmpty() && x.dims().ndim() < 4) {
@@ -664,7 +664,7 @@ modeAlongDimT(const Value &x, int dim, ValueType outType, keel::Allocator *mr)
 // outType=LOGICAL so the result preserves logical class. CHAR uses
 // T=char. COMPLEX has no defined order â†’ throw.
 [[maybe_unused]] std::tuple<Value, Value>
-dispatchMode(const Value &x, int dim, keel::Allocator *mr, const char *fn)
+dispatchMode(const Value &x, keel::i32 dim, keel::Allocator *mr, const char *fn)
 {
     const bool useDimReducer = (dim > 0);
     auto run = [&](auto tag, ValueType outT) {
@@ -708,7 +708,7 @@ void validateCovInputs(const Value &x, const char *fn)
                      0, 0, fn, "", keel::format("numkit:{}:rank", fn));
 }
 
-void validateNormFlagCov(int w, const char *fn)
+void validateNormFlagCov(keel::i32 w, const char *fn)
 {
     if (w != 0 && w != 1)
         throw Error(keel::format("{}: normalization flag must be 0 or 1", fn),
@@ -813,7 +813,7 @@ enum class CovNan { Include, Omitrows, Partialrows };
 // columns are non-NaN, with the means taken over exactly those rows). The
 // default 'includenan' is the NaN-poisoning behaviour of plain cov() and is
 // routed there by the dispatcher.
-[[maybe_unused]] Value covNanAware(const Value &x, int normFlag, CovNan mode,
+[[maybe_unused]] Value covNanAware(const Value &x, keel::i32 normFlag, CovNan mode,
                   keel::Allocator *mr)
 {
     validateNormFlagCov(normFlag, "cov");
@@ -1276,7 +1276,7 @@ namespace {
     if (last.type() != ValueType::CHAR) return args.size();
     keel::String s = last.toString();
     std::transform(s.begin(), s.end(), s.begin(),
-                   [](unsigned char c) { return keel::to_ascii_lower(c); });
+                   [](keel::u8 c) { return keel::to_ascii_lower(c); });
     if (s.as_ref() == "omitnan" || s.as_ref() == "omitmissing") { omitNan = true; return args.size() - 1; }
     if (s.as_ref() == "includenan" || s.as_ref() == "includemissing") return args.size() - 1;
     // Not a nan flag â€” leave it to the caller to handle (e.g. 'all').
@@ -1292,7 +1292,7 @@ inline void rejectComplexOmitNan(const Value &x, const char *fn)
 
 } // namespace
 
-Value quantileWithOpts(const Value &x, const Value &p, int dim, bool flatten,
+Value quantileWithOpts(const Value &x, const Value &p, keel::i32 dim, bool flatten,
                        QMethod method, keel::f64 pScale, const char *fn,
                        keel::Allocator *mr);
 

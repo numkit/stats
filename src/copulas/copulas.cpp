@@ -195,12 +195,12 @@ keel::f64 bivnormcdf(keel::f64 a, keel::f64 b, keel::f64 rho)
     // numerically. As a pragmatic compromise (Drezner-Wesolowsky
     // 16-point would need its own coefficient table), use trapezoid
     // rule with 4096 panels.
-    const int N = 8192;
+    const keel::i32 N = 8192;
     const keel::f64 half_inv_pi = 1.0 / (2.0 * M_PI);
     const keel::f64 a2_p_b2 = a * a + b * b;
     const keel::f64 ab = a * b;
     keel::f64 total = 0.0;
-    for (int i = 0; i <= N; ++i) {
+    for (keel::i32 i = 0; i <= N; ++i) {
         const keel::f64 r = rho * keel::as<keel::f64>(i) / N;
         const keel::f64 one_m_r2 = 1.0 - r * r;
         const keel::f64 v = half_inv_pi / std::sqrt(one_m_r2)

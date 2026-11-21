@@ -9,7 +9,7 @@
 
 namespace numkit::stats {
 
-Value zscoreCore(const Value &A, int flag, int dim,
+Value zscoreCore(const Value &A, keel::i32 flag, keel::i32 dim,
                  Value *muOut = nullptr, Value *sigmaOut = nullptr,
                  keel::Allocator *mr = nullptr);
 

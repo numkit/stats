@@ -82,7 +82,7 @@ void anova2_argcheck(const Value &Y)
                     0, 0, "anova2", "", "numkit:anova2:tooSmall");
 }
 
-void friedman_argcheck(int reps)
+void friedman_argcheck(keel::i32 reps)
 {
     if (reps < 1)
         throw Error("friedman: reps must be a positive integer",
@@ -248,7 +248,7 @@ kruskalwallis(const Value &y, const Value &group, keel::Allocator *mr)
 }
 
 std::tuple<Value, Value, Value>
-friedman(const Value &x, int reps, keel::Allocator *mr)
+friedman(const Value &x, keel::i32 reps, keel::Allocator *mr)
 {
     friedman_argcheck(reps);
     const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();

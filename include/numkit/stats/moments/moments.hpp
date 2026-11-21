@@ -27,7 +27,7 @@ namespace numkit::stats {
 /// @param mr        Memory resource (nullptr → process default).
 /// @return          Skewness reduced along `dim`.
 /// @see kurtosis
-Value skewness(const Value &x, int normFlag = 1, int dim = 0,
+Value skewness(const Value &x, keel::i32 normFlag = 1, keel::i32 dim = 0,
                keel::Allocator *mr = nullptr);
 
 /// @brief Sample kurtosis along `dim` (`y = kurtosis(X, normFlag, dim)`).
@@ -44,7 +44,7 @@ Value skewness(const Value &x, int normFlag = 1, int dim = 0,
 /// @param mr        Memory resource (nullptr → process default).
 /// @return          Kurtosis reduced along `dim`.
 /// @see skewness
-Value kurtosis(const Value &x, int normFlag = 1, int dim = 0,
+Value kurtosis(const Value &x, keel::i32 normFlag = 1, keel::i32 dim = 0,
                keel::Allocator *mr = nullptr);
 
 

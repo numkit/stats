@@ -230,12 +230,12 @@ NlinfitResult nlinfit(const Value &X, const Value &y,
     for (keel::f64 v : rv) sse += v * v;
 
     keel::f64 lambda = 1e-3;
-    const int maxIter = 200;
+    const keel::i32 maxIter = 200;
     const keel::f64 tolFun = 1e-10;
     const keel::f64 tolX   = 1e-10;
 
     keel::Array<keel::f64> J;
-    for (int iter = 0; iter < maxIter; ++iter) {
+    for (keel::i32 iter = 0; iter < maxIter; ++iter) {
         J = numericalJacobian(model, beta.as_ref(), n, p, X, mr);
         auto dbeta = lmStep(J.as_ref(), n, p, rv.as_ref(), lambda);
 

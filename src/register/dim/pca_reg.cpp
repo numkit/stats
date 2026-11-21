@@ -51,7 +51,7 @@ void pcares_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                 keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 2, "pcares");
-    auto [res, recon] = pcares_full(args[0], (int)args[1].toScalar(), ctx.engine->allocator());
+    auto [res, recon] = pcares_full(args[0], (keel::i32)args[1].toScalar(), ctx.engine->allocator());
     outs[0] = std::move(res);
     if (nargout > 1) outs[1] = std::move(recon);
 }

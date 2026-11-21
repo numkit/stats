@@ -28,12 +28,12 @@ void skewness_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mut
                   CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 3, "skewness");
-    int normFlag = 1;  // MATLAB default
-    int dim = 0;
+    keel::i32 normFlag = 1;  // MATLAB default
+    keel::i32 dim = 0;
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const keel::f64 fv = argcheck::expectedReal(args[1], 2, "flag", "skewness");
         argcheck::expectedFlag01(fv, 2, "flag", "skewness");
-        normFlag = keel::as<int>(fv);
+        normFlag = keel::as<keel::i32>(fv);
     }
     if (args.size() >= 3 && !args[2].isEmpty())
         dim = argcheck::dimArg(args[2], "skewness");
@@ -44,12 +44,12 @@ void kurtosis_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mut
                   CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 3, "kurtosis");
-    int normFlag = 1;
-    int dim = 0;
+    keel::i32 normFlag = 1;
+    keel::i32 dim = 0;
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const keel::f64 fv = argcheck::expectedReal(args[1], 2, "flag", "kurtosis");
         argcheck::expectedFlag01(fv, 2, "flag", "kurtosis");
-        normFlag = keel::as<int>(fv);
+        normFlag = keel::as<keel::i32>(fv);
     }
     if (args.size() >= 3 && !args[2].isEmpty())
         dim = argcheck::dimArg(args[2], "kurtosis");

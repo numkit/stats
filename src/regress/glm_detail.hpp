@@ -114,7 +114,7 @@ keel::f64 dEtaProbit(keel::f64 mu) {
     const keel::f64 pp = 2.0 * m - 1.0;
     // Cheap fallback: iterate one Newton step from a logit guess.
     keel::f64 z = std::log(m / (1.0 - m));
-    for (int i = 0; i < 5; ++i) {
+    for (keel::i32 i = 0; i < 5; ++i) {
         const keel::f64 F = 0.5 * std::erfc(-z / std::sqrt(2.0));
         const keel::f64 f = (1.0 / std::sqrt(2.0 * M_PI)) * std::exp(-0.5 * z * z);
         if (f < 1e-300) break;

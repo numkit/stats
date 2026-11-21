@@ -91,8 +91,8 @@ keel::f64 ncfpdf_one(keel::f64 x, keel::f64 nu1, keel::f64 nu2, keel::f64 delta)
     const keel::f64 log_one_plus_rx = std::log1p(nu1 * x / nu2);
 
     keel::f64 sum = 0.0, abs_sum = 0.0;
-    constexpr int kMax = 2000;
-    for (int k = 0; k < kMax; ++k) {
+    constexpr keel::i32 kMax = 2000;
+    for (keel::i32 k = 0; k < kMax; ++k) {
         // log term_k
         const keel::f64 a = 0.5 * nu1 + keel::f64(k);
         const keel::f64 b = 0.5 * nu2;
@@ -135,8 +135,8 @@ keel::f64 ncfcdf_one(keel::f64 x, keel::f64 nu1, keel::f64 nu2, keel::f64 delta,
     const keel::f64 L = 0.5 * delta;
     keel::f64 Pj = std::exp(-L);
     keel::f64 sum = 0.0;
-    constexpr int kMax = 2000;
-    for (int k = 0; k < kMax; ++k) {
+    constexpr keel::i32 kMax = 2000;
+    for (keel::i32 k = 0; k < kMax; ++k) {
         const keel::f64 I = betainc_scalar(y, 0.5 * nu1 + keel::f64(k), 0.5 * nu2, mr);
         const keel::f64 t = Pj * I;
         sum += t;
@@ -174,7 +174,7 @@ keel::f64 ncfcdf_one(keel::f64 x, keel::f64 nu1, keel::f64 nu2, keel::f64 delta,
         if (!std::isfinite(hi)) break;
     }
 
-    for (int it = 0; it < 80; ++it) {
+    for (keel::i32 it = 0; it < 80; ++it) {
         const keel::f64 F  = ncfcdf_one(x, nu1, nu2, delta, mr);
         const keel::f64 f  = ncfpdf_one(x, nu1, nu2, delta);
         const keel::f64 err = F - p;

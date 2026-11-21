@@ -59,7 +59,7 @@ keel::Array<keel::f64> sortedUniqueNoNaN(const Value &x)
 {
     char buf[64];
     if (std::isfinite(v) && v == std::floor(v) && std::fabs(v) < 1e15)
-        std::snprintf(buf, sizeof(buf), "%lld", keel::as<long long>(v));
+        std::snprintf(buf, sizeof(buf), "%lld", keel::as<keel::i64>(v));
     else
         std::snprintf(buf, sizeof(buf), "%.5g", v);
     return keel::String::from(buf);

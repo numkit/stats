@@ -17,11 +17,11 @@ struct KmedoidsResult {
     Value sumd;    // K×1
     Value D;       // N×K distances point-to-medoid
     Value midx;    // K×1 — 1-based row indices of medoids in X
-    int   iters;   // best replicate iteration count
-    int   best_rep;
+    keel::i32   iters;   // best replicate iteration count
+    keel::i32   best_rep;
 };
 
-KmedoidsResult kmedoids_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates,
+KmedoidsResult kmedoids_full(::numkit::ops::RngContext &rng, const Value &X, keel::i32 K, keel::i32 max_iter, keel::i32 replicates,
                              keel::StringRef metric_name,
                              keel::Allocator *mr);
 

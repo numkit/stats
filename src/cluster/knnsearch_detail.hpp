@@ -34,14 +34,14 @@ namespace {
 //   knnsearch(X, Y, K)                  → K-NN, default metric
 //   knnsearch(X, Y, 'K', K, ...)        → name-value
 //   knnsearch(X, Y, 'Distance', metric, ...)
-struct KnnOpts { int K = 1; keel::String metric = keel::String::from("euclidean"); keel::f64 p = 2.0; };
+struct KnnOpts { keel::i32 K = 1; keel::String metric = keel::String::from("euclidean"); keel::f64 p = 2.0; };
 
 [[maybe_unused]] KnnOpts parse_knn_args(keel::ArrayRef<Value> args, const char *fn)
 {
     KnnOpts o;
     if (args.size() == 3 && args[2].isNumeric() && args[2].isScalar()) {
         // legacy positional K
-        o.K = keel::as<int>(args[2].toScalar());
+        o.K = keel::as<keel::i32>(args[2].toScalar());
         return o;
     }
     // name-value pairs
@@ -57,7 +57,7 @@ struct KnnOpts { int K = 1; keel::String metric = keel::String::from("euclidean"
                         0, 0, fn, "", "numkit:knn:nvval");
         const Value &v = args[i + 1];
         if (name == "k") {
-            o.K = keel::as<int>(v.toScalar());
+            o.K = keel::as<keel::i32>(v.toScalar());
         } else if (name == "distance") {
             if (!v.isChar() && !v.isString())
                 throw Error(keel::format("{}: Distance must be a string", fn),

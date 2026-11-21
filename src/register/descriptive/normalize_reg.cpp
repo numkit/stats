@@ -90,12 +90,12 @@ void zscore_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                 keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 3, "zscore");
-    int flag = 0, dim = 0;
-    keel::Array<int> vecdimSet;
+    keel::i32 flag = 0, dim = 0;
+    keel::Array<keel::i32> vecdimSet;
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const keel::f64 fv = argcheck::expectedReal(args[1], 2, "flag", "zscore");
         argcheck::expectedFlag01(fv, 2, "flag", "zscore");
-        flag = keel::as<int>(fv);
+        flag = keel::as<keel::i32>(fv);
     }
     if (args.size() >= 3)
         vecdim::parseDimSlot(args[0], args[2], "zscore", dim, vecdimSet);
@@ -104,7 +104,7 @@ void zscore_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     Value mu, sigma;
     if (!vecdimSet.empty()) {
         Value c = vecdim::collapseDims(args[0], vecdimSet, mr);
-        const int lastd = keel::as<int>(c.dims().ndim());
+        const keel::i32 lastd = keel::as<keel::i32>(c.dims().ndim());
         Value zc = zscoreCore(c, flag, lastd,
                               nargout >= 2 ? &mu : nullptr,
                               nargout >= 3 ? &sigma : nullptr, mr);

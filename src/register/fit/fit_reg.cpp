@@ -181,7 +181,7 @@ static void fill_fd_avar3(keel::f64 *p, keel::f64 p0, keel::f64 p1, keel::f64 p2
 {
     const keel::f64 NaNd = std::numeric_limits<keel::f64>::quiet_NaN();
     auto setNaN = [&]() {
-        for (int i = 0; i < 9; ++i) p[i] = NaNd;
+        for (keel::i32 i = 0; i < 9; ++i) p[i] = NaNd;
     };
     if (!std::isfinite(nL)) { setNaN(); return; }
 
@@ -194,7 +194,7 @@ static void fill_fd_avar3(keel::f64 *p, keel::f64 p0, keel::f64 p1, keel::f64 p2
     const keel::f64 H11 = (e(p0,p1+h1,p2) - 2.0*nL + e(p0,p1-h1,p2)) / (h1*h1);
     const keel::f64 H22 = (e(p0,p1,p2+h2) - 2.0*nL + e(p0,p1,p2-h2)) / (h2*h2);
     // Off-diagonals via 4-point stencil.
-    auto cross = [&](int a, int b) {
+    auto cross = [&](keel::i32 a, keel::i32 b) {
         keel::f64 da[3] = {0.0, 0.0, 0.0}, db[3] = {0.0, 0.0, 0.0};
         const keel::f64 ha = (a == 0 ? h0 : (a == 1 ? h1 : h2));
         const keel::f64 hb = (b == 0 ? h0 : (b == 1 ? h1 : h2));

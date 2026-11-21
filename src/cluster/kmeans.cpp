@@ -26,7 +26,7 @@ namespace numkit::stats {
 
 namespace {
 
-void kmeans_argcheck(const Value &X, int K)
+void kmeans_argcheck(const Value &X, keel::i32 K)
 {
     const keel::usize N = X.dims().rows();
     if (K < 1 || keel::as<keel::usize>(K) > N)
@@ -39,7 +39,7 @@ void kmeans_argcheck(const Value &X, int K)
 // Full kmeans with optional 4th D output (N×K squared distances).
 
 KmeansResult
-kmeans_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates, keel::Allocator *mr)
+kmeans_full(::numkit::ops::RngContext &rng, const Value &X, keel::i32 K, keel::i32 max_iter, keel::i32 replicates, keel::Allocator *mr)
 {
     kmeans_argcheck(X, K);
     if (max_iter <= 0)   max_iter = 100;
@@ -61,7 +61,7 @@ kmeans_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter,
     LloydResult best(scratch.allocator());
     keel::f64 best_total = std::numeric_limits<keel::f64>::infinity();
 
-    for (int rep = 0; rep < replicates; ++rep) {
+    for (keel::i32 rep = 0; rep < replicates; ++rep) {
         keel::Array<keel::f64> C0(scratch.allocator());
         {
             C0 = kmeanspp_init(Xv, N, D, K, gen.engine(), scratch.allocator());
@@ -84,7 +84,7 @@ kmeans_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter,
     out.C = Value::matrix(K, D, ValueType::DOUBLE, mr);
     {
         keel::f64 *cp = out.C.doubleDataMut();
-        for (int k = 0; k < K; ++k)
+        for (keel::i32 k = 0; k < K; ++k)
             for (keel::usize d = 0; d < D; ++d)
                 cp[d * K + k] = best.C[(keel::usize)k * D + d];
     }
@@ -92,7 +92,7 @@ kmeans_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter,
     out.sumd = Value::matrix(K, 1, ValueType::DOUBLE, mr);
     {
         keel::f64 *sp = out.sumd.doubleDataMut();
-        for (int k = 0; k < K; ++k) sp[k] = best.sumd[k];
+        for (keel::i32 k = 0; k < K; ++k) sp[k] = best.sumd[k];
     }
 
     // 4th output D — N×K squared distance from each point to each centroid.
@@ -100,7 +100,7 @@ kmeans_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter,
     {
         keel::f64 *dp = out.D.doubleDataMut();
         for (keel::usize i = 0; i < N; ++i)
-            for (int k = 0; k < K; ++k)
+            for (keel::i32 k = 0; k < K; ++k)
                 dp[k * N + i] = sq_dist(&Xv[i * D], &best.C[(keel::usize)k * D], D);
     }
 
@@ -109,7 +109,7 @@ kmeans_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter,
 
 // Backward-compat 3-output wrapper.
 std::tuple<Value, Value, Value>
-kmeans(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates, keel::Allocator *mr)
+kmeans(::numkit::ops::RngContext &rng, const Value &X, keel::i32 K, keel::i32 max_iter, keel::i32 replicates, keel::Allocator *mr)
 {
     auto R = kmeans_full(rng, X, K, max_iter, replicates, mr);
     return std::make_tuple(std::move(R.idx), std::move(R.C),

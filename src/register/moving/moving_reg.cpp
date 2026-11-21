@@ -89,14 +89,14 @@ void movmedian_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mu
 void movvar_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "movvar");  // no max: name-value tail in the reference
-    int normFlag = 0;
+    keel::i32 normFlag = 0;
     keel::usize extras_start = 2;
     if (args.size() >= 3 && !args[2].isChar() && !args[2].isString()
         && args[2].isScalar()) {
         // Could be normFlag or dim — disambiguate: normFlag is 0 or 1.
         const keel::f64 v = args[2].toScalar();
         if (v == 0.0 || v == 1.0) {
-            normFlag = keel::as<int>(v);
+            normFlag = keel::as<keel::i32>(v);
             extras_start = 3;
         }
     }
@@ -110,13 +110,13 @@ void movvar_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
 void movstd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "movstd");  // no max: name-value tail in the reference
-    int normFlag = 0;
+    keel::i32 normFlag = 0;
     keel::usize extras_start = 2;
     if (args.size() >= 3 && !args[2].isChar() && !args[2].isString()
         && args[2].isScalar()) {
         const keel::f64 v = args[2].toScalar();
         if (v == 0.0 || v == 1.0) {
-            normFlag = keel::as<int>(v);
+            normFlag = keel::as<keel::i32>(v);
             extras_start = 3;
         }
     }
@@ -141,7 +141,7 @@ void smoothdata_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::M
 {
     argcheck::checkNargin(args.size(), 1, "smoothdata");  // no max: name-value tail in the reference
     keel::String method = keel::String::from("movmean");
-    int k = 0;
+    keel::i32 k = 0;
     if (args.size() >= 2) {
         if (args[1].isChar() || args[1].isString())
             method = args[1].toString();
@@ -164,7 +164,7 @@ void smoothdata_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::M
 void hampel_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 3, "hampel");
-    int k = 3;
+    keel::i32 k = 3;
     if (args.size() >= 2) {
         k = argcheck::expectedPositiveInteger(
             argcheck::expectedReal(args[1], 2, "k", "hampel"), 2, "k", "hampel");

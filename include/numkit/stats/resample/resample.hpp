@@ -34,7 +34,7 @@ namespace numkit::stats {
 /// @param mr                Memory resource (nullptr → process default).
 /// @return                  `K × 1` column of 1-based indices.
 /// @see datasample
-Value randsample(::numkit::ops::RngContext &rng, int N, int K, bool with_replacement, const Value &weights,
+Value randsample(::numkit::ops::RngContext &rng, keel::i32 N, keel::i32 K, bool with_replacement, const Value &weights,
                  keel::Allocator *mr = nullptr);
 
 /// @brief Sample rows / columns of an array
@@ -50,7 +50,7 @@ Value randsample(::numkit::ops::RngContext &rng, int N, int K, bool with_replace
 /// @param mr                Memory resource (nullptr → process default).
 /// @return                  Subsample of `X`.
 /// @see randsample
-Value datasample(::numkit::ops::RngContext &rng, const Value &X, int K, int dim, bool with_replacement,
+Value datasample(::numkit::ops::RngContext &rng, const Value &X, keel::i32 K, keel::i32 dim, bool with_replacement,
                  const Value &weights, keel::Allocator *mr = nullptr);
 
 /// @brief Full `randsample` entry — the complete parse+validate+compute
@@ -83,7 +83,7 @@ Value datasample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    `C(N, K) × K` DOUBLE matrix of combinations.
 /// @throws Error  `K` out of `[0, N]`.
-Value combnk(int N, int K,
+Value combnk(keel::i32 N, keel::i32 K,
              keel::Allocator *mr = nullptr);
 
 /// @brief Enumerate `K`-combinations of an arbitrary vector
@@ -95,7 +95,7 @@ Value combnk(int N, int K,
 /// @return    `C(n, K) × K` DOUBLE matrix of combinations of `v`'s
 ///            elements.
 /// @throws Error  `K` out of `[0, v.size()]`.
-Value combnk(keel::ArrayRef<keel::f64> v, int K,
+Value combnk(keel::ArrayRef<keel::f64> v, keel::i32 K,
              keel::Allocator *mr = nullptr);
 
 

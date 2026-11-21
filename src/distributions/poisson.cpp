@@ -40,7 +40,7 @@ keel::f64 samplePoisson1(::numkit::ops::RngContext &rng, keel::f64 lam, keel::Al
             lam -= x;
         } else {
             if (m > 1.0) {
-                k += binornd(rng, keel::as<int>(m - 1.0), lam / x, 1, 1, mr).toScalar();
+                k += binornd(rng, keel::as<keel::i32>(m - 1.0), lam / x, 1, 1, mr).toScalar();
             }
             return k;
         }

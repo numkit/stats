@@ -26,7 +26,7 @@ namespace {
 // Parse optional NumLags / NumSTD from args starting at `start`. A numeric arg
 // at `start` is positional NumLags; 'NumLags'/'NumSTD' name-value pairs (any
 // case) override. Leaves numLags = -1 (→ default) when unspecified.
-void parseCorrOpts(keel::ArrayRef<Value> args, keel::usize start, int &numLags, keel::f64 &numSTD,
+void parseCorrOpts(keel::ArrayRef<Value> args, keel::usize start, keel::i32 &numLags, keel::f64 &numSTD,
                        const char *fn)
 {
     for (keel::usize i = start; i < args.size(); ++i) {
@@ -36,10 +36,10 @@ void parseCorrOpts(keel::ArrayRef<Value> args, keel::usize start, int &numLags, 
             if (i + 1 < args.size()) {
                 if (opt == "numlags") {
                     numLags = argcheck::expectedInteger(
-                        argcheck::expectedReal(args[i + 1], int(i) + 2,
+                        argcheck::expectedReal(args[i + 1], keel::i32(i) + 2,
                                                "NumLags", fn),
-                        int(i) + 2, "NumLags", fn);
-                    argcheck::expectedPositive(keel::f64(numLags), int(i) + 2,
+                        keel::i32(i) + 2, "NumLags", fn);
+                    argcheck::expectedPositive(keel::f64(numLags), keel::i32(i) + 2,
                                                "NumLags", fn);
                 }
                 else if (opt == "numstd")  numSTD  = args[i + 1].toScalar();
@@ -47,9 +47,9 @@ void parseCorrOpts(keel::ArrayRef<Value> args, keel::usize start, int &numLags, 
             }
         } else if (i == start) {
             numLags = argcheck::expectedInteger(
-                argcheck::expectedReal(args[i], int(i) + 1, "NumLags", fn),
-                int(i) + 1, "NumLags", fn);
-            argcheck::expectedPositive(keel::f64(numLags), int(i) + 1, "NumLags", fn);
+                argcheck::expectedReal(args[i], keel::i32(i) + 1, "NumLags", fn),
+                keel::i32(i) + 1, "NumLags", fn);
+            argcheck::expectedPositive(keel::f64(numLags), keel::i32(i) + 1, "NumLags", fn);
         }
     }
 }
@@ -60,7 +60,7 @@ void autocorr_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                   keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "autocorr");  // no max: name-value tail in the reference
-    int    numLags = -1;
+    keel::i32    numLags = -1;
     keel::f64 numSTD  = 2.0;
     parseCorrOpts(args, 1, numLags, numSTD, "autocorr");
 
@@ -74,7 +74,7 @@ void crosscorr_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                    keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "crosscorr");  // no max: name-value tail in the reference
-    int    numLags = -1;
+    keel::i32    numLags = -1;
     keel::f64 numSTD  = 2.0;
     parseCorrOpts(args, 2, numLags, numSTD, "crosscorr");
 
@@ -89,7 +89,7 @@ void parcorr_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                  keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "parcorr");  // no max: name-value tail in the reference
-    int    numLags = -1;
+    keel::i32    numLags = -1;
     keel::f64 numSTD  = 2.0;
     parseCorrOpts(args, 1, numLags, numSTD, "parcorr");
 

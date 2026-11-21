@@ -51,7 +51,7 @@ void ppmak_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
                keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 3, "ppmak");
-    int d = 1;
+    keel::i32 d = 1;
     if (args.size() >= 3 && !args[2].isEmpty())
         d = argcheck::expectedInteger(
             argcheck::expectedReal(args[2], 3, "d", "ppmak"), 3, "d", "ppmak");
@@ -69,9 +69,9 @@ void fnder_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
                keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 2, "fnder");
-    int order = 1;
+    keel::i32 order = 1;
     if (args.size() >= 2 && !args[1].isEmpty())
-        order = keel::as<int>(argcheck::roundLength(args[1], 2, "order", "fnder"));
+        order = keel::as<keel::i32>(argcheck::roundLength(args[1], 2, "order", "fnder"));
     outs[0] = fnder(args[0], order, ctx.engine->allocator());
 }
 

@@ -88,7 +88,7 @@ Value evalDistStructBase(const Value &pd, const char *suffix, const Value &xVal,
 {
     auto *mr = ctx.engine->allocator();
     const keel::String dist = toLowerStr(pd.field("DistributionName").toString());
-    const int nparams = keel::as<int>(pd.field("__nparams").toScalar());
+    const keel::i32 nparams = keel::as<keel::i32>(pd.field("__nparams").toScalar());
     const keel::f64 p1 = (nparams >= 1) ? pd.field("p1").toScalar() : 0.0;
     const keel::f64 p2 = (nparams >= 2) ? pd.field("p2").toScalar() : 1.0;
     const keel::f64 p3 = (nparams >= 3) ? pd.field("p3").toScalar() : 1.0;
@@ -169,7 +169,7 @@ void dispatchDistStruct(const char *fnName, const char *suffix,
     if (sfx == "rnd") {
         if (!isTrunc) {
             const keel::String dist = toLowerStr(pd.field("DistributionName").toString());
-            const int nparams = keel::as<int>(pd.field("__nparams").toScalar());
+            const keel::i32 nparams = keel::as<keel::i32>(pd.field("__nparams").toScalar());
             const keel::f64 p1 = (nparams >= 1) ? pd.field("p1").toScalar() : 0.0;
             const keel::f64 p2 = (nparams >= 2) ? pd.field("p2").toScalar() : 1.0;
             const keel::f64 p3 = (nparams >= 3) ? pd.field("p3").toScalar() : 1.0;
@@ -330,7 +330,7 @@ void makedist_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mut
     const keel::String rawName = args[0].toString();
     const keel::String dist = toLowerStr(rawName);
 
-    int nparams = 2;
+    keel::i32 nparams = 2;
     keel::f64 p1 = 0.0, p2 = 1.0, p3 = 1.0;
     keel::StringRef n1 = "p1", n2 = "p2", n3 = "p3";
 

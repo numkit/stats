@@ -83,7 +83,7 @@ void normrnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
         const Value &ref = (nmu >= nsig) ? muVal : sigVal;
         rows = ref.dims().rows();
         cols = ref.dims().cols();
-        for (int d = 2; d < ref.dims().ndim(); ++d)
+        for (keel::i32 d = 2; d < ref.dims().ndim(); ++d)
             cols *= ref.dims().dim(d);
     }
     const keel::usize n = rows * cols;
@@ -105,7 +105,7 @@ void normrnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
         const Value &ref = (nmu >= nsig) ? muVal : sigVal;
         if (ref.dims().ndim() > 2) {
             keel::Array<keel::usize> shape(ref.dims().ndim());
-            for (int d = 0; d < ref.dims().ndim(); ++d)
+            for (keel::i32 d = 0; d < ref.dims().ndim(); ++d)
                 shape[d] = ref.dims().dim(d);
             outs[0] = builtin::reshape(std::move(out), keel::ArrayRef<keel::usize>(shape.data(), shape.size()), mr);
         } else {

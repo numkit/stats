@@ -80,7 +80,7 @@ void ttest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     }
     keel::f64 alpha = 0.05;
     TestTail tail = TestTail::Both;
-    int dim = 0;
+    keel::i32 dim = 0;
     keel::usize i = (args.size() >= 2 && (args[1].isChar() || args[1].isString())) ? 1 : 2;
     while (i < args.size()) {
         const Value &a = args[i];
@@ -97,8 +97,8 @@ void ttest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                     throw Error("ttest: missing value for 'Dim'",
                                 0, 0, "ttest", "", "numkit:ttest:dim");
                 dim = argcheck::expectedPositiveInteger(
-                    argcheck::expectedReal(args[i + 1], keel::as<int>(i + 2), "dim", "ttest"),
-                    keel::as<int>(i + 2), "dim", "ttest");
+                    argcheck::expectedReal(args[i + 1], keel::as<keel::i32>(i + 2), "dim", "ttest"),
+                    keel::as<keel::i32>(i + 2), "dim", "ttest");
                 i += 2;
             } else {
                 tail = parse_tail(sl.as_ref(), tail); ++i;
@@ -122,7 +122,7 @@ void ttest2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     TestTail tail = TestTail::Both;
     // Reference engine default is 'equal' (pooled variance), NOT Welch.
     keel::String vartype = keel::String::from("equal");
-    int dim = 0;
+    keel::i32 dim = 0;
     for (keel::usize i = 2; i + 1 < args.size(); ++i) {
         if (args[i].isChar() || args[i].isString()) {
             keel::String k = args[i].toString();
@@ -132,8 +132,8 @@ void ttest2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             else if (k == "alpha")   alpha = args[i + 1].toScalar();
             else if (k == "dim") {
                 dim = argcheck::expectedPositiveInteger(
-                    argcheck::expectedReal(args[i + 1], keel::as<int>(i + 2), "dim", "ttest2"),
-                    keel::as<int>(i + 2), "dim", "ttest2");
+                    argcheck::expectedReal(args[i + 1], keel::as<keel::i32>(i + 2), "dim", "ttest2"),
+                    keel::as<keel::i32>(i + 2), "dim", "ttest2");
             }
         }
     }
@@ -152,7 +152,7 @@ void ztest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     const keel::f64 sigma = args[2].toScalar();
     keel::f64 alpha = 0.05;
     TestTail tail = TestTail::Both;
-    int dim = 0;
+    keel::i32 dim = 0;
     keel::usize i = 3;
     while (i < args.size()) {
         const Value &a = args[i];
@@ -166,8 +166,8 @@ void ztest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                     throw Error("ztest: missing value for 'Dim'",
                                 0, 0, "ztest", "", "numkit:ztest:dim");
                 dim = argcheck::expectedPositiveInteger(
-                    argcheck::expectedReal(args[i + 1], keel::as<int>(i + 2), "dim", "ztest"),
-                    keel::as<int>(i + 2), "dim", "ztest");
+                    argcheck::expectedReal(args[i + 1], keel::as<keel::i32>(i + 2), "dim", "ztest"),
+                    keel::as<keel::i32>(i + 2), "dim", "ztest");
                 i += 2;
             }
             else { tail = parse_tail(sl.as_ref(), tail); ++i; }
@@ -187,7 +187,7 @@ void vartest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     const keel::f64 v = args[1].toScalar();
     keel::f64 alpha = 0.05;
     TestTail tail = TestTail::Both;
-    int dim = 0;
+    keel::i32 dim = 0;
     keel::usize i = 2;
     while (i < args.size()) {
         const Value &a = args[i];
@@ -201,8 +201,8 @@ void vartest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                     throw Error("vartest: missing value for 'Dim'",
                                 0, 0, "vartest", "", "numkit:vartest:dim");
                 dim = argcheck::expectedPositiveInteger(
-                    argcheck::expectedReal(args[i + 1], keel::as<int>(i + 2), "dim", "vartest"),
-                    keel::as<int>(i + 2), "dim", "vartest");
+                    argcheck::expectedReal(args[i + 1], keel::as<keel::i32>(i + 2), "dim", "vartest"),
+                    keel::as<keel::i32>(i + 2), "dim", "vartest");
                 i += 2;
             }
             else { tail = parse_tail(sl.as_ref(), tail); ++i; }
@@ -221,7 +221,7 @@ void vartest2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     argcheck::checkNargin(args.size(), 2, "vartest2");  // no max: name-value tail in the reference
     keel::f64 alpha = 0.05;
     TestTail tail = TestTail::Both;
-    int dim = 0;
+    keel::i32 dim = 0;
     keel::usize i = 2;
     while (i < args.size()) {
         const Value &a = args[i];
@@ -235,8 +235,8 @@ void vartest2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                     throw Error("vartest2: missing value for 'Dim'",
                                 0, 0, "vartest2", "", "numkit:vartest2:dim");
                 dim = argcheck::expectedPositiveInteger(
-                    argcheck::expectedReal(args[i + 1], keel::as<int>(i + 2), "dim", "vartest2"),
-                    keel::as<int>(i + 2), "dim", "vartest2");
+                    argcheck::expectedReal(args[i + 1], keel::as<keel::i32>(i + 2), "dim", "vartest2"),
+                    keel::as<keel::i32>(i + 2), "dim", "vartest2");
                 i += 2;
             }
             else { tail = parse_tail(sl.as_ref(), tail); ++i; }
@@ -379,8 +379,8 @@ void chi2gof_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     };
 
     Value freq, expected, edges_arg, ctrs_arg;
-    int nbins = 10;
-    int nparams = -1;       // -1 = use default (2 if auto-fit, 0 if explicit O/E)
+    keel::i32 nbins = 10;
+    keel::i32 nparams = -1;       // -1 = use default (2 if auto-fit, 0 if explicit O/E)
     keel::f64 alpha = 0.05;
     keel::f64 emin = 5.0;
 
@@ -396,9 +396,9 @@ void chi2gof_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         if      (name == "frequency") { freq = v;     freq_set = true; }
         else if (name == "expected")  { expected = v; expected_set = true; }
         else if (name == "edges")     { edges_arg = v; edges_set = true; }
-        else if (name == "nbins")     { nbins = (int)v.toScalar(); nbins_set = true; }
+        else if (name == "nbins")     { nbins = (keel::i32)v.toScalar(); nbins_set = true; }
         else if (name == "ctrs")      { ctrs_arg = v; ctrs_set = true; }
-        else if (name == "nparams")   { nparams = (int)v.toScalar(); nparams_set = true; }
+        else if (name == "nparams")   { nparams = (keel::i32)v.toScalar(); nparams_set = true; }
         else if (name == "emin")      { emin = v.toScalar(); }
         else if (name == "alpha")     { alpha = v.toScalar(); }
         else if (name == "cdf")       { cdf_supplied = true; }
@@ -412,7 +412,7 @@ void chi2gof_reg(keel::ArrayRef<Value> args, keel::usize nargout,
 
     // Path A: explicit Frequency + Expected (existing behavior).
     if (freq_set && expected_set) {
-        const int np = nparams_set ? nparams : 0;
+        const keel::i32 np = nparams_set ? nparams : 0;
         auto [p, h, chi2, df] = chi2gof(freq, expected, np, alpha, mr);
         outs[0] = std::move(h);
         if (nargout > 1) outs[1] = std::move(p);
@@ -486,9 +486,9 @@ void chi2gof_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             if (v < xmin) xmin = v;
             if (v > xmax) xmax = v;
         }
-        const int K = std::max(2, nbins);
+        const keel::i32 K = std::max(2, nbins);
         edges.resize(K + 1);
-        for (int i = 0; i <= K; ++i)
+        for (keel::i32 i = 0; i <= K; ++i)
             edges[i] = xmin + (xmax - xmin) * keel::f64(i) / keel::f64(K);
     }
 
@@ -565,15 +565,15 @@ void chi2gof_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             chi2 += d * d / E[b];
         }
     }
-    const int K_final = (int)O.size();
+    const keel::i32 K_final = (keel::i32)O.size();
     // Default NParams = 2 (mean + std estimated from data) unless user
     // overrode or supplied explicit Edges (MATLAB still defaults to 2).
-    const int np = nparams_set ? nparams : 2;
+    const keel::i32 np = nparams_set ? nparams : 2;
     const keel::f64 df = keel::f64(K_final) - 1.0 - keel::f64(np);
     Value chi2v = Value::scalar(chi2, mr);
     const keel::f64 cdf = (df > 0.0) ? chi2cdf(chi2v, df, mr).toScalar() : 1.0;
     const keel::f64 p = std::max(0.0, 1.0 - cdf);
-    const int h = (p < alpha) ? 1 : 0;
+    const keel::i32 h = (p < alpha) ? 1 : 0;
 
     outs[0] = Value::scalar(keel::f64(h), mr);
     if (nargout > 1) outs[1] = Value::scalar(p, mr);
@@ -611,7 +611,7 @@ void vartestn_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     // Parse: vartestn(X[, GROUP], N-V...). The 2nd arg is GROUP iff it's
     // a non-string vector. If it's a string, no group given (matrix
     // input form: each column = group).
-    int test = 0;  // Bartlett default
+    keel::i32 test = 0;  // Bartlett default
     keel::usize nv_start = 1;
     Value X = args[0];
     Value G;

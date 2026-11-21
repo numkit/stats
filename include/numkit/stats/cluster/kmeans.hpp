@@ -35,7 +35,7 @@ namespace numkit::stats {
 ///
 /// @see kmedoids, linkage
 std::tuple<Value, Value, Value>
-kmeans(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter, int replicates,
+kmeans(::numkit::ops::RngContext &rng, const Value &X, keel::i32 K, keel::i32 max_iter, keel::i32 replicates,
        keel::Allocator *mr = nullptr);
 
 

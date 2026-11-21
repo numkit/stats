@@ -76,7 +76,7 @@ ClusterOpts pdist_argcheck(keel::ArrayRef<Value> tail, const char *fn,
         const Value &v = tail[i];
         if (v.isChar() || v.isString()) {
             const keel::String raw = v.toString();
-            const int hit = argcheck::matchStringChoice(
+            const keel::i32 hit = argcheck::matchStringChoice(
                 v, keel::ArrayRef<keel::StringRef>(kMetrics));
             if (hit < 0)
                 throw Error(keel::format("{}: the distance function '{}' was not found.", fn, raw),
@@ -171,7 +171,7 @@ Value linkage_full(const Value &Y, keel::ArrayRef<Value> tail,
     // Method: a string 2nd argument (validatestring against the
     // linkage methods — the reference's getParamVal class).
     if (!tail.empty() && (tail[0].isChar() || tail[0].isString())) {
-        const int hit = argcheck::matchStringChoice(
+        const keel::i32 hit = argcheck::matchStringChoice(
             tail[0], keel::ArrayRef<keel::StringRef>(kLinkMethods));
         if (hit < 0)
             throw Error(keel::format("linkage: '{}' is not a valid value for the METHOD argument.",
@@ -193,7 +193,7 @@ Value linkage_full(const Value &Y, keel::ArrayRef<Value> tail,
             if (haveMetric)
                 throw Error("linkage: unexpected extra argument.",
                             0, 0, "linkage", "", "numkit:linkage:nargin");
-            const int hit = argcheck::matchStringChoice(
+            const keel::i32 hit = argcheck::matchStringChoice(
                 v, keel::ArrayRef<keel::StringRef>(kMetrics));
             if (hit < 0)
                 throw Error(keel::format("linkage: the distance function '{}' was not found.",
@@ -218,9 +218,9 @@ Value linkage_full(const Value &Y, keel::ArrayRef<Value> tail,
 Value cluster_full(const Value &Z, keel::ArrayRef<Value> tail,
                    keel::Allocator *mr)
 {
-    int maxclust = -1;
+    keel::i32 maxclust = -1;
     keel::f64 cutoff = -1.0;
-    int depth = 2;
+    keel::i32 depth = 2;
     keel::String criterion = keel::String::from("inconsistent");
     for (keel::usize i = 0; i < tail.size(); ++i) {
         if (!(tail[i].isChar() || tail[i].isString())) {
@@ -238,11 +238,11 @@ Value cluster_full(const Value &Z, keel::ArrayRef<Value> tail,
         const keel::String rawName = tail[i].toString();
         const keel::String name = lowerCopy(rawName);
         const Value &v = tail[i + 1];
-        if      (name == "maxclust")  maxclust = keel::as<int>(v.elemAsDouble(0));
+        if      (name == "maxclust")  maxclust = keel::as<keel::i32>(v.elemAsDouble(0));
         else if (name == "cutoff")    cutoff = v.elemAsDouble(0);
-        else if (name == "depth")     depth = keel::as<int>(v.elemAsDouble(0));
+        else if (name == "depth")     depth = keel::as<keel::i32>(v.elemAsDouble(0));
         else if (name == "criterion") {
-            const int hit = argcheck::matchStringChoice(
+            const keel::i32 hit = argcheck::matchStringChoice(
                 v, keel::ArrayRef<keel::StringRef>(kCriteria));
             if (hit < 0)
                 throw Error(keel::format("cluster: '{}' is not a "
@@ -270,14 +270,14 @@ Value cluster_full(const Value &Z, keel::ArrayRef<Value> tail,
 Value inconsistent_full(const Value &Z, keel::ArrayRef<Value> tail,
                         keel::Allocator *mr)
 {
-    int depth = 2;
+    keel::i32 depth = 2;
     if (!tail.empty()) {
         const keel::f64 d = tail[0].elemAsDouble(0);
         if (!(d >= 1.0 && d == std::floor(d)))
             throw Error(keel::format("inconsistent: depth must be a positive integer "
                         "scalar (got {}).", d),
                         0, 0, "inconsistent", "", "numkit:inconsistent:badDepth");
-        depth = keel::as<int>(d);
+        depth = keel::as<keel::i32>(d);
     }
     return inconsistent(Z, depth, mr);
 }
@@ -291,7 +291,7 @@ Value silhouette_full(const Value &X, const Value &clust,
     for (keel::usize i = 0; i < tail.size(); ++i) {
         const Value &v = tail[i];
         if (v.isChar() || v.isString()) {
-            const int hit = argcheck::matchStringChoice(
+            const keel::i32 hit = argcheck::matchStringChoice(
                 v, keel::ArrayRef<keel::StringRef>(kMetrics));
             if (hit < 0)
                 throw Error(keel::format("silhouette: the distance function '{}' was not found.",

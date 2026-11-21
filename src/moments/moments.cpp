@@ -41,7 +41,7 @@ Value narrowToSingle(Value d, keel::Allocator *mr)
 
 // Per-slice skewness. n < 2: NaN (m2 == 0 by definition). normFlag=0
 // requires n >= 3 for the bias correction; otherwise NaN.
-keel::f64 skewnessFromSlice(const keel::f64 *data, keel::usize n, int normFlag)
+keel::f64 skewnessFromSlice(const keel::f64 *data, keel::usize n, keel::i32 normFlag)
 {
     if (n < 2) return std::nan("");
     keel::f64 mean = 0.0;
@@ -68,7 +68,7 @@ keel::f64 skewnessFromSlice(const keel::f64 *data, keel::usize n, int normFlag)
 
 // Per-slice kurtosis (NON-excess; equals 3 for normal). normFlag=0
 // requires n >= 4 for the bias correction; otherwise NaN.
-keel::f64 kurtosisFromSlice(const keel::f64 *data, keel::usize n, int normFlag)
+keel::f64 kurtosisFromSlice(const keel::f64 *data, keel::usize n, keel::i32 normFlag)
 {
     if (n < 2) return std::nan("");
     keel::f64 mean = 0.0;
@@ -95,7 +95,7 @@ keel::f64 kurtosisFromSlice(const keel::f64 *data, keel::usize n, int normFlag)
     return y;
 }
 
-void moments_argcheck(const Value &x, int normFlag, const char *fn)
+void moments_argcheck(const Value &x, keel::i32 normFlag, const char *fn)
 {
     if (normFlag != 0 && normFlag != 1)
         throw Error(keel::format("{}: normalization flag must be 0 or 1", fn),
@@ -105,12 +105,12 @@ void moments_argcheck(const Value &x, int normFlag, const char *fn)
                      0, 0, fn, "", keel::format("numkit:{}:complex", fn));
 }
 
-Value dispatchMomentReduction(const Value &x, int dim, int normFlag, const char *fn, keel::f64 (*fromSlice)(const keel::f64 *, keel::usize, int), keel::Allocator *mr)
+Value dispatchMomentReduction(const Value &x, keel::i32 dim, keel::i32 normFlag, const char *fn, keel::f64 (*fromSlice)(const keel::f64 *, keel::usize, keel::i32), keel::Allocator *mr)
 {
     moments_argcheck(x, normFlag, fn);
     if (x.isEmpty())
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
-    const int d = resolveDim(x, dim, fn);
+    const keel::i32 d = resolveDim(x, dim, fn);
     Value r = applyAlongDim(x, d,
         [normFlag, fromSlice](keel::usize, keel::f64 *slice, keel::usize n) {
             // MATLAB skewness/kurtosis treat NaN as missing and remove it.
@@ -128,12 +128,12 @@ Value dispatchMomentReduction(const Value &x, int dim, int normFlag, const char 
 
 } // namespace
 
-Value skewness(const Value &x, int normFlag, int dim, keel::Allocator *mr)
+Value skewness(const Value &x, keel::i32 normFlag, keel::i32 dim, keel::Allocator *mr)
 {
     return dispatchMomentReduction(x, dim, normFlag, "skewness", skewnessFromSlice, mr);
 }
 
-Value kurtosis(const Value &x, int normFlag, int dim, keel::Allocator *mr)
+Value kurtosis(const Value &x, keel::i32 normFlag, keel::i32 dim, keel::Allocator *mr)
 {
     return dispatchMomentReduction(x, dim, normFlag, "kurtosis", kurtosisFromSlice, mr);
 }

@@ -211,13 +211,13 @@ MvnrndOut mvnrnd_reinterpreted(::numkit::ops::RngContext &rng, const Value &mu,
     // cases contract: absent/empty → derive; must equal rows(mu) unless
     // mu is a single row (replicated); cases <= 0 → 0×d empty output.
     bool nocases = cases.isEmpty();
-    long long casesN = -1;
+    keel::i64 casesN = -1;
     if (!nocases) {
-        casesN = keel::as<long long>(cases.elemAsDouble(0));
-        if (keel::as<long long>(n) == casesN) {
+        casesN = keel::as<keel::i64>(cases.elemAsDouble(0));
+        if (keel::as<keel::i64>(n) == casesN) {
             // mu already has cases rows.
         } else if (n == 1) {
-            n = keel::as<keel::usize>(std::max(casesN, 0LL));
+            n = keel::as<keel::usize>(std::max(casesN, keel::i64{0}));
         } else {
             throw Error(keel::format("mvnrnd: MU must be a row vector, or must have "
                         "CASES rows (CASES is {}, MU has {} rows).", casesN, n),
@@ -402,7 +402,7 @@ Value mvtrnd_full(::numkit::ops::RngContext &rng, const Value &C,
     keel::usize n = 1;
     if (!cases.isEmpty())
         n = keel::as<keel::usize>(std::max(
-            keel::as<long long>(cases.elemAsDouble(0)), 0LL));
+            keel::as<keel::i64>(cases.elemAsDouble(0)), keel::i64{0}));
 
     const keel::usize m1 = keel::as<keel::usize>(C.dims().dim(0));
     const keel::usize m2 = keel::as<keel::usize>(C.dims().dim(1));

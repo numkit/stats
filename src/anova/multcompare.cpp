@@ -97,7 +97,7 @@ keel::f64 normalRangeCDF(keel::f64 w, keel::usize k)
         const keel::f64 mid = 0.5 * (a + b);
         const keel::f64 half = 0.5 * (b - a);
         keel::f64 s = 0.0;
-        for (int i = 0; i < 8; ++i) {
+        for (keel::i32 i = 0; i < 8; ++i) {
             const keel::f64 dx = half * kGL16X[i];
             s += kGL16W[i] * (integrand(mid - dx) + integrand(mid + dx));
         }
@@ -132,7 +132,7 @@ keel::f64 studentizedRangeCDF(keel::f64 q, keel::usize k, keel::f64 df)
         const keel::f64 mid = 0.5 * (a + b);
         const keel::f64 half = 0.5 * (b - a);
         keel::f64 s = 0.0;
-        for (int i = 0; i < 8; ++i) {
+        for (keel::i32 i = 0; i < 8; ++i) {
             const keel::f64 dx = half * kGL16X[i];
             s += kGL16W[i] * (integrand(mid - dx) + integrand(mid + dx));
         }
@@ -156,7 +156,7 @@ keel::f64 studentizedRangeInv(keel::f64 p, keel::usize k, keel::f64 df)
         lo = hi;
         hi *= 2.0;
     }
-    for (int iter = 0; iter < 60; ++iter) {
+    for (keel::i32 iter = 0; iter < 60; ++iter) {
         const keel::f64 mid = 0.5 * (lo + hi);
         if (studentizedRangeCDF(mid, k, df) < p) lo = mid;
         else                                     hi = mid;

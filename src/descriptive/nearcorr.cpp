@@ -239,7 +239,7 @@ Value nearcorr_full(const Value &A, keel::ArrayRef<Value> nv,
             default: break;
             }
         });
-    const long maxIter = keel::as<long>(maxIterD);
+    const keel::i64 maxIter = keel::as<keel::i64>(maxIterD);
 
     // Trivial case: a 1×1 unit-diagonal input is already valid.
     if (N == 1)
@@ -252,7 +252,7 @@ Value nearcorr_full(const Value &A, keel::ArrayRef<Value> nv,
     Xold = Yold.clone();
     keel::Array<keel::f64> dS(N * N, 0.0), Y = Yold.clone();
 
-    for (long it = 0; it <= maxIter; ++it) {
+    for (keel::i64 it = 0; it <= maxIter; ++it) {
         // R = Yold - dS; X = proj_PSD_W(R); dS = X - R; Y = X, unit diag.
         keel::Array<keel::f64> R(N * N);
         for (keel::usize k = 0; k < N * N; ++k) R[k] = Yold[k] - dS[k];

@@ -338,7 +338,7 @@ Value rescale(const Value &A, keel::f64 lo, keel::f64 hi,
 // standard deviation, matching MATLAB's [Z, MU, SIGMA] = zscore(X). They have
 // the operating dimension collapsed to length 1 (row vector for dim 1,
 // column vector for dim 2).
-Value zscoreCore(const Value &A, int flag, int dim,
+Value zscoreCore(const Value &A, keel::i32 flag, keel::i32 dim,
                  Value *muOut, Value *sigmaOut, keel::Allocator *mr)
 {
     const keel::usize H = A.dims().rows();
@@ -353,7 +353,7 @@ Value zscoreCore(const Value &A, int flag, int dim,
     auto sdf = [&](const keel::f64 *x, keel::usize n) {
         return (flag == 1) ? colStdPop(x, n) : colStdSample(x, n);
     };
-    int opDim = dim;
+    keel::i32 opDim = dim;
     if (opDim <= 0) opDim = (H == 1 && W > 1) ? 2 : 1;  // first non-singleton
     if (opDim == 1) {
         if (muOut)    *muOut    = Value::matrix(1, W, ValueType::DOUBLE, mr);

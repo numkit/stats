@@ -48,14 +48,14 @@ void datasample_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
 }
 
 // Helper: draw N indices in [0, N-1] with replacement, write into idx_out.
-static void drawBootstrapIndices(::numkit::ops::RngContext &rng, int N, int *idx_out)
+static void drawBootstrapIndices(::numkit::ops::RngContext &rng, keel::i32 N, keel::i32 *idx_out)
 {
-    for (int i = 0; i < N; ++i)
-        idx_out[i] = keel::as<int>(keel::random::uniform_i64(rng, 0, N - 1));
+    for (keel::i32 i = 0; i < N; ++i)
+        idx_out[i] = keel::as<keel::i32>(keel::random::uniform_i64(rng, 0, N - 1));
 }
 
 // Resample row indices of X into a same-shape Value.
-static Value resampleRows(const Value &X, const int *idx, int N, keel::Allocator *mr)
+static Value resampleRows(const Value &X, const keel::i32 *idx, keel::i32 N, keel::Allocator *mr)
 {
     if (X.dims().ndim() <= 1 || X.dims().dim(1) == 1) {
         // Vector input: return same-orientation vector of N samples.
@@ -65,7 +65,7 @@ static Value resampleRows(const Value &X, const int *idx, int N, keel::Allocator
             : Value::matrix(1, keel::as<keel::usize>(N), ValueType::DOUBLE, mr);
         const keel::f64 *xd = X.doubleData();
         keel::f64 *od = out.doubleDataMut();
-        for (int i = 0; i < N; ++i) od[i] = xd[idx[i]];
+        for (keel::i32 i = 0; i < N; ++i) od[i] = xd[idx[i]];
         return out;
     }
     // Matrix input: resample rows.
@@ -74,7 +74,7 @@ static Value resampleRows(const Value &X, const int *idx, int N, keel::Allocator
     auto out = Value::matrix(keel::as<keel::usize>(N), cols, ValueType::DOUBLE, mr);
     const keel::f64 *xd = X.doubleData();
     keel::f64 *od = out.doubleDataMut();
-    for (int i = 0; i < N; ++i)
+    for (keel::i32 i = 0; i < N; ++i)
         for (keel::usize j = 0; j < cols; ++j)
             od[i + j * N] = xd[idx[i] + j * m];
     return out;
@@ -87,18 +87,18 @@ void bootstrp_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     if (!args[1].isFuncHandle())
         throw Error("bootstrp: 2nd argument must be a function handle",
                     0, 0, "bootstrp", "", "numkit:bootstrp:notFuncHandle");
-    const int nboot = (int)args[0].toScalar();
+    const keel::i32 nboot = (keel::i32)args[0].toScalar();
     if (nboot < 1)
         throw Error("bootstrp: nboot must be >= 1",
                     0, 0, "bootstrp", "", "numkit:bootstrp:badN");
     auto *mr = ctx.engine->allocator();
     const Value &X = args[2];
-    const int N = keel::as<int>(X.dims().dim(0));
+    const keel::i32 N = keel::as<keel::i32>(X.dims().dim(0));
     if (N == 0)
         throw Error("bootstrp: empty data", 0, 0, "bootstrp", "", "numkit:bootstrp:empty");
 
     keel::ArenaTemp scratch = keel::get_scratch(mr);
-    keel::Array<int> idx(N, scratch.allocator());
+    keel::Array<keel::i32> idx(N, scratch.allocator());
 
     // First call to determine output dimensionality of fn(sample).
     drawBootstrapIndices(ctx.engine->rng(), N, idx.data());
@@ -121,7 +121,7 @@ void bootstrp_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
         od[0 + j * nboot] = stat0.elemAsDouble(j);
 
     // Rows 1..nboot-1.
-    for (int b = 1; b < nboot; ++b) {
+    for (keel::i32 b = 1; b < nboot; ++b) {
         drawBootstrapIndices(ctx.engine->rng(), N, idx.data());
         auto sample = resampleRows(X, idx.data(), N, mr);
         Value callArgs[1] = { sample };
@@ -163,7 +163,7 @@ void crossval_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
         throw Error("crossval: need at least 2 observations",
                     0, 0, "crossval", "", "numkit:crossval:tooSmall");
 
-    int K = 10;
+    keel::i32 K = 10;
     for (keel::usize i = 3; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar() && !args[i].isString())
             throw Error("crossval: option name must be a string",
@@ -171,15 +171,15 @@ void crossval_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
         const auto opt = args[i].toString();
         if (opt == "kfold" || opt == "KFold")
             K = argcheck::expectedInteger(
-                argcheck::expectedReal(args[i + 1], int(i) + 2, "KFold", "crossval"),
-                int(i) + 2, "KFold", "crossval");
+                argcheck::expectedReal(args[i + 1], keel::i32(i) + 2, "KFold", "crossval"),
+                keel::i32(i) + 2, "KFold", "crossval");
         else
             throw Error(keel::format("crossval: unknown option '{}' (only "
                                      "'kfold' supported in this revision)", opt),
                         0, 0, "crossval", "", "numkit:crossval:badOption");
     }
-    if (K < 2 || K > keel::as<int>(m))
-        K = keel::as<int>(std::min(m, keel::usize{10}));
+    if (K < 2 || K > keel::as<keel::i32>(m))
+        K = keel::as<keel::i32>(std::min(m, keel::usize{10}));
 
     auto out = Value::matrix(keel::as<keel::usize>(K), 1,
                              ValueType::DOUBLE, mr);
@@ -203,7 +203,7 @@ void crossval_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
         return v;
     };
 
-    for (int k = 0; k < K; ++k) {
+    for (keel::i32 k = 0; k < K; ++k) {
         const keel::usize lo = (keel::as<keel::usize>(k) * m) / keel::as<keel::usize>(K);
         const keel::usize hi = (keel::as<keel::usize>(k + 1) * m) / keel::as<keel::usize>(K);
         keel::Array<keel::usize> testRows, trainRows;
@@ -237,7 +237,7 @@ void bootci_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     if (!args[1].isFuncHandle())
         throw Error("bootci: 2nd argument must be a function handle",
                     0, 0, "bootci", "", "numkit:bootci:notFuncHandle");
-    const int nboot = (int)args[0].toScalar();
+    const keel::i32 nboot = (keel::i32)args[0].toScalar();
     if (nboot < 10)
         throw Error("bootci: nboot must be >= 10 for meaningful CI",
                     0, 0, "bootci", "", "numkit:bootci:badN");
@@ -269,7 +269,7 @@ void bootci_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     keel::ArenaTemp scratch = keel::get_scratch(mr);
     keel::Array<keel::f64> col(nboot, scratch.allocator());
     for (keel::usize j = 0; j < K; ++j) {
-        for (int i = 0; i < nboot; ++i) col[i] = bd[i + j * nboot];
+        for (keel::i32 i = 0; i < nboot; ++i) col[i] = bd[i + j * nboot];
         std::sort(col.begin(), col.end());
         // Linear-interpolation percentile (matches MATLAB prctile default).
         auto qFn = [&](keel::f64 q) {
@@ -301,7 +301,7 @@ void jackknife_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     const Value &X = args[1];
     const auto &d = X.dims();
     const bool isVec = (d.ndim() <= 1) || (d.dim(0) == 1) || (d.dim(1) == 1);
-    const int n = isVec ? keel::as<int>(X.numel()) : keel::as<int>(d.dim(0));
+    const keel::i32 n = isVec ? keel::as<keel::i32>(X.numel()) : keel::as<keel::i32>(d.dim(0));
     if (n < 1)
         throw Error("jackknife: empty data", 0, 0, "jackknife", "",
                     "numkit:jackknife:empty");
@@ -311,10 +311,10 @@ void jackknife_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     const Value Xeff = isVec ? X.reshape(keel::as<keel::usize>(n), 1, mr) : X;
 
     keel::ArenaTemp scratch = keel::get_scratch(mr);
-    keel::Array<int> idx(n > 1 ? n - 1 : 0, scratch.allocator());
-    auto leaveOneOut = [&](int skip) {
-        int w = 0;
-        for (int i = 0; i < n; ++i)
+    keel::Array<keel::i32> idx(n > 1 ? n - 1 : 0, scratch.allocator());
+    auto leaveOneOut = [&](keel::i32 skip) {
+        keel::i32 w = 0;
+        for (keel::i32 i = 0; i < n; ++i)
             if (i != skip) idx[w++] = i;
         return resampleRows(Xeff, idx.data(), n - 1, mr);
     };
@@ -334,7 +334,7 @@ void jackknife_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     for (keel::usize j = 0; j < K; ++j)
         od[0 + j * keel::as<keel::usize>(n)] = stat0.elemAsDouble(j);
 
-    for (int s = 1; s < n; ++s) {
+    for (keel::i32 s = 1; s < n; ++s) {
         Value sample = leaveOneOut(s);
         Value callArgs[1] = { sample };
         auto stat = ctx.engine->callFunctionHandle(
@@ -353,7 +353,7 @@ void combnk_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
                 keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 2, "combnk");
-    const int K = (int)args[1].toScalar();
+    const keel::i32 K = (keel::i32)args[1].toScalar();
     auto *mr = ctx.engine->allocator();
     const Value &v = args[0];
     // MATLAB treats a SCALAR v as the 1-element set {v} (NOT 1:v): combnk(5,2)

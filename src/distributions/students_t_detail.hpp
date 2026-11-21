@@ -79,7 +79,7 @@ inline keel::f64 tNormInv(keel::f64 p)
     const keel::f64 ln1m = std::log(1.0 - y * y);
     const keel::f64 term = 2.0 / (M_PI * a) + 0.5 * ln1m;
     keel::f64 xv = std::copysign(std::sqrt(std::sqrt(term * term - ln1m / a) - term), y);
-    for (int it = 0; it < 2; ++it) {
+    for (keel::i32 it = 0; it < 2; ++it) {
         const keel::f64 e  = std::erf(xv) - y;
         const keel::f64 de = 2.0 * std::exp(-xv * xv) / std::sqrt(M_PI);
         xv -= e / de;
@@ -133,14 +133,14 @@ keel::f64 nctpdf_one(keel::f64 x, keel::f64 nu, keel::f64 delta,
                           - std::lgamma(0.5 * nu)
                           - 0.5 * (nu + 1.0) * std::log(npx2);
     const keel::f64 xd = x * delta;
-    const int sign_factor = (xd >= 0.0) ? 1 : -1;
+    const keel::i32 sign_factor = (xd >= 0.0) ? 1 : -1;
     const keel::f64 log_t = std::log(std::fabs(xd) * std::sqrt(2.0));   // log(|xδ|√2)
     const keel::f64 half_log_npx2 = 0.5 * std::log(npx2);
 
     keel::f64 sum = 0.0, abs_sum = 0.0;
-    int sign_k = 1;
-    constexpr int kMax = 2000;
-    for (int k = 0; k < kMax; ++k) {
+    keel::i32 sign_k = 1;
+    constexpr keel::i32 kMax = 2000;
+    for (keel::i32 k = 0; k < kMax; ++k) {
         const keel::f64 log_termk = std::lgamma(0.5 * (nu + keel::f64(k) + 1.0))
                               + keel::f64(k) * log_t
                               - keel::f64(k) * half_log_npx2
@@ -184,8 +184,8 @@ keel::f64 nctcdf_one(keel::f64 x, keel::f64 nu, keel::f64 delta,
     keel::f64 beta  = (2.0 / std::sqrt(M_PI)) * e_neg_z;          // (z^0 / Γ(3/2)) · e^{-z}
 
     keel::f64 sum1 = 0.0, sum2 = 0.0;
-    constexpr int kMax = 2000;
-    for (int k = 0; k < kMax; ++k) {
+    constexpr keel::i32 kMax = 2000;
+    for (keel::i32 k = 0; k < kMax; ++k) {
         const keel::f64 I1 = betainc_scalar(y, keel::f64(k) + 0.5, 0.5 * nu, mr);
         const keel::f64 I2 = betainc_scalar(y, keel::f64(k) + 1.0, 0.5 * nu, mr);
         const keel::f64 t1 = alpha * I1;
@@ -256,7 +256,7 @@ keel::f64 tinv_scalar(keel::f64 p, keel::f64 nu, keel::Allocator *mr)
     }
 
     // Newton + bisection guard, ≤ 60 iterations.
-    for (int it = 0; it < 60; ++it) {
+    for (keel::i32 it = 0; it < 60; ++it) {
         const keel::f64 F  = nctcdf_one(x, nu, delta, mr);
         const keel::f64 f  = nctpdf_one(x, nu, delta, mr);
         const keel::f64 err = F - p;

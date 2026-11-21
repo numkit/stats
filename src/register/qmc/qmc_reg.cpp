@@ -27,18 +27,18 @@ void haltonset_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
                    keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 0, "haltonset");  // no max: name-value tail in the reference
-    const int d = args.empty() ? 1 : argcheck::expectedPositiveInteger(
+    const keel::i32 d = args.empty() ? 1 : argcheck::expectedPositiveInteger(
         argcheck::expectedReal(args[0], 1, "d", "haltonset"), 1, "d", "haltonset");
     // MATLAB's default Skip is 0 — the trivial origin [0…0] is the first
     // returned point. 'Skip', 1 starts at index 1 = [0.5, 1/3, …].
-    long long skip = 0, leap = 0;
+    keel::i64 skip = 0, leap = 0;
     for (keel::usize i = 1; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar() && !args[i].isString()) break;
         keel::String name = args[i].toString();
         for (auto &c : name) c = keel::to_ascii_lower(c);
         const Value &v = args[i + 1];
-        if      (name == "skip") skip = keel::as<long long>(v.toScalar());
-        else if (name == "leap") leap = keel::as<long long>(v.toScalar());
+        if      (name == "skip") skip = keel::as<keel::i64>(v.toScalar());
+        else if (name == "leap") leap = keel::as<keel::i64>(v.toScalar());
     }
     outs[0] = haltonset(d, skip, leap, ctx.engine->allocator());
 }
@@ -47,7 +47,7 @@ void net_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
              keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "net");  // no max: absent from the R2025b reference build
-    const long long n = keel::as<long long>(args[1].toScalar());
+    const keel::i64 n = keel::as<keel::i64>(args[1].toScalar());
     outs[0] = net(args[0], n, ctx.engine->allocator());
 }
 

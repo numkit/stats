@@ -58,17 +58,17 @@ using ::numkit::builtin::varianceTwoPass;
 
 namespace {
 
-void var_argcheck(int normFlag)
+void var_argcheck(keel::i32 normFlag)
 {
     validateNormFlag(normFlag, "var");
 }
 
-void stdev_argcheck(int normFlag)
+void stdev_argcheck(keel::i32 normFlag)
 {
     validateNormFlag(normFlag, "std");
 }
 
-[[maybe_unused]] void cov_argcheck(const Value &x, int normFlag)
+[[maybe_unused]] void cov_argcheck(const Value &x, keel::i32 normFlag)
 {
     validateNormFlagCov(normFlag, "cov");
     validateCovInputs(x, "cov");
@@ -86,7 +86,7 @@ void stdev_argcheck(int normFlag)
 
 } // namespace
 
-Value var(const Value &x, int normFlag, int dim, keel::Allocator *mr)
+Value var(const Value &x, keel::i32 normFlag, keel::i32 dim, keel::Allocator *mr)
 {
     var_argcheck(normFlag);
     if (x.type() == ValueType::COMPLEX)
@@ -96,7 +96,7 @@ Value var(const Value &x, int normFlag, int dim, keel::Allocator *mr)
     if ((x.dims().isVector() || x.isScalar()) && x.type() == ValueType::DOUBLE)
         return Value::scalar(varianceTwoPass(x.doubleData(), x.numel(), normFlag), mr);
 
-    const int d = resolveDim(x, dim, "var");
+    const keel::i32 d = resolveDim(x, dim, "var");
     Value r = applyAlongDim(x, d,
         [normFlag](keel::usize, keel::f64 *slice, keel::usize n) {
             return varianceTwoPass(slice, n, normFlag);
@@ -106,7 +106,7 @@ Value var(const Value &x, int normFlag, int dim, keel::Allocator *mr)
     return r;
 }
 
-Value stdev(const Value &x, int normFlag, int dim, keel::Allocator *mr)
+Value stdev(const Value &x, keel::i32 normFlag, keel::i32 dim, keel::Allocator *mr)
 {
     stdev_argcheck(normFlag);
     if (x.type() == ValueType::COMPLEX)
@@ -116,7 +116,7 @@ Value stdev(const Value &x, int normFlag, int dim, keel::Allocator *mr)
     if ((x.dims().isVector() || x.isScalar()) && x.type() == ValueType::DOUBLE)
         return Value::scalar(std::sqrt(varianceTwoPass(x.doubleData(), x.numel(), normFlag)), mr);
 
-    const int d = resolveDim(x, dim, "std");
+    const keel::i32 d = resolveDim(x, dim, "std");
     Value r = applyAlongDim(x, d,
         [normFlag](keel::usize, keel::f64 *slice, keel::usize n) {
             return std::sqrt(varianceTwoPass(slice, n, normFlag));
@@ -135,13 +135,13 @@ Value stdev(const Value &x, int normFlag, int dim, keel::Allocator *mr)
 // buffer is owned by forEachSlice and reused per output index.
 
 
-Value median(const Value &x, int dim, keel::Allocator *mr)
+Value median(const Value &x, keel::i32 dim, keel::Allocator *mr)
 {
     if (x.type() == ValueType::COMPLEX)
         return medianComplex(x, dim, mr);   // sort by abs, ties by angle (MATLAB)
     if (x.isEmpty())
         return emptyStatReductionNaN(x, dim, mr);
-    const int d = resolveDim(x, dim, "median");
+    const keel::i32 d = resolveDim(x, dim, "median");
     Value r = applyAlongDim(x, d,
         [](keel::usize, keel::f64 *slice, keel::usize n) {
             return medianFromSlice(slice, n);
@@ -177,12 +177,12 @@ Value median(const Value &x, int dim, keel::Allocator *mr)
 //   * Approximate â€” t-digest, currently falls back to Midpoint
 //     (no functional gap, just signature compatibility).
 
-Value quantile(const Value &x, const Value &p, int dim, keel::Allocator *mr)
+Value quantile(const Value &x, const Value &p, keel::i32 dim, keel::Allocator *mr)
 {
     return quantileImpl(x, p, dim, 1.0, QMethod::Midpoint, "quantile", mr);
 }
 
-Value prctile(const Value &x, const Value &p, int dim, keel::Allocator *mr)
+Value prctile(const Value &x, const Value &p, keel::i32 dim, keel::Allocator *mr)
 {
     return quantileImpl(x, p, dim, 0.01, QMethod::Midpoint, "prctile", mr);
 }
@@ -190,7 +190,7 @@ Value prctile(const Value &x, const Value &p, int dim, keel::Allocator *mr)
 // Internal entry point used by registration adapters which parsed
 // 'all' / vecdim / Method themselves. `flatten = true` collapses x to
 // a flat row vector before reduction; `method` selects the algorithm.
-Value quantileWithOpts(const Value &x, const Value &p, int dim, bool flatten, QMethod method, keel::f64 pScale, const char *fn, keel::Allocator *mr)
+Value quantileWithOpts(const Value &x, const Value &p, keel::i32 dim, bool flatten, QMethod method, keel::f64 pScale, const char *fn, keel::Allocator *mr)
 {
     if (flatten) {
         // Reshape into a 1Ã—N row, then reduce along dim 2 (the only
@@ -218,7 +218,7 @@ Value quantileWithOpts(const Value &x, const Value &p, int dim, bool flatten, QM
 
 
 std::tuple<Value, Value>
-mode(const Value &x, int dim, keel::Allocator *mr)
+mode(const Value &x, keel::i32 dim, keel::Allocator *mr)
 {
     // MATLAB: mode of an empty array -> NaN-shaped value, 0-shaped count.
     // [M,F]=mode([]) gives M=NaN, F=0; mode(zeros(0,3))=[NaN NaN NaN] with
@@ -226,7 +226,7 @@ mode(const Value &x, int dim, keel::Allocator *mr)
     if (x.isEmpty())
         return { emptyStatReductionFill(x, dim, std::nan(""), mr),
                  emptyStatReductionFill(x, dim, 0.0, mr) };
-    const int d = resolveDim(x, dim, "mode");
+    const keel::i32 d = resolveDim(x, dim, "mode");
     return dispatchMode(x, d, mr, "mode");
 }
 
@@ -236,7 +236,7 @@ mode(const Value &x, int dim, keel::Allocator *mr)
 // cov / corrcoef
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-Value cov(const Value &x, int normFlag, keel::Allocator *mr)
+Value cov(const Value &x, keel::i32 normFlag, keel::Allocator *mr)
 {
     validateNormFlagCov(normFlag, "cov");
     validateCovInputs(x, "cov");
@@ -265,7 +265,7 @@ Value cov(const Value &x, int normFlag, keel::Allocator *mr)
     return covMatrixFromCentered(data.data(), n, p, divisor, mr);
 }
 
-Value cov(const Value &x, const Value &y, int normFlag, keel::Allocator *mr)
+Value cov(const Value &x, const Value &y, keel::i32 normFlag, keel::Allocator *mr)
 {
     validateNormFlagCov(normFlag, "cov");
     validateCovInputs(x, "cov");

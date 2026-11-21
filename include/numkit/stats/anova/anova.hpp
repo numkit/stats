@@ -71,7 +71,7 @@ kruskalwallis(const Value &y, const Value &group,
 ///
 /// @see kruskalwallis, anova1
 std::tuple<Value, Value, Value>
-friedman(const Value &x, int reps = 1, keel::Allocator *mr = nullptr);
+friedman(const Value &x, keel::i32 reps = 1, keel::Allocator *mr = nullptr);
 
 /// @brief Convert categorical labels to indicator columns
 /// (`X = dummyvar(group)`).

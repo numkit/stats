@@ -145,15 +145,15 @@ void datastats_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
 void bounds_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 3, "bounds");
-    int dim = 0;
+    keel::i32 dim = 0;
     bool flatten = false;
-    keel::Array<int> vecdimSet;
+    keel::Array<keel::i32> vecdimSet;
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const Value &a = args[1];
         if (a.isChar() || a.isString()) {
             keel::String s = a.toString();
             std::transform(s.begin(), s.end(), s.begin(),
-                [](unsigned char c){ return keel::to_ascii_lower(c); });
+                [](keel::u8 c){ return keel::to_ascii_lower(c); });
             if (s.as_ref() == "all") flatten = true;
             else throw Error(keel::format("bounds: unknown flag '{}'", s.as_ref()),
                               0, 0, "bounds", "", "numkit:bounds:badFlag");
@@ -162,7 +162,7 @@ void bounds_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayR
         } else {
             // vecdim: full coverage reduces like 'all'; a partial set
             // collapses the listed dims into one trailing dim below.
-            keel::Array<int> set = vecdim::parseDimSet(a, "bounds");
+            keel::Array<keel::i32> set = vecdim::parseDimSet(a, "bounds");
             if (vecdim::coversAllDims(set, args[0]))
                 flatten = true;
             else
@@ -173,7 +173,7 @@ void bounds_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayR
     if (!vecdimSet.empty()) {
         // Partial vecdim — same kernels as the scalar-dim path.
         Value c = vecdim::collapseDims(args[0], vecdimSet, mr);
-        const int lastd = keel::as<int>(c.dims().ndim());
+        const keel::i32 lastd = keel::as<keel::i32>(c.dims().ndim());
         auto [lo, hi] = bounds(c, lastd, mr);
         outs[0] = vecdim::expandReduced(std::move(lo), args[0], vecdimSet, mr);
         if (nargout > 1)
@@ -199,15 +199,15 @@ void bounds_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayR
 void iqr_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 2, "iqr");
-    int dim = 0;
+    keel::i32 dim = 0;
     bool flatten = false;
-    keel::Array<int> vecdimSet;
+    keel::Array<keel::i32> vecdimSet;
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const Value &a = args[1];
         if (a.isChar() || a.isString()) {
             keel::String s = a.toString();
             std::transform(s.begin(), s.end(), s.begin(),
-                [](unsigned char c){ return keel::to_ascii_lower(c); });
+                [](keel::u8 c){ return keel::to_ascii_lower(c); });
             if (s.as_ref() == "all") flatten = true;
             else throw Error(keel::format("iqr: unknown flag '{}'", s.as_ref()),
                               0, 0, "iqr", "", "numkit:iqr:badFlag");
@@ -216,7 +216,7 @@ void iqr_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArray
         } else {
             // vecdim: full coverage reduces like 'all'; a partial set
             // collapses the listed dims into one trailing dim below.
-            keel::Array<int> set = vecdim::parseDimSet(a, "iqr");
+            keel::Array<keel::i32> set = vecdim::parseDimSet(a, "iqr");
             if (vecdim::coversAllDims(set, args[0]))
                 flatten = true;
             else
@@ -227,7 +227,7 @@ void iqr_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArray
     if (!vecdimSet.empty()) {
         // Partial vecdim — same kernel as the scalar-dim path.
         Value c = vecdim::collapseDims(args[0], vecdimSet, mr);
-        const int lastd = keel::as<int>(c.dims().ndim());
+        const keel::i32 lastd = keel::as<keel::i32>(c.dims().ndim());
         outs[0] = vecdim::expandReduced(iqr(c, lastd, mr), args[0],
                                         vecdimSet, mr);
         return;
@@ -248,10 +248,10 @@ void iqr_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArray
 void maxk_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "maxk");  // no max: name-value tail in the reference
-    const int k = argcheck::expectedInteger(
+    const keel::i32 k = argcheck::expectedInteger(
         argcheck::expectedReal(args[1], 2, "k", "maxk"), 2, "k", "maxk");
     argcheck::expectedNonNegative(keel::f64(k), 2, "k", "maxk");
-    int dim = 0;
+    keel::i32 dim = 0;
     // Optional positional dim (numeric scalar that's not a string).
     keel::usize i = 2;
     if (i < args.size() && !args[i].isChar() && !args[i].isString()
@@ -268,11 +268,11 @@ void maxk_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef
                         0, 0, "maxk", "", "numkit:maxk:nv");
         keel::String name = args[i].toString();
         std::transform(name.begin(), name.end(), name.begin(),
-                       [](unsigned char c){ return keel::to_ascii_lower(c); });
+                       [](keel::u8 c){ return keel::to_ascii_lower(c); });
         if (name.as_ref() == "comparisonmethod") {
             keel::String m = args[i + 1].toString();
             std::transform(m.begin(), m.end(), m.begin(),
-                           [](unsigned char c){ return keel::to_ascii_lower(c); });
+                           [](keel::u8 c){ return keel::to_ascii_lower(c); });
             if (m.as_ref() != "real" && m.as_ref() != "abs" && m.as_ref() != "auto")
                 throw Error("maxk: ComparisonMethod must be 'real', 'abs' or 'auto'",
                             0, 0, "maxk", "", "numkit:maxk:cm");
@@ -293,10 +293,10 @@ void maxk_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef
 void mink_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "mink");  // no max: name-value tail in the reference
-    const int k = argcheck::expectedInteger(
+    const keel::i32 k = argcheck::expectedInteger(
         argcheck::expectedReal(args[1], 2, "k", "mink"), 2, "k", "mink");
     argcheck::expectedNonNegative(keel::f64(k), 2, "k", "mink");
-    int dim = 0;
+    keel::i32 dim = 0;
     keel::usize i = 2;
     if (i < args.size() && !args[i].isChar() && !args[i].isString()
         && !args[i].isEmpty()) {
@@ -309,11 +309,11 @@ void mink_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef
                         0, 0, "mink", "", "numkit:mink:nv");
         keel::String name = args[i].toString();
         std::transform(name.begin(), name.end(), name.begin(),
-                       [](unsigned char c){ return keel::to_ascii_lower(c); });
+                       [](keel::u8 c){ return keel::to_ascii_lower(c); });
         if (name.as_ref() == "comparisonmethod") {
             keel::String m = args[i + 1].toString();
             std::transform(m.begin(), m.end(), m.begin(),
-                           [](unsigned char c){ return keel::to_ascii_lower(c); });
+                           [](keel::u8 c){ return keel::to_ascii_lower(c); });
             if (m.as_ref() != "real" && m.as_ref() != "abs" && m.as_ref() != "auto")
                 throw Error("mink: ComparisonMethod must be 'real', 'abs' or 'auto'",
                             0, 0, "mink", "", "numkit:mink:cm");
@@ -337,7 +337,7 @@ void mink_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef
 // same result.
 namespace {
 void parseDimOrAll(const Value &x, keel::ArrayRef<Value> args, keel::usize pos,
-                   int &dim, bool &flatten, keel::Array<int> &vecdimSet,
+                   keel::i32 &dim, bool &flatten, keel::Array<keel::i32> &vecdimSet,
                    const char *fn)
 {
     dim = 0; flatten = false; vecdimSet.clear();
@@ -346,7 +346,7 @@ void parseDimOrAll(const Value &x, keel::ArrayRef<Value> args, keel::usize pos,
     if (a.isChar() || a.isString()) {
         keel::String s = a.toString();
         std::transform(s.begin(), s.end(), s.begin(),
-                       [](unsigned char c){ return keel::to_ascii_lower(c); });
+                       [](keel::u8 c){ return keel::to_ascii_lower(c); });
         if (s.as_ref() == "all") { flatten = true; return; }
         // Any other string belongs to the flag/Weights parser that
         // runs after this (nanflags / 'Weights'); do not consume it.
@@ -355,7 +355,7 @@ void parseDimOrAll(const Value &x, keel::ArrayRef<Value> args, keel::usize pos,
     if (a.numel() == 1) { dim = argcheck::dimArg(a, fn); return; }
     // vecdim: full coverage reduces like 'all'; a partial set collapses
     // the listed dims into one trailing dim.
-    keel::Array<int> set = vecdim::parseDimSet(a, fn);
+    keel::Array<keel::i32> set = vecdim::parseDimSet(a, fn);
     if (vecdim::coversAllDims(set, x))
         flatten = true;
     else
@@ -377,7 +377,7 @@ void mape_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArra
               CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "mape");  // no max: flag/NV tail in the reference
-    int dim = 0; bool flatten = false; keel::Array<int> vecdimSet;
+    keel::i32 dim = 0; bool flatten = false; keel::Array<keel::i32> vecdimSet;
     parseDimOrAll(args[0], args, 2, dim, flatten, vecdimSet, "mape");
     auto *mr = ctx.engine->allocator();
     // Flags + Weights (probe71 contract; classes live in the compute
@@ -397,7 +397,7 @@ void mape_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArra
         // slices stay paired, then reduce along the last dim.
         Value f = vecdim::collapseDims(args[0], vecdimSet, mr);
         Value a = vecdim::collapseDims(args[1], vecdimSet, mr);
-        const int lastd = keel::as<int>(f.dims().ndim());
+        const keel::i32 lastd = keel::as<keel::i32>(f.dims().ndim());
         outs[0] = vecdim::expandReduced(mape(f, a, lastd, opts, mr), args[0],
                                         vecdimSet, mr);
         return;
@@ -413,7 +413,7 @@ void mape_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArra
 void rmse_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "rmse");  // no max: flag/NV tail in the reference
-    int dim = 0; bool flatten = false; keel::Array<int> vecdimSet;
+    keel::i32 dim = 0; bool flatten = false; keel::Array<keel::i32> vecdimSet;
     parseDimOrAll(args[0], args, 2, dim, flatten, vecdimSet, "rmse");
     auto *mr = ctx.engine->allocator();
     const bool allConsumed =
@@ -431,7 +431,7 @@ void rmse_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArra
         // slices stay paired, then reduce along the last dim.
         Value f = vecdim::collapseDims(args[0], vecdimSet, mr);
         Value a = vecdim::collapseDims(args[1], vecdimSet, mr);
-        const int lastd = keel::as<int>(f.dims().ndim());
+        const keel::i32 lastd = keel::as<keel::i32>(f.dims().ndim());
         outs[0] = vecdim::expandReduced(rmse(f, a, lastd, opts, mr), args[0],
                                         vecdimSet, mr);
         return;
@@ -489,9 +489,9 @@ void ecdf_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef
 void ecdfhist_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "ecdfhist");  // no max: name-value tail in the reference
-    int m = 10;
+    keel::i32 m = 10;
     if (args.size() >= 3 && !args[2].isEmpty())
-        m = keel::as<int>(argcheck::roundLength(args[2], 3, "m", "ecdfhist"));
+        m = keel::as<keel::i32>(argcheck::roundLength(args[2], 3, "m", "ecdfhist"));
     auto [n, c] = ecdfhist(args[0], args[1], m, ctx.engine->allocator());
     outs[0] = std::move(n);
     if (nargout > 1) outs[1] = std::move(c);
@@ -717,15 +717,15 @@ void filloutliers_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
 void range_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 2, "range");
-    int dim = 0;
-    keel::Array<int> vecdimSet;
+    keel::i32 dim = 0;
+    keel::Array<keel::i32> vecdimSet;
     if (args.size() >= 2)
         vecdim::parseDimSlot(args[0], args[1], "range", dim, vecdimSet);
     auto *mr = ctx.engine->allocator();
     if (!vecdimSet.empty()) {
         Value c = vecdim::collapseDims(args[0], vecdimSet, mr);
         outs[0] = vecdim::expandReduced(
-            range_of(c, keel::as<int>(c.dims().ndim()), mr),
+            range_of(c, keel::as<keel::i32>(c.dims().ndim()), mr),
             args[0], vecdimSet, mr);
         return;
     }
@@ -735,13 +735,13 @@ void range_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArr
 void mad_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 3, "mad");
-    int flag = 0;
-    int dim  = 0;
-    keel::Array<int> vecdimSet;
+    keel::i32 flag = 0;
+    keel::i32 dim  = 0;
+    keel::Array<keel::i32> vecdimSet;
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const keel::f64 fv = argcheck::expectedReal(args[1], 2, "flag", "mad");
         argcheck::expectedFlag01(fv, 2, "flag", "mad");
-        flag = keel::as<int>(fv);
+        flag = keel::as<keel::i32>(fv);
     }
     if (args.size() >= 3)
         vecdim::parseDimSlot(args[0], args[2], "mad", dim, vecdimSet);
@@ -749,7 +749,7 @@ void mad_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArray
     if (!vecdimSet.empty()) {
         Value c = vecdim::collapseDims(args[0], vecdimSet, mr);
         outs[0] = vecdim::expandReduced(
-            mad_of(c, flag, keel::as<int>(c.dims().ndim()), mr),
+            mad_of(c, flag, keel::as<keel::i32>(c.dims().ndim()), mr),
             args[0], vecdimSet, mr);
         return;
     }
@@ -778,15 +778,15 @@ void geomean_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
     argcheck::checkNargin(args.size(), 1, "geomean");  // no max: flag/option tail in the reference
     keel::usize nargs;
     const bool omitnan = parseMeanNanFlag(args, "geomean", nargs);
-    int dim = 0;
-    keel::Array<int> vecdimSet;
+    keel::i32 dim = 0;
+    keel::Array<keel::i32> vecdimSet;
     if (nargs >= 2)
         vecdim::parseDimSlot(args[0], args[1], "geomean", dim, vecdimSet);
     auto *mr = ctx.engine->allocator();
     if (!vecdimSet.empty()) {
         Value c = vecdim::collapseDims(args[0], vecdimSet, mr);
         outs[0] = vecdim::expandReduced(
-            geomean_of(c, keel::as<int>(c.dims().ndim()), omitnan, mr),
+            geomean_of(c, keel::as<keel::i32>(c.dims().ndim()), omitnan, mr),
             args[0], vecdimSet, mr);
         return;
     }
@@ -798,15 +798,15 @@ void harmmean_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mut
     argcheck::checkNargin(args.size(), 1, "harmmean");  // no max: flag/option tail in the reference
     keel::usize nargs;
     const bool omitnan = parseMeanNanFlag(args, "harmmean", nargs);
-    int dim = 0;
-    keel::Array<int> vecdimSet;
+    keel::i32 dim = 0;
+    keel::Array<keel::i32> vecdimSet;
     if (nargs >= 2)
         vecdim::parseDimSlot(args[0], args[1], "harmmean", dim, vecdimSet);
     auto *mr = ctx.engine->allocator();
     if (!vecdimSet.empty()) {
         Value c = vecdim::collapseDims(args[0], vecdimSet, mr);
         outs[0] = vecdim::expandReduced(
-            harmmean_of(c, keel::as<int>(c.dims().ndim()), omitnan, mr),
+            harmmean_of(c, keel::as<keel::i32>(c.dims().ndim()), omitnan, mr),
             args[0], vecdimSet, mr);
         return;
     }
@@ -816,10 +816,10 @@ void harmmean_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mut
 void moment_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 3, "moment");
-    const int order = argcheck::expectedInteger(
+    const keel::i32 order = argcheck::expectedInteger(
         argcheck::expectedReal(args[1], 2, "order", "moment"), 2, "order", "moment");
-    int dim = 0;
-    keel::Array<int> vecdimSet;
+    keel::i32 dim = 0;
+    keel::Array<keel::i32> vecdimSet;
     if (args.size() >= 3 && !args[2].isEmpty()) {
         // A vecdim (full or partial cover) always collapses — moment has
         // no separate 'all' path, and the collapse handles both.
@@ -832,7 +832,7 @@ void moment_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
         Value c = vecdim::collapseDims(args[0], vecdimSet,
                                        ctx.engine->allocator());
         outs[0] = vecdim::expandReduced(
-            moment_of(c, order, keel::as<int>(c.dims().ndim()),
+            moment_of(c, order, keel::as<keel::i32>(c.dims().ndim()),
                       ctx.engine->allocator()),
             args[0], vecdimSet, ctx.engine->allocator());
         return;
@@ -849,8 +849,8 @@ void trimmean_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mut
     // flag ('round' default, or 'floor') OR a numeric dim; if a flag is
     // present the dim may follow it. Distinguish by type before toScalar.
     bool useFloor = false;
-    int dim = 0;
-    keel::Array<int> vecdimSet;
+    keel::i32 dim = 0;
+    keel::Array<keel::i32> vecdimSet;
     keel::usize i = 2;
     if (i < args.size() && (args[i].isChar() || args[i].isString())) {
         keel::String f = args[i].toString();
@@ -874,7 +874,7 @@ void trimmean_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mut
         Value c = vecdim::collapseDims(args[0], vecdimSet,
                                        ctx.engine->allocator());
         outs[0] = vecdim::expandReduced(
-            trimmean_of(c, pct, keel::as<int>(c.dims().ndim()), useFloor,
+            trimmean_of(c, pct, keel::as<keel::i32>(c.dims().ndim()), useFloor,
                         ctx.engine->allocator()),
             args[0], vecdimSet, ctx.engine->allocator());
         return;

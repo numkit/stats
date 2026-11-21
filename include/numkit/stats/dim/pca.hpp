@@ -58,7 +58,7 @@ pcacov(const Value &C, keel::Allocator *mr = nullptr);
 /// @param mr    Memory resource (nullptr → process default).
 /// @return      `N × D` residual matrix.
 /// @see pca
-Value pcares(const Value &X, int ndim,
+Value pcares(const Value &X, keel::i32 ndim,
              keel::Allocator *mr = nullptr);
 
 

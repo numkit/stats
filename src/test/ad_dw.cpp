@@ -138,7 +138,7 @@ adtest(const Value &x, keel::f64 alpha, keel::Allocator *mr)
     // for normality with estimated parameters).
     const keel::f64 cv = 0.752;
 
-    const int h = (p < alpha) ? 1 : 0;
+    const keel::i32 h = (p < alpha) ? 1 : 0;
     return {
         Value::scalar(keel::as<keel::f64>(h), mr),
         Value::scalar(p,       mr),
@@ -216,7 +216,7 @@ keel::f64 imhofPLeft(keel::ArrayRef<keel::f64> h)
     if (m == 0) return 0.5;
     if (m == 1) return (h[0] < 0.0) ? 1.0 : (h[0] > 0.0 ? 0.0 : 0.5);
 
-    const int N = 6000;                 // even panel count
+    const keel::i32 N = 6000;                 // even panel count
     auto Ft = [&](keel::f64 t) -> keel::f64 {
         if (t >= 1.0) return 0.0;
         const keel::f64 u = t / (1.0 - t);
@@ -225,7 +225,7 @@ keel::f64 imhofPLeft(keel::ArrayRef<keel::f64> h)
     };
     keel::f64 s = Ft(0.0) + Ft(1.0);
     const keel::f64 step = 1.0 / N;
-    for (int i = 1; i < N; ++i) {
+    for (keel::i32 i = 1; i < N; ++i) {
         const keel::f64 t = i * step;
         s += ((i & 1) ? 4.0 : 2.0) * Ft(t);
     }

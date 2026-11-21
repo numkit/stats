@@ -46,7 +46,7 @@ namespace numkit::stats {
 /// @return     Array of the same shape as `x` with the per-element mean.
 /// @throws Error  Invalid window length (`m:movmean:badK`).
 /// @see movsum, movmedian
-Value movmean(const Value &x, keel::ArrayRef<keel::usize> k, int dim = 0,
+Value movmean(const Value &x, keel::ArrayRef<keel::usize> k, keel::i32 dim = 0,
               keel::Allocator *mr = nullptr);
 
 /// @brief Moving median along `dim` (`y = movmedian(x, k)`).
@@ -60,7 +60,7 @@ Value movmean(const Value &x, keel::ArrayRef<keel::usize> k, int dim = 0,
 /// @return     Per-element moving median.
 /// @throws Error  Invalid window length (`m:movmedian:badK`).
 /// @see movmean, movmad
-Value movmedian(const Value &x, keel::ArrayRef<keel::usize> k, int dim = 0,
+Value movmedian(const Value &x, keel::ArrayRef<keel::usize> k, keel::i32 dim = 0,
                 keel::Allocator *mr = nullptr);
 
 /// @brief Moving sum along `dim` (`y = movsum(x, k)`).
@@ -72,7 +72,7 @@ Value movmedian(const Value &x, keel::ArrayRef<keel::usize> k, int dim = 0,
 /// @return     Per-element moving sum.
 /// @throws Error  Invalid window length (`m:movsum:badK`).
 /// @see movmean, movprod
-Value movsum(const Value &x, keel::ArrayRef<keel::usize> k, int dim = 0,
+Value movsum(const Value &x, keel::ArrayRef<keel::usize> k, keel::i32 dim = 0,
              keel::Allocator *mr = nullptr);
 
 /// @brief Moving minimum along `dim` (`y = movmin(x, k)`).
@@ -84,7 +84,7 @@ Value movsum(const Value &x, keel::ArrayRef<keel::usize> k, int dim = 0,
 /// @return     Per-element moving minimum.
 /// @throws Error  Invalid window length (`m:movmin:badK`).
 /// @see movmax
-Value movmin(const Value &x, keel::ArrayRef<keel::usize> k, int dim = 0,
+Value movmin(const Value &x, keel::ArrayRef<keel::usize> k, keel::i32 dim = 0,
              keel::Allocator *mr = nullptr);
 
 /// @brief Moving maximum along `dim` (`y = movmax(x, k)`).
@@ -96,7 +96,7 @@ Value movmin(const Value &x, keel::ArrayRef<keel::usize> k, int dim = 0,
 /// @return     Per-element moving maximum.
 /// @throws Error  Invalid window length (`m:movmax:badK`).
 /// @see movmin
-Value movmax(const Value &x, keel::ArrayRef<keel::usize> k, int dim = 0,
+Value movmax(const Value &x, keel::ArrayRef<keel::usize> k, keel::i32 dim = 0,
              keel::Allocator *mr = nullptr);
 
 /// @brief Moving standard deviation along `dim` (`y = movstd(x, k, normFlag)`).
@@ -113,7 +113,7 @@ Value movmax(const Value &x, keel::ArrayRef<keel::usize> k, int dim = 0,
 /// @throws Error  Invalid window length (`m:movstd:badK`) or invalid
 ///                normFlag (`m:movstd:badNormFlag`).
 /// @see movvar, movmean
-Value movstd(const Value &x, keel::ArrayRef<keel::usize> k, int normFlag = 0, int dim = 0,
+Value movstd(const Value &x, keel::ArrayRef<keel::usize> k, keel::i32 normFlag = 0, keel::i32 dim = 0,
              keel::Allocator *mr = nullptr);
 
 /// @brief Moving variance along `dim` (`y = movvar(x, k, normFlag)`).
@@ -129,7 +129,7 @@ Value movstd(const Value &x, keel::ArrayRef<keel::usize> k, int normFlag = 0, in
 /// @throws Error  Invalid window length (`m:movvar:badK`) or invalid
 ///                normFlag (`m:movvar:badNormFlag`).
 /// @see movstd, movmean
-Value movvar(const Value &x, keel::ArrayRef<keel::usize> k, int normFlag = 0, int dim = 0,
+Value movvar(const Value &x, keel::ArrayRef<keel::usize> k, keel::i32 normFlag = 0, keel::i32 dim = 0,
              keel::Allocator *mr = nullptr);
 
 /// @brief Moving mean absolute deviation (`y = movmad(x, k)`).
@@ -143,7 +143,7 @@ Value movvar(const Value &x, keel::ArrayRef<keel::usize> k, int normFlag = 0, in
 /// @return     Per-element moving MAD.
 /// @throws Error  Invalid window length (`m:movmad:badK`).
 /// @see movmedian, movstd
-Value movmad(const Value &x, keel::ArrayRef<keel::usize> k, int dim = 0,
+Value movmad(const Value &x, keel::ArrayRef<keel::usize> k, keel::i32 dim = 0,
              keel::Allocator *mr = nullptr);
 
 /// @brief Moving product along `dim` (`y = movprod(x, k)`).
@@ -155,7 +155,7 @@ Value movmad(const Value &x, keel::ArrayRef<keel::usize> k, int dim = 0,
 /// @return     Per-element moving product.
 /// @throws Error  Invalid window length (`m:movprod:badK`).
 /// @see movsum
-Value movprod(const Value &x, keel::ArrayRef<keel::usize> k, int dim = 0,
+Value movprod(const Value &x, keel::ArrayRef<keel::usize> k, keel::i32 dim = 0,
               keel::Allocator *mr = nullptr);
 
 /// @brief Method-dispatching data smoother (`y = smoothdata(x, method, k)`).
@@ -178,7 +178,7 @@ Value movprod(const Value &x, keel::ArrayRef<keel::usize> k, int dim = 0,
 /// @throws Error  Unsupported method (`m:smoothdata:unsupportedMethod`).
 /// @see movmean, movmedian
 Value smoothdata(const Value &x, keel::StringRef method = "movmean",
-                 int k = 0, int dim = 0,
+                 keel::i32 k = 0, keel::i32 dim = 0,
                  keel::Allocator *mr = nullptr);
 
 /// @brief Hampel outlier-resilient median filter (`y = hampel(x, k, nsigmas)`).
@@ -195,7 +195,7 @@ Value smoothdata(const Value &x, keel::StringRef method = "movmean",
 /// @throws Error  `k < 0` (`m:hampel:badK`), `nsigmas <= 0`
 ///                (`m:hampel:badSigmas`), or non-vector input
 ///                (`m:hampel:notVector`).
-Value hampel(const Value &x, int k = 3, keel::f64 nsigmas = 3.0,
+Value hampel(const Value &x, keel::i32 k = 3, keel::f64 nsigmas = 3.0,
              keel::Allocator *mr = nullptr);
 
 

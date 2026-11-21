@@ -24,15 +24,15 @@
 namespace numkit::stats {
 
 namespace {
-void randsample_argcheck(keel::ArrayRef<keel::f64> w, int N)
+void randsample_argcheck(keel::ArrayRef<keel::f64> w, keel::i32 N)
 {
-    if (!w.empty() && keel::as<int>(w.size()) != N)
+    if (!w.empty() && keel::as<keel::i32>(w.size()) != N)
         throw Error("randsample: weights length must equal N",
                     0, 0, "randsample", "", "numkit:randsample:size");
 }
 } // namespace
 
-Value randsample(::numkit::ops::RngContext &rng, int N, int K, bool with_replacement, const Value &weights, keel::Allocator *mr)
+Value randsample(::numkit::ops::RngContext &rng, keel::i32 N, keel::i32 K, bool with_replacement, const Value &weights, keel::Allocator *mr)
 {
     if (N <= 0 || K <= 0)
         return Value::matrix(K > 0 ? K : 0, 1, ValueType::DOUBLE, mr);
@@ -41,7 +41,7 @@ Value randsample(::numkit::ops::RngContext &rng, int N, int K, bool with_replace
     if (weights.numel() > 0) w = read_vec(weights);
     randsample_argcheck(w.as_ref(), N);
 
-    keel::Array<int> idx;
+    keel::Array<keel::i32> idx;
     {
         idx = sample_indices(N, K, with_replacement, w.as_ref(), rng);
     }
@@ -51,22 +51,22 @@ Value randsample(::numkit::ops::RngContext &rng, int N, int K, bool with_replace
     return out;
 }
 
-Value datasample(::numkit::ops::RngContext &rng, const Value &X, int K, int dim, bool with_replacement, const Value &weights, keel::Allocator *mr)
+Value datasample(::numkit::ops::RngContext &rng, const Value &X, keel::i32 K, keel::i32 dim, bool with_replacement, const Value &weights, keel::Allocator *mr)
 {
     const keel::usize M = X.dims().rows();
     const keel::usize D = X.dims().cols();
-    const int N = (dim == 2) ? (int)D : (int)M;
+    const keel::i32 N = (dim == 2) ? (keel::i32)D : (keel::i32)M;
     if (N <= 0)
         throw Error("datasample: empty input", 0, 0, "datasample", "",
                     "numkit:datasample:empty");
 
     keel::Array<keel::f64> w;
     if (weights.numel() > 0) w = read_vec(weights);
-    if (!w.empty() && (int)w.size() != N)
+    if (!w.empty() && (keel::i32)w.size() != N)
         throw Error("datasample: weights length must equal sample-axis size",
                     0, 0, "datasample", "", "numkit:datasample:size");
 
-    keel::Array<int> idx;
+    keel::Array<keel::i32> idx;
     {
         idx = sample_indices(N, K, with_replacement, w.as_ref(), rng);
     }
@@ -94,17 +94,17 @@ Value datasample(::numkit::ops::RngContext &rng, const Value &X, int K, int dim,
 // engine to invoke the user statistic, so there is no Engine-free C++ core here.
 
 
-Value combnk(int N, int K, keel::Allocator *mr)
+Value combnk(keel::i32 N, keel::i32 K, keel::Allocator *mr)
 {
     if (N < 0)
         throw Error("combnk: N must be non-negative", 0, 0, "combnk", "",
                     "numkit:combnk:badN");
     keel::Array<keel::f64> items((keel::usize)N);
-    for (int i = 0; i < N; ++i) items[(keel::usize)i] = keel::f64(i + 1);
+    for (keel::i32 i = 0; i < N; ++i) items[(keel::usize)i] = keel::f64(i + 1);
     return combnkImpl(items.as_ref(), K, mr);
 }
 
-Value combnk(keel::ArrayRef<keel::f64> v, int K, keel::Allocator *mr)
+Value combnk(keel::ArrayRef<keel::f64> v, keel::i32 K, keel::Allocator *mr)
 {
     return combnkImpl(v, K, mr);
 }
@@ -220,8 +220,8 @@ Value randsample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
                     0, 0, "randsample", "", "numkit:randsample:emptyPopulation");
     }
 
-    keel::Array<int> idx = sample_indices(
-        keel::as<int>(N), keel::as<int>(K), replace, w.as_ref(), rng);
+    keel::Array<keel::i32> idx = sample_indices(
+        keel::as<keel::i32>(N), keel::as<keel::i32>(K), replace, w.as_ref(), rng);
 
     // Population form: index the population values (orientation kept —
     // a row population returns a row, probe S12); count form returns a
@@ -286,7 +286,7 @@ Value datasample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
         dim = keel::as<keel::usize>(std::max(args[2].elemAsDouble(0), 1.0));
         nvStart = 3;
     } else {
-        for (int d = 0; d < X.dims().ndim(); ++d)
+        for (keel::i32 d = 0; d < X.dims().ndim(); ++d)
             if (X.dims().dim(d) != 1) {
                 dim = keel::as<keel::usize>(d + 1);
                 break;
@@ -295,7 +295,7 @@ Value datasample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
     }
     const keel::usize nd = keel::as<keel::usize>(X.dims().ndim());
     const keel::usize n = dim <= nd
-        ? keel::as<keel::usize>(X.dims().dim(keel::as<int>(dim - 1))) : 1;
+        ? keel::as<keel::usize>(X.dims().dim(keel::as<keel::i32>(dim - 1))) : 1;
 
     // NV: Replace (LOGICAL scalar only — a numeric 1 rejects, probe
     // D03) / Weights.
@@ -345,8 +345,8 @@ Value datasample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
         }
     }
 
-    keel::Array<int> idx = sample_indices(
-        keel::as<int>(n), keel::as<int>(K), replace, w.as_ref(), rng);
+    keel::Array<keel::i32> idx = sample_indices(
+        keel::as<keel::i32>(n), keel::as<keel::i32>(K), replace, w.as_ref(), rng);
 
     // Gather along dim (1 → rows, 2 → columns).
     if (dim == 1) {
@@ -406,21 +406,21 @@ Value datasample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
     // the sampled index (reference: subs{dim} = i).
     keel::Array<keel::usize> od_(nd, 1);
     for (keel::usize d = 0; d < nd; ++d)
-        od_[d] = keel::as<keel::usize>(X.dims().dim(keel::as<int>(d)));
+        od_[d] = keel::as<keel::usize>(X.dims().dim(keel::as<keel::i32>(d)));
     od_[dim - 1] = idx.size();
-    Value out = Value::matrixND(od_.data(), keel::as<int>(nd),
+    Value out = Value::matrixND(od_.data(), keel::as<keel::i32>(nd),
                                 ValueType::DOUBLE, mr);
     keel::Array<keel::usize> sstride(nd, 1), ostride(nd, 1);
     for (keel::usize d = 1; d < nd; ++d) {
         sstride[d] = sstride[d - 1]
-            * keel::as<keel::usize>(X.dims().dim(keel::as<int>(d - 1)));
+            * keel::as<keel::usize>(X.dims().dim(keel::as<keel::i32>(d - 1)));
         ostride[d] = ostride[d - 1] * od_[d - 1];
     }
     const keel::usize totalOther = [&] {
         keel::usize t = 1;
         for (keel::usize d = 0; d < nd; ++d)
             if (d + 1 != dim)
-                t *= keel::as<keel::usize>(X.dims().dim(keel::as<int>(d)));
+                t *= keel::as<keel::usize>(X.dims().dim(keel::as<keel::i32>(d)));
         return t;
     }();
     keel::Array<keel::usize> coord(nd, 0);
@@ -437,7 +437,7 @@ Value datasample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
         }
         for (keel::usize d = nd; d-- > 0;) {
             if (d + 1 == dim) continue;
-            if (++coord[d] < keel::as<keel::usize>(X.dims().dim(keel::as<int>(d))))
+            if (++coord[d] < keel::as<keel::usize>(X.dims().dim(keel::as<keel::i32>(d))))
                 break;
             coord[d] = 0;
         }

@@ -132,7 +132,7 @@ Value nlparci_full(const Value &beta, const Value &resid,
             static constexpr keel::StringRef kNv[] = { "jacobian",
                                                        "covariance",
                                                        "alpha" };
-            const int hit = argcheck::matchStringChoice(
+            const keel::i32 hit = argcheck::matchStringChoice(
                 tail[i], keel::ArrayRef<keel::StringRef>(kNv));
             if (hit == 0) J = tail[i + 1];
             else if (hit == 1) Sigma = tail[i + 1];

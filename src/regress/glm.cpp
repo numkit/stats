@@ -88,10 +88,10 @@ GlmfitResult glmfit(const Value &X, const Value &y,
     }
 
     keel::Array<keel::f64> beta(p, 0.0), beta_prev(p, 0.0);
-    const int maxIter = 100;
+    const keel::i32 maxIter = 100;
     const keel::f64 tol = 1e-8;
     keel::f64 dev = 0.0;
-    for (int it = 0; it < maxIter; ++it) {
+    for (keel::i32 it = 0; it < maxIter; ++it) {
         // Working response z = eta + (y - mu) * dEta/dMu, weight = 1 / (V(mu) * (dEta/dMu)²).
         keel::Array<keel::f64> z(n), w(n);
         for (keel::usize i = 0; i < n; ++i) {
