@@ -2,6 +2,7 @@
 
 #include <keel/core.h>
 #include <keel/memory.h>
+#include <keel/stats.h>
 #include <numkit/stats/distributions/weibull.hpp>
 
 #include <numkit/builtin/datafun.hpp>
@@ -29,42 +30,18 @@ inline bool wbl_argcheck(double a, double b) noexcept
 
 Value wblpdf(const Value &x, double a, double b, keel::Allocator *mr)
 {
-    const double NaN = std::numeric_limits<double>::quiet_NaN();
-    if (!wbl_argcheck(a, b))  // also catches NaN params
-        return elementwise(x, [NaN](double){ return NaN; }, mr);
-    return elementwise(x, [=](double xi) {
-        if (std::isnan(xi)) return NaN;       // propagate NaN x as quiet NaN
-        if (xi < 0.0) return 0.0;
-        if (xi == 0.0) {
-            if (b < 1.0) return std::numeric_limits<double>::infinity();
-            if (b > 1.0) return 0.0;
-            return 1.0 / a; // b == 1 (exponential)
-        }
-        const double r = xi / a;
-        return (b / a) * std::pow(r, b - 1.0) * std::exp(-std::pow(r, b));
-    }, mr);
+    (void)wbl_argcheck(a, b);
+    return elementwise(x, [=](double xi) { return keel::stats::wbl_pdf(xi, a, b); }, mr);
 }
 
 Value wblcdf(const Value &x, double a, double b, keel::Allocator *mr)
 {
-    if (a <= 0.0 || b <= 0.0)
-        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    return elementwise(x, [=](double xi) {
-        if (xi <= 0.0) return 0.0;
-        return -std::expm1(-std::pow(xi / a, b));
-    }, mr);
+    return elementwise(x, [=](double xi) { return keel::stats::wbl_cdf(xi, a, b); }, mr);
 }
 
 Value wblinv(const Value &p, double a, double b, keel::Allocator *mr)
 {
-    if (a <= 0.0 || b <= 0.0)
-        return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    return elementwise(p, [=](double pi) {
-        if (pi < 0.0 || pi > 1.0) return std::numeric_limits<double>::quiet_NaN();
-        if (pi == 0.0) return 0.0;
-        if (pi >= 1.0) return std::numeric_limits<double>::infinity();
-        return a * std::pow(-std::log1p(-pi), 1.0 / b);
-    }, mr);
+    return elementwise(p, [=](double pi) { return keel::stats::wbl_inv(pi, a, b); }, mr);
 }
 
 Value wblrnd(::numkit::ops::RngContext &rng, double a, double b, keel::usize rows, keel::usize cols, keel::Allocator *mr)

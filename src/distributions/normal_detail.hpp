@@ -12,6 +12,7 @@
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <keel/math.h>
+#include <keel/stats.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
@@ -54,7 +55,7 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
 // step. For our purposes the existing numkit::builtin::erfinv is sufficient
 // (already tested at ULP-10 in the parity bench).
 
-double erfinvScalar(double y)
+[[maybe_unused]] double erfinvScalar(double y)
 {
     if (y >= 1.0) return std::numeric_limits<double>::infinity();
     if (y <= -1.0) return -std::numeric_limits<double>::infinity();
@@ -89,26 +90,17 @@ double erfinvScalar(double y)
 
 inline double normpdfK(double x, double mu, double sigma)
 {
-    if (!(sigma > 0.0)) return std::numeric_limits<double>::quiet_NaN();
-    const double inv = 1.0 / (sigma * kSqrt2Pi);
-    const double inv2s2 = 1.0 / (2.0 * sigma * sigma);
-    const double d = x - mu;
-    return inv * std::exp(-d * d * inv2s2);
+    return keel::stats::norm_pdf(x, mu, sigma);
 }
 
 inline double normcdfK(double x, double mu, double sigma)
 {
-    if (!(sigma > 0.0)) return std::numeric_limits<double>::quiet_NaN();
-    return 0.5 * std::erfc(-(x - mu) / (sigma * kSqrt2));
+    return keel::stats::norm_cdf(x, mu, sigma);
 }
 
 inline double norminvK(double p, double mu, double sigma)
 {
-    if (!(sigma > 0.0) || std::isnan(p) || p < 0.0 || p > 1.0)
-        return std::numeric_limits<double>::quiet_NaN();
-    if (p == 0.0) return -std::numeric_limits<double>::infinity();
-    if (p == 1.0) return  std::numeric_limits<double>::infinity();
-    return mu + sigma * kSqrt2 * erfinvScalar(2.0 * p - 1.0);
+    return keel::stats::norm_inv(p, mu, sigma);
 }
 
 } // anonymous

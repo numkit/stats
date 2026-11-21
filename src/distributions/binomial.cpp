@@ -2,6 +2,7 @@
 
 #include <keel/core.h>
 #include <keel/memory.h>
+#include <keel/stats.h>
 #include <numkit/stats/distributions/binomial.hpp>
 
 #include <numkit/builtin/datafun.hpp>
@@ -30,23 +31,18 @@ inline bool bino_argcheck(double n, double p) noexcept
 
 Value binopdf(const Value &k, double n, double p, keel::Allocator *mr)
 {
-    if (!bino_argcheck(n, p))
-        return elementwise(k, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    return elementwise(k, [=](double ki){ return bino_pmf(ki, n, p); }, mr);
+    (void)bino_argcheck(n, p);
+    return elementwise(k, [=](double ki){ return keel::stats::bino_pdf(ki, n, p); }, mr);
 }
 
 Value binocdf(const Value &k, double n, double p, keel::Allocator *mr)
 {
-    if (n < 0.0 || std::floor(n) != n || p < 0.0 || p > 1.0)
-        return elementwise(k, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    return elementwise(k, [=](double ki){ return bino_cdf_scalar(ki, n, p, mr); }, mr);
+    return elementwise(k, [=](double ki){ return keel::stats::bino_cdf(ki, n, p); }, mr);
 }
 
 Value binoinv(const Value &p_in, double n, double p, keel::Allocator *mr)
 {
-    if (!bino_params_ok(n, p))
-        return elementwise(p_in, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    return elementwise(p_in, [=](double pi) { return bino_inv_scalar(pi, n, p); }, mr);
+    return elementwise(p_in, [=](double pi) { return keel::stats::bino_inv(pi, n, p); }, mr);
 }
 
 Value binornd(::numkit::ops::RngContext &rng, double n, double p, keel::usize rows, keel::usize cols, keel::Allocator *mr)

@@ -2,6 +2,7 @@
 
 #include <keel/core.h>
 #include <keel/memory.h>
+#include <keel/stats.h>
 #include <numkit/stats/distributions/rayleigh.hpp>
 
 #include <numkit/builtin/datafun.hpp>
@@ -32,36 +33,18 @@ inline bool rayl_argcheck(double b) noexcept
 
 Value raylpdf(const Value &x, double b, keel::Allocator *mr)
 {
-    if (!rayl_argcheck(b))
-        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    const double inv_b2 = 1.0 / (b * b);
-    return elementwise(x, [=](double xi) {
-        if (xi < 0.0) return 0.0;
-        return xi * inv_b2 * std::exp(-0.5 * xi * xi * inv_b2);
-    }, mr);
+    (void)rayl_argcheck(b);
+    return elementwise(x, [=](double xi) { return keel::stats::rayl_pdf(xi, b); }, mr);
 }
 
 Value raylcdf(const Value &x, double b, keel::Allocator *mr)
 {
-    if (b <= 0.0)
-        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    const double inv_b2 = 1.0 / (b * b);
-    return elementwise(x, [=](double xi) {
-        if (xi <= 0.0) return 0.0;
-        return -std::expm1(-0.5 * xi * xi * inv_b2);
-    }, mr);
+    return elementwise(x, [=](double xi) { return keel::stats::rayl_cdf(xi, b); }, mr);
 }
 
 Value raylinv(const Value &p, double b, keel::Allocator *mr)
 {
-    if (b <= 0.0)
-        return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    return elementwise(p, [=](double pi) {
-        if (pi < 0.0 || pi > 1.0) return std::numeric_limits<double>::quiet_NaN();
-        if (pi == 0.0) return 0.0;
-        if (pi >= 1.0) return std::numeric_limits<double>::infinity();
-        return b * std::sqrt(-2.0 * std::log1p(-pi));
-    }, mr);
+    return elementwise(p, [=](double pi) { return keel::stats::rayl_inv(pi, b); }, mr);
 }
 
 Value raylrnd(::numkit::ops::RngContext &rng, double b, keel::usize rows, keel::usize cols, keel::Allocator *mr)

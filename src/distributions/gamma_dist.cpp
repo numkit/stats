@@ -7,6 +7,7 @@
 
 #include <keel/core.h>
 #include <keel/memory.h>
+#include <keel/stats.h>
 #include <numkit/stats/distributions/gamma_dist.hpp>
 
 #include <numkit/builtin/datafun.hpp>
@@ -63,54 +64,18 @@ inline bool gam_argcheck(double a, double b) noexcept
 
 Value gampdf(const Value &x, double a, double b, keel::Allocator *mr)
 {
-    // Reference convention: a<0 or b<=0 → NaN; a==0 → 0 (degenerate, all mass at 0).
-    if (!gam_argcheck(a, b)) {
-        if (a == 0.0 && b > 0.0)
-            return elementwise(x, [](double){ return 0.0; }, mr);
-        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    }
-    // log f(x) = (a-1) log x - x/b - a log b - lgamma(a)
-    const double log_b = std::log(b);
-    const double lga   = std::lgamma(a);
-    return elementwise(x, [=](double xi) {
-        if (xi < 0.0) return 0.0;
-        if (xi == 0.0) {
-            if (a < 1.0) return std::numeric_limits<double>::infinity();
-            if (a > 1.0) return 0.0;
-            return std::exp(-lga - log_b); // a == 1 → 1/b
-        }
-        const double lp = (a - 1.0) * std::log(xi)
-                        - xi / b
-                        - a * log_b
-                        - lga;
-        return std::exp(lp);
-    }, mr);
+    (void)gam_argcheck(a, b);
+    return elementwise(x, [=](double xi) { return keel::stats::gam_pdf(xi, a, b); }, mr);
 }
 
 Value gamcdf(const Value &x, double a, double b, keel::Allocator *mr)
 {
-    if (a <= 0.0 || b <= 0.0)
-        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    Value xs = elementwise(x, [=](double xi) {
-        return (xi <= 0.0) ? 0.0 : xi / b;
-    }, mr);
-    Value av = Value::scalar(a, mr);
-    return ::numkit::builtin::gammainc(xs, av, mr);
+    return elementwise(x, [=](double xi) { return keel::stats::gam_cdf(xi, a, b); }, mr);
 }
 
 Value gaminv(const Value &p, double a, double b, keel::Allocator *mr)
 {
-    // MATLAB: a<0 / b<=0 → NaN; a==0 → 0 for p∈[0,1] (degenerate quantile = 0).
-    if (a < 0.0 || b <= 0.0)
-        return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    if (a == 0.0)
-        return elementwise(p, [](double pi) {
-            return (pi >= 0.0 && pi <= 1.0) ? 0.0
-                                            : std::numeric_limits<double>::quiet_NaN();
-        }, mr);
-    Value av = Value::scalar(a, mr);
-    Value q  = ::numkit::builtin::gammaincinv(p, av, mr);
-    return elementwise(q, [=](double qi){ return b * qi; }, mr);
+    return elementwise(p, [=](double pi) { return keel::stats::gam_inv(pi, a, b); }, mr);
 }
 
 Value gamrnd(::numkit::ops::RngContext &rng, double a, double b, keel::usize rows, keel::usize cols, keel::Allocator *mr)

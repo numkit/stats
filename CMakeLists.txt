@@ -113,6 +113,30 @@ if(NOT TARGET numkit_ops)
     endif()
 endif()
 
+# Dependency: keel::stats
+if(NOT TARGET keel::stats)
+    find_package(keel_stats QUIET CONFIG)
+    if(TARGET keel::keel_stats AND NOT TARGET keel::stats)
+        add_library(keel::stats ALIAS keel::keel_stats)
+    endif()
+endif()
+if(NOT TARGET keel::stats)
+    set(KEEL_STATS_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    if(NOT DEFINED FETCHCONTENT_SOURCE_DIR_KEEL_STATS)
+        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../../keelcpp/stats/CMakeLists.txt")
+            set(FETCHCONTENT_SOURCE_DIR_KEEL_STATS "${CMAKE_CURRENT_SOURCE_DIR}/../../../keelcpp/stats" CACHE PATH "Local keel_stats checkout")
+        elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../keelcpp/stats/CMakeLists.txt")
+            set(FETCHCONTENT_SOURCE_DIR_KEEL_STATS "${CMAKE_CURRENT_SOURCE_DIR}/../../keelcpp/stats" CACHE PATH "Local keel_stats checkout")
+        endif()
+    endif()
+    FetchContent_Declare(
+        keel_stats
+        GIT_REPOSITORY https://github.com/keelcpp/stats.git
+        GIT_TAG        e9e2b8ae929b0ab7683b8ed6af481946be787a43
+    )
+    FetchContent_MakeAvailable(keel_stats)
+endif()
+
 file(GLOB_RECURSE STATS_COMPUTE_SOURCES
     "src/anova/*.cpp"
     "src/cluster/*.cpp"
@@ -158,7 +182,7 @@ target_include_directories(numkit_stats_core
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-target_link_libraries(numkit_stats_core PUBLIC numkit_value numkit_sys numkit_ops)
+target_link_libraries(numkit_stats_core PUBLIC numkit_value numkit_sys numkit_ops keel::stats)
 
 if(NUMKIT_WITH_SIMD)
     target_compile_definitions(numkit_stats_core PUBLIC NUMKIT_WITH_SIMD=1)

@@ -6,6 +6,7 @@
 
 #include <keel/core.h>
 #include <keel/memory.h>
+#include <keel/stats.h>
 #include <numkit/stats/distributions/fisher_f.hpp>
 
 #include <numkit/builtin/datafun.hpp>
@@ -35,68 +36,18 @@ inline bool fisher_f_argcheck(double v1, double v2) noexcept
 
 Value fpdf(const Value &x, double v1, double v2, keel::Allocator *mr)
 {
-    if (!fisher_f_argcheck(v1, v2))
-        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    // log f(x; v1, v2) = (v1/2) log(v1) + (v2/2) log(v2)
-    //                  + (v1/2 - 1) log x
-    //                  - ((v1+v2)/2) log(v2 + v1 x)
-    //                  - lbeta(v1/2, v2/2)
-    // where lbeta(a, b) = lgamma(a) + lgamma(b) - lgamma(a+b).
-    const double a = 0.5 * v1;
-    const double b = 0.5 * v2;
-    const double lbeta = std::lgamma(a) + std::lgamma(b) - std::lgamma(a + b);
-    const double log_v1 = std::log(v1);
-    const double log_v2 = std::log(v2);
-    return elementwise(x, [=](double xi) {
-        if (xi < 0.0) return 0.0;
-        if (xi == 0.0) {
-            // Density at 0 has three regimes (limit of x^(v1/2 - 1) as x → 0+):
-            //   v1 < 2  →  +Inf
-            //   v1 == 2 →  finite, value computed without the (a-1)·log x term
-            //   v1 > 2  →  0
-            if (v1 <  2.0) return std::numeric_limits<double>::infinity();
-            if (v1 == 2.0) {
-                const double lp0 = a * log_v1 + b * log_v2
-                                 - (a + b) * std::log(v2)
-                                 - lbeta;
-                return std::exp(lp0);
-            }
-            return 0.0;
-        }
-        const double lp = a * log_v1 + b * log_v2
-                        + (a - 1.0) * std::log(xi)
-                        - (a + b) * std::log(v2 + v1 * xi)
-                        - lbeta;
-        return std::exp(lp);
-    }, mr);
+    (void)fisher_f_argcheck(v1, v2);
+    return elementwise(x, [=](double xi) { return keel::stats::f_pdf(xi, v1, v2); }, mr);
 }
 
 Value fcdf(const Value &x, double v1, double v2, keel::Allocator *mr)
 {
-    if (v1 <= 0.0 || v2 <= 0.0)
-        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    Value z = elementwise(x, [=](double xi) {
-        if (xi <= 0.0) return 0.0;
-        return (v1 * xi) / (v1 * xi + v2);
-    }, mr);
-    Value a = Value::scalar(0.5 * v1, mr);
-    Value b = Value::scalar(0.5 * v2, mr);
-    return ::numkit::builtin::betainc(z, a, b, mr);
+    return elementwise(x, [=](double xi) { return keel::stats::f_cdf(xi, v1, v2); }, mr);
 }
 
 Value finv(const Value &p, double v1, double v2, keel::Allocator *mr)
 {
-    if (v1 <= 0.0 || v2 <= 0.0)
-        return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    Value a = Value::scalar(0.5 * v1, mr);
-    Value b = Value::scalar(0.5 * v2, mr);
-    Value z = ::numkit::builtin::betaincinv(p, a, b, mr);
-    // x = (v2 / v1) · z / (1 - z)
-    return elementwise(z, [=](double zi){
-        if (zi <= 0.0) return 0.0;
-        if (zi >= 1.0) return std::numeric_limits<double>::infinity();
-        return (v2 / v1) * zi / (1.0 - zi);
-    }, mr);
+    return elementwise(p, [=](double pi) { return keel::stats::f_inv(pi, v1, v2); }, mr);
 }
 
 Value frnd(::numkit::ops::RngContext &rng, double v1, double v2, keel::usize rows, keel::usize cols, keel::Allocator *mr)

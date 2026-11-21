@@ -2,6 +2,7 @@
 
 #include <keel/core.h>
 #include <keel/memory.h>
+#include <keel/stats.h>
 #include <numkit/stats/distributions/gev.hpp>
 
 #include <numkit/builtin/datafun.hpp>
@@ -28,44 +29,18 @@ inline bool gev_argcheck(double sigma) noexcept
 
 Value gevpdf(const Value &x, double k, double sigma, double mu, keel::Allocator *mr)
 {
-    if (!gev_argcheck(sigma))
-        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    const double inv_s = 1.0 / sigma;
-    return elementwise(x, [=](double xi) {
-        const double z = (xi - mu) * inv_s;
-        if (k == 0.0) return inv_s * std::exp(-z - std::exp(-z));
-        const double t = 1.0 + k * z;
-        if (t <= 0.0) return 0.0;
-        const double tinvk = std::pow(t, -1.0 / k);
-        return inv_s * std::pow(t, -1.0 / k - 1.0) * std::exp(-tinvk);
-    }, mr);
+    (void)gev_argcheck(sigma);
+    return elementwise(x, [=](double xi) { return keel::stats::gev_pdf(xi, k, sigma, mu); }, mr);
 }
 
 Value gevcdf(const Value &x, double k, double sigma, double mu, keel::Allocator *mr)
 {
-    if (sigma <= 0.0)
-        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    const double inv_s = 1.0 / sigma;
-    return elementwise(x, [=](double xi) {
-        const double z = (xi - mu) * inv_s;
-        if (k == 0.0) return std::exp(-std::exp(-z));
-        const double t = 1.0 + k * z;
-        if (t <= 0.0) {
-            // For k > 0 below the lower endpoint: F = 0.
-            // For k < 0 above the upper endpoint: F = 1.
-            return (k > 0) ? 0.0 : 1.0;
-        }
-        return std::exp(-std::pow(t, -1.0 / k));
-    }, mr);
+    return elementwise(x, [=](double xi) { return keel::stats::gev_cdf(xi, k, sigma, mu); }, mr);
 }
 
 Value gevinv(const Value &p, double k, double sigma, double mu, keel::Allocator *mr)
 {
-    if (sigma <= 0.0)
-        return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    return elementwise(p, [=](double pi) {
-        return gev_inv_one(pi, k, sigma, mu);
-    }, mr);
+    return elementwise(p, [=](double pi) { return keel::stats::gev_inv(pi, k, sigma, mu); }, mr);
 }
 
 Value gevrnd(::numkit::ops::RngContext &rng, double k, double sigma, double mu, keel::usize rows, keel::usize cols, keel::Allocator *mr)

@@ -2,6 +2,7 @@
 
 #include <keel/core.h>
 #include <keel/memory.h>
+#include <keel/stats.h>
 #include <numkit/stats/distributions/uniform.hpp>
 
 #include <numkit/builtin/datafun.hpp>
@@ -28,37 +29,18 @@ inline bool unif_argcheck(double a, double b) noexcept
 
 Value unifpdf(const Value &x, double a, double b, keel::Allocator *mr)
 {
-    const double NaN = std::numeric_limits<double>::quiet_NaN();
-    if (!unif_argcheck(a, b))
-        return elementwise(x, [NaN](double){ return NaN; }, mr);
-    const double inv = 1.0 / (b - a);
-    return elementwise(x, [=](double xi) {
-        if (std::isnan(xi)) return NaN;  // propagate NaN x — matches MATLAB
-        return (xi >= a && xi <= b) ? inv : 0.0;
-    }, mr);
+    (void)unif_argcheck(a, b);
+    return elementwise(x, [=](double xi) { return keel::stats::unif_pdf(xi, a, b); }, mr);
 }
 
 Value unifcdf(const Value &x, double a, double b, keel::Allocator *mr)
 {
-    if (b <= a)
-        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    const double inv = 1.0 / (b - a);
-    return elementwise(x, [=](double xi) {
-        if (xi <= a) return 0.0;
-        if (xi >= b) return 1.0;
-        return (xi - a) * inv;
-    }, mr);
+    return elementwise(x, [=](double xi) { return keel::stats::unif_cdf(xi, a, b); }, mr);
 }
 
 Value unifinv(const Value &p, double a, double b, keel::Allocator *mr)
 {
-    if (b <= a)
-        return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    const double w = b - a;
-    return elementwise(p, [=](double pi) {
-        if (pi < 0.0 || pi > 1.0) return std::numeric_limits<double>::quiet_NaN();
-        return a + pi * w;
-    }, mr);
+    return elementwise(p, [=](double pi) { return keel::stats::unif_inv(pi, a, b); }, mr);
 }
 
 Value unifrnd(::numkit::ops::RngContext &rng, double a, double b, keel::usize rows, keel::usize cols, keel::Allocator *mr)

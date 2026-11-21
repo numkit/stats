@@ -2,6 +2,7 @@
 
 #include <keel/core.h>
 #include <keel/memory.h>
+#include <keel/stats.h>
 #include <numkit/stats/distributions/poisson.hpp>
 #include <numkit/stats/distributions/gamma_dist.hpp>
 #include <numkit/stats/distributions/binomial.hpp>
@@ -63,50 +64,18 @@ inline bool poiss_argcheck(double lambda) noexcept
 
 Value poisspdf(const Value &k, double lambda, keel::Allocator *mr)
 {
-    if (!poiss_argcheck(lambda))
-        return elementwise(k, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    return elementwise(k, [=](double ki){ return poiss_pmf(ki, lambda); }, mr);
+    (void)poiss_argcheck(lambda);
+    return elementwise(k, [=](double ki){ return keel::stats::poiss_pdf(ki, lambda); }, mr);
 }
 
 Value poisscdf(const Value &k, double lambda, keel::Allocator *mr)
 {
-    if (lambda < 0.0)
-        return elementwise(k, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    if (lambda == 0.0)
-        return elementwise(k, [](double ki){ return ki >= 0.0 ? 1.0 : 0.0; }, mr);
-    // Build a vector x = floor(k) + 1, run gammainc(lambda, x), then F = 1 - that.
-    Value xs = elementwise(k, [=](double ki) {
-        if (ki < 0.0) return 0.0;        // clamp; gammainc(lambda, 0) sentinel
-        return std::floor(ki) + 1.0;
-    }, mr);
-    Value lam = Value::scalar(lambda, mr);
-    Value lower = ::numkit::builtin::gammainc(lam, xs, mr);
-    Value out;
-    const auto &d = k.dims();
-    if (k.isScalar()) {
-        const double ki = k.toScalar();
-        if (ki < 0.0) return Value::scalar(0.0, mr);
-        return Value::scalar(1.0 - lower.elemAsDouble(0), mr);
-    }
-    if (d.is3D()) out = Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr);
-    else          out = Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
-    const keel::usize n = k.numel();
-    if (n == 0) return out;
-    double *od = out.doubleDataMut();
-    for (keel::usize i = 0; i < n; ++i) {
-        const double ki = k.elemAsDouble(i);
-        if (ki < 0.0) { od[i] = 0.0; continue; }
-        od[i] = 1.0 - lower.elemAsDouble(i);
-    }
-    return out;
+    return elementwise(k, [=](double ki){ return keel::stats::poiss_cdf(ki, lambda); }, mr);
 }
-
 
 Value poissinv(const Value &p, double lambda, keel::Allocator *mr)
 {
-    if (lambda < 0.0)
-        return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    return elementwise(p, [=](double pi){ return poiss_inv_scalar(pi, lambda); }, mr);
+    return elementwise(p, [=](double pi){ return keel::stats::poiss_inv(pi, lambda); }, mr);
 }
 
 Value poissrnd(::numkit::ops::RngContext &rng, double lambda, keel::usize rows, keel::usize cols, keel::Allocator *mr)

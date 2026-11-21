@@ -2,6 +2,7 @@
 
 #include <keel/core.h>
 #include <keel/memory.h>
+#include <keel/stats.h>
 #include <numkit/stats/distributions/lognormal.hpp>
 
 #include <numkit/builtin/datafun.hpp>
@@ -33,39 +34,18 @@ inline bool logn_argcheck(double sigma) noexcept
 
 Value lognpdf(const Value &x, double mu, double sigma, keel::Allocator *mr)
 {
-    if (!logn_argcheck(sigma))
-        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    const double inv_sig = 1.0 / sigma;
-    const double inv_sqrt2pi = 1.0 / kSqrt2Pi;
-    return elementwise(x, [=](double xi) {
-        if (xi <= 0.0) return 0.0;
-        const double z = (std::log(xi) - mu) * inv_sig;
-        return inv_sqrt2pi * inv_sig * std::exp(-0.5 * z * z) / xi;
-    }, mr);
+    (void)logn_argcheck(sigma);
+    return elementwise(x, [=](double xi) { return keel::stats::logn_pdf(xi, mu, sigma); }, mr);
 }
 
 Value logncdf(const Value &x, double mu, double sigma, keel::Allocator *mr)
 {
-    if (sigma <= 0.0)
-        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    const double inv_sig = 1.0 / sigma;
-    return elementwise(x, [=](double xi) {
-        if (xi <= 0.0) return 0.0;
-        return phi((std::log(xi) - mu) * inv_sig);
-    }, mr);
+    return elementwise(x, [=](double xi) { return keel::stats::logn_cdf(xi, mu, sigma); }, mr);
 }
 
 Value logninv(const Value &p, double mu, double sigma, keel::Allocator *mr)
 {
-    if (sigma <= 0.0)
-        return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    return elementwise(p, [=](double pi) {
-        if (std::isnan(pi) || pi < 0.0 || pi > 1.0)
-            return std::numeric_limits<double>::quiet_NaN();
-        if (pi == 0.0) return 0.0;
-        if (pi == 1.0) return std::numeric_limits<double>::infinity();
-        return std::exp(mu + sigma * phiInv(pi));
-    }, mr);
+    return elementwise(p, [=](double pi) { return keel::stats::logn_inv(pi, mu, sigma); }, mr);
 }
 
 Value lognrnd(::numkit::ops::RngContext &rng, double mu, double sigma, keel::usize rows, keel::usize cols, keel::Allocator *mr)

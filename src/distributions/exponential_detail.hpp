@@ -11,6 +11,7 @@
 
 #include <keel/core.h>
 #include <keel/memory.h>
+#include <keel/stats.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
@@ -51,26 +52,17 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
 
 inline double exppdfK(double x, double mu)
 {
-    if (!(mu > 0.0)) return std::numeric_limits<double>::quiet_NaN();
-    if (x < 0.0) return 0.0;
-    const double inv_mu = 1.0 / mu;
-    return inv_mu * std::exp(-x * inv_mu);
+    return keel::stats::exp_pdf(x, mu);
 }
 
 inline double expcdfK(double x, double mu)
 {
-    if (!(mu > 0.0)) return std::numeric_limits<double>::quiet_NaN();
-    if (x <= 0.0) return 0.0;
-    const double inv_mu = 1.0 / mu;
-    return -std::expm1(-x * inv_mu);
+    return keel::stats::exp_cdf(x, mu);
 }
 
 inline double expinvK(double p, double mu)
 {
-    if (!(mu > 0.0)) return std::numeric_limits<double>::quiet_NaN();
-    if (p < 0.0 || p > 1.0) return std::numeric_limits<double>::quiet_NaN();
-    if (p >= 1.0) return std::numeric_limits<double>::infinity();
-    return -mu * std::log1p(-p);
+    return keel::stats::exp_inv(p, mu);
 }
 
 } // anonymous
