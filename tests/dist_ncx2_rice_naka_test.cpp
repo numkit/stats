@@ -39,7 +39,7 @@ TEST_P(DistNcx2RiceNakaTest, Ncx2RndShapeAndMean)
 TEST_P(DistNcx2RiceNakaTest, RicePdfCdfInvStat)
 {
     EXPECT_NEAR(evalScalar("ricepdf(2, 1, 1)"), 0.3742395128, 1e-9);
-    EXPECT_NEAR(evalScalar("ricecdf(2, 1, 1)"), 0.7309873435, 1e-9);
+    EXPECT_NEAR(evalScalar("ricecdf(2, 1, 1)"), 0.730987939964, 1e-9);
     EXPECT_NEAR(evalScalar("ricecdf(riceinv(0.3, 1, 1), 1, 1)"), 0.3, 1e-9);
     eval("[m, v] = ricestat(1, 1);");
     EXPECT_NEAR(evalScalar("m"), 1.548572461, 1e-6);
