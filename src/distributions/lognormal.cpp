@@ -75,7 +75,7 @@ Value lognrnd(::numkit::ops::RngContext &rng, double mu, double sigma, keel::usi
     if (sigma <= 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
     const keel::usize n = rows * cols;
-    for (keel::usize i = 0; i < n; ++i) od[i] = keel::lognormal_f64(gen, mu, sigma);
+    for (keel::usize i = 0; i < n; ++i) od[i] = keel::random::lognormal_f64(gen, mu, sigma);
     return out;
 }
 

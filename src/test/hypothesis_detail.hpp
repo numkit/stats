@@ -260,7 +260,7 @@ struct JBMCResult { double p; double cv; };
     const keel::usize max_reps  = 1'000'000;
     const double cap_p     = 0.5;  // MATLAB caps p at 0.5
 
-    keel::Xoshiro256PlusPlus gen(12345ULL);  // deterministic
+    keel::random::Xoshiro256PlusPlus gen(12345ULL);  // deterministic
     keel::Array<double> buf(N);
     keel::Array<double> JB_h0;
     JB_h0.reserve(batch);
@@ -269,7 +269,7 @@ struct JBMCResult { double p; double cv; };
     while (total < max_reps) {
         const keel::usize this_batch = std::min(batch, max_reps - total);
         for (keel::usize i = 0; i < this_batch; ++i) {
-            for (keel::usize k = 0; k < N; ++k) buf[k] = keel::normal_f64(gen);
+            for (keel::usize k = 0; k < N; ++k) buf[k] = keel::random::normal_f64(gen);
             const double j = jb_stat(buf.data(), N);
             JB_h0.push_back(j);
             if (j >= JB_obs) ++exceeds;

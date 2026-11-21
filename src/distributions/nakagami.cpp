@@ -76,7 +76,7 @@ Value nakarnd(::numkit::ops::RngContext &rng, double mu, double omega, keel::usi
     double *od = out.doubleDataMut();
     const keel::usize n = rows * cols;
     // X² ~ Gamma(shape=mu, scale=omega/mu) ⇒ X = √Gamma.
-    for (keel::usize i = 0; i < n; ++i) od[i] = std::sqrt(keel::gamma_f64(gen, mu, omega / mu));
+    for (keel::usize i = 0; i < n; ++i) od[i] = std::sqrt(keel::random::gamma_f64(gen, mu, omega / mu));
     return out;
 }
 

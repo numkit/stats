@@ -82,7 +82,7 @@ Value betarnd(::numkit::ops::RngContext &rng, double a, double b, keel::usize ro
     double *od = out.doubleDataMut();
     const keel::usize n = rows * cols;
     for (keel::usize i = 0; i < n; ++i) {
-        od[i] = keel::beta_f64(gen, a, b);
+        od[i] = keel::random::beta_f64(gen, a, b);
     }
     return out;
 }

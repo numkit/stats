@@ -60,7 +60,7 @@ Value hygernd(::numkit::ops::RngContext &rng, double M, double K, double N, keel
     double *od = out.doubleDataMut();
     const keel::usize cnt = rows * cols;
     // Inverse-cdf walk per draw. M, K, N fixed so the walk is fast.
-    for (keel::usize i = 0; i < cnt; ++i) od[i] = hyge_inv_scalar(keel::uniform_f64(gen), M, K, N);
+    for (keel::usize i = 0; i < cnt; ++i) od[i] = hyge_inv_scalar(keel::random::uniform_f64(gen), M, K, N);
     return out;
 }
 

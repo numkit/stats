@@ -91,7 +91,7 @@ Value chi2rnd(::numkit::ops::RngContext &rng, double k, keel::usize rows, keel::
     if (k <= 0.0 || rows * cols == 0) return out;
     double *od = out.doubleDataMut();
     const keel::usize n = rows * cols;
-    for (keel::usize i = 0; i < n; ++i) od[i] = keel::chi_squared_f64(gen, k);
+    for (keel::usize i = 0; i < n; ++i) od[i] = keel::random::chi_squared_f64(gen, k);
     return out;
 }
 

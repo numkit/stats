@@ -68,7 +68,7 @@ Value binornd(::numkit::ops::RngContext &rng, double n, double p, keel::usize ro
         return out;
     }
     for (keel::usize i = 0; i < cnt; ++i)
-        od[i] = static_cast<double>(keel::binomial_u64(gen, static_cast<keel::u64>(ntrials), p));
+        od[i] = static_cast<double>(keel::random::binomial_u64(gen, static_cast<keel::u64>(ntrials), p));
     return out;
 }
 

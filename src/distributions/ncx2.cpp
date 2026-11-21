@@ -97,8 +97,8 @@ Value ncx2rnd(::numkit::ops::RngContext &rng, double k, double lambda, keel::usi
     const keel::usize n = rows * cols;
     // Draw J ~ Poisson(λ/2), then X ~ chi²(k + 2J) = Gamma(shape=k/2+J, scale=2).
     for (keel::usize i = 0; i < n; ++i) {
-        const keel::u64 J = (lambda == 0.0) ? 0ULL : keel::poisson_u64(gen, 0.5 * lambda);
-        od[i] = keel::chi_squared_f64(gen, k + 2.0 * static_cast<double>(J));
+        const keel::u64 J = (lambda == 0.0) ? 0ULL : keel::random::poisson_u64(gen, 0.5 * lambda);
+        od[i] = keel::random::chi_squared_f64(gen, k + 2.0 * static_cast<double>(J));
     }
     return out;
 }

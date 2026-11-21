@@ -221,8 +221,8 @@ Value mvtrnd(::numkit::ops::RngContext &rng, const Value &C, double df, keel::us
 
     keel::Array<double> z(d);
     for (keel::usize r = 0; r < n; ++r) {
-        for (keel::usize k = 0; k < d; ++k) z[k] = keel::normal_f64(gen);
-        const double scale = std::sqrt(df / keel::chi_squared_f64(gen, df));
+        for (keel::usize k = 0; k < d; ++k) z[k] = keel::random::normal_f64(gen);
+        const double scale = std::sqrt(df / keel::random::chi_squared_f64(gen, df));
         for (keel::usize j = 0; j < d; ++j) {
             double v = 0.0;
             for (keel::usize k = 0; k <= j; ++k) v += L[j * d + k] * z[k];
@@ -383,9 +383,9 @@ wishrnd_factor(::numkit::ops::RngContext &rng, const Value &Sigma, double df, co
     keel::Array<double> B(d * d, 0.0);
     for (keel::usize i = 0; i < d; ++i) {
         const double dfi = df - static_cast<double>(i);
-        B[i * d + i] = std::sqrt(keel::chi_squared_f64(gen, dfi));
+        B[i * d + i] = std::sqrt(keel::random::chi_squared_f64(gen, dfi));
         for (keel::usize j = 0; j < i; ++j)
-            B[i * d + j] = keel::normal_f64(gen);
+            B[i * d + j] = keel::random::normal_f64(gen);
     }
 
     // M = L · B (lower-tri).
@@ -535,9 +535,9 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, double df, con
     keel::Array<double> B(d * d, 0.0);
     for (keel::usize i = 0; i < d; ++i) {
         const double dfi = df - static_cast<double>(i);
-        B[i * d + i] = std::sqrt(keel::chi_squared_f64(gen, dfi));
+        B[i * d + i] = std::sqrt(keel::random::chi_squared_f64(gen, dfi));
         for (keel::usize j = 0; j < i; ++j)
-            B[i * d + j] = keel::normal_f64(gen);
+            B[i * d + j] = keel::random::normal_f64(gen);
     }
     keel::Array<double> M(d * d, 0.0);
     for (keel::usize i = 0; i < d; ++i) {
@@ -627,7 +627,7 @@ Value mvtcdf(const Value &X, const Value &C, double df, double tol,
     choleskyLowerInPlace(L.data(), d);
 
     const int N = mvtcdf_N_from_tol(tol);
-    keel::Xoshiro256PlusPlus mc_gen(12345ULL);
+    keel::random::Xoshiro256PlusPlus mc_gen(12345ULL);
     const double NEG_INF = -std::numeric_limits<double>::infinity();
 
     const keel::usize nRows = n;   // plain local: capturing a structured
@@ -687,7 +687,7 @@ Value mvtcdf_box(const Value &Lb, const Value &Ub, const Value &C, double df,
     choleskyLowerInPlace(Lc.data(), d);
 
     const int N = mvtcdf_N_from_tol(tol);
-    keel::Xoshiro256PlusPlus mc_gen(12345ULL);
+    keel::random::Xoshiro256PlusPlus mc_gen(12345ULL);
 
     const keel::usize nRows = n;   // plain local (see mvtcdf above): avoid
                                    // capturing a structured binding in a lambda.

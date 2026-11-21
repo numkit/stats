@@ -51,7 +51,7 @@ void datasample_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
 static void drawBootstrapIndices(::numkit::ops::RngContext &rng, int N, int *idx_out)
 {
     for (int i = 0; i < N; ++i)
-        idx_out[i] = static_cast<int>(keel::uniform_i64(rng, 0, N - 1));
+        idx_out[i] = static_cast<int>(keel::random::uniform_i64(rng, 0, N - 1));
 }
 
 // Resample row indices of X into a same-shape Value.

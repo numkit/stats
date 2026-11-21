@@ -107,8 +107,8 @@ Value frnd(::numkit::ops::RngContext &rng, double v1, double v2, keel::usize row
     double *od = out.doubleDataMut();
     const keel::usize n = rows * cols;
     for (keel::usize i = 0; i < n; ++i) {
-        const double x1 = keel::chi_squared_f64(gen, v1);
-        const double x2 = keel::chi_squared_f64(gen, v2);
+        const double x1 = keel::random::chi_squared_f64(gen, v1);
+        const double x2 = keel::random::chi_squared_f64(gen, v2);
         od[i] = (x1 / v1) / (x2 / v2);
     }
     return out;
@@ -184,9 +184,9 @@ Value ncfrnd(::numkit::ops::RngContext &rng, double nu1, double nu2, double delt
     double *od = out.doubleDataMut();
     const keel::usize n = rows * cols;
     for (keel::usize i = 0; i < n; ++i) {
-        const keel::u64 J = (delta == 0.0) ? 0ULL : keel::poisson_u64(gen, 0.5 * delta);
-        const double X1 = keel::chi_squared_f64(gen, nu1 + 2.0 * static_cast<double>(J));
-        const double X2 = keel::chi_squared_f64(gen, nu2);
+        const keel::u64 J = (delta == 0.0) ? 0ULL : keel::random::poisson_u64(gen, 0.5 * delta);
+        const double X1 = keel::random::chi_squared_f64(gen, nu1 + 2.0 * static_cast<double>(J));
+        const double X2 = keel::random::chi_squared_f64(gen, nu2);
         od[i] = (X1 / nu1) / (X2 / nu2);
     }
     return out;

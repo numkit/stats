@@ -62,7 +62,7 @@ namespace {
         if (with_replacement) {
             const keel::ArrayRef<double> wref(weights.data(), weights.size());
             for (int i = 0; i < K; ++i)
-                out.push_back(static_cast<int>(keel::discrete_index(gen, wref)));
+                out.push_back(static_cast<int>(keel::random::discrete_index(gen, wref)));
         } else {
             // Without replacement: Efraimidis-Spirakis (2006) wswor algorithm.
             // Each positive-weight item i receives key k_i = u_i^(1/w_i), or
@@ -73,7 +73,7 @@ namespace {
             for (int i = 0; i < N; ++i) {
                 const double w = weights[static_cast<keel::usize>(i)];
                 if (w > 0.0) {
-                    const double e = std::max(keel::exponential_f64(gen, 1.0), 1e-300);
+                    const double e = std::max(keel::random::exponential_f64(gen, 1.0), 1e-300);
                     keyed.emplace_back(-e / w, i);
                 }
             }

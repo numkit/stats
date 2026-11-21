@@ -96,8 +96,8 @@ Value ricernd(::numkit::ops::RngContext &rng, double s, double sigma, keel::usiz
     double *od = out.doubleDataMut();
     const keel::usize n = rows * cols;
     for (keel::usize i = 0; i < n; ++i) {
-        const double a = keel::normal_f64(gen, s, sigma);
-        const double b = keel::normal_f64(gen, 0.0, sigma);
+        const double a = keel::random::normal_f64(gen, s, sigma);
+        const double b = keel::random::normal_f64(gen, 0.0, sigma);
         od[i] = std::sqrt(a * a + b * b);
     }
     return out;

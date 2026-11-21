@@ -73,7 +73,7 @@ Value unidrnd(::numkit::ops::RngContext &rng, double N, keel::usize rows, keel::
     const keel::usize cnt = rows * cols;
     const keel::i64 nMax = static_cast<keel::i64>(N);
     for (keel::usize i = 0; i < cnt; ++i)
-        od[i] = static_cast<double>(keel::uniform_i64(gen, 1, nMax));
+        od[i] = static_cast<double>(keel::random::uniform_i64(gen, 1, nMax));
     return out;
 }
 

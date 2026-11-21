@@ -113,13 +113,13 @@ double phiCdf(double x) { return 0.5 * std::erfc(-x / std::sqrt(2.0)); }
 // fall componentwise <= q. Antithetic sampling improves variance.
 [[maybe_unused]] double monteCarloCdf(const double *L, keel::usize d,
                       const double *mu, const double *q,
-                      keel::usize N, keel::Mt19937 &gen)
+                      keel::usize N, keel::random::Mt19937 &gen)
 {
     keel::usize below = 0;
     keel::Array<double> z(d), sample(d);
     const keel::usize halfN = N / 2;
     for (keel::usize s = 0; s < halfN; ++s) {
-        for (keel::usize k = 0; k < d; ++k) z[k] = keel::normal_f64(gen);
+        for (keel::usize k = 0; k < d; ++k) z[k] = keel::random::normal_f64(gen);
         // sample1 = mu + L * z, sample2 = mu - L * z  (antithetic).
         for (int sign = 0; sign < 2; ++sign) {
             const double sz = (sign == 0) ? 1.0 : -1.0;
@@ -227,14 +227,14 @@ inline double genzSovCdf(const double *L, keel::usize d,
 
     const keel::usize nBatches = 8;
     const keel::usize pairsPerBatch = std::max<keel::usize>(64, maxEvals / (2 * nBatches));
-    keel::Mt19937 shiftGen(5489u);
+    keel::random::Mt19937 shiftGen(5489u);
     keel::Array<double> shift(m);
 
     double meanEst = 0.0;
     double m2 = 0.0;
     keel::usize completedBatches = 0;
     for (keel::usize batch = 0; batch < nBatches; ++batch) {
-        for (keel::usize k = 0; k < m; ++k) shift[k] = keel::uniform_f64(shiftGen);
+        for (keel::usize k = 0; k < m; ++k) shift[k] = keel::random::uniform_f64(shiftGen);
         double batchSum = 0.0;
         for (keel::usize p = 1; p <= pairsPerBatch; ++p) {
             const double pd = static_cast<double>(p);
@@ -305,7 +305,7 @@ mvtcdf_shape_check(const Value &X, const Value &C, const char *fn)
 // Lvec / Uvec are length-d (-Inf / +Inf allowed). Returns probability.
 template <typename FetchLU>
 double mvtcdf_mc(const keel::Array<double> &Lchol, keel::usize d,
-                 double df, int N, keel::Xoshiro256PlusPlus &gen,
+                 double df, int N, keel::random::Xoshiro256PlusPlus &gen,
                  FetchLU &&fetch_LU /* (j) -> {Lj, Uj} */)
 {
     keel::Array<double> z(d), y(d), Lvec(d), Uvec(d);
@@ -315,8 +315,8 @@ double mvtcdf_mc(const keel::Array<double> &Lchol, keel::usize d,
     }
     int hits = 0;
     for (int k = 0; k < N / 2; ++k) {
-        for (keel::usize j = 0; j < d; ++j) z[j] = keel::normal_f64(gen);
-        const double scale = std::sqrt(df / keel::chi_squared_f64(gen, df));
+        for (keel::usize j = 0; j < d; ++j) z[j] = keel::random::normal_f64(gen);
+        const double scale = std::sqrt(df / keel::random::chi_squared_f64(gen, df));
         // Pass 1: z direct.
         for (keel::usize j = 0; j < d; ++j) {
             double s = 0.0;

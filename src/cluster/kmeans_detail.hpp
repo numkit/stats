@@ -45,7 +45,7 @@ inline double sq_dist(const double *a, const double *b, keel::usize D) {
                                  keel::Allocator *scratch_mr)
 {
     keel::Array<double> C((keel::usize)K * D, scratch_mr);
-    const keel::usize i0 = keel::uniform_usize(gen, 0, N - 1);
+    const keel::usize i0 = keel::random::uniform_usize(gen, 0, N - 1);
     std::copy(X.begin() + i0 * D, X.begin() + (i0 + 1) * D, C.begin());
 
     keel::Array<double> dist(N, std::numeric_limits<double>::infinity(),
@@ -63,12 +63,12 @@ inline double sq_dist(const double *a, const double *b, keel::usize D) {
         for (auto v : dist) total += v;
         if (total <= 0.0) {
             // All points coincide with existing centroids; pick uniformly.
-            const keel::usize pick = keel::uniform_usize(gen, 0, N - 1);
+            const keel::usize pick = keel::random::uniform_usize(gen, 0, N - 1);
             std::copy(X.begin() + pick * D, X.begin() + (pick + 1) * D,
                       C.begin() + (keel::usize)k * D);
             continue;
         }
-        const double r = keel::uniform_f64(gen, 0.0, total);
+        const double r = keel::random::uniform_f64(gen, 0.0, total);
         double acc = 0.0;
         keel::usize pick = N - 1;
         for (keel::usize i = 0; i < N; ++i) {

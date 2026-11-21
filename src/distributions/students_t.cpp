@@ -152,7 +152,7 @@ Value trnd(::numkit::ops::RngContext &rng, double nu, keel::usize rows, keel::us
     double *od = out.doubleDataMut();
     const keel::usize n = rows * cols;
     for (keel::usize i = 0; i < n; ++i) {
-        od[i] = keel::student_t_f64(gen, nu);
+        od[i] = keel::random::student_t_f64(gen, nu);
     }
     return out;
 }
@@ -217,8 +217,8 @@ Value nctrnd(::numkit::ops::RngContext &rng, double nu, double delta, keel::usiz
     double *od = out.doubleDataMut();
     const keel::usize n = rows * cols;
     for (keel::usize i = 0; i < n; ++i) {
-        const double Z = keel::normal_f64(gen);
-        const double X = keel::chi_squared_f64(gen, nu);
+        const double Z = keel::random::normal_f64(gen);
+        const double X = keel::random::chi_squared_f64(gen, nu);
         od[i] = (Z + delta) / std::sqrt(X / nu);
     }
     return out;

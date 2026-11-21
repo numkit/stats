@@ -36,12 +36,12 @@ void buildOneLhs(double *od, keel::usize n, keel::usize p, bool smooth,
     for (keel::usize j = 0; j < p; ++j) {
         std::iota(perm.begin(), perm.end(), keel::usize(1));
         for (keel::usize i = n - 1; i > 0; --i) {
-            const keel::usize k = keel::uniform_usize(gen, 0, i);
+            const keel::usize k = keel::random::uniform_usize(gen, 0, i);
             std::swap(perm[i], perm[k]);
         }
         if (smooth) {
             for (keel::usize i = 0; i < n; ++i)
-                od[j * n + i] = (static_cast<double>(perm[i]) - keel::uniform_f64(gen)) * inv_n;
+                od[j * n + i] = (static_cast<double>(perm[i]) - keel::random::uniform_f64(gen)) * inv_n;
         } else {
             for (keel::usize i = 0; i < n; ++i)
                 od[j * n + i] = (static_cast<double>(perm[i]) - 0.5) * inv_n;
@@ -197,7 +197,7 @@ Value lhsnorm(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigm
         for (keel::usize r = 0; r < n; ++r)
             rank[ord[r]] = r + 1;
         for (keel::usize i = 0; i < n; ++i) {
-            const double xi = smooth ? keel::uniform_f64(rng) : 0.5;
+            const double xi = smooth ? keel::random::uniform_f64(rng) : 0.5;
             ud[i] = (static_cast<double>(rank[i]) - xi) * invN;
         }
         const double muj = mu.elemAsDouble(j);

@@ -177,7 +177,7 @@ kmedoids_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_ite
         {
             keel::Array<int> all(N, scratch.allocator());
             for (keel::usize i = 0; i < N; ++i) all[i] = (int)i;
-            keel::shuffle(gen, keel::MutArrayRef<int>(all.data(), all.size()));
+            keel::random::shuffle(gen, keel::MutArrayRef<int>(all.data(), all.size()));
             for (int k = 0; k < K; ++k) med[k] = all[k];
         }
 
