@@ -81,14 +81,14 @@ Value mvnrnd(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigma
     // Copy Sigma into a scratch column-major buffer for the in-place
     // Cholesky. We actually want ROW-major for the chol algorithm above,
     // so transpose explicitly. Sigma is symmetric so just copy as-is.
-    keel::Array<double> L(d * d, scratch.allocator());
+    keel::Array<keel::f64> L(d * d, scratch.allocator());
     for (keel::usize i = 0; i < d; ++i)
         for (keel::usize j = 0; j < d; ++j)
             L[i * d + j] = Sigma.elemAsDouble(j * d + i);  // col-major → row-major
     choleskyLowerInPlace(L.data(), d);   // L[i*d+j] is L_ij (lower-tri)
 
     // mu as a flat d-length vector when row/col form; otherwise row-major n×d.
-    auto getMu = [&](keel::usize row, keel::usize col) -> double {
+    auto getMu = [&](keel::usize row, keel::usize col) -> keel::f64 {
         if (mu.isScalar()) return mu.toScalar();
         if (muN == 1) {
             // 1×d or d×1 — index by `col` regardless.
@@ -99,9 +99,9 @@ Value mvnrnd(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigma
     };
 
     auto out = Value::matrix(n, d, ValueType::DOUBLE, mr);
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
 
-    keel::Array<double> Z(n * d, scratch.allocator());
+    keel::Array<keel::f64> Z(n * d, scratch.allocator());
     for (keel::usize k = 0; k < d; ++k)
         for (keel::usize r = 0; r < n; ++r)
             Z[r + k * n] = rng.nextNormal();
@@ -109,7 +109,7 @@ Value mvnrnd(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigma
     for (keel::usize r = 0; r < n; ++r) {
         // sample = mu + L · z  (one row per call; column-major output)
         for (keel::usize j = 0; j < d; ++j) {
-            double acc = 0.0;
+            keel::f64 acc = 0.0;
             for (keel::usize k = 0; k <= j; ++k)
                 acc += L[j * d + k] * Z[r + k * n];
             od[j * n + r] = getMu(r, j) + acc;
@@ -129,7 +129,7 @@ Value mvncdf(const Value &X, const Value &mu, const Value &Sigma,
                     0, 0, "mvncdf", "", "numkit:mvncdf:badX");
 
     // Resolve mu (default: zeros).
-    keel::Array<double> muv(d, 0.0);
+    keel::Array<keel::f64> muv(d, 0.0);
     if (!mu.isEmpty()) {
         if (mu.numel() != d)
             throw Error("mvncdf: mu must have length d",
@@ -138,7 +138,7 @@ Value mvncdf(const Value &X, const Value &mu, const Value &Sigma,
     }
 
     // Resolve Sigma (default: identity). Store row-major Cholesky factor.
-    keel::Array<double> L(d * d, 0.0);
+    keel::Array<keel::f64> L(d * d, 0.0);
     if (Sigma.isEmpty()) {
         for (keel::usize i = 0; i < d; ++i) L[i * d + i] = 1.0;
     } else {
@@ -146,7 +146,7 @@ Value mvncdf(const Value &X, const Value &mu, const Value &Sigma,
             throw Error("mvncdf: Sigma must be d × d",
                         0, 0, "mvncdf", "", "numkit:mvncdf:shapeSigma");
         // Copy col-major Sigma to row-major buffer.
-        keel::Array<double> S(d * d);
+        keel::Array<keel::f64> S(d * d);
         for (keel::usize i = 0; i < d; ++i)
             for (keel::usize j = 0; j < d; ++j)
                 S[i * d + j] = Sigma.elemAsDouble(j * d + i);
@@ -155,13 +155,13 @@ Value mvncdf(const Value &X, const Value &mu, const Value &Sigma,
     }
 
     auto out = Value::matrix(n, 1, ValueType::DOUBLE, mr);
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
 
     if (d == 1) {
         // Univariate: (q - mu) / sqrt(Sigma).
-        const double sd = L[0];
+        const keel::f64 sd = L[0];
         for (keel::usize i = 0; i < n; ++i) {
-            const double q = X.elemAsDouble(i);
+            const keel::f64 q = X.elemAsDouble(i);
             od[i] = phiCdf((q - muv[0]) / sd);
         }
         return out;
@@ -172,21 +172,21 @@ Value mvncdf(const Value &X, const Value &mu, const Value &Sigma,
         // diagonal of L is the standard deviation when L is lower-tri).
         // Actually the std devs are sqrt of diagonal of Sigma. Get them
         // from Sigma directly.
-        const double s1 = Sigma.isEmpty() ? 1.0 : std::sqrt(Sigma.elemAsDouble(0));
-        const double s2 = Sigma.isEmpty() ? 1.0 : std::sqrt(Sigma.elemAsDouble(3));
-        const double s12 = Sigma.isEmpty() ? 0.0 : Sigma.elemAsDouble(2);
-        const double rho = (s1 > 0 && s2 > 0) ? s12 / (s1 * s2) : 0.0;
+        const keel::f64 s1 = Sigma.isEmpty() ? 1.0 : std::sqrt(Sigma.elemAsDouble(0));
+        const keel::f64 s2 = Sigma.isEmpty() ? 1.0 : std::sqrt(Sigma.elemAsDouble(3));
+        const keel::f64 s12 = Sigma.isEmpty() ? 0.0 : Sigma.elemAsDouble(2);
+        const keel::f64 rho = (s1 > 0 && s2 > 0) ? s12 / (s1 * s2) : 0.0;
         for (keel::usize i = 0; i < n; ++i) {
-            const double h = (X.elemAsDouble(0 * n + i) - muv[0]) / s1;
-            const double k = (X.elemAsDouble(1 * n + i) - muv[1]) / s2;
+            const keel::f64 h = (X.elemAsDouble(0 * n + i) - muv[0]) / s1;
+            const keel::f64 k = (X.elemAsDouble(1 * n + i) - muv[1]) / s2;
             od[i] = bivariateCdf(h, k, rho);
         }
         return out;
     }
 
     // d ≥ 3: Genz (1992) Separation-of-Variables QMC integrator.
-    keel::Array<double> a(d, -std::numeric_limits<double>::infinity());
-    keel::Array<double> b(d);
+    keel::Array<keel::f64> a(d, -std::numeric_limits<keel::f64>::infinity());
+    keel::Array<keel::f64> b(d);
     for (keel::usize i = 0; i < n; ++i) {
         for (keel::usize j = 0; j < d; ++j)
             b[j] = X.elemAsDouble(j * n + i) - muv[j];
@@ -195,7 +195,7 @@ Value mvncdf(const Value &X, const Value &mu, const Value &Sigma,
     return out;
 }
 
-Value mvtrnd(::numkit::ops::RngContext &rng, const Value &C, double df, keel::usize n,
+Value mvtrnd(::numkit::ops::RngContext &rng, const Value &C, keel::f64 df, keel::usize n,
               keel::Allocator *mr)
 {
     if (!(df > 0.0))
@@ -209,22 +209,22 @@ Value mvtrnd(::numkit::ops::RngContext &rng, const Value &C, double df, keel::us
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
 
     // Cholesky of correlation matrix.
-    keel::Array<double> L(d * d);
+    keel::Array<keel::f64> L(d * d);
     for (keel::usize i = 0; i < d; ++i)
         for (keel::usize j = 0; j < d; ++j)
             L[i * d + j] = C.elemAsDouble(j * d + i);
     choleskyLowerInPlace(L.data(), d);
 
     auto out = Value::matrix(n, d, ValueType::DOUBLE, mr);
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     auto &gen = rng;
 
-    keel::Array<double> z(d);
+    keel::Array<keel::f64> z(d);
     for (keel::usize r = 0; r < n; ++r) {
         for (keel::usize k = 0; k < d; ++k) z[k] = keel::random::normal_f64(gen);
-        const double scale = std::sqrt(df / keel::random::chi_squared_f64(gen, df));
+        const keel::f64 scale = std::sqrt(df / keel::random::chi_squared_f64(gen, df));
         for (keel::usize j = 0; j < d; ++j) {
-            double v = 0.0;
+            keel::f64 v = 0.0;
             for (keel::usize k = 0; k <= j; ++k) v += L[j * d + k] * z[k];
             od[j * n + r] = v * scale;
         }
@@ -240,11 +240,11 @@ Value mnrnd(::numkit::ops::RngContext &rng, keel::usize N, const Value &P, keel:
         throw Error("mnrnd: P must be a non-empty probability vector",
                     0, 0, "mnrnd", "", "numkit:mnrnd:emptyP");
     // Build cumulative probability table (renormalised).
-    keel::Array<double> cdf(k);
-    double sumP = 0.0;
+    keel::Array<keel::f64> cdf(k);
+    keel::f64 sumP = 0.0;
     bool anyNan = false;
     for (keel::usize i = 0; i < k; ++i) {
-        const double pi = P.elemAsDouble(i);
+        const keel::f64 pi = P.elemAsDouble(i);
         if (std::isnan(pi)) { anyNan = true; continue; }
         if (pi < 0.0)
             throw Error("mnrnd: probabilities must be non-negative",
@@ -254,9 +254,9 @@ Value mnrnd(::numkit::ops::RngContext &rng, keel::usize N, const Value &P, keel:
     }
     if (anyNan) {
         auto out = Value::matrix(m, k, ValueType::DOUBLE, mr);
-        double *od = out.doubleDataMut();
+        keel::f64 *od = out.doubleDataMut();
         for (keel::usize i = 0; i < m * k; ++i)
-            od[i] = std::numeric_limits<double>::quiet_NaN();
+            od[i] = std::numeric_limits<keel::f64>::quiet_NaN();
         return out;
     }
     if (!(sumP > 0.0))
@@ -265,14 +265,14 @@ Value mnrnd(::numkit::ops::RngContext &rng, keel::usize N, const Value &P, keel:
     for (auto &c : cdf) c /= sumP;
 
     auto out = Value::matrix(m, k, ValueType::DOUBLE, mr);
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     auto &gen = rng;
 
     keel::Array<keel::usize> counts(k);
     for (keel::usize r = 0; r < m; ++r) {
         std::fill(counts.begin(), counts.end(), 0u);
         for (keel::usize t = 0; t < N; ++t) {
-            const double u = gen.nextUniform();
+            const keel::f64 u = gen.nextUniform();
             // Linear scan; k is typically small.
             keel::usize cat = k - 1;
             for (keel::usize i = 0; i < k; ++i) {
@@ -281,37 +281,37 @@ Value mnrnd(::numkit::ops::RngContext &rng, keel::usize N, const Value &P, keel:
             ++counts[cat];
         }
         for (keel::usize j = 0; j < k; ++j)
-            od[j * m + r] = keel::as<double>(counts[j]);
+            od[j * m + r] = keel::as<keel::f64>(counts[j]);
     }
     return out;
 }
 
 // In-place inverse of a lower-triangular matrix via back-substitution.
 // L is d×d lower triangular row-major; on return L holds L^{-1}.
-static void invertLowerTriInPlace(double *L, keel::usize d)
+static void invertLowerTriInPlace(keel::f64 *L, keel::usize d)
 {
     // Standard column-by-column back-sub:
     // For each column j, set X(j,j) = 1/L(j,j), then for i > j:
     //   X(i,j) = -(1/L(i,i)) · sum_{k=j..i-1} L(i,k) · X(k,j).
     // Easier: compute Linv ← I, then solve L · Linv = I in place,
     // writing each column.
-    keel::Array<double> Linv(d * d, 0.0);
+    keel::Array<keel::f64> Linv(d * d, 0.0);
     for (keel::usize j = 0; j < d; ++j) {
         // Solve L · x = e_j for x.
         // x[j] = 1/L[j][j]
         Linv[j * d + j] = 1.0 / L[j * d + j];
         for (keel::usize i = j + 1; i < d; ++i) {
-            double s = 0.0;
+            keel::f64 s = 0.0;
             for (keel::usize k = j; k < i; ++k)
                 s += L[i * d + k] * Linv[k * d + j];
             Linv[i * d + j] = -s / L[i * d + i];
         }
     }
-    std::memcpy(L, Linv.data(), d * d * sizeof(double));
+    std::memcpy(L, Linv.data(), d * d * sizeof(keel::f64));
 }
 
 std::tuple<Value, Value>
-wishrnd_factor(::numkit::ops::RngContext &rng, const Value &Sigma, double df, const Value &D_in,
+wishrnd_factor(::numkit::ops::RngContext &rng, const Value &Sigma, keel::f64 df, const Value &D_in,
                keel::Allocator *mr)
 {
     if (Sigma.dims().rows() != Sigma.dims().cols())
@@ -322,13 +322,13 @@ wishrnd_factor(::numkit::ops::RngContext &rng, const Value &Sigma, double df, co
         return {Value::matrix(0, 0, ValueType::DOUBLE, mr),
                 Value::matrix(0, 0, ValueType::DOUBLE, mr)};
     }
-    if (!(df > keel::as<double>(d) - 1.0))
+    if (!(df > keel::as<keel::f64>(d) - 1.0))
         throw Error("wishrnd: df must exceed p - 1",
                     0, 0, "wishrnd", "", "numkit:wishrnd:badDf");
 
     // L = chol(Sigma, 'lower'), row-major. If user supplied
     // D = chol(Sigma, 'upper'), transpose into L.
-    keel::Array<double> L(d * d);
+    keel::Array<keel::f64> L(d * d);
     if (!D_in.isEmpty()) {
         if (D_in.dims().rows() != d || D_in.dims().cols() != d)
             throw Error("wishrnd: D must be p × p",
@@ -348,31 +348,31 @@ wishrnd_factor(::numkit::ops::RngContext &rng, const Value &Sigma, double df, co
     }
 
     // Sample Bartlett factor B (lower-tri) or Krzanowski X (when df <= 81+d and integer).
-    if (df <= 81.0 + keel::as<double>(d) && df == std::floor(df)) {
+    if (df <= 81.0 + keel::as<keel::f64>(d) && df == std::floor(df)) {
         auto W = Value::matrix(d, d, ValueType::DOUBLE, mr);
-        double *od = W.doubleDataMut();
+        keel::f64 *od = W.doubleDataMut();
         const keel::usize m = keel::as<keel::usize>(df);
-        keel::Array<double> X(m * d);
+        keel::Array<keel::f64> X(m * d);
         for (keel::usize c = 0; c < d; ++c)
             for (keel::usize r = 0; r < m; ++r)
                 X[r * d + c] = rng.nextNormal();
-        keel::Array<double> XD(m * d, 0.0);
+        keel::Array<keel::f64> XD(m * d, 0.0);
         for (keel::usize r = 0; r < m; ++r)
             for (keel::usize j = 0; j < d; ++j) {
-                double s = 0.0;
+                keel::f64 s = 0.0;
                 for (keel::usize k = 0; k <= j; ++k)
                     s += X[r * d + k] * L[j * d + k];
                 XD[r * d + j] = s;
             }
         for (keel::usize i = 0; i < d; ++i)
             for (keel::usize j = 0; j < d; ++j) {
-                double s = 0.0;
+                keel::f64 s = 0.0;
                 for (keel::usize r = 0; r < m; ++r)
                     s += XD[r * d + i] * XD[r * d + j];
                 od[j * d + i] = s;
             }
         auto D = Value::matrix(d, d, ValueType::DOUBLE, mr);
-        double *dd = D.doubleDataMut();
+        keel::f64 *dd = D.doubleDataMut();
         for (keel::usize i = 0; i < d; ++i)
             for (keel::usize j = 0; j < d; ++j)
                 dd[j * d + i] = (j >= i) ? L[j * d + i] : 0.0;
@@ -380,19 +380,19 @@ wishrnd_factor(::numkit::ops::RngContext &rng, const Value &Sigma, double df, co
     }
     auto &gen = rng;
 
-    keel::Array<double> B(d * d, 0.0);
+    keel::Array<keel::f64> B(d * d, 0.0);
     for (keel::usize i = 0; i < d; ++i) {
-        const double dfi = df - keel::as<double>(i);
+        const keel::f64 dfi = df - keel::as<keel::f64>(i);
         B[i * d + i] = std::sqrt(keel::random::chi_squared_f64(gen, dfi));
         for (keel::usize j = 0; j < i; ++j)
             B[i * d + j] = keel::random::normal_f64(gen);
     }
 
     // M = L · B (lower-tri).
-    keel::Array<double> M(d * d, 0.0);
+    keel::Array<keel::f64> M(d * d, 0.0);
     for (keel::usize i = 0; i < d; ++i) {
         for (keel::usize j = 0; j <= i; ++j) {
-            double s = 0.0;
+            keel::f64 s = 0.0;
             for (keel::usize k = j; k <= i; ++k)
                 s += L[i * d + k] * B[k * d + j];
             M[i * d + j] = s;
@@ -401,10 +401,10 @@ wishrnd_factor(::numkit::ops::RngContext &rng, const Value &Sigma, double df, co
 
     // W = M · M'.
     auto W = Value::matrix(d, d, ValueType::DOUBLE, mr);
-    double *od = W.doubleDataMut();
+    keel::f64 *od = W.doubleDataMut();
     for (keel::usize i = 0; i < d; ++i) {
         for (keel::usize j = 0; j < d; ++j) {
-            double s = 0.0;
+            keel::f64 s = 0.0;
             const keel::usize mlim = std::min(i, j);
             for (keel::usize k = 0; k <= mlim; ++k)
                 s += M[i * d + k] * M[j * d + k];
@@ -414,21 +414,21 @@ wishrnd_factor(::numkit::ops::RngContext &rng, const Value &Sigma, double df, co
 
     // Build D = L^T (upper-tri) — col-major output.
     auto D = Value::matrix(d, d, ValueType::DOUBLE, mr);
-    double *dd = D.doubleDataMut();
+    keel::f64 *dd = D.doubleDataMut();
     for (keel::usize i = 0; i < d; ++i)
         for (keel::usize j = 0; j < d; ++j)
             dd[j * d + i] = (j >= i) ? L[j * d + i] : 0.0;
     return {std::move(W), std::move(D)};
 }
 
-Value wishrnd(::numkit::ops::RngContext &rng, const Value &Sigma, double df,
+Value wishrnd(::numkit::ops::RngContext &rng, const Value &Sigma, keel::f64 df,
               keel::Allocator *mr)
 {
     return std::get<0>(wishrnd_factor(rng, Sigma, df, Value::Empty, mr));
 }
 
 std::tuple<Value, Value>
-iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, double df, const Value &DI_in,
+iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, keel::f64 df, const Value &DI_in,
                 keel::Allocator *mr)
 {
     if (Tau.dims().rows() != Tau.dims().cols())
@@ -439,14 +439,14 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, double df, con
         return {Value::matrix(0, 0, ValueType::DOUBLE, mr),
                 Value::matrix(0, 0, ValueType::DOUBLE, mr)};
     }
-    if (!(df > keel::as<double>(d) - 1.0))
+    if (!(df > keel::as<keel::f64>(d) - 1.0))
         throw Error("iwishrnd: df must exceed p - 1",
                     0, 0, "iwishrnd", "", "numkit:iwishrnd:badDf");
 
     // Need L = chol(inv(Tau), 'lower') for Bartlett construction.
     // MATLAB convention: DI is the lower-triangular factor satisfying
     // DI' · DI = inv(Tau) — i.e. DI = chol(inv(Tau), 'lower'). So L = DI.
-    keel::Array<double> L(d * d);   // row-major lower-tri
+    keel::Array<keel::f64> L(d * d);   // row-major lower-tri
     if (!DI_in.isEmpty()) {
         if (DI_in.dims().rows() != d || DI_in.dims().cols() != d)
             throw Error("iwishrnd: DI must be p × p",
@@ -459,17 +459,17 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, double df, con
         }
     } else {
         // Build inv(Tau) via L_T = chol(Tau, 'lower'), then chol(inv) lower.
-        keel::Array<double> LT(d * d);
+        keel::Array<keel::f64> LT(d * d);
         for (keel::usize i = 0; i < d; ++i)
             for (keel::usize j = 0; j < d; ++j)
                 LT[i * d + j] = Tau.elemAsDouble(j * d + i);
         choleskyLowerInPlace(LT.data(), d);
-        keel::Array<double> Linv = LT.clone();
+        keel::Array<keel::f64> Linv = LT.clone();
         invertLowerTriInPlace(Linv.data(), d);
-        keel::Array<double> invTau(d * d, 0.0);
+        keel::Array<keel::f64> invTau(d * d, 0.0);
         for (keel::usize i = 0; i < d; ++i) {
             for (keel::usize j = 0; j <= i; ++j) {
-                double s = 0.0;
+                keel::f64 s = 0.0;
                 for (keel::usize k = std::max(i, j); k < d; ++k)
                     s += Linv[k * d + i] * Linv[k * d + j];
                 invTau[i * d + j] = s;
@@ -481,48 +481,48 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, double df, con
     }
 
     // Bartlett sample Y ~ W(inv(Tau), df), or Krzanowski X when df <= 81+d and integer.
-    keel::Array<double> Y(d * d, 0.0);
-    if (df <= 81.0 + keel::as<double>(d) && df == std::floor(df)) {
+    keel::Array<keel::f64> Y(d * d, 0.0);
+    if (df <= 81.0 + keel::as<keel::f64>(d) && df == std::floor(df)) {
         const keel::usize m = keel::as<keel::usize>(df);
-        keel::Array<double> X(m * d);
+        keel::Array<keel::f64> X(m * d);
         for (keel::usize c = 0; c < d; ++c)
             for (keel::usize r = 0; r < m; ++r)
                 X[r * d + c] = rng.nextNormal();
-        keel::Array<double> XL(m * d, 0.0);
+        keel::Array<keel::f64> XL(m * d, 0.0);
         for (keel::usize r = 0; r < m; ++r)
             for (keel::usize j = 0; j < d; ++j) {
-                double s = 0.0;
+                keel::f64 s = 0.0;
                 for (keel::usize k = j; k < d; ++k)
                     s += X[r * d + k] * L[k * d + j];
                 XL[r * d + j] = s;
             }
         for (keel::usize i = 0; i < d; ++i)
             for (keel::usize j = 0; j < d; ++j) {
-                double s = 0.0;
+                keel::f64 s = 0.0;
                 for (keel::usize r = 0; r < m; ++r)
                     s += XL[r * d + i] * XL[r * d + j];
                 Y[i * d + j] = s;
             }
     } else {
-        keel::Array<double> B(d * d, 0.0);
+        keel::Array<keel::f64> B(d * d, 0.0);
         for (keel::usize i = 0; i < d; ++i) {
-            const double dfi = df - keel::as<double>(i);
+            const keel::f64 dfi = df - keel::as<keel::f64>(i);
             B[i * d + i] = std::sqrt(2.0 * randg(rng, dfi * 0.5, 1, 1, mr).toScalar());
         }
         for (keel::usize j = 1; j < d; ++j)
             for (keel::usize i = 0; i < j; ++i)
                 B[j * d + i] = rng.nextNormal();
-        keel::Array<double> M(d * d, 0.0);
+        keel::Array<keel::f64> M(d * d, 0.0);
         for (keel::usize i = 0; i < d; ++i)
             for (keel::usize j = 0; j <= i; ++j) {
-                double s = 0.0;
+                keel::f64 s = 0.0;
                 for (keel::usize k = j; k <= i; ++k)
                     s += L[i * d + k] * B[k * d + j];
                 M[i * d + j] = s;
             }
         for (keel::usize i = 0; i < d; ++i)
             for (keel::usize j = 0; j < d; ++j) {
-                double s = 0.0;
+                keel::f64 s = 0.0;
                 const keel::usize mlim = std::min(i, j);
                 for (keel::usize k = 0; k <= mlim; ++k)
                     s += M[i * d + k] * M[j * d + k];
@@ -532,26 +532,26 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, double df, con
     if (false) {
     auto &gen = rng;
 
-    keel::Array<double> B(d * d, 0.0);
+    keel::Array<keel::f64> B(d * d, 0.0);
     for (keel::usize i = 0; i < d; ++i) {
-        const double dfi = df - keel::as<double>(i);
+        const keel::f64 dfi = df - keel::as<keel::f64>(i);
         B[i * d + i] = std::sqrt(keel::random::chi_squared_f64(gen, dfi));
         for (keel::usize j = 0; j < i; ++j)
             B[i * d + j] = keel::random::normal_f64(gen);
     }
-    keel::Array<double> M(d * d, 0.0);
+    keel::Array<keel::f64> M(d * d, 0.0);
     for (keel::usize i = 0; i < d; ++i) {
         for (keel::usize j = 0; j <= i; ++j) {
-            double s = 0.0;
+            keel::f64 s = 0.0;
             for (keel::usize k = j; k <= i; ++k)
                 s += L[i * d + k] * B[k * d + j];
             M[i * d + j] = s;
         }
     }
-    keel::Array<double> Y(d * d, 0.0);
+    keel::Array<keel::f64> Y(d * d, 0.0);
     for (keel::usize i = 0; i < d; ++i) {
         for (keel::usize j = 0; j < d; ++j) {
-            double s = 0.0;
+            keel::f64 s = 0.0;
             const keel::usize mlim = std::min(i, j);
             for (keel::usize k = 0; k <= mlim; ++k)
                 s += M[i * d + k] * M[j * d + k];
@@ -561,14 +561,14 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, double df, con
 
     }
     // W = inv(Y) via Cholesky.
-    keel::Array<double> LY = Y.clone();
+    keel::Array<keel::f64> LY = Y.clone();
     choleskyLowerInPlace(LY.data(), d);
     invertLowerTriInPlace(LY.data(), d);
     auto W = Value::matrix(d, d, ValueType::DOUBLE, mr);
-    double *od = W.doubleDataMut();
+    keel::f64 *od = W.doubleDataMut();
     for (keel::usize i = 0; i < d; ++i) {
         for (keel::usize j = 0; j < d; ++j) {
-            double s = 0.0;
+            keel::f64 s = 0.0;
             for (keel::usize k = std::max(i, j); k < d; ++k)
                 s += LY[k * d + i] * LY[k * d + j];
             od[j * d + i] = s;
@@ -578,14 +578,14 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, double df, con
     // DI = L (lower-tri) — MATLAB returns the LOWER factor with
     // DI' · DI = inv(Tau) (its transpose is the upper Cholesky).
     auto DI = Value::matrix(d, d, ValueType::DOUBLE, mr);
-    double *dd = DI.doubleDataMut();
+    keel::f64 *dd = DI.doubleDataMut();
     for (keel::usize i = 0; i < d; ++i)
         for (keel::usize j = 0; j < d; ++j)
             dd[j * d + i] = (j <= i) ? L[i * d + j] : 0.0;
     return {std::move(W), std::move(DI)};
 }
 
-Value iwishrnd(::numkit::ops::RngContext &rng, const Value &Tau, double df,
+Value iwishrnd(::numkit::ops::RngContext &rng, const Value &Tau, keel::f64 df,
                keel::Allocator *mr)
 {
     return std::get<0>(iwishrnd_factor(rng, Tau, df, Value::Empty, mr));
@@ -594,7 +594,7 @@ Value iwishrnd(::numkit::ops::RngContext &rng, const Value &Tau, double df,
 // ── mvtcdf ──────────────────────────────────────────────────────────
 
 
-Value mvtcdf(const Value &X, const Value &C, double df, double tol,
+Value mvtcdf(const Value &X, const Value &C, keel::f64 df, keel::f64 tol,
              keel::Allocator *mr)
 {
     if (!(df > 0.0))
@@ -605,22 +605,22 @@ Value mvtcdf(const Value &X, const Value &C, double df, double tol,
 
     auto out = Value::matrix(n, 1, ValueType::DOUBLE, mr);
     if (n == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
 
     if (d == 1) {
         for (keel::usize i = 0; i < n; ++i) {
-            const double xi = X.elemAsDouble(i);
-            const double z = df / (df + xi * xi);
+            const keel::f64 xi = X.elemAsDouble(i);
+            const keel::f64 z = df / (df + xi * xi);
             Value zv = Value::scalar(z, mr);
             Value av = Value::scalar(0.5 * df, mr);
             Value bv = Value::scalar(0.5, mr);
-            const double I = ::numkit::builtin::betainc(zv, av, bv, mr).toScalar();
+            const keel::f64 I = ::numkit::builtin::betainc(zv, av, bv, mr).toScalar();
             od[i] = (xi >= 0.0) ? 1.0 - 0.5 * I : 0.5 * I;
         }
         return out;
     }
 
-    keel::Array<double> L(d * d);
+    keel::Array<keel::f64> L(d * d);
     for (keel::usize i = 0; i < d; ++i)
         for (keel::usize j = 0; j < d; ++j)
             L[i * d + j] = C.elemAsDouble(j * d + i);
@@ -628,13 +628,13 @@ Value mvtcdf(const Value &X, const Value &C, double df, double tol,
 
     const int N = mvtcdf_N_from_tol(tol);
     keel::random::Xoshiro256PlusPlus mc_gen(12345ULL);
-    const double NEG_INF = -std::numeric_limits<double>::infinity();
+    const keel::f64 NEG_INF = -std::numeric_limits<keel::f64>::infinity();
 
     const keel::usize nRows = n;   // plain local: capturing a structured
                                    // binding directly in a lambda is C++20.
     for (keel::usize row = 0; row < nRows; ++row) {
-        auto fetch = [&](keel::usize j) -> std::pair<double, double> {
-            const double xj = X.isScalar() ? X.toScalar()
+        auto fetch = [&](keel::usize j) -> std::pair<keel::f64, keel::f64> {
+            const keel::f64 xj = X.isScalar() ? X.toScalar()
                                            : X.elemAsDouble(j * nRows + row);
             return {NEG_INF, xj};
         };
@@ -643,8 +643,8 @@ Value mvtcdf(const Value &X, const Value &C, double df, double tol,
     return out;
 }
 
-Value mvtcdf_box(const Value &Lb, const Value &Ub, const Value &C, double df,
-                 double tol, keel::Allocator *mr)
+Value mvtcdf_box(const Value &Lb, const Value &Ub, const Value &C, keel::f64 df,
+                 keel::f64 tol, keel::Allocator *mr)
 {
     if (!(df > 0.0))
         throw Error("mvtcdf: df must be positive",
@@ -658,21 +658,21 @@ Value mvtcdf_box(const Value &Lb, const Value &Ub, const Value &C, double df,
 
     auto out = Value::matrix(n, 1, ValueType::DOUBLE, mr);
     if (n == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
 
     if (d == 1) {
         // 1-D box: P(L ≤ Y ≤ U) = F(U) - F(L).
         Value tu = Value::scalar(df, mr);
         for (keel::usize i = 0; i < n; ++i) {
-            const double Lv = Lb.elemAsDouble(i);
-            const double Uv = Ub.elemAsDouble(i);
-            auto cdf_one = [&](double x) -> double {
+            const keel::f64 Lv = Lb.elemAsDouble(i);
+            const keel::f64 Uv = Ub.elemAsDouble(i);
+            auto cdf_one = [&](keel::f64 x) -> keel::f64 {
                 if (std::isinf(x)) return (x > 0) ? 1.0 : 0.0;
-                const double z = df / (df + x * x);
+                const keel::f64 z = df / (df + x * x);
                 Value zv = Value::scalar(z, mr);
                 Value av = Value::scalar(0.5 * df, mr);
                 Value bv = Value::scalar(0.5, mr);
-                const double I = ::numkit::builtin::betainc(zv, av, bv, mr).toScalar();
+                const keel::f64 I = ::numkit::builtin::betainc(zv, av, bv, mr).toScalar();
                 return (x >= 0.0) ? 1.0 - 0.5 * I : 0.5 * I;
             };
             od[i] = std::max(0.0, cdf_one(Uv) - cdf_one(Lv));
@@ -680,7 +680,7 @@ Value mvtcdf_box(const Value &Lb, const Value &Ub, const Value &C, double df,
         return out;
     }
 
-    keel::Array<double> Lc(d * d);
+    keel::Array<keel::f64> Lc(d * d);
     for (keel::usize i = 0; i < d; ++i)
         for (keel::usize j = 0; j < d; ++j)
             Lc[i * d + j] = C.elemAsDouble(j * d + i);
@@ -692,10 +692,10 @@ Value mvtcdf_box(const Value &Lb, const Value &Ub, const Value &C, double df,
     const keel::usize nRows = n;   // plain local (see mvtcdf above): avoid
                                    // capturing a structured binding in a lambda.
     for (keel::usize row = 0; row < nRows; ++row) {
-        auto fetch = [&](keel::usize j) -> std::pair<double, double> {
-            const double lj = Lb.isScalar() ? Lb.toScalar()
+        auto fetch = [&](keel::usize j) -> std::pair<keel::f64, keel::f64> {
+            const keel::f64 lj = Lb.isScalar() ? Lb.toScalar()
                                             : Lb.elemAsDouble(j * nRows + row);
-            const double uj = Ub.isScalar() ? Ub.toScalar()
+            const keel::f64 uj = Ub.isScalar() ? Ub.toScalar()
                                             : Ub.elemAsDouble(j * nRows + row);
             return {lj, uj};
         };

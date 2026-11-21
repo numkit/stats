@@ -55,8 +55,8 @@ void gamcdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
         // F(x; a, b) = gammainc(x/b clamped at 0, a). xs broadcasts (x, b)
         // (b<=0 → NaN), then gammainc broadcasts (xs, a) and gives NaN where
         // a<=0 — matching the scalar path's a<=0||b<=0 → NaN.
-        Value xs = broadcast_dist2(a0[0], b, mr, "gamcdf", [](double xi, double bi) {
-            if (!(bi > 0.0)) return std::numeric_limits<double>::quiet_NaN();
+        Value xs = broadcast_dist2(a0[0], b, mr, "gamcdf", [](keel::f64 xi, keel::f64 bi) {
+            if (!(bi > 0.0)) return std::numeric_limits<keel::f64>::quiet_NaN();
             return (xi <= 0.0) ? 0.0 : xi / bi;
         });
         v = ::numkit::builtin::gammainc(xs, a, mr);
@@ -89,13 +89,13 @@ void gaminv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
     const keel::usize nq = q.numel();
     const Value &ref = (np == N) ? p : (na == N ? a : b);
     Value out = dist_empty_like(ref, mr);
-    double *od = out.doubleDataMut();
-    const double NaN = std::numeric_limits<double>::quiet_NaN();
+    keel::f64 *od = out.doubleDataMut();
+    const keel::f64 NaN = std::numeric_limits<keel::f64>::quiet_NaN();
     for (keel::usize i = 0; i < N; ++i) {
-        const double pi = p.elemAsDouble(np == 1 ? 0 : i);
-        const double ai = a.elemAsDouble(na == 1 ? 0 : i);
-        const double bi = b.elemAsDouble(nb == 1 ? 0 : i);
-        const double qi = q.elemAsDouble(nq == 1 ? 0 : i);
+        const keel::f64 pi = p.elemAsDouble(np == 1 ? 0 : i);
+        const keel::f64 ai = a.elemAsDouble(na == 1 ? 0 : i);
+        const keel::f64 bi = b.elemAsDouble(nb == 1 ? 0 : i);
+        const keel::f64 qi = q.elemAsDouble(nq == 1 ? 0 : i);
         od[i] = (ai < 0.0 || !(bi > 0.0))
                     ? NaN
                     : (ai == 0.0 ? ((pi >= 0.0 && pi <= 1.0) ? 0.0 : NaN) : bi * qi);
@@ -117,18 +117,18 @@ void gamrnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
         const keel::usize N = dist_match_numel({na, nb}, "gamrnd");
         const Value &ref = (na == N) ? a : b;
         Value out = dist_empty_like(ref, mr);
-        double *od = out.doubleDataMut();
+        keel::f64 *od = out.doubleDataMut();
         for (keel::usize i = 0; i < N; ++i) {
-            const double ai = a.elemAsDouble(na == 1 ? 0 : i);
-            const double bi = b.elemAsDouble(nb == 1 ? 0 : i);
+            const keel::f64 ai = a.elemAsDouble(na == 1 ? 0 : i);
+            const keel::f64 bi = b.elemAsDouble(nb == 1 ? 0 : i);
             Value sample = gamrnd(ctx.engine->rng(), ai, bi, 1, 1, mr);
             od[i] = sample.elemAsDouble(0);
         }
         outs[0] = std::move(out);
         return;
     }
-    const double a = args[0].toScalar();
-    const double b = args[1].toScalar();
+    const keel::f64 a = args[0].toScalar();
+    const keel::f64 b = args[1].toScalar();
     keel::usize rows, cols;
     parse_rng_size(args, 2, rows, cols, "gamrnd");
     outs[0] = reshape_rng_nd(gamrnd(ctx.engine->rng(), a, b, rows, cols, mr), args, 2, mr, "gamrnd");
@@ -138,7 +138,7 @@ void gamstat_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArray
 {
     argcheck::checkNargin(args.size(), 1, 2, "gamstat");
     emit_vec_stat_2arg(args, nargout, outs, ctx.engine->allocator(), "gamstat",
-                       [](double a, double b) { return gamstat(a, b); });
+                       [](keel::f64 a, keel::f64 b) { return gamstat(a, b); });
 }
 
 // ── randg — undocumented but very widely used "raw" gamma RNG ─────────

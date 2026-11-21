@@ -51,7 +51,7 @@ kmeans_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter,
     keel::ArenaTemp scratch = keel::get_scratch(mr);
 
     // Read X into a flat row-major scratch buffer.
-    keel::Array<double> Xv(N * D, scratch.allocator());
+    keel::Array<keel::f64> Xv(N * D, scratch.allocator());
     for (keel::usize r = 0; r < N; ++r)
         for (keel::usize c = 0; c < D; ++c)
             Xv[r * D + c] = X.elemAsDouble(c * N + r);
@@ -59,10 +59,10 @@ kmeans_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter,
     auto &gen = rng;
 
     LloydResult best(scratch.allocator());
-    double best_total = std::numeric_limits<double>::infinity();
+    keel::f64 best_total = std::numeric_limits<keel::f64>::infinity();
 
     for (int rep = 0; rep < replicates; ++rep) {
-        keel::Array<double> C0(scratch.allocator());
+        keel::Array<keel::f64> C0(scratch.allocator());
         {
             C0 = kmeanspp_init(Xv, N, D, K, gen.engine(), scratch.allocator());
         }
@@ -77,13 +77,13 @@ kmeans_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter,
 
     out.idx = Value::matrix(N, 1, ValueType::DOUBLE, mr);
     {
-        double *ip = out.idx.doubleDataMut();
-        for (keel::usize i = 0; i < N; ++i) ip[i] = double(best.idx[i] + 1);
+        keel::f64 *ip = out.idx.doubleDataMut();
+        for (keel::usize i = 0; i < N; ++i) ip[i] = keel::f64(best.idx[i] + 1);
     }
 
     out.C = Value::matrix(K, D, ValueType::DOUBLE, mr);
     {
-        double *cp = out.C.doubleDataMut();
+        keel::f64 *cp = out.C.doubleDataMut();
         for (int k = 0; k < K; ++k)
             for (keel::usize d = 0; d < D; ++d)
                 cp[d * K + k] = best.C[(keel::usize)k * D + d];
@@ -91,14 +91,14 @@ kmeans_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter,
 
     out.sumd = Value::matrix(K, 1, ValueType::DOUBLE, mr);
     {
-        double *sp = out.sumd.doubleDataMut();
+        keel::f64 *sp = out.sumd.doubleDataMut();
         for (int k = 0; k < K; ++k) sp[k] = best.sumd[k];
     }
 
     // 4th output D — N×K squared distance from each point to each centroid.
     out.D = Value::matrix(N, K, ValueType::DOUBLE, mr);
     {
-        double *dp = out.D.doubleDataMut();
+        keel::f64 *dp = out.D.doubleDataMut();
         for (keel::usize i = 0; i < N; ++i)
             for (int k = 0; k < K; ++k)
                 dp[k * N + i] = sq_dist(&Xv[i * D], &best.C[(keel::usize)k * D], D);

@@ -77,11 +77,11 @@ inline constexpr argcheck::ClassMask kFloatReal =
 // Project onto PSD cone via symmetric eigendecomposition.
 // Symmetrise input first to guard against tiny asymmetry from the
 // previous iteration.
-keel::Array<double>
-projPSD(const keel::Array<double> &M, keel::usize n, keel::Allocator *mr)
+keel::Array<keel::f64>
+projPSD(const keel::Array<keel::f64> &M, keel::usize n, keel::Allocator *mr)
 {
     // Symmetrise: M_sym = (M + M') / 2
-    keel::Array<double> Msym(n * n);
+    keel::Array<keel::f64> Msym(n * n);
     for (keel::usize j = 0; j < n; ++j)
         for (keel::usize i = 0; i < n; ++i)
             Msym[i + j * n] = 0.5 * (M[i + j * n] + M[j + i * n]);
@@ -89,24 +89,24 @@ projPSD(const keel::Array<double> &M, keel::usize n, keel::Allocator *mr)
     std::copy(Msym.begin(), Msym.end(), M_v.doubleDataMut());
 
     auto [V, D] = ::numkit::linalg::eig_symmetric(M_v, mr);
-    const double *vd = V.doubleData();
-    const double *dd = D.doubleData();
+    const keel::f64 *vd = V.doubleData();
+    const keel::f64 *dd = D.doubleData();
 
     // Build sqrt(d_pos) and reconstruct V * diag(d_pos) * V'.
-    keel::Array<double> sqrt_d(n);
+    keel::Array<keel::f64> sqrt_d(n);
     for (keel::usize i = 0; i < n; ++i)
         sqrt_d[i] = std::sqrt(std::max(dd[i + i * n], 0.0));
 
     // X = V * diag(d_pos) * V' = (V * diag(sqrt_d)) * (V * diag(sqrt_d))'
-    keel::Array<double> VS(n * n);
+    keel::Array<keel::f64> VS(n * n);
     for (keel::usize j = 0; j < n; ++j)
         for (keel::usize i = 0; i < n; ++i)
             VS[i + j * n] = vd[i + j * n] * sqrt_d[j];
 
-    keel::Array<double> X(n * n, 0.0);
+    keel::Array<keel::f64> X(n * n, 0.0);
     for (keel::usize i = 0; i < n; ++i)
         for (keel::usize j = 0; j < n; ++j) {
-            double s = 0.0;
+            keel::f64 s = 0.0;
             for (keel::usize k = 0; k < n; ++k)
                 s += VS[i + k * n] * VS[j + k * n];   // VS * VS'
             X[i + j * n] = s;
@@ -114,10 +114,10 @@ projPSD(const keel::Array<double> &M, keel::usize n, keel::Allocator *mr)
     return X;
 }
 
-double frobNorm(const keel::Array<double> &M)
+keel::f64 frobNorm(const keel::Array<keel::f64> &M)
 {
-    double s = 0.0;
-    for (double v : M) s += v * v;
+    keel::f64 s = 0.0;
+    for (keel::f64 v : M) s += v * v;
     return std::sqrt(s);
 }
 
@@ -142,7 +142,7 @@ void nearcorr_argcheck(const Value &A)
         rejectA("the matrix is not square");
     for (keel::usize j = 0; j < N; ++j)
         for (keel::usize i = 0; i < N; ++i) {
-            const double v = A.elemAsDouble(i + j * N);
+            const keel::f64 v = A.elemAsDouble(i + j * N);
             if (v < -1.0 || v > 1.0)
                 rejectA(keel::format("entry ({},{}) is outside [-1,1]", i + 1, j + 1));
             if (i < j && v != A.elemAsDouble(j + i * N))
@@ -163,10 +163,10 @@ Value nearcorr_full(const Value &A, keel::ArrayRef<Value> nv,
     const bool wantSingle = (A.type() == ValueType::SINGLE);
 
     // ── name-value parse (probe71 N05-N07: one optional-input class) ────
-    double tol = 1e-6;
-    double maxIterD = 200.0;
+    keel::f64 tol = 1e-6;
+    keel::f64 maxIterD = 200.0;
     bool hasWeights = false;
-    keel::Array<double> wScale;
+    keel::Array<keel::f64> wScale;
     static constexpr keel::StringRef kNv[] = {"tolerance", "maxiterations",
                                               "method", "weights"};
     const auto badOpt = [&](keel::StringRef why) {
@@ -181,7 +181,7 @@ Value nearcorr_full(const Value &A, keel::ArrayRef<Value> nv,
             case 0: {  // Tolerance: double scalar > 0
                 if (v.type() != ValueType::DOUBLE || !v.isScalar())
                     badOpt("'Tolerance' must be a double scalar");
-                const double t = v.toScalar();
+                const keel::f64 t = v.toScalar();
                 if (!(t > 0.0))
                     badOpt(keel::format("'Tolerance' must be positive, got {}", t));
                 tol = t;
@@ -190,7 +190,7 @@ Value nearcorr_full(const Value &A, keel::ArrayRef<Value> nv,
             case 1: {  // MaxIterations: double scalar > 0 integer
                 if (v.type() != ValueType::DOUBLE || !v.isScalar())
                     badOpt("'MaxIterations' must be a double scalar");
-                const double m = v.toScalar();
+                const keel::f64 m = v.toScalar();
                 if (!(m > 0.0) || m != std::floor(m))
                     badOpt(keel::format("'MaxIterations' must be a positive integer, got {}", m));
                 maxIterD = m;
@@ -216,7 +216,7 @@ Value nearcorr_full(const Value &A, keel::ArrayRef<Value> nv,
                 if (!isVec && !isMat)
                     badOpt("'Weights' must be a length-N vector or N-by-N matrix");
                 for (keel::usize k = 0; k < v.numel(); ++k) {
-                    const double wk = v.elemAsDouble(k);
+                    const keel::f64 wk = v.elemAsDouble(k);
                     if (!(wk > 0.0) || !std::isfinite(wk))
                         badOpt("'Weights' entries must be finite and positive");
                 }
@@ -243,24 +243,24 @@ Value nearcorr_full(const Value &A, keel::ArrayRef<Value> nv,
 
     // Trivial case: a 1×1 unit-diagonal input is already valid.
     if (N == 1)
-        return wantSingle ? Value::scalar(keel::as<float>(1.0))
+        return wantSingle ? Value::scalar(keel::as<keel::f32>(1.0))
                           : Value::scalar(1.0);
 
     // ── alternating projections with Dykstra's correction ───────────────
-    keel::Array<double> Yold(N * N), Xold;
+    keel::Array<keel::f64> Yold(N * N), Xold;
     for (keel::usize k = 0; k < N * N; ++k) Yold[k] = A.elemAsDouble(k);
     Xold = Yold.clone();
-    keel::Array<double> dS(N * N, 0.0), Y = Yold.clone();
+    keel::Array<keel::f64> dS(N * N, 0.0), Y = Yold.clone();
 
     for (long it = 0; it <= maxIter; ++it) {
         // R = Yold - dS; X = proj_PSD_W(R); dS = X - R; Y = X, unit diag.
-        keel::Array<double> R(N * N);
+        keel::Array<keel::f64> R(N * N);
         for (keel::usize k = 0; k < N * N; ++k) R[k] = Yold[k] - dS[k];
-        keel::Array<double> X;
+        keel::Array<keel::f64> X;
         if (hasWeights) {
-            keel::Array<double> Rw(N * N);
+            keel::Array<keel::f64> Rw(N * N);
             for (keel::usize k = 0; k < N * N; ++k) Rw[k] = R[k] * wScale[k];
-            keel::Array<double> Xw = projPSD(Rw, N, mr);
+            keel::Array<keel::f64> Xw = projPSD(Rw, N, mr);
             X.resize(N * N);
             for (keel::usize k = 0; k < N * N; ++k) X[k] = Xw[k] / wScale[k];
         } else {
@@ -271,16 +271,16 @@ Value nearcorr_full(const Value &A, keel::ArrayRef<Value> nv,
         for (keel::usize i = 0; i < N; ++i) Y[i + i * N] = 1.0;
 
         // Exit conditions (the reference checks all three).
-        const double normY = frobNorm(Y);
-        keel::Array<double> d1(N * N), d2(N * N), d3(N * N);
+        const keel::f64 normY = frobNorm(Y);
+        keel::Array<keel::f64> d1(N * N), d2(N * N), d3(N * N);
         for (keel::usize k = 0; k < N * N; ++k) {
             d1[k] = Y[k] - Yold[k];
             d2[k] = X[k] - Xold[k];
             d3[k] = Y[k] - X[k];
         }
-        const double cond1 = frobNorm(d1) / normY;
-        const double cond2 = frobNorm(d2) / frobNorm(X);
-        const double cond3 = frobNorm(d3) / normY;
+        const keel::f64 cond1 = frobNorm(d1) / normY;
+        const keel::f64 cond2 = frobNorm(d2) / frobNorm(X);
+        const keel::f64 cond3 = frobNorm(d3) / normY;
         if (std::max(cond1, std::max(cond2, cond3)) <= tol) {
             Xold = std::move(X);
             break;
@@ -291,19 +291,19 @@ Value nearcorr_full(const Value &A, keel::ArrayRef<Value> nv,
 
     // Restore the unit diagonal: Y = X ./ sqrt(diag(X) * diag(X)'), then
     // symmetrise (small numerical drift is possible).
-    keel::Array<double> dd(N);
+    keel::Array<keel::f64> dd(N);
     for (keel::usize i = 0; i < N; ++i) dd[i] = Xold[i + i * N];
     Value out = wantSingle ? Value::matrix(N, N, ValueType::SINGLE, mr)
                            : Value::matrix(N, N, ValueType::DOUBLE, mr);
-    auto putElem = [&](keel::usize lin, double v) {
+    auto putElem = [&](keel::usize lin, keel::f64 v) {
         if (wantSingle)
-            out.singleDataMut()[lin] = keel::as<float>(v);
+            out.singleDataMut()[lin] = keel::as<keel::f32>(v);
         else
             out.doubleDataMut()[lin] = v;
     };
     for (keel::usize j = 0; j < N; ++j)
         for (keel::usize i = 0; i < N; ++i) {
-            const double v = Xold[i + j * N] / std::sqrt(dd[i] * dd[j]);
+            const keel::f64 v = Xold[i + j * N] / std::sqrt(dd[i] * dd[j]);
             putElem(i + j * N, 0.5 * (v + Xold[j + i * N] / std::sqrt(dd[i] * dd[j])));
         }
     return out;

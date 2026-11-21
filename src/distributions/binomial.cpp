@@ -23,34 +23,34 @@
 namespace numkit::stats {
 
 namespace {
-inline bool bino_argcheck(double n, double p) noexcept
+inline bool bino_argcheck(keel::f64 n, keel::f64 p) noexcept
 {
     return n >= 0.0 && std::floor(n) == n && p >= 0.0 && p <= 1.0;
 }
 } // namespace
 
-Value binopdf(const Value &k, double n, double p, keel::Allocator *mr)
+Value binopdf(const Value &k, keel::f64 n, keel::f64 p, keel::Allocator *mr)
 {
     (void)bino_argcheck(n, p);
-    return elementwise(k, [=](double ki){ return keel::stats::bino_pdf(ki, n, p); }, mr);
+    return elementwise(k, [=](keel::f64 ki){ return keel::stats::bino_pdf(ki, n, p); }, mr);
 }
 
-Value binocdf(const Value &k, double n, double p, keel::Allocator *mr)
+Value binocdf(const Value &k, keel::f64 n, keel::f64 p, keel::Allocator *mr)
 {
-    return elementwise(k, [=](double ki){ return keel::stats::bino_cdf(ki, n, p); }, mr);
+    return elementwise(k, [=](keel::f64 ki){ return keel::stats::bino_cdf(ki, n, p); }, mr);
 }
 
-Value binoinv(const Value &p_in, double n, double p, keel::Allocator *mr)
+Value binoinv(const Value &p_in, keel::f64 n, keel::f64 p, keel::Allocator *mr)
 {
-    return elementwise(p_in, [=](double pi) { return keel::stats::bino_inv(pi, n, p); }, mr);
+    return elementwise(p_in, [=](keel::f64 pi) { return keel::stats::bino_inv(pi, n, p); }, mr);
 }
 
-Value binornd(::numkit::ops::RngContext &rng, double n, double p, keel::usize rows, keel::usize cols, keel::Allocator *mr)
+Value binornd(::numkit::ops::RngContext &rng, keel::f64 n, keel::f64 p, keel::usize rows, keel::usize cols, keel::Allocator *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (n < 0.0 || std::floor(n) != n || p < 0.0 || p > 1.0 || rows * cols == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     const keel::usize cnt = rows * cols;
     const int ntrials = keel::as<int>(n);
     if (ntrials <= 1000000) {
@@ -64,14 +64,14 @@ Value binornd(::numkit::ops::RngContext &rng, double n, double p, keel::usize ro
         return out;
     }
     for (keel::usize i = 0; i < cnt; ++i)
-        od[i] = keel::as<double>(keel::random::binomial_u64(gen, keel::as<keel::u64>(ntrials), p));
+        od[i] = keel::as<keel::f64>(keel::random::binomial_u64(gen, keel::as<keel::u64>(ntrials), p));
     return out;
 }
 
-std::tuple<double, double> binostat(double n, double p)
+std::tuple<keel::f64, keel::f64> binostat(keel::f64 n, keel::f64 p)
 {
     if (n < 0.0 || std::floor(n) != n || p < 0.0 || p > 1.0) {
-        const double nan = std::numeric_limits<double>::quiet_NaN();
+        const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
         return std::make_tuple(nan, nan);
     }
     return std::make_tuple(n * p, n * p * (1.0 - p));

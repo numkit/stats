@@ -49,7 +49,7 @@ void crosstab_argcheck(const Value &x, const Value &y_opt)
 
 } // namespace
 
-std::tuple<Value, double, double>
+std::tuple<Value, keel::f64, keel::f64>
 crosstab(const Value &x, const Value &y_opt, keel::Allocator *mr)
 {
     crosstab_argcheck(x, y_opt);
@@ -63,13 +63,13 @@ crosstab(const Value &x, const Value &y_opt, keel::Allocator *mr)
         // Single-arg form: column vector with frequency counts of unique x.
         keel::Array<keel::usize> count(R, 0);
         for (keel::usize k = 0; k < Nx; ++k) {
-            const double xk = x.elemAsDouble(k);
+            const keel::f64 xk = x.elemAsDouble(k);
             if (std::isnan(xk)) continue;
             count[indexOf(u_x, xk)]++;
         }
         Value T = Value::matrix(R, 1, ValueType::DOUBLE, mr);
-        double *o = T.doubleDataMut();
-        for (keel::usize i = 0; i < R; ++i) o[i] = keel::as<double>(count[i]);
+        keel::f64 *o = T.doubleDataMut();
+        for (keel::usize i = 0; i < R; ++i) o[i] = keel::as<keel::f64>(count[i]);
         return {std::move(T), 0.0, 1.0};
     }
 
@@ -78,13 +78,13 @@ crosstab(const Value &x, const Value &y_opt, keel::Allocator *mr)
     const keel::usize C = u_y.size();
 
     Value T = Value::matrix(R, C, ValueType::DOUBLE, mr);
-    double *o = T.doubleDataMut();
+    keel::f64 *o = T.doubleDataMut();
     std::fill(o, o + R * C, 0.0);
 
     keel::usize Ntot = 0;
     for (keel::usize k = 0; k < Nx; ++k) {
-        const double xk = x.elemAsDouble(k);
-        const double yk = y_opt.elemAsDouble(k);
+        const keel::f64 xk = x.elemAsDouble(k);
+        const keel::f64 yk = y_opt.elemAsDouble(k);
         if (std::isnan(xk) || std::isnan(yk)) continue;
         const keel::usize i = indexOf(u_x, xk);
         const keel::usize j = indexOf(u_y, yk);
@@ -93,28 +93,28 @@ crosstab(const Value &x, const Value &y_opt, keel::Allocator *mr)
     }
 
     // Chi-square test.
-    keel::Array<double> row_tot(R, 0.0), col_tot(C, 0.0);
+    keel::Array<keel::f64> row_tot(R, 0.0), col_tot(C, 0.0);
     for (keel::usize j = 0; j < C; ++j)
         for (keel::usize i = 0; i < R; ++i) {
             row_tot[i] += o[i + j * R];
             col_tot[j] += o[i + j * R];
         }
-    double chi2 = 0.0;
+    keel::f64 chi2 = 0.0;
     if (Ntot > 0) {
         for (keel::usize j = 0; j < C; ++j) {
             for (keel::usize i = 0; i < R; ++i) {
-                const double E = row_tot[i] * col_tot[j]
-                               / keel::as<double>(Ntot);
+                const keel::f64 E = row_tot[i] * col_tot[j]
+                               / keel::as<keel::f64>(Ntot);
                 if (E > 0.0) {
-                    const double diff = o[i + j * R] - E;
+                    const keel::f64 diff = o[i + j * R] - E;
                     chi2 += (diff * diff) / E;
                 }
             }
         }
     }
-    double p = 1.0;
+    keel::f64 p = 1.0;
     if (R > 1 && C > 1) {
-        const double df = keel::as<double>((R - 1) * (C - 1));
+        const keel::f64 df = keel::as<keel::f64>((R - 1) * (C - 1));
         // p = 1 - chi2cdf(chi2, df); chi2cdf returns a Value of input shape.
         Value chi2_v = Value::scalar(chi2, mr);
         Value cdf_v  = chi2cdf(chi2_v, df, mr);

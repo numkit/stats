@@ -106,7 +106,7 @@ inline constexpr argcheck::ClassMask kFloatReal =
 // scalar k > 0 → centered (odd k: (k-1)/2 each side; even: one more in
 // back); 2-element [back forward] → as given.
 void parseWindowHalfSpans(const Value &wl, const char *fn, long &hb, long &hf,
-                          double *hbSpan = nullptr, double *hfSpan = nullptr,
+                          keel::f64 *hbSpan = nullptr, keel::f64 *hfSpan = nullptr,
                           bool *twoElem = nullptr)
 {
     const bool numeric = wl.isNumeric() && !wl.isComplex();
@@ -118,7 +118,7 @@ void parseWindowHalfSpans(const Value &wl, const char *fn, long &hb, long &hf,
     };
     if (!(numeric || wl.isLogical())) bad();
     if (wl.numel() == 1) {
-        const double k = wl.elemAsDouble(0);
+        const keel::f64 k = wl.elemAsDouble(0);
         if (!(k > 0.0) || !std::isfinite(k)) bad();
         const long ki = keel::as<long>(k);
         if (ki % 2 == 1) { hb = hf = (ki - 1) / 2; }
@@ -127,7 +127,7 @@ void parseWindowHalfSpans(const Value &wl, const char *fn, long &hb, long &hf,
         if (hfSpan) *hfSpan = 0.5 * k;
         if (twoElem) *twoElem = false;
     } else if (wl.numel() == 2) {
-        const double b = wl.elemAsDouble(0), f = wl.elemAsDouble(1);
+        const keel::f64 b = wl.elemAsDouble(0), f = wl.elemAsDouble(1);
         if (b < 0.0 || f < 0.0 || !std::isfinite(b) || !std::isfinite(f)) bad();
         hb = keel::as<long>(b);
         hf = keel::as<long>(f);
@@ -139,7 +139,7 @@ void parseWindowHalfSpans(const Value &wl, const char *fn, long &hb, long &hf,
     }
 }
 
-keel::Array<double> validateSamplePoints(const Value &sp, keel::usize expectedLen,
+keel::Array<keel::f64> validateSamplePoints(const Value &sp, keel::usize expectedLen,
                                          bool arrayIsEmpty, bool floatOnly,
                                          const char *fn)
 {
@@ -169,9 +169,9 @@ keel::Array<double> validateSamplePoints(const Value &sp, keel::usize expectedLe
         throw Error(keel::format("{}: 'SamplePoints' must be real", fn),
                     0, 0, fn, "",
                     keel::format("numkit:{}:samplePointsComplex", fn));
-    keel::Array<double> out(expectedLen);
+    keel::Array<keel::f64> out(expectedLen);
     for (keel::usize j = 0; j < expectedLen; ++j) {
-        const double v = sp.elemAsDouble(j);
+        const keel::f64 v = sp.elemAsDouble(j);
         if (!std::isfinite(v))
             throw Error(keel::format("{}: 'SamplePoints' must contain finite values", fn),
                         0, 0, fn, "",
@@ -195,44 +195,44 @@ keel::Array<double> validateSamplePoints(const Value &sp, keel::usize expectedLe
 
 struct ColStats {
     keel::Array<keel::u8> mask;
-    double center = std::numeric_limits<double>::quiet_NaN();
-    double lo = -std::numeric_limits<double>::infinity();
-    double hi = std::numeric_limits<double>::infinity();
+    keel::f64 center = std::numeric_limits<keel::f64>::quiet_NaN();
+    keel::f64 lo = -std::numeric_limits<keel::f64>::infinity();
+    keel::f64 hi = std::numeric_limits<keel::f64>::infinity();
 };
 
 // Iterative Grubbs test; tf is the significance level alpha. The final
 // bounds are those of the last TESTED state (post-removal) and the mask
 // is the STATIC rule against them — exactly locateoutliers 'grubbs'.
-ColStats grubbsColumn(const double *x, keel::usize n, double alpha,
+ColStats grubbsColumn(const keel::f64 *x, keel::usize n, keel::f64 alpha,
                       keel::Allocator *mr)
 {
     ColStats r;
     r.mask.assign(n, 0);
     keel::Array<keel::usize> idx;
-    keel::Array<double> v;
+    keel::Array<keel::f64> v;
     idx.reserve(n); v.reserve(n);
     for (keel::usize i = 0; i < n; ++i)
         if (!std::isnan(x[i])) { v.push_back(x[i]); idx.push_back(i); }
     if (v.empty()) return r;
-    double astd = 0.0, thr = 0.0, cen = 0.0;
+    keel::f64 astd = 0.0, thr = 0.0, cen = 0.0;
     while (v.size() >= 3) {
         const keel::usize m = v.size();
-        double s = 0.0;
-        for (double e : v) s += e;
-        cen = s / double(m);
-        double ss = 0.0;
-        for (double e : v) ss += (e - cen) * (e - cen);
-        astd = std::sqrt(ss / double(m - 1));
+        keel::f64 s = 0.0;
+        for (keel::f64 e : v) s += e;
+        cen = s / keel::f64(m);
+        keel::f64 ss = 0.0;
+        for (keel::f64 e : v) ss += (e - cen) * (e - cen);
+        astd = std::sqrt(ss / keel::f64(m - 1));
         if (!(astd > 0.0)) break;
-        keel::usize jmax = 0; double amax = -1.0;
+        keel::usize jmax = 0; keel::f64 amax = -1.0;
         for (keel::usize j = 0; j < m; ++j) {
-            const double ad = std::fabs(v[j] - cen);
+            const keel::f64 ad = std::fabs(v[j] - cen);
             if (ad > amax) { amax = ad; jmax = j; }
         }
-        const double dof = double(m) - 2.0;
-        const double t = tinv(Value::scalar(alpha / (2.0 * double(m)), mr),
+        const keel::f64 dof = keel::f64(m) - 2.0;
+        const keel::f64 t = tinv(Value::scalar(alpha / (2.0 * keel::f64(m)), mr),
                               dof, mr).toScalar();
-        thr = ((double(m) - 1.0) / std::sqrt(double(m))) *
+        thr = ((keel::f64(m) - 1.0) / std::sqrt(keel::f64(m))) *
               std::fabs(t) / std::sqrt(dof + t * t);
         if (amax / astd > thr) {
             v.remove_at(jmax);
@@ -253,12 +253,12 @@ ColStats grubbsColumn(const double *x, keel::usize n, double alpha,
 // Generalized ESD; tf is the significance level alpha. Thresholds come
 // from iteration tindex = (last exceeding R)+1 clamped; the mask is the
 // STATIC rule at tindex — exactly locateoutliers 'gesd'.
-ColStats gesdColumn(const double *x, keel::usize n, double alpha,
+ColStats gesdColumn(const keel::f64 *x, keel::usize n, keel::f64 alpha,
                     long maxOutArg, keel::Allocator *mr)
 {
     ColStats r;
     r.mask.assign(n, 0);
-    keel::Array<double> v;
+    keel::Array<keel::f64> v;
     v.reserve(n);
     for (keel::usize i = 0; i < n; ++i)
         if (!std::isnan(x[i])) v.push_back(x[i]);
@@ -266,31 +266,31 @@ ColStats gesdColumn(const double *x, keel::usize n, double alpha,
     if (N < 2) return r;
     const keel::usize maxo = (maxOutArg >= 0)
         ? keel::as<keel::usize>(maxOutArg)
-        : keel::as<keel::usize>(std::ceil(0.1 * double(N)));
+        : keel::as<keel::usize>(std::ceil(0.1 * keel::f64(N)));
     const keel::usize rounds = std::min(N, maxo);
-    keel::Array<double> amean(rounds, 0.0), astd(rounds, 0.0),
+    keel::Array<keel::f64> amean(rounds, 0.0), astd(rounds, 0.0),
                         lam(rounds, 0.0), R(rounds, 0.0);
     for (keel::usize it = 0; it < rounds; ++it) {
         const keel::usize m = v.size();
         const keel::usize nm1 = N - it;       // n-i+1 (ref 1-based)
-        double s = 0.0;
-        for (double e : v) s += e;
-        amean[it] = s / double(m);
-        double ss = 0.0;
-        for (double e : v) ss += (e - amean[it]) * (e - amean[it]);
-        astd[it] = (m >= 2) ? std::sqrt(ss / double(m - 1)) : 0.0;
-        keel::usize jmax = 0; double amax = -1.0;
+        keel::f64 s = 0.0;
+        for (keel::f64 e : v) s += e;
+        amean[it] = s / keel::f64(m);
+        keel::f64 ss = 0.0;
+        for (keel::f64 e : v) ss += (e - amean[it]) * (e - amean[it]);
+        astd[it] = (m >= 2) ? std::sqrt(ss / keel::f64(m - 1)) : 0.0;
+        keel::usize jmax = 0; keel::f64 amax = -1.0;
         for (keel::usize j = 0; j < m; ++j) {
-            const double ad = std::fabs(v[j] - amean[it]);
+            const keel::f64 ad = std::fabs(v[j] - amean[it]);
             if (ad > amax) { amax = ad; jmax = j; }
         }
         R[it] = (astd[it] > 0.0) ? amax / astd[it]
-                                : std::numeric_limits<double>::infinity();
+                                : std::numeric_limits<keel::f64>::infinity();
         v.remove_at(jmax);
-        const double dof = double(N) - double(it) - 1.0;   // n-i-1
-        const double pp = 1.0 - alpha / (2.0 * double(nm1));
-        const double t = tinv(Value::scalar(pp, mr), dof, mr).toScalar();
-        lam[it] = (double(nm1) - 1.0) * t / std::sqrt((dof + t * t) * double(nm1));
+        const keel::f64 dof = keel::f64(N) - keel::f64(it) - 1.0;   // n-i-1
+        const keel::f64 pp = 1.0 - alpha / (2.0 * keel::f64(nm1));
+        const keel::f64 t = tinv(Value::scalar(pp, mr), dof, mr).toScalar();
+        lam[it] = (keel::f64(nm1) - 1.0) * t / std::sqrt((dof + t * t) * keel::f64(nm1));
     }
     long last = -1;
     for (long it = 0; it < keel::as<long>(rounds); ++it)
@@ -310,13 +310,13 @@ ColStats gesdColumn(const double *x, keel::usize n, double alpha,
 
 // One detection run. Moving methods fill per-element center/lo/hi
 // arrays instead of the scalar bounds.
-ColStats detectRun(keel::ArrayRef<double> x, keel::StringRef method,
-                   double tf, long hb, long hf, double loP, double hiP,
-                   long maxOut, keel::Array<double> *movCenter,
-                   keel::Array<double> *movLo, keel::Array<double> *movHi,
+ColStats detectRun(keel::ArrayRef<keel::f64> x, keel::StringRef method,
+                   keel::f64 tf, long hb, long hf, keel::f64 loP, keel::f64 hiP,
+                   long maxOut, keel::Array<keel::f64> *movCenter,
+                   keel::Array<keel::f64> *movLo, keel::Array<keel::f64> *movHi,
                    keel::Allocator *mr,
-                   const double *sp = nullptr, double hbSpan = 0.0,
-                   double hfSpan = 0.0, bool winTwoElem = false)
+                   const keel::f64 *sp = nullptr, keel::f64 hbSpan = 0.0,
+                   keel::f64 hfSpan = 0.0, bool winTwoElem = false)
 {
     const keel::usize n = x.size();
     ColStats r;
@@ -331,22 +331,22 @@ ColStats detectRun(keel::ArrayRef<double> x, keel::StringRef method,
     }
     if (method == "movmedian" || method == "movmean") {
         const bool isMed = (method == "movmedian");
-        const double nanv = std::numeric_limits<double>::quiet_NaN();
+        const keel::f64 nanv = std::numeric_limits<keel::f64>::quiet_NaN();
         if (movCenter) {
             movCenter->assign(n, nanv);
             movLo->assign(n, nanv);
             movHi->assign(n, nanv);
         }
-        auto medOf = [](const keel::Array<double> &w) {
+        auto medOf = [](const keel::Array<keel::f64> &w) {
             const keel::usize k = w.size();
             return (k % 2 == 1) ? w[k / 2] : 0.5 * (w[k / 2 - 1] + w[k / 2]);
         };
-        keel::Array<double> win, dev, sorted;
+        keel::Array<keel::f64> win, dev, sorted;
         for (keel::usize i = 0; i < n; ++i) {
             win.clear();
             if (sp) {
-                const double loS = sp[i] - hbSpan;
-                const double hiS = sp[i] + hfSpan;
+                const keel::f64 loS = sp[i] - hbSpan;
+                const keel::f64 hiS = sp[i] + hfSpan;
                 for (keel::usize j = 0; j < n; ++j) {
                     const bool inWin = winTwoElem
                                            ? (sp[j] >= loS && sp[j] <= hiS)
@@ -362,25 +362,25 @@ ColStats detectRun(keel::ArrayRef<double> x, keel::StringRef method,
                         win.push_back(x[keel::as<keel::usize>(j)]);
             }
             if (win.empty()) continue;
-            double center, scale;
+            keel::f64 center, scale;
             if (isMed) {
                 sorted.assign(win.as_ref());
                 std::sort(sorted.begin(), sorted.end());
                 center = medOf(sorted);
                 dev.clear();
-                for (double vv : win) dev.push_back(std::fabs(vv - center));
+                for (keel::f64 vv : win) dev.push_back(std::fabs(vv - center));
                 std::sort(dev.begin(), dev.end());
                 scale = 1.4826022185056 * medOf(dev);
             } else {
-                double s = 0.0;
-                for (double vv : win) s += vv;
-                center = s / double(win.size());
-                double ss = 0.0;
-                for (double vv : win) ss += (vv - center) * (vv - center);
+                keel::f64 s = 0.0;
+                for (keel::f64 vv : win) s += vv;
+                center = s / keel::f64(win.size());
+                keel::f64 ss = 0.0;
+                for (keel::f64 vv : win) ss += (vv - center) * (vv - center);
                 scale = (win.size() >= 2)
-                            ? std::sqrt(ss / double(win.size() - 1)) : 0.0;
+                            ? std::sqrt(ss / keel::f64(win.size() - 1)) : 0.0;
             }
-            const double loB = center - tf * scale, hiB = center + tf * scale;
+            const keel::f64 loB = center - tf * scale, hiB = center + tf * scale;
             if (movCenter) {
                 (*movCenter)[i] = center;
                 (*movLo)[i] = loB;
@@ -389,9 +389,9 @@ ColStats detectRun(keel::ArrayRef<double> x, keel::StringRef method,
             if (!std::isnan(x[i]))
                 r.mask[i] = (x[i] > hiB || x[i] < loB) ? 1 : 0;
         }
-        r.center = std::numeric_limits<double>::quiet_NaN();
-        r.lo = -std::numeric_limits<double>::infinity();
-        r.hi = std::numeric_limits<double>::infinity();
+        r.center = std::numeric_limits<keel::f64>::quiet_NaN();
+        r.lo = -std::numeric_limits<keel::f64>::infinity();
+        r.hi = std::numeric_limits<keel::f64>::infinity();
         return r;
     }
     // median / mean / quartiles — static detectors.
@@ -480,7 +480,7 @@ void isoutlierParse(const Value &A, keel::ArrayRef<Value> in, bool forRmoutliers
 
     if (i < in.size() && !isStringValue(in[i])) {
         const Value &dv = in[i];
-        const double dd = (dv.isNumeric() && !dv.isComplex() && dv.numel() == 1)
+        const keel::f64 dd = (dv.isNumeric() && !dv.isComplex() && dv.numel() == 1)
                               ? dv.elemAsDouble(0) : -1.0;
         if (!(dd >= 1.0) || std::floor(dd) != dd)
             throw Error("isoutlier: dim must be a positive integer scalar",
@@ -531,7 +531,7 @@ void isoutlierParse(const Value &A, keel::ArrayRef<Value> in, bool forRmoutliers
             p.tf = v.elemAsDouble(0);
             p.haveTf = true;
         } else if (name == "maxnumoutliers") {
-            const double mo = (v.isNumeric() && !v.isComplex() && v.numel() == 1)
+            const keel::f64 mo = (v.isNumeric() && !v.isComplex() && v.numel() == 1)
                                   ? v.elemAsDouble(0) : -1.0;
             if (!(mo >= 1.0) || std::floor(mo) != mo)
                 throw Error("isoutlier: MaxNumOutliers must be a positive "
@@ -539,7 +539,7 @@ void isoutlierParse(const Value &A, keel::ArrayRef<Value> in, bool forRmoutliers
                             0, 0, "isoutlier", "", "numkit:isoutlier:badMaxNum");
             p.maxOut = keel::as<long>(mo);
         } else if (name == "minnumoutliers") {
-            const double mo = (v.isNumeric() && !v.isComplex() && v.numel() == 1)
+            const keel::f64 mo = (v.isNumeric() && !v.isComplex() && v.numel() == 1)
                                   ? v.elemAsDouble(0) : -1.0;
             if (!(mo >= 0.0) || std::floor(mo) != mo)
                 throw Error("rmoutliers: MinNumOutliers must be a nonnegative "
@@ -667,7 +667,7 @@ IsOutlierOut isoutlier_full(const Value &A, keel::ArrayRef<Value> in,
 
     const bool isMoving = (p.method.as_ref() == "movmedian" || p.method.as_ref() == "movmean");
     Value loM, hiM, ceM;
-    double *lod = nullptr, *hid = nullptr, *ced = nullptr;
+    keel::f64 *lod = nullptr, *hid = nullptr, *ced = nullptr;
     if (wantThresholds) {
         if (isMoving) {
             loM = Value::matrix(r, cols, ValueType::DOUBLE, mr);
@@ -684,9 +684,9 @@ IsOutlierOut isoutlier_full(const Value &A, keel::ArrayRef<Value> in,
         ced = ceM.doubleDataMut();
     }
 
-    const double *spPtr = p.samplePoints.empty() ? nullptr : p.samplePoints.data();
-    keel::Array<double> run(runLen);
-    keel::Array<double> movC, movL, movH;
+    const keel::f64 *spPtr = p.samplePoints.empty() ? nullptr : p.samplePoints.data();
+    keel::Array<keel::f64> run(runLen);
+    keel::Array<keel::f64> movC, movL, movH;
     for (keel::usize k = 0; k < nRuns; ++k) {
         for (keel::usize j = 0; j < runLen; ++j)
             run[j] = A.elemAsDouble(along2 ? k + j * r : k * runLen + j);
@@ -757,9 +757,9 @@ RmOutliersOut rmoutliers_full(const Value &A, keel::ArrayRef<Value> in,
             1, (A.dims().ndim() >= 2) ? A.numel() /
                 std::max<keel::usize>(A.dims().dim(0), 1) : 1,
             ValueType::DOUBLE, mr);
-        double *nd = nanRow.doubleDataMut();
+        keel::f64 *nd = nanRow.doubleDataMut();
         std::fill_n(nd, nanRow.numel(),
-                    std::numeric_limits<double>::quiet_NaN());
+                    std::numeric_limits<keel::f64>::quiet_NaN());
         iso.lo = iso.hi = iso.center = nanRow;
     } else {
         // Detection sees the SAME tail minus the rmoutliers-only NV
@@ -786,8 +786,8 @@ RmOutliersOut rmoutliers_full(const Value &A, keel::ArrayRef<Value> in,
 
     const bool isVec = (A.dims().isVector() || A.isScalar());
     const long minNum = std::max<long>(p.minNum, 1);
-    auto putB = [&](Value &B, keel::usize lin, double v) {
-        if (single) B.singleDataMut()[lin] = keel::as<float>(v);
+    auto putB = [&](Value &B, keel::usize lin, keel::f64 v) {
+        if (single) B.singleDataMut()[lin] = keel::as<keel::f32>(v);
         else        B.doubleDataMut()[lin] = v;
     };
     if (isVec) {
@@ -895,7 +895,7 @@ RmMissingOut rmmissing_full(const Value &A, keel::ArrayRef<Value> in,
     long minNum = 1;
     if (!in.empty() && !isStringValue(in[0])) {
         const Value &dv = in[0];
-        const double dd = (dv.isNumeric() && !dv.isComplex() && dv.numel() == 1)
+        const keel::f64 dd = (dv.isNumeric() && !dv.isComplex() && dv.numel() == 1)
                               ? dv.elemAsDouble(0) : 0.0;
         if (std::floor(dd) != dd || dd < 1.0 || dd > 2.0)
             throw Error("rmmissing: dimension must be 1 or 2",
@@ -912,7 +912,7 @@ RmMissingOut rmmissing_full(const Value &A, keel::ArrayRef<Value> in,
             in[i], keel::ArrayRef<keel::StringRef>(kRmNv));
         if (hit == 0) {
             const Value &v = in[i + 1];
-            const double mo = (v.isNumeric() && !v.isComplex() && v.numel() == 1)
+            const keel::f64 mo = (v.isNumeric() && !v.isComplex() && v.numel() == 1)
                                   ? v.elemAsDouble(0) : -1.0;
             if (!(mo >= 0.0) || std::floor(mo) != mo)
                 throw Error("rmmissing: MinNumMissing must be a nonnegative "
@@ -962,11 +962,11 @@ RmMissingOut rmmissing_full(const Value &A, keel::ArrayRef<Value> in,
         for (keel::usize i = 0; i < A.numel(); ++i)
             miss[i] = (std::isnan(z[i].real()) || std::isnan(z[i].imag())) ? 1 : 0;
     } else if (single) {
-        const float *xd = A.singleData();
+        const keel::f32 *xd = A.singleData();
         for (keel::usize i = 0; i < A.numel(); ++i)
             miss[i] = std::isnan(xd[i]) ? 1 : 0;
     } else {
-        const double *xd = A.doubleData();
+        const keel::f64 *xd = A.doubleData();
         for (keel::usize i = 0; i < A.numel(); ++i)
             miss[i] = std::isnan(xd[i]) ? 1 : 0;
     }
@@ -1060,9 +1060,9 @@ Value standardizeMissing_full(const Value &A, const Value &indicators,
 namespace {
 
 // Numeric scalar / per-slice vector constant (checkConstantsSize).
-keel::Array<double> parseConstants(const Value &C, keel::usize nVects,
+keel::Array<keel::f64> parseConstants(const Value &C, keel::usize nVects,
                                    const char *fn, const char *eidSuffix,
-                                   keel::Array<double> *imagParts = nullptr)
+                                   keel::Array<keel::f64> *imagParts = nullptr)
 {
     if (!C.isNumeric())
         throw Error(keel::format("{}: fill constant must be numeric (got {})",
@@ -1085,7 +1085,7 @@ keel::Array<double> parseConstants(const Value &C, keel::usize nVects,
     };
     if (C.numel() == 1) {
         if (imagParts && imagParts->size() < 1) imagParts->resize(1, 0.0);
-        keel::Array<double> one(1);
+        keel::Array<keel::f64> one(1);
         one[0] = partOf(0);
         return one;
     }
@@ -1097,7 +1097,7 @@ keel::Array<double> parseConstants(const Value &C, keel::usize nVects,
                     0, 0, fn, "",
                     keel::format("numkit:{}:SizeConstant{}", fn, eidSuffix));
     if (imagParts) imagParts->resize(C.numel(), 0.0);
-    keel::Array<double> v(C.numel());
+    keel::Array<keel::f64> v(C.numel());
     for (keel::usize i = 0; i < C.numel(); ++i) v[i] = partOf(i);
     return v;
 }
@@ -1132,11 +1132,11 @@ FillMissingOut fillmissing_full(
 
     bool isFnHandle = false;
     const Value *fhVal = nullptr;
-    double fhA = 0.0, fhB = 0.0;
+    keel::f64 fhA = 0.0, fhB = 0.0;
     bool fhTwoElem = false;
     keel::String m;
     long hb = 0, hf = 0;
-    double hbSpan = 0.0, hfSpan = 0.0;
+    keel::f64 hbSpan = 0.0, hfSpan = 0.0;
     bool winTwoElem = false;
     keel::usize knnK = 1;
     keel::usize i = 1;
@@ -1156,7 +1156,7 @@ FillMissingOut fillmissing_full(
         if (okNum) {
             bool anyPos = false;
             for (keel::usize q = 0; q < wl.numel(); ++q) {
-                const double wv = wl.elemAsDouble(q);
+                const keel::f64 wv = wl.elemAsDouble(q);
                 if (!std::isfinite(wv) || wv < 0.0) okVal = false;
                 if (wv > 0.0) anyPos = true;
             }
@@ -1204,7 +1204,7 @@ FillMissingOut fillmissing_full(
         } else if (m.as_ref() == "knn") {
             if (in.size() >= 2 && in[1].isNumeric()) {
                 const Value &kv = in[1];
-                const double kd = (kv.numel() == 1 && !kv.isComplex())
+                const keel::f64 kd = (kv.numel() == 1 && !kv.isComplex())
                                       ? kv.elemAsDouble(0) : -1.0;
                 if (!(kd >= 1.0) || std::floor(kd) != kd || !std::isfinite(kd))
                     throw Error(keel::format("{}: number of nearest neighbors k "
@@ -1224,7 +1224,7 @@ FillMissingOut fillmissing_full(
     if (i < in.size() && !isStringValue(in[i]) &&
         (in[i].isNumeric() || in[i].isLogical())) {
         const Value &dv = in[i];
-        const double dd = (dv.numel() == 1 && !dv.isComplex())
+        const keel::f64 dd = (dv.numel() == 1 && !dv.isComplex())
                               ? dv.elemAsDouble(0) : 0.0;
         if (std::floor(dd) != dd || !(dd >= 1.0) || !std::isfinite(dd))
             throw Error(keel::format("{}: dimension must be a positive "
@@ -1245,10 +1245,10 @@ FillMissingOut fillmissing_full(
     const Value *endRaw = nullptr;
     int endMode = 0;   // 0 extrap / 1 none / 2 nearest / 3 prevEnd / 4 nextEnd / 5 const
     bool haveEnd = false;
-    double endConst = 0.0;
+    keel::f64 endConst = 0.0;
     const Value *missingLocations = nullptr;
     const Value *samplePointsRaw = nullptr;
-    double maxGap = std::numeric_limits<double>::infinity();
+    keel::f64 maxGap = std::numeric_limits<keel::f64>::infinity();
     bool hasMaxGap = false;
     keel::String knnDist = keel::String::from("euclidean");
     const Value *distFnVal = nullptr;
@@ -1376,7 +1376,7 @@ FillMissingOut fillmissing_full(
     const keel::usize runLen = along2 ? c : r;
     const keel::usize nRuns = along2 ? r : c;
 
-    keel::Array<double> samplePoints;
+    keel::Array<keel::f64> samplePoints;
     if (samplePointsRaw) {
         samplePoints = validateSamplePoints(
             *samplePointsRaw, runLen, A.numel() == 0, false, fn);
@@ -1386,13 +1386,13 @@ FillMissingOut fillmissing_full(
     const bool outComplex = complex ||
                             (constRaw && constRaw->isComplex()) ||
                             (endRaw && endRaw->isComplex());
-    keel::Array<double> constVals, constImag;
+    keel::Array<keel::f64> constVals, constImag;
     if (constRaw) {
         if (outComplex) constImag.resize(1, 0.0);
         constVals = parseConstants(*constRaw, nRuns, fn, "",
                                    outComplex ? &constImag : nullptr);
     }
-    keel::Array<double> endVals, endImag;
+    keel::Array<keel::f64> endVals, endImag;
     if (endRaw) {
         if (outComplex) endImag.resize(1, 0.0);
         endVals = parseConstants(*endRaw, nRuns, fn, "Extrap",
@@ -1452,7 +1452,7 @@ FillMissingOut fillmissing_full(
                 B.complexDataMut()[j] = complex ? A.complexData()[j]
                                                 : keel::c64(A.elemAsDouble(j), 0.0);
             } else if (single) {
-                B.singleDataMut()[j] = keel::as<float>(A.elemAsDouble(j));
+                B.singleDataMut()[j] = keel::as<keel::f32>(A.elemAsDouble(j));
             } else {
                 B.doubleDataMut()[j] = A.elemAsDouble(j);
             }
@@ -1470,19 +1470,19 @@ FillMissingOut fillmissing_full(
         auto linAt = [&](keel::usize row, keel::usize col) -> keel::usize {
             return transpose ? (col + row * r) : (row + col * r);
         };
-        auto reAt = [&](keel::usize row, keel::usize col) -> double {
+        auto reAt = [&](keel::usize row, keel::usize col) -> keel::f64 {
             const keel::usize idx = linAt(row, col);
             return complex ? A.complexData()[idx].real() : A.elemAsDouble(idx);
         };
-        auto imAt = [&](keel::usize row, keel::usize col) -> double {
+        auto imAt = [&](keel::usize row, keel::usize col) -> keel::f64 {
             if (!complex) return 0.0;
             return A.complexData()[linAt(row, col)].imag();
         };
 
-        keel::Array<double> scale(N, 1.0);
+        keel::Array<keel::f64> scale(N, 1.0);
         if (!distFnVal && knnDist.as_ref() == "seuclidean") {
             for (keel::usize col = 0; col < N; ++col) {
-                double mRe = 0.0, mIm = 0.0;
+                keel::f64 mRe = 0.0, mIm = 0.0;
                 keel::usize cnt = 0;
                 for (keel::usize row = 0; row < M; ++row) {
                     if (!missMap[linAt(row, col)]) {
@@ -1494,23 +1494,23 @@ FillMissingOut fillmissing_full(
                 if (cnt < 2) {
                     scale[col] = 0.0;
                 } else {
-                    mRe /= double(cnt);
-                    mIm /= double(cnt);
-                    double ss = 0.0;
+                    mRe /= keel::f64(cnt);
+                    mIm /= keel::f64(cnt);
+                    keel::f64 ss = 0.0;
                     for (keel::usize row = 0; row < M; ++row) {
                         if (!missMap[linAt(row, col)]) {
-                            const double dr = reAt(row, col) - mRe;
-                            const double di = imAt(row, col) - mIm;
+                            const keel::f64 dr = reAt(row, col) - mRe;
+                            const keel::f64 di = imAt(row, col) - mIm;
                             ss += dr * dr + di * di;
                         }
                     }
-                    scale[col] = std::sqrt(ss / double(cnt - 1));
+                    scale[col] = std::sqrt(ss / keel::f64(cnt - 1));
                 }
             }
         }
 
-        const double nanv = std::numeric_limits<double>::quiet_NaN();
-        keel::Array<double> dists(M, nanv);
+        const keel::f64 nanv = std::numeric_limits<keel::f64>::quiet_NaN();
+        keel::Array<keel::f64> dists(M, nanv);
         keel::Array<keel::usize> ord(M);
         for (keel::usize ii = 0; ii < M; ++ii) {
             bool anyMiss = false, allMiss = true;
@@ -1556,18 +1556,18 @@ FillMissingOut fillmissing_full(
                                     keel::format("numkit:{}:invalidCustomDistance", fn));
                     dists[jj] = dv.elemAsDouble(0);
                 } else {
-                    double sumSq = 0.0;
+                    keel::f64 sumSq = 0.0;
                     for (keel::usize col = 0; col < N; ++col) {
                         if (missMap[linAt(ii, col)]) continue;
                         if (missMap[linAt(jj, col)]) {
                             sumSq = nanv;
                             break;
                         }
-                        const double dr = reAt(ii, col) - reAt(jj, col);
-                        const double di = imAt(ii, col) - imAt(jj, col);
-                        const double d2 = dr * dr + di * di;
+                        const keel::f64 dr = reAt(ii, col) - reAt(jj, col);
+                        const keel::f64 di = imAt(ii, col) - imAt(jj, col);
+                        const keel::f64 d2 = dr * dr + di * di;
                         if (knnDist.as_ref() == "seuclidean") {
-                            const double sc = scale[col];
+                            const keel::f64 sc = scale[col];
                             sumSq += d2 / (sc * sc);
                         } else {
                             sumSq += d2;
@@ -1589,7 +1589,7 @@ FillMissingOut fillmissing_full(
             for (keel::usize col = 0; col < N; ++col) {
                 const keel::usize dstLin = linAt(ii, col);
                 if (!missMap[dstLin]) continue;
-                double sumRe = 0.0, sumIm = 0.0;
+                keel::f64 sumRe = 0.0, sumIm = 0.0;
                 keel::usize used = 0;
                 for (keel::usize cand : ord) {
                     if (!missMap[linAt(cand, col)]) {
@@ -1599,12 +1599,12 @@ FillMissingOut fillmissing_full(
                     }
                 }
                 if (used > 0) {
-                    const double fRe = sumRe / double(used);
-                    const double fIm = sumIm / double(used);
+                    const keel::f64 fRe = sumRe / keel::f64(used);
+                    const keel::f64 fIm = sumIm / keel::f64(used);
                     if (outComplex) {
                         B.complexDataMut()[dstLin] = keel::c64(fRe, fIm);
                     } else if (single) {
-                        B.singleDataMut()[dstLin] = keel::as<float>(fRe);
+                        B.singleDataMut()[dstLin] = keel::as<keel::f32>(fRe);
                     } else {
                         B.doubleDataMut()[dstLin] = fRe;
                     }
@@ -1618,14 +1618,14 @@ FillMissingOut fillmissing_full(
     }
 
     // ── standard 1-D slice fill path ──────────────────────────────────
-    const double nanv = std::numeric_limits<double>::quiet_NaN();
+    const keel::f64 nanv = std::numeric_limits<keel::f64>::quiet_NaN();
     const bool useSp = !samplePoints.empty();
-    keel::Array<double> sVec(runLen);
+    keel::Array<keel::f64> sVec(runLen);
     for (keel::usize j = 0; j < runLen; ++j)
-        sVec[j] = useSp ? samplePoints[j] : keel::as<double>(j + 1);
-    const double *spPtr = useSp ? sVec.data() : nullptr;
+        sVec[j] = useSp ? samplePoints[j] : keel::as<keel::f64>(j + 1);
+    const keel::f64 *spPtr = useSp ? sVec.data() : nullptr;
 
-    keel::Array<double> re(runLen), im(runLen, 0.0), origRe(runLen), origIm(runLen, 0.0);
+    keel::Array<keel::f64> re(runLen), im(runLen, 0.0), origRe(runLen), origIm(runLen, 0.0);
     keel::Array<keel::u8> ma(runLen), maBeforeInterp(runLen), origMiss(runLen);
 
     auto removeLargeGapsSlice = [&](keel::Array<keel::u8> &mask) {
@@ -1635,8 +1635,8 @@ FillMissingOut fillmissing_full(
             if (!mask[j]) { ++j; continue; }
             keel::usize k = j;
             while (k + 1 < runLen && mask[k + 1]) ++k;
-            const double leftX = (j == 0) ? sVec[0] : sVec[j - 1];
-            const double rightX = (k + 1 == runLen) ? sVec[runLen - 1] : sVec[k + 1];
+            const keel::f64 leftX = (j == 0) ? sVec[0] : sVec[j - 1];
+            const keel::f64 rightX = (k + 1 == runLen) ? sVec[runLen - 1] : sVec[k + 1];
             if (!(leftX + maxGap >= rightX)) {
                 for (keel::usize q = j; q <= k; ++q) mask[q] = 0;
             }
@@ -1645,15 +1645,15 @@ FillMissingOut fillmissing_full(
     };
 
     for (keel::usize k = 0; k < nRuns; ++k) {
-        const double cv = (constVals.size() > 1) ? constVals[k]
+        const keel::f64 cv = (constVals.size() > 1) ? constVals[k]
                           : (constVals.empty() ? 0.0 : constVals[0]);
-        const double cim = (outComplex && constImag.size() > 1)
+        const keel::f64 cim = (outComplex && constImag.size() > 1)
                                ? constImag[k]
                                : (outComplex && !constImag.empty()
                                       ? constImag[0] : 0.0);
-        const double evRe = (endVals.size() > 1) ? endVals[k]
+        const keel::f64 evRe = (endVals.size() > 1) ? endVals[k]
                             : (endVals.empty() ? endConst : endVals[0]);
-        const double evIm = (outComplex && endImag.size() > 1)
+        const keel::f64 evIm = (outComplex && endImag.size() > 1)
                                 ? endImag[k]
                                 : (outComplex && !endImag.empty()
                                        ? endImag[0] : 0.0);
@@ -1720,7 +1720,7 @@ FillMissingOut fillmissing_full(
                 if (outComplex) {
                     B.complexDataMut()[lin] = keel::c64(re[j], im[j]);
                 } else if (single) {
-                    B.singleDataMut()[lin] = keel::as<float>(re[j]);
+                    B.singleDataMut()[lin] = keel::as<keel::f32>(re[j]);
                 } else {
                     B.doubleDataMut()[lin] = re[j];
                 }
@@ -1758,8 +1758,8 @@ FillMissingOut fillmissing_full(
                 for (keel::usize j = 0; j < indBeg; ++j) ma[j] = 0;
                 for (keel::usize j = indEnd + 1; j < runLen; ++j) ma[j] = 0;
             }
-            const double aSpan = fhTwoElem ? fhA : (useSp ? 0.5 * fhA : std::floor(0.5 * fhA));
-            const double bSpan = fhTwoElem ? fhB : (useSp ? 0.5 * fhB : std::floor(0.5 * fhB));
+            const keel::f64 aSpan = fhTwoElem ? fhA : (useSp ? 0.5 * fhA : std::floor(0.5 * fhA));
+            const keel::f64 bSpan = fhTwoElem ? fhB : (useSp ? 0.5 * fhB : std::floor(0.5 * fhB));
             keel::usize j0 = 0;
             while (j0 < runLen) {
                 if (!ma[j0]) { ++j0; continue; }
@@ -1773,9 +1773,9 @@ FillMissingOut fillmissing_full(
                         inW = ((sVec[q] >= sVec[j0] - aSpan) && (sVec[q] < sVec[j0])) ||
                               ((sVec[q] > sVec[j1]) && (sVec[q] <= sVec[j1] + bSpan));
                     } else {
-                        const double q1 = keel::as<double>(q + 1);
-                        const double g0 = keel::as<double>(j0 + 1);
-                        const double g1 = keel::as<double>(j1 + 1);
+                        const keel::f64 q1 = keel::as<keel::f64>(q + 1);
+                        const keel::f64 g0 = keel::as<keel::f64>(j0 + 1);
+                        const keel::f64 g1 = keel::as<keel::f64>(j1 + 1);
                         inW = (q1 >= std::ceil(g0 - aSpan) && q1 <= g0 - 1.0) ||
                               (q1 >= g1 + 1.0 && q1 <= std::floor(g1 + bSpan));
                     }
@@ -1823,14 +1823,14 @@ FillMissingOut fillmissing_full(
             // (NaN-omitted shrunk windows) — earlier fills must not
             // feed later windows.
             const bool isMean = (m.as_ref() == "movmean");
-            keel::Array<double> winRe, winIm;
+            keel::Array<keel::f64> winRe, winIm;
             for (keel::usize j = 0; j < runLen; ++j) {
                 if (!ma[j]) continue;
                 winRe.clear();
                 winIm.clear();
                 if (useSp) {
-                    const double loS = sVec[j] - hbSpan;
-                    const double hiS = sVec[j] + hfSpan;
+                    const keel::f64 loS = sVec[j] - hbSpan;
+                    const keel::f64 hiS = sVec[j] + hfSpan;
                     for (keel::usize q = 0; q < runLen; ++q) {
                         const bool inW = winTwoElem
                                              ? (sVec[q] >= loS && sVec[q] <= hiS)
@@ -1855,13 +1855,13 @@ FillMissingOut fillmissing_full(
                 }
                 if (winRe.empty()) continue;
                 if (isMean) {
-                    double s = 0.0;
-                    for (double vv : winRe) s += vv;
-                    re[j] = s / double(winRe.size());
+                    keel::f64 s = 0.0;
+                    for (keel::f64 vv : winRe) s += vv;
+                    re[j] = s / keel::f64(winRe.size());
                     if (outComplex) {
-                        double si = 0.0;
-                        for (double vv : winIm) si += vv;
-                        im[j] = si / double(winIm.size());
+                        keel::f64 si = 0.0;
+                        for (keel::f64 vv : winIm) si += vv;
+                        im[j] = si / keel::f64(winIm.size());
                     }
                 } else {
                     std::sort(winRe.begin(), winRe.end());
@@ -1879,7 +1879,7 @@ FillMissingOut fillmissing_full(
             // Prepare working copy where origMiss positions are NaN so
             // fill_one_column sees true known points, then copy back only
             // at ma[j] == 1 (respecting MaxGap).
-            keel::Array<double> workRe(runLen), workIm(runLen, 0.0);
+            keel::Array<keel::f64> workRe(runLen), workIm(runLen, 0.0);
             for (keel::usize j = 0; j < runLen; ++j) {
                 workRe[j] = origMiss[j] ? nanv : origRe[j];
                 if (outComplex) workIm[j] = origMiss[j] ? nanv : origIm[j];
@@ -1943,7 +1943,7 @@ FillMissingOut fillmissing_full(
             if (outComplex) {
                 B.complexDataMut()[lin] = keel::c64(re[j], im[j]);
             } else if (single) {
-                B.singleDataMut()[lin] = keel::as<float>(re[j]);
+                B.singleDataMut()[lin] = keel::as<keel::f32>(re[j]);
             } else {
                 B.doubleDataMut()[lin] = re[j];
             }
@@ -1967,20 +1967,20 @@ namespace {
 // n×k) against one data run: dst = src − W·coef. Rank-deficient pivots
 // get a free variable fixed at 0 (a basic solution) so degenerate
 // designs still subtract an exact fit through the data.
-void detrendDesignFit(const double *W, keel::usize n, keel::usize k,
-                      const double *src, double *dst,
+void detrendDesignFit(const keel::f64 *W, keel::usize n, keel::usize k,
+                      const keel::f64 *src, keel::f64 *dst,
                       keel::Allocator *mr)
 {
     keel::ArenaTemp sc = keel::get_scratch(mr);
-    keel::Array<double> G(k * k, 0.0, sc.allocator()), rhs(k, 0.0, sc.allocator());
+    keel::Array<keel::f64> G(k * k, 0.0, sc.allocator()), rhs(k, 0.0, sc.allocator());
     for (keel::usize a = 0; a < k; ++a) {
         for (keel::usize b = a; b < k; ++b) {
-            double s = 0.0;
+            keel::f64 s = 0.0;
             for (keel::usize r = 0; r < n; ++r) s += W[a * n + r] * W[b * n + r];
             G[a * k + b] = s;
             G[b * k + a] = s;
         }
-        double s = 0.0;
+        keel::f64 s = 0.0;
         for (keel::usize r = 0; r < n; ++r) s += W[a * n + r] * src[r];
         rhs[a] = s;
     }
@@ -1988,9 +1988,9 @@ void detrendDesignFit(const double *W, keel::usize n, keel::usize k,
     keel::Array<char> freeVar(k, 0, sc.allocator());
     for (keel::usize col = 0; col < k; ++col) {
         keel::usize piv = col;
-        double best = std::fabs(G[col * k + col]);
+        keel::f64 best = std::fabs(G[col * k + col]);
         for (keel::usize r2 = col + 1; r2 < k; ++r2) {
-            const double v = std::fabs(G[r2 * k + col]);
+            const keel::f64 v = std::fabs(G[r2 * k + col]);
             if (v > best) { best = v; piv = r2; }
         }
         if (best <= 0.0) { freeVar[col] = 1; continue; }
@@ -1999,23 +1999,23 @@ void detrendDesignFit(const double *W, keel::usize n, keel::usize k,
                 std::swap(G[col * k + j], G[piv * k + j]);
             std::swap(rhs[col], rhs[piv]);
         }
-        const double d = G[col * k + col];
+        const keel::f64 d = G[col * k + col];
         for (keel::usize r2 = col + 1; r2 < k; ++r2) {
-            const double f = G[r2 * k + col] / d;
+            const keel::f64 f = G[r2 * k + col] / d;
             if (f == 0.0) continue;
             for (keel::usize j = col; j < k; ++j) G[r2 * k + j] -= f * G[col * k + j];
             rhs[r2] -= f * rhs[col];
         }
     }
-    keel::Array<double> coef(k, 0.0, sc.allocator());
+    keel::Array<keel::f64> coef(k, 0.0, sc.allocator());
     for (keel::usize ii = k; ii-- > 0;) {
         if (freeVar[ii]) { coef[ii] = 0.0; continue; }
-        double s = rhs[ii];
+        keel::f64 s = rhs[ii];
         for (keel::usize j = ii + 1; j < k; ++j) s -= G[ii * k + j] * coef[j];
         coef[ii] = s / G[ii * k + ii];
     }
     for (keel::usize r = 0; r < n; ++r) {
-        double fit = 0.0;
+        keel::f64 fit = 0.0;
         for (keel::usize a = 0; a < k; ++a) fit += W[a * n + r] * coef[a];
         dst[r] = src[r] - fit;
     }
@@ -2031,7 +2031,7 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
     argcheck::requireClassSet(x, kFloatComplex, "detrend");
 
     int polyDeg = 1;
-    keel::Array<double> bp;                  // sample-axis positions (raw)
+    keel::Array<keel::f64> bp;                  // sample-axis positions (raw)
     bool bpLogical = false;
     keel::Array<keel::usize> bpLogIdx;
     bool omitNan = false;
@@ -2137,32 +2137,32 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
     const bool single = (x.type() == ValueType::SINGLE);
     const bool complex = (x.type() == ValueType::COMPLEX);
 
-    keel::Array<double> sVec(N);
-    double minS = 1.0;
+    keel::Array<keel::f64> sVec(N);
+    keel::f64 minS = 1.0;
     if (samplePointsRaw) {
-        keel::Array<double> sp = validateSamplePoints(
+        keel::Array<keel::f64> sp = validateSamplePoints(
             *samplePointsRaw, N, x.isEmpty(), true, "detrend");
         minS = sp.empty() ? 0.0 : sp[0];
         for (keel::usize j = 0; j < N; ++j) sVec[j] = sp[j] - minS;
     } else {
-        for (keel::usize j = 0; j < N; ++j) sVec[j] = keel::as<double>(j);
+        for (keel::usize j = 0; j < N; ++j) sVec[j] = keel::as<keel::f64>(j);
     }
 
-    auto detrendRun = [&](const double *src, double *dst, keel::usize n) {
-        const double nanv = std::numeric_limits<double>::quiet_NaN();
+    auto detrendRun = [&](const keel::f64 *src, keel::f64 *dst, keel::usize n) {
+        const keel::f64 nanv = std::numeric_limits<keel::f64>::quiet_NaN();
         if (n == 0) return;
         // Knots on the centered abscissa sVec (0..sVec.back()).
-        keel::Array<double> knots;
+        keel::Array<keel::f64> knots;
         if (bpLogical) {
             for (keel::usize j : bpLogIdx)
                 if (j < n) knots.push_back(sVec[j]);
         } else {
-            for (double v : bp) knots.push_back(v - minS);
+            for (keel::f64 v : bp) knots.push_back(v - minS);
         }
         knots.push_back(0.0);                               // bookend s(1)
         if (n > 1) {
-            keel::Array<double> keep;
-            for (double v : knots)
+            keel::Array<keel::f64> keep;
+            for (keel::f64 v : knots)
                 if (v >= 0.0 && v < sVec[n - 1]) keep.push_back(v);
             knots = std::move(keep);
         }
@@ -2171,7 +2171,7 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
 
         // NaN policy.
         keel::Array<keel::usize> orig;
-        keel::Array<double> xs, ys;
+        keel::Array<keel::f64> xs, ys;
         for (keel::usize j = 0; j < n; ++j) dst[j] = nanv;
         {
             bool anyNaN = false;
@@ -2191,25 +2191,25 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
         if (plainPoly || (knots.size() <= 1 && continuity)) {
             // Single global polynomial (no interior breakpoints).
             if (polyDeg == 0) {
-                double s = 0.0;
-                for (double v : ys) s += v;
-                const double mean = s / double(m);
+                keel::f64 s = 0.0;
+                for (keel::f64 v : ys) s += v;
+                const keel::f64 mean = s / keel::f64(m);
                 for (keel::usize j = 0; j < m; ++j) dst[orig[j]] = ys[j] - mean;
                 return;
             }
             // Vandermonde on the normalized abscissa.
-            const double scale = (xs.back() != 0.0) ? xs.back() : 1.0;
+            const keel::f64 scale = (xs.back() != 0.0) ? xs.back() : 1.0;
             const keel::usize nb = keel::as<keel::usize>(polyDeg) + 1;
             keel::ArenaTemp sc = keel::get_scratch(mr);
-            keel::Array<double> V(m * nb, 0.0, sc.allocator());
+            keel::Array<keel::f64> V(m * nb, 0.0, sc.allocator());
             for (keel::usize j = 0; j < m; ++j) {
-                const double a = xs[j] / scale;
+                const keel::f64 a = xs[j] / scale;
                 for (int pw = polyDeg; pw >= 1; --pw)
                     V[keel::as<keel::usize>(polyDeg - pw) * m + j] =
-                        std::pow(a, double(pw));
+                        std::pow(a, keel::f64(pw));
                 V[keel::as<keel::usize>(polyDeg) * m + j] = 1.0;
             }
-            keel::Array<double> fitted(m, sc.allocator());
+            keel::Array<keel::f64> fitted(m, sc.allocator());
             detrendDesignFit(V.data(), m, nb, ys.data(), fitted.data(), mr);
             for (keel::usize j = 0; j < m; ++j) dst[orig[j]] = fitted[j];
             return;
@@ -2219,39 +2219,39 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
             // Segment-wise: segment k covers s in [knots[k], knots[k+1]).
             for (keel::usize j = 0; j < m; ++j) dst[orig[j]] = ys[j];
             for (keel::usize k = 0; k < knots.size(); ++k) {
-                const double lo = knots[k];
-                const double hi = (k + 1 < knots.size())
+                const keel::f64 lo = knots[k];
+                const keel::f64 hi = (k + 1 < knots.size())
                                       ? knots[k + 1] : (sVec.back() + 1.0);
                 keel::Array<keel::usize> seg;
                 for (keel::usize j = 0; j < m; ++j)
                     if (xs[j] >= lo && xs[j] < hi) seg.push_back(j);
                 if (seg.empty()) continue;
                 if (polyDeg == 0 || seg.size() == 1) {
-                    double s = 0.0;
+                    keel::f64 s = 0.0;
                     for (keel::usize j : seg) s += ys[j];
-                    const double mean = s / double(seg.size());
+                    const keel::f64 mean = s / keel::f64(seg.size());
                     for (keel::usize j : seg) dst[orig[j]] = ys[j] - mean;
                     continue;
                 }
-                double ms = 0.0;
+                keel::f64 ms = 0.0;
                 for (keel::usize j : seg) ms += xs[j];
-                ms /= double(seg.size());
-                double ss = 0.0;
+                ms /= keel::f64(seg.size());
+                keel::f64 ss = 0.0;
                 for (keel::usize j : seg) ss += (xs[j] - ms) * (xs[j] - ms);
-                const double sd = std::sqrt(ss / double(seg.size() - 1));
+                const keel::f64 sd = std::sqrt(ss / keel::f64(seg.size() - 1));
                 const keel::usize nb = keel::as<keel::usize>(polyDeg) + 1;
                 keel::ArenaTemp sc = keel::get_scratch(mr);
-                keel::Array<double> V(seg.size() * nb, 0.0, sc.allocator());
-                keel::Array<double> yseg(seg.size(), sc.allocator());
+                keel::Array<keel::f64> V(seg.size() * nb, 0.0, sc.allocator());
+                keel::Array<keel::f64> yseg(seg.size(), sc.allocator());
                 for (keel::usize q = 0; q < seg.size(); ++q) {
-                    const double a = (sd > 0.0) ? (xs[seg[q]] - ms) / sd : 0.0;
+                    const keel::f64 a = (sd > 0.0) ? (xs[seg[q]] - ms) / sd : 0.0;
                     for (int pw = polyDeg; pw >= 1; --pw)
                         V[keel::as<keel::usize>(polyDeg - pw) * seg.size() + q] =
-                            std::pow(a, double(pw));
+                            std::pow(a, keel::f64(pw));
                     V[keel::as<keel::usize>(polyDeg) * seg.size() + q] = 1.0;
                     yseg[q] = ys[seg[q]];
                 }
-                keel::Array<double> fitted(seg.size(), sc.allocator());
+                keel::Array<keel::f64> fitted(seg.size(), sc.allocator());
                 detrendDesignFit(V.data(), seg.size(), nb, yseg.data(),
                                  fitted.data(), mr);
                 for (keel::usize q = 0; q < seg.size(); ++q)
@@ -2265,7 +2265,7 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
             // Subtract the mean of the first segment.
             keel::usize b = 0, e = m - 1;
             if (knots.size() >= 2) {
-                double bestE = 1e300;
+                keel::f64 bestE = 1e300;
                 for (keel::usize j = 0; j < m; ++j) {
                     if (std::fabs(xs[j] - knots[1]) < bestE) {
                         bestE = std::fabs(xs[j] - knots[1]);
@@ -2273,33 +2273,33 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
                     }
                 }
             }
-            double s = 0.0;
+            keel::f64 s = 0.0;
             keel::usize cnt = 0;
             for (keel::usize j = 0; j < m; ++j)
                 if (j >= b && j <= e) { s += ys[j]; ++cnt; }
-            const double mean = cnt ? s / double(cnt) : 0.0;
+            const keel::f64 mean = cnt ? s / keel::f64(cnt) : 0.0;
             for (keel::usize j = 0; j < m; ++j) dst[orig[j]] = ys[j] - mean;
             return;
         }
-        const double scaleS = (xs.back() != 0.0) ? xs.back() : 1.0;
+        const keel::f64 scaleS = (xs.back() != 0.0) ? xs.back() : 1.0;
         const keel::usize nRamp = knots.size();
         const keel::usize nb = nRamp * keel::as<keel::usize>(polyDeg) + 1;
         keel::ArenaTemp sc = keel::get_scratch(mr);
-        keel::Array<double> W(m * nb, 0.0, sc.allocator());
+        keel::Array<keel::f64> W(m * nb, 0.0, sc.allocator());
         for (keel::usize rr = 0; rr < nRamp; ++rr) {
-            const double bk = knots[rr] / scaleS;
+            const keel::f64 bk = knots[rr] / scaleS;
             for (int pw = polyDeg; pw >= 1; --pw) {
-                double *col = W.data() +
+                keel::f64 *col = W.data() +
                     (rr * keel::as<keel::usize>(polyDeg) +
                      keel::as<keel::usize>(polyDeg - pw)) * m;
                 for (keel::usize j = 0; j < m; ++j) {
-                    const double bb = xs[j] / scaleS - bk;
-                    col[j] = (bb > 0.0) ? std::pow(bb, double(pw)) : 0.0;
+                    const keel::f64 bb = xs[j] / scaleS - bk;
+                    col[j] = (bb > 0.0) ? std::pow(bb, keel::f64(pw)) : 0.0;
                 }
             }
         }
         for (keel::usize j = 0; j < m; ++j) W[(nb - 1) * m + j] = 1.0;
-        keel::Array<double> fitted(m, sc.allocator());
+        keel::Array<keel::f64> fitted(m, sc.allocator());
         detrendDesignFit(W.data(), m, nb, ys.data(), fitted.data(), mr);
         for (keel::usize j = 0; j < m; ++j) dst[orig[j]] = fitted[j];
     };
@@ -2308,7 +2308,7 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
                                 : single ? ValueType::SINGLE
                                          : ValueType::DOUBLE, mr);
 
-    keel::Array<double> re(N), im, dst(N);
+    keel::Array<keel::f64> re(N), im, dst(N);
     if (complex) im.resize(N);
     const keel::usize nRuns = isRow ? 1 : ncols;
     for (keel::usize k = 0; k < nRuns; ++k) {
@@ -2324,15 +2324,15 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
         }
         detrendRun(re.data(), dst.data(), N);
         if (complex) {
-            keel::Array<double> dst2(N);
+            keel::Array<keel::f64> dst2(N);
             detrendRun(im.data(), dst2.data(), N);
             keel::c64 *od = out.complexDataMut() + (isRow ? 0 : k * N);
             for (keel::usize j = 0; j < N; ++j) od[j] = keel::c64(dst[j], dst2[j]);
         } else if (single) {
-            float *od = out.singleDataMut() + (isRow ? 0 : k * N);
-            for (keel::usize j = 0; j < N; ++j) od[j] = keel::as<float>(dst[j]);
+            keel::f32 *od = out.singleDataMut() + (isRow ? 0 : k * N);
+            for (keel::usize j = 0; j < N; ++j) od[j] = keel::as<keel::f32>(dst[j]);
         } else {
-            double *od = out.doubleDataMut() + (isRow ? 0 : k * N);
+            keel::f64 *od = out.doubleDataMut() + (isRow ? 0 : k * N);
             for (keel::usize j = 0; j < N; ++j) od[j] = dst[j];
         }
     }

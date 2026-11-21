@@ -66,15 +66,15 @@ struct IsOutlierPlan {
     bool haveWin = false;
     long hb = 0, hf = 0;
     bool winTwoElem = false;
-    double hbSpan = 0.0, hfSpan = 0.0;
+    keel::f64 hbSpan = 0.0, hfSpan = 0.0;
     bool haveTf = false;
-    double tf = 0.0;
-    double loP = 0.0, hiP = 100.0;
+    keel::f64 tf = 0.0;
+    keel::f64 loP = 0.0, hiP = 100.0;
     long maxOut = -1;
     long minNum = 1;
     int dim = 0;                 // 0 → first non-singleton dim
     const Value *samplePointsRaw = nullptr;
-    keel::Array<double> samplePoints;
+    keel::Array<keel::f64> samplePoints;
     keel::Array<keel::usize> dropIdx;  // rm-only NV positions to strip
 };                                      // before detection delegation
 struct IsOutlierOut { Value tf, lo, hi, center; };
@@ -132,15 +132,15 @@ Value geomean_of(const Value &x, int dim, bool omitnan, keel::Allocator *mr);
 Value harmmean_of(const Value &x, int dim, bool omitnan, keel::Allocator *mr);
 Value mad_of(const Value &x, int flag, int dim, keel::Allocator *mr);
 Value moment_of(const Value &x, int order, int dim, keel::Allocator *mr);
-Value standardizeMissing_of(const Value &x, double sentinel, keel::Allocator *mr);
-Value fillmissing_of(const Value &x, keel::StringRef method, double constVal, keel::Allocator *mr);
+Value standardizeMissing_of(const Value &x, keel::f64 sentinel, keel::Allocator *mr);
+Value fillmissing_of(const Value &x, keel::StringRef method, keel::f64 constVal, keel::Allocator *mr);
 Value partialcorr_of(const Value &X, const Value &Y, const Value &Z, keel::Allocator *mr);
 Value partialcorr_xz(const Value &X, const Value &Z, keel::Allocator *mr);
-Value detrendBP_of(const Value &x, keel::ArrayRef<double> bpUser, keel::Allocator *mr);
-Value filloutliers_of(const Value &x, const Value &fillArg, keel::StringRef detect, double thresholdFactor, double loP, double hiP, keel::Allocator *mr);
-Value trimmean_of(const Value &x, double pct, int dim, bool useFloor, keel::Allocator *mr);
-EcdfFull ecdf_full(const Value &y, const Value *freq, keel::StringRef function_mode, double alpha, bool want_bounds, keel::Allocator *mr);
-KsdensityFull ksdensity_full(const Value &x, const Value &pts, double bw_user, keel::StringRef kernel_name, keel::StringRef function_mode, keel::usize numpoints, const Value *weights, keel::Allocator *mr);
+Value detrendBP_of(const Value &x, keel::ArrayRef<keel::f64> bpUser, keel::Allocator *mr);
+Value filloutliers_of(const Value &x, const Value &fillArg, keel::StringRef detect, keel::f64 thresholdFactor, keel::f64 loP, keel::f64 hiP, keel::Allocator *mr);
+Value trimmean_of(const Value &x, keel::f64 pct, int dim, bool useFloor, keel::Allocator *mr);
+EcdfFull ecdf_full(const Value &y, const Value *freq, keel::StringRef function_mode, keel::f64 alpha, bool want_bounds, keel::Allocator *mr);
+KsdensityFull ksdensity_full(const Value &x, const Value &pts, keel::f64 bw_user, keel::StringRef kernel_name, keel::StringRef function_mode, keel::usize numpoints, const Value *weights, keel::Allocator *mr);
 
 namespace {
 
@@ -150,19 +150,19 @@ using ::numkit::ops::validateDim;
 using ::numkit::ops::applyAlongDimWithIndex;
 using ::numkit::ops::resolveDim;   // 0 -> first non-singleton, else validate
 
-[[maybe_unused]] double sliceMin(const double *s, keel::usize n)
+[[maybe_unused]] keel::f64 sliceMin(const keel::f64 *s, keel::usize n)
 {
-    if (n == 0) return std::numeric_limits<double>::quiet_NaN();
-    double m = s[0];
+    if (n == 0) return std::numeric_limits<keel::f64>::quiet_NaN();
+    keel::f64 m = s[0];
     for (keel::usize i = 1; i < n; ++i)
         if (s[i] < m || std::isnan(m)) m = s[i];
     return m;
 }
 
-[[maybe_unused]] double sliceMax(const double *s, keel::usize n)
+[[maybe_unused]] keel::f64 sliceMax(const keel::f64 *s, keel::usize n)
 {
-    if (n == 0) return std::numeric_limits<double>::quiet_NaN();
-    double m = s[0];
+    if (n == 0) return std::numeric_limits<keel::f64>::quiet_NaN();
+    keel::f64 m = s[0];
     for (keel::usize i = 1; i < n; ++i)
         if (s[i] > m || std::isnan(m)) m = s[i];
     return m;
@@ -196,13 +196,13 @@ namespace {
     if (x.dims().isVector() || x.isScalar()) {
         const keel::usize n = x.numel();
         const keel::usize k = std::min<keel::usize>(keel::as<keel::usize>(kReq), n);
-        keel::Array<double> vals(n);
+        keel::Array<keel::f64> vals(n);
         keel::Array<keel::usize> ord(n);
         for (keel::usize i = 0; i < n; ++i) { vals[i] = x.elemAsDouble(i); ord[i] = i; }
         std::stable_sort(ord.begin(), ord.end(),
                   [&](keel::usize ia, keel::usize ib) {
-                      const double a = byAbs ? std::fabs(vals[ia]) : vals[ia];
-                      const double b = byAbs ? std::fabs(vals[ib]) : vals[ib];
+                      const keel::f64 a = byAbs ? std::fabs(vals[ia]) : vals[ia];
+                      const keel::f64 b = byAbs ? std::fabs(vals[ib]) : vals[ib];
                       if (std::isnan(a)) return false;
                       if (std::isnan(b)) return true;
                       return ascending ? (a < b) : (a > b);
@@ -217,7 +217,7 @@ namespace {
             *idxOut = isRow ? Value::matrix(1, k, ValueType::DOUBLE, mr)
                             : Value::matrix(k, 1, ValueType::DOUBLE, mr);
             for (keel::usize i = 0; i < k; ++i)
-                idxOut->doubleDataMut()[i] = keel::as<double>(ord[i] + 1);
+                idxOut->doubleDataMut()[i] = keel::as<keel::f64>(ord[i] + 1);
         }
         return out;
     }
@@ -248,10 +248,10 @@ namespace {
         *idxOut = dd.is3D()
                     ? Value::matrix3d(Ro, Co, Po, ValueType::DOUBLE, mr)
                     : Value::matrix(Ro, Co, ValueType::DOUBLE, mr);
-    const double *src = x.doubleData();
-    double *dst = out.doubleDataMut();
-    double *idst = idxOut ? idxOut->doubleDataMut() : nullptr;
-    keel::Array<double> buf(sliceLen);
+    const keel::f64 *src = x.doubleData();
+    keel::f64 *dst = out.doubleDataMut();
+    keel::f64 *idst = idxOut ? idxOut->doubleDataMut() : nullptr;
+    keel::Array<keel::f64> buf(sliceLen);
     keel::Array<keel::usize> ord(sliceLen);
 
     // Sort the index permutation of the current slice (stable → ties keep the
@@ -260,8 +260,8 @@ namespace {
         for (keel::usize i = 0; i < sliceLen; ++i) ord[i] = i;
         std::stable_sort(ord.begin(), ord.end(),
             [&](keel::usize ia, keel::usize ib) {
-                const double a = byAbs ? std::fabs(buf[ia]) : buf[ia];
-                const double b = byAbs ? std::fabs(buf[ib]) : buf[ib];
+                const keel::f64 a = byAbs ? std::fabs(buf[ia]) : buf[ia];
+                const keel::f64 b = byAbs ? std::fabs(buf[ib]) : buf[ib];
                 if (std::isnan(a)) return false;
                 if (std::isnan(b)) return true;
                 return ascending ? (a < b) : (a > b);
@@ -278,7 +278,7 @@ namespace {
                 for (keel::usize i = 0; i < Ro; ++i) {
                     dst[p * outPageStride + c * Ro + i] = buf[ord[i]];
                     if (idst) idst[p * outPageStride + c * Ro + i] =
-                                  keel::as<double>(ord[i] + 1);
+                                  keel::as<keel::f64>(ord[i] + 1);
                 }
             }
     } else if (d == 2) {
@@ -291,7 +291,7 @@ namespace {
                 for (keel::usize i = 0; i < Co; ++i) {
                     dst[p * outPageStride + i * Ro + r] = buf[ord[i]];
                     if (idst) idst[p * outPageStride + i * Ro + r] =
-                                  keel::as<double>(ord[i] + 1);
+                                  keel::as<keel::f64>(ord[i] + 1);
                 }
             }
     } else { // d == 3
@@ -304,7 +304,7 @@ namespace {
                 for (keel::usize i = 0; i < Po; ++i) {
                     dst[i * outPageStride + c * Ro + r] = buf[ord[i]];
                     if (idst) idst[i * outPageStride + c * Ro + r] =
-                                  keel::as<double>(ord[i] + 1);
+                                  keel::as<keel::f64>(ord[i] + 1);
                 }
             }
     }
@@ -317,24 +317,24 @@ namespace {
 // Residualise `wCol` (length m) on a column-major design matrix `C`
 // of size m × pC (already includes intercept if needed). Returns the
 // residual vector via `out`. Uses (C'C)\C'·w via Gauss elimination.
-[[maybe_unused]] void residualiseColumn_local(const double *C, keel::usize m,
-                              keel::usize pC, const double *MM,
-                              const double *wCol, double *out,
+[[maybe_unused]] void residualiseColumn_local(const keel::f64 *C, keel::usize m,
+                              keel::usize pC, const keel::f64 *MM,
+                              const keel::f64 *wCol, keel::f64 *out,
                               keel::Allocator *mr)
 {
     keel::ArenaTemp scratch = keel::get_scratch(mr);
-    keel::Array<double> b(pC, 0.0, scratch.allocator());
+    keel::Array<keel::f64> b(pC, 0.0, scratch.allocator());
     for (keel::usize i = 0; i < pC; ++i)
         for (keel::usize k = 0; k < m; ++k)
             b[i] += C[k + i * m] * wCol[k];
     // Solve MM · coef = b. MM is column-major pC×pC.
-    keel::Array<double> Mc(keel::ArrayRef<double>(MM, pC * pC), scratch.allocator());
+    keel::Array<keel::f64> Mc(keel::ArrayRef<keel::f64>(MM, pC * pC), scratch.allocator());
     bool singular = false;
     for (keel::usize kc = 0; kc < pC && !singular; ++kc) {
         keel::usize piv = kc;
-        double pmax = std::fabs(Mc[kc + kc * pC]);
+        keel::f64 pmax = std::fabs(Mc[kc + kc * pC]);
         for (keel::usize r = kc + 1; r < pC; ++r) {
-            const double v = std::fabs(Mc[r + kc * pC]);
+            const keel::f64 v = std::fabs(Mc[r + kc * pC]);
             if (v > pmax) { pmax = v; piv = r; }
         }
         if (pmax == 0.0) { singular = true; break; }
@@ -343,9 +343,9 @@ namespace {
                 std::swap(Mc[kc + j * pC], Mc[piv + j * pC]);
             std::swap(b[kc], b[piv]);
         }
-        const double pivVal = Mc[kc + kc * pC];
+        const keel::f64 pivVal = Mc[kc + kc * pC];
         for (keel::usize r = kc + 1; r < pC; ++r) {
-            const double f = Mc[r + kc * pC] / pivVal;
+            const keel::f64 f = Mc[r + kc * pC] / pivVal;
             for (keel::usize j = kc; j < pC; ++j)
                 Mc[r + j * pC] -= f * Mc[kc + j * pC];
             b[r] -= f * b[kc];
@@ -355,32 +355,32 @@ namespace {
         std::fill(b.begin(), b.end(), 0.0);
     } else {
         for (keel::usize kk = pC; kk-- > 0;) {
-            double s = b[kk];
+            keel::f64 s = b[kk];
             for (keel::usize j = kk + 1; j < pC; ++j)
                 s -= Mc[kk + j * pC] * b[j];
             b[kk] = s / Mc[kk + kk * pC];
         }
     }
     for (keel::usize k = 0; k < m; ++k) {
-        double pred = 0.0;
+        keel::f64 pred = 0.0;
         for (keel::usize i = 0; i < pC; ++i)
             pred += C[k + i * m] * b[i];
         out[k] = wCol[k] - pred;
     }
 }
 
-[[maybe_unused]] double pearsonOnResiduals(const double *a, const double *b, keel::usize m)
+[[maybe_unused]] keel::f64 pearsonOnResiduals(const keel::f64 *a, const keel::f64 *b, keel::usize m)
 {
     // Residuals from a regression with an intercept have mean ≈ 0, but
     // we still subtract the mean defensively for numerical safety.
-    double ma = 0.0, mb = 0.0;
+    keel::f64 ma = 0.0, mb = 0.0;
     for (keel::usize k = 0; k < m; ++k) { ma += a[k]; mb += b[k]; }
-    ma /= keel::as<double>(m);
-    mb /= keel::as<double>(m);
-    double sab = 0.0, saa = 0.0, sbb = 0.0;
+    ma /= keel::as<keel::f64>(m);
+    mb /= keel::as<keel::f64>(m);
+    keel::f64 sab = 0.0, saa = 0.0, sbb = 0.0;
     for (keel::usize k = 0; k < m; ++k) {
-        const double da = a[k] - ma;
-        const double db = b[k] - mb;
+        const keel::f64 da = a[k] - ma;
+        const keel::f64 db = b[k] - mb;
         sab += da * db;
         saa += da * da;
         sbb += db * db;
@@ -398,14 +398,14 @@ namespace {
 //
 // PMR HARD RULE: scratch via the supplied scratch arena. The vector
 // types are ScratchVec to preserve the per-call arena lifetime.
-keel::Array<double> fitPolyLS(const double *xidx, keel::usize n, const double *y, int order, keel::Allocator *scratch_mr)
+keel::Array<keel::f64> fitPolyLS(const keel::f64 *xidx, keel::usize n, const keel::f64 *y, int order, keel::Allocator *scratch_mr)
 {
     const keel::usize k = keel::as<keel::usize>(order) + 1;
-    keel::Array<double> M(k * k, 0.0, scratch_mr);
-    keel::Array<double> b(k, 0.0, scratch_mr);
-    keel::Array<double> powSums(2 * k - 1, 0.0, scratch_mr);
+    keel::Array<keel::f64> M(k * k, 0.0, scratch_mr);
+    keel::Array<keel::f64> b(k, 0.0, scratch_mr);
+    keel::Array<keel::f64> powSums(2 * k - 1, 0.0, scratch_mr);
     for (keel::usize i = 0; i < n; ++i) {
-        double xp = 1.0;
+        keel::f64 xp = 1.0;
         for (keel::usize p = 0; p < powSums.size(); ++p) {
             powSums[p] += xp;
             xp *= xidx[i];
@@ -416,7 +416,7 @@ keel::Array<double> fitPolyLS(const double *xidx, keel::usize n, const double *y
             M[i + j * k] = powSums[(order - keel::as<int>(i)) +
                                    (order - keel::as<int>(j))];
     for (keel::usize i = 0; i < n; ++i) {
-        double xp = 1.0;
+        keel::f64 xp = 1.0;
         for (int p = 0; p < keel::as<int>(k); ++p) {
             b[order - p] += y[i] * xp;
             xp *= xidx[i];
@@ -425,13 +425,13 @@ keel::Array<double> fitPolyLS(const double *xidx, keel::usize n, const double *y
     // Gaussian elimination with partial pivot.
     for (keel::usize kc = 0; kc < k; ++kc) {
         keel::usize piv = kc;
-        double pmax = std::fabs(M[kc + kc * k]);
+        keel::f64 pmax = std::fabs(M[kc + kc * k]);
         for (keel::usize r = kc + 1; r < k; ++r) {
-            const double v = std::fabs(M[r + kc * k]);
+            const keel::f64 v = std::fabs(M[r + kc * k]);
             if (v > pmax) { pmax = v; piv = r; }
         }
         if (pmax == 0.0) {
-            keel::Array<double> nanVec(k, std::numeric_limits<double>::quiet_NaN(),
+            keel::Array<keel::f64> nanVec(k, std::numeric_limits<keel::f64>::quiet_NaN(),
                                        scratch_mr);
             return nanVec;
         }
@@ -440,37 +440,37 @@ keel::Array<double> fitPolyLS(const double *xidx, keel::usize n, const double *y
                 std::swap(M[kc + j * k], M[piv + j * k]);
             std::swap(b[kc], b[piv]);
         }
-        const double pivVal = M[kc + kc * k];
+        const keel::f64 pivVal = M[kc + kc * k];
         for (keel::usize r = kc + 1; r < k; ++r) {
-            const double f = M[r + kc * k] / pivVal;
+            const keel::f64 f = M[r + kc * k] / pivVal;
             for (keel::usize j = kc; j < k; ++j)
                 M[r + j * k] -= f * M[kc + j * k];
             b[r] -= f * b[kc];
         }
     }
-    keel::Array<double> a(k, 0.0, scratch_mr);
+    keel::Array<keel::f64> a(k, 0.0, scratch_mr);
     for (keel::usize kk = k; kk-- > 0;) {
-        double s = b[kk];
+        keel::f64 s = b[kk];
         for (keel::usize j = kk + 1; j < k; ++j) s -= M[kk + j * k] * a[j];
         a[kk] = s / M[kk + kk * k];
     }
     return a;
 }
 
-double evalPoly(const keel::Array<double> &a, double x)
+keel::f64 evalPoly(const keel::Array<keel::f64> &a, keel::f64 x)
 {
-    double r = 0.0;
-    for (double c : a) r = r * x + c;
+    keel::f64 r = 0.0;
+    for (keel::f64 c : a) r = r * x + c;
     return r;
 }
 
-[[maybe_unused]] void detrendColumn(const double *src, double *dst, keel::usize n, int order, keel::Allocator *scratch_mr)
+[[maybe_unused]] void detrendColumn(const keel::f64 *src, keel::f64 *dst, keel::usize n, int order, keel::Allocator *scratch_mr)
 {
     if (n == 0) return;
     if (order < 0) order = 1;
-    keel::Array<double> xidx(n, scratch_mr);
+    keel::Array<keel::f64> xidx(n, scratch_mr);
     for (keel::usize i = 0; i < n; ++i)
-        xidx[i] = keel::as<double>(i);
+        xidx[i] = keel::as<keel::f64>(i);
     auto coefs = fitPolyLS(xidx.data(), n, src, order, scratch_mr);
     for (keel::usize i = 0; i < n; ++i)
         dst[i] = src[i] - evalPoly(coefs, xidx[i]);
@@ -479,13 +479,13 @@ double evalPoly(const keel::Array<double> &a, double x)
 // Solve the k×k linear system (row-major G) G·c = rhs by Gaussian
 // elimination with partial pivoting; solution overwrites rhs. k is tiny
 // (the number of detrend basis columns). Returns false if singular.
-bool solveSmallDense(double *G, double *rhs, keel::usize k)
+bool solveSmallDense(keel::f64 *G, keel::f64 *rhs, keel::usize k)
 {
     for (keel::usize col = 0; col < k; ++col) {
         keel::usize piv = col;
-        double best = std::fabs(G[col * k + col]);
+        keel::f64 best = std::fabs(G[col * k + col]);
         for (keel::usize r = col + 1; r < k; ++r) {
-            const double v = std::fabs(G[r * k + col]);
+            const keel::f64 v = std::fabs(G[r * k + col]);
             if (v > best) { best = v; piv = r; }
         }
         if (best == 0.0) return false;
@@ -494,9 +494,9 @@ bool solveSmallDense(double *G, double *rhs, keel::usize k)
                 std::swap(G[col * k + j], G[piv * k + j]);
             std::swap(rhs[col], rhs[piv]);
         }
-        const double d = G[col * k + col];
+        const keel::f64 d = G[col * k + col];
         for (keel::usize r = col + 1; r < k; ++r) {
-            const double f = G[r * k + col] / d;
+            const keel::f64 f = G[r * k + col] / d;
             if (f == 0.0) continue;
             for (keel::usize j = col; j < k; ++j)
                 G[r * k + j] -= f * G[col * k + j];
@@ -504,7 +504,7 @@ bool solveSmallDense(double *G, double *rhs, keel::usize k)
         }
     }
     for (keel::usize i = k; i-- > 0;) {
-        double s = rhs[i];
+        keel::f64 s = rhs[i];
         for (keel::usize j = i + 1; j < k; ++j) s -= G[i * k + j] * rhs[j];
         rhs[i] = s / G[i * k + i];
     }
@@ -514,19 +514,19 @@ bool solveSmallDense(double *G, double *rhs, keel::usize k)
 // Detrend one length-N column against a prebuilt design matrix `a`
 // (column-major, N×k): subtract the least-squares fit a·(a\src).
 // Used by the piecewise-linear (breakpoint) detrend path.
-[[maybe_unused]] void detrendColumnBP(const double *a, keel::usize N, keel::usize k,
-                     const double *src, double *dst,
+[[maybe_unused]] void detrendColumnBP(const keel::f64 *a, keel::usize N, keel::usize k,
+                     const keel::f64 *src, keel::f64 *dst,
                      keel::Allocator *mr)
 {
     keel::ArenaTemp sc = keel::get_scratch(mr);
-    keel::Array<double> G(k * k, 0.0, sc.allocator()), rhs(k, 0.0, sc.allocator());
+    keel::Array<keel::f64> G(k * k, 0.0, sc.allocator()), rhs(k, 0.0, sc.allocator());
     for (keel::usize i = 0; i < k; ++i) {
         for (keel::usize j = 0; j < k; ++j) {
-            double s = 0.0;
+            keel::f64 s = 0.0;
             for (keel::usize r = 0; r < N; ++r) s += a[i * N + r] * a[j * N + r];
             G[i * k + j] = s;
         }
-        double s = 0.0;
+        keel::f64 s = 0.0;
         for (keel::usize r = 0; r < N; ++r) s += a[i * N + r] * src[r];
         rhs[i] = s;
     }
@@ -535,7 +535,7 @@ bool solveSmallDense(double *G, double *rhs, keel::usize k)
         return;
     }
     for (keel::usize r = 0; r < N; ++r) {
-        double fit = 0.0;
+        keel::f64 fit = 0.0;
         for (keel::usize i = 0; i < k; ++i) fit += a[i * N + r] * rhs[i];
         dst[r] = src[r] - fit;
     }
@@ -546,40 +546,40 @@ namespace {
 
 // Forward-declare the per-column fillmissing kernel (defined later in
 // this TU). We need it for the previous/next/nearest/linear fill paths.
-void fill_one_column(double *p, keel::usize len, keel::StringRef method,
-                     double constVal, const double *s = nullptr,
+void fill_one_column(keel::f64 *p, keel::usize len, keel::StringRef method,
+                     keel::f64 constVal, const keel::f64 *s = nullptr,
                      keel::Allocator *mr = nullptr);
 
 struct FoDetect {
     keel::Array<keel::u8> mask;  // 1 where outlier
-    double center, lo, hi;      // threshold center, L, U
+    keel::f64 center, lo, hi;      // threshold center, L, U
 };
 
-[[maybe_unused]] FoDetect detect_one_column(const double *x, keel::usize n,
-                           keel::StringRef method, double tf)
+[[maybe_unused]] FoDetect detect_one_column(const keel::f64 *x, keel::usize n,
+                           keel::StringRef method, keel::f64 tf)
 {
     FoDetect r;
     r.mask.assign(n, 0);
-    r.center = std::numeric_limits<double>::quiet_NaN();
-    r.lo = -std::numeric_limits<double>::infinity();
-    r.hi =  std::numeric_limits<double>::infinity();
+    r.center = std::numeric_limits<keel::f64>::quiet_NaN();
+    r.lo = -std::numeric_limits<keel::f64>::infinity();
+    r.hi =  std::numeric_limits<keel::f64>::infinity();
     if (n == 0) return r;
 
     if (method == "mean") {
-        double s = 0.0, ss = 0.0;
+        keel::f64 s = 0.0, ss = 0.0;
         keel::usize k = 0;
         for (keel::usize i = 0; i < n; ++i) {
             if (std::isnan(x[i])) continue;
             s += x[i]; ss += x[i]*x[i]; ++k;
         }
         if (k < 2) return r;
-        const double m = s / double(k);
-        const double v = (ss - double(k) * m * m) / double(k - 1);
-        const double sd = std::sqrt(std::max(0.0, v));
-        const double t = tf * sd;
+        const keel::f64 m = s / keel::f64(k);
+        const keel::f64 v = (ss - keel::f64(k) * m * m) / keel::f64(k - 1);
+        const keel::f64 sd = std::sqrt(std::max(0.0, v));
+        const keel::f64 t = tf * sd;
         r.center = m; r.lo = m - t; r.hi = m + t;
     } else if (method == "quartiles") {
-        keel::Array<double> buf;
+        keel::Array<keel::f64> buf;
         buf.reserve(n);
         for (keel::usize i = 0; i < n; ++i)
             if (!std::isnan(x[i])) buf.push_back(x[i]);
@@ -587,42 +587,42 @@ struct FoDetect {
         std::sort(buf.begin(), buf.end());
         // The reference engine uses the linear-interpolation 'lower'
         // definition for quartiles by default (R-default '7' percentile rule).
-        auto quant = [&](double p) {
-            const double h = (double(buf.size()) - 1.0) * p;
+        auto quant = [&](keel::f64 p) {
+            const keel::f64 h = (keel::f64(buf.size()) - 1.0) * p;
             const keel::usize f = keel::as<keel::usize>(std::floor(h));
-            const double frac = h - double(f);
+            const keel::f64 frac = h - keel::f64(f);
             const keel::usize g = std::min(f + 1, buf.size() - 1);
             return buf[f] + frac * (buf[g] - buf[f]);
         };
-        const double q1 = quant(0.25);
-        const double q3 = quant(0.75);
-        const double iqr = q3 - q1;
+        const keel::f64 q1 = quant(0.25);
+        const keel::f64 q3 = quant(0.75);
+        const keel::f64 iqr = q3 - q1;
         r.center = 0.5 * (q1 + q3);
         r.lo = q1 - tf * 0.5 * iqr;   // tf = 3 → 1.5·IQR (default tf=1.5)
         r.hi = q3 + tf * 0.5 * iqr;
     } else {  // "median" (default)
-        keel::Array<double> buf;
+        keel::Array<keel::f64> buf;
         buf.reserve(n);
         for (keel::usize i = 0; i < n; ++i)
             if (!std::isnan(x[i])) buf.push_back(x[i]);
         if (buf.empty()) return r;
         std::sort(buf.begin(), buf.end());
-        auto medOf = [](const keel::Array<double> &v) {
+        auto medOf = [](const keel::Array<keel::f64> &v) {
             const keel::usize k = v.size();
             return (k % 2 == 1) ? v[k / 2]
                                  : 0.5 * (v[k / 2 - 1] + v[k / 2]);
         };
-        const double med = medOf(buf);
-        keel::Array<double> dev;
+        const keel::f64 med = medOf(buf);
+        keel::Array<keel::f64> dev;
         dev.reserve(buf.size());
-        for (double v : buf) dev.push_back(std::fabs(v - med));
+        for (keel::f64 v : buf) dev.push_back(std::fabs(v - med));
         std::sort(dev.begin(), dev.end());
-        const double mad = medOf(dev);
+        const keel::f64 mad = medOf(dev);
         // Normal-consistency constant: 1/norminv(0.75)
         // = -1/(sqrt(2)*erfcinv(3/2)) ≈ 1.4826022185056.
-        constexpr double kMADc = 1.4826022185056;
-        const double scaled = mad * kMADc;
-        const double t = tf * scaled;
+        constexpr keel::f64 kMADc = 1.4826022185056;
+        const keel::f64 scaled = mad * kMADc;
+        const keel::f64 t = tf * scaled;
         r.center = med; r.lo = med - t; r.hi = med + t;
     }
     for (keel::usize i = 0; i < n; ++i)
@@ -638,17 +638,17 @@ struct FoDetect {
 //   * movmean   — center = local mean,   scale = local sample std (n-1).
 // The element is an outlier when |x_i - center| > tf * scale. NaNs are
 // never flagged. Returns the per-column mask (1 == outlier).
-[[maybe_unused]] keel::Array<keel::u8> detect_moving_column(const double *x, keel::usize n,
+[[maybe_unused]] keel::Array<keel::u8> detect_moving_column(const keel::f64 *x, keel::usize n,
                                           bool isMedian, long hb, long hf,
-                                          double tf)
+                                          keel::f64 tf)
 {
     keel::Array<keel::u8> mask(n, 0);
     if (n == 0) return mask;
-    auto medOf = [](const keel::Array<double> &v) {
+    auto medOf = [](const keel::Array<keel::f64> &v) {
         const keel::usize k = v.size();
         return (k % 2 == 1) ? v[k / 2] : 0.5 * (v[k / 2 - 1] + v[k / 2]);
     };
-    keel::Array<double> win;
+    keel::Array<keel::f64> win;
     win.reserve(hb + hf + 1);
     for (keel::usize i = 0; i < n; ++i) {
         if (std::isnan(x[i])) continue;
@@ -660,25 +660,25 @@ struct FoDetect {
             if (!std::isnan(x[keel::as<keel::usize>(j)]))
                 win.push_back(x[keel::as<keel::usize>(j)]);
         if (win.empty()) continue;
-        double center, scale;
+        keel::f64 center, scale;
         if (isMedian) {
-            keel::Array<double> w = win.clone();
+            keel::Array<keel::f64> w = win.clone();
             std::sort(w.begin(), w.end());
             center = medOf(w);
-            keel::Array<double> dev;
+            keel::Array<keel::f64> dev;
             dev.reserve(win.size());
-            for (double v : win) dev.push_back(std::fabs(v - center));
+            for (keel::f64 v : win) dev.push_back(std::fabs(v - center));
             std::sort(dev.begin(), dev.end());
             scale = 1.4826022185056 * medOf(dev);
         } else {
-            double s = 0.0;
-            for (double v : win) s += v;
-            const double m = s / double(win.size());
-            double ss = 0.0;
-            for (double v : win) ss += (v - m) * (v - m);
+            keel::f64 s = 0.0;
+            for (keel::f64 v : win) s += v;
+            const keel::f64 m = s / keel::f64(win.size());
+            keel::f64 ss = 0.0;
+            for (keel::f64 v : win) ss += (v - m) * (v - m);
             center = m;
             scale = (win.size() >= 2)
-                        ? std::sqrt(ss / double(win.size() - 1)) : 0.0;
+                        ? std::sqrt(ss / keel::f64(win.size() - 1)) : 0.0;
         }
         mask[i] = (std::fabs(x[i] - center) > tf * scale) ? 1 : 0;
     }
@@ -690,27 +690,27 @@ struct FoDetect {
 // outliers, using the prctile convention (sorted positions at
 // 100*(k-0.5)/n, clamped at the ends, linear interp). center = midpoint
 // of the two percentile bounds.
-[[maybe_unused]] FoDetect detect_percentile_column(const double *x, keel::usize n,
-                                  double loP, double hiP)
+[[maybe_unused]] FoDetect detect_percentile_column(const keel::f64 *x, keel::usize n,
+                                  keel::f64 loP, keel::f64 hiP)
 {
     FoDetect r;
     r.mask.assign(n, 0);
-    r.center = std::numeric_limits<double>::quiet_NaN();
-    r.lo = -std::numeric_limits<double>::infinity();
-    r.hi =  std::numeric_limits<double>::infinity();
+    r.center = std::numeric_limits<keel::f64>::quiet_NaN();
+    r.lo = -std::numeric_limits<keel::f64>::infinity();
+    r.hi =  std::numeric_limits<keel::f64>::infinity();
     if (n == 0) return r;
-    keel::Array<double> buf;
+    keel::Array<keel::f64> buf;
     buf.reserve(n);
     for (keel::usize i = 0; i < n; ++i)
         if (!std::isnan(x[i])) buf.push_back(x[i]);
     if (buf.empty()) return r;
     std::sort(buf.begin(), buf.end());
-    auto prc = [&](double p) {
-        const double q = p / 100.0 * double(buf.size()) - 0.5;
+    auto prc = [&](keel::f64 p) {
+        const keel::f64 q = p / 100.0 * keel::f64(buf.size()) - 0.5;
         if (q <= 0.0) return buf.front();
-        if (q >= double(buf.size() - 1)) return buf.back();
+        if (q >= keel::f64(buf.size() - 1)) return buf.back();
         const keel::usize f = keel::as<keel::usize>(std::floor(q));
-        const double fr = q - double(f);
+        const keel::f64 fr = q - keel::f64(f);
         return buf[f] + fr * (buf[f + 1] - buf[f]);
     };
     r.lo = prc(loP);
@@ -724,10 +724,10 @@ struct FoDetect {
 
 // Apply a per-column fill given the column data, outlier mask, and
 // detection thresholds. p is overwritten in place.
-[[maybe_unused]] void apply_fill(double *p, keel::usize n,
-                keel::ArrayRef<keel::u8> mask, double centerVal,
-                double lo, double hi, keel::StringRef fill,
-                double constVal, bool fill_is_constant)
+[[maybe_unused]] void apply_fill(keel::f64 *p, keel::usize n,
+                keel::ArrayRef<keel::u8> mask, keel::f64 centerVal,
+                keel::f64 lo, keel::f64 hi, keel::StringRef fill,
+                keel::f64 constVal, bool fill_is_constant)
 {
     if (n == 0) return;
     if (fill_is_constant) {
@@ -748,8 +748,8 @@ struct FoDetect {
     // For previous/next/nearest/linear, treat outliers as NaN, run
     // the fillmissing per-column path, then restore non-outlier
     // values unchanged.
-    keel::Array<double> work(keel::ArrayRef<double>(p, n));
-    for (keel::usize i = 0; i < n; ++i) if (mask[i]) work[i] = std::numeric_limits<double>::quiet_NaN();
+    keel::Array<keel::f64> work(keel::ArrayRef<keel::f64>(p, n));
+    for (keel::usize i = 0; i < n; ++i) if (mask[i]) work[i] = std::numeric_limits<keel::f64>::quiet_NaN();
     fill_one_column(work.data(), n, fill, 0.0);  // constVal unused
     for (keel::usize i = 0; i < n; ++i)
         if (mask[i]) p[i] = work[i];
@@ -760,14 +760,14 @@ namespace {
 
 // Fill a single column of length `len` (stride 1 in column-major
 // storage) according to the named method.
-void fill_one_column(double *p, keel::usize len, keel::StringRef method,
-                     double constVal, const double *s,
+void fill_one_column(keel::f64 *p, keel::usize len, keel::StringRef method,
+                     keel::f64 constVal, const keel::f64 *s,
                      keel::Allocator *mr)
 {
     if (len == 0) return;
     auto is_nan = [&](keel::usize i) { return std::isnan(p[i]); };
     auto s_at = [&](keel::usize i) {
-        return s ? s[i] : keel::as<double>(i + 1);
+        return s ? s[i] : keel::as<keel::f64>(i + 1);
     };
 
     if (method == "constant") {
@@ -776,7 +776,7 @@ void fill_one_column(double *p, keel::usize len, keel::StringRef method,
         return;
     }
     if (method == "previous") {
-        double last_good = std::numeric_limits<double>::quiet_NaN();
+        keel::f64 last_good = std::numeric_limits<keel::f64>::quiet_NaN();
         bool have = false;
         for (keel::usize i = 0; i < len; ++i) {
             if (!is_nan(i)) { last_good = p[i]; have = true; }
@@ -785,7 +785,7 @@ void fill_one_column(double *p, keel::usize len, keel::StringRef method,
         return;
     }
     if (method == "next") {
-        double next_good = std::numeric_limits<double>::quiet_NaN();
+        keel::f64 next_good = std::numeric_limits<keel::f64>::quiet_NaN();
         bool have = false;
         for (keel::usize ii = len; ii-- > 0;) {
             if (!is_nan(ii)) { next_good = p[ii]; have = true; }
@@ -833,9 +833,9 @@ void fill_one_column(double *p, keel::usize len, keel::StringRef method,
             const keel::usize a = good_idx[k];
             const keel::usize b = good_idx[k + 1];
             if (b == a + 1) continue;
-            const double va = p[a];
-            const double vb = p[b];
-            const double slope = (vb - va) / (s_at(b) - s_at(a));
+            const keel::f64 va = p[a];
+            const keel::f64 vb = p[b];
+            const keel::f64 slope = (vb - va) / (s_at(b) - s_at(a));
             for (keel::usize j = a + 1; j < b; ++j)
                 p[j] = va + slope * (s_at(j) - s_at(a));
         }
@@ -844,8 +844,8 @@ void fill_one_column(double *p, keel::usize len, keel::StringRef method,
         if (good_idx.front() > 0) {
             const keel::usize a = good_idx[0];
             const keel::usize b = good_idx[1];
-            const double va = p[a];
-            const double slope = (p[b] - va) / (s_at(b) - s_at(a));
+            const keel::f64 va = p[a];
+            const keel::f64 slope = (p[b] - va) / (s_at(b) - s_at(a));
             for (keel::usize i = 0; i < a; ++i)
                 p[i] = va - slope * (s_at(a) - s_at(i));
         }
@@ -853,8 +853,8 @@ void fill_one_column(double *p, keel::usize len, keel::StringRef method,
         if (good_idx.back() + 1 < len) {
             const keel::usize a = good_idx[G - 2];
             const keel::usize b = good_idx[G - 1];
-            const double vb = p[b];
-            const double slope = (vb - p[a]) / (s_at(b) - s_at(a));
+            const keel::f64 vb = p[b];
+            const keel::f64 slope = (vb - p[a]) / (s_at(b) - s_at(a));
             for (keel::usize i = b + 1; i < len; ++i)
                 p[i] = vb + slope * (s_at(i) - s_at(b));
         }
@@ -872,9 +872,9 @@ void fill_one_column(double *p, keel::usize len, keel::StringRef method,
         Value xg = Value::matrix(good_idx.size(), 1, ValueType::DOUBLE, mr);
         Value yg = Value::matrix(good_idx.size(), 1, ValueType::DOUBLE, mr);
         Value xq = Value::matrix(miss_idx.size(), 1, ValueType::DOUBLE, mr);
-        double *xgd = xg.doubleDataMut();
-        double *ygd = yg.doubleDataMut();
-        double *xqd = xq.doubleDataMut();
+        keel::f64 *xgd = xg.doubleDataMut();
+        keel::f64 *ygd = yg.doubleDataMut();
+        keel::f64 *xqd = xq.doubleDataMut();
         for (keel::usize k = 0; k < good_idx.size(); ++k) {
             xgd[k] = s_at(good_idx[k]);
             ygd[k] = p[good_idx[k]];
@@ -901,8 +901,8 @@ void fill_one_column(double *p, keel::usize len, keel::StringRef method,
 // own nature, which matches MATLAB R2025b).
 enum class FmEndMode { Extrap, None, Const, Nearest, PrevEnd, NextEnd };
 
-[[maybe_unused]] void apply_end_values_column(const double *orig, double *out, keel::usize len,
-                             FmEndMode mode, double endVal)
+[[maybe_unused]] void apply_end_values_column(const keel::f64 *orig, keel::f64 *out, keel::usize len,
+                             FmEndMode mode, keel::f64 endVal)
 {
     if (len == 0 || mode == FmEndMode::Extrap) return;
     keel::usize first = 0, last = 0;
@@ -916,26 +916,26 @@ enum class FmEndMode { Extrap, None, Const, Nearest, PrevEnd, NextEnd };
     auto set_end = [&](keel::usize i, bool leading) {
         switch (mode) {
         case FmEndMode::None:
-            out[i] = std::numeric_limits<double>::quiet_NaN();
+            out[i] = std::numeric_limits<keel::f64>::quiet_NaN();
             break;
         case FmEndMode::Const:
             out[i] = endVal;
             break;
         case FmEndMode::Nearest:
             out[i] = any ? ((i < first) ? orig[first] : orig[last])
-                         : std::numeric_limits<double>::quiet_NaN();
+                         : std::numeric_limits<keel::f64>::quiet_NaN();
             break;
         case FmEndMode::PrevEnd:
             // 'previous' can only supply the trailing edge.
-            out[i] = leading ? std::numeric_limits<double>::quiet_NaN()
+            out[i] = leading ? std::numeric_limits<keel::f64>::quiet_NaN()
                              : (any ? orig[last]
-                                    : std::numeric_limits<double>::quiet_NaN());
+                                    : std::numeric_limits<keel::f64>::quiet_NaN());
             break;
         case FmEndMode::NextEnd:
             // 'next' can only supply the leading edge.
             out[i] = leading ? (any ? orig[first]
-                                    : std::numeric_limits<double>::quiet_NaN())
-                             : std::numeric_limits<double>::quiet_NaN();
+                                    : std::numeric_limits<keel::f64>::quiet_NaN())
+                             : std::numeric_limits<keel::f64>::quiet_NaN();
             break;
         default:
             break;
@@ -966,7 +966,7 @@ enum class KsKernel { Normal, Box, Triangle, Epanechnikov };
     throw Error(keel::format("ksdensity: unknown Kernel '{}'", raw),
                 0, 0, "ksdensity", "", "numkit:ksdensity:kernel");
 }
-inline double ks_pdf(double u, KsKernel k) {
+inline keel::f64 ks_pdf(keel::f64 u, KsKernel k) {
     switch (k) {
         case KsKernel::Normal:
             return 0.3989422804014327 * std::exp(-0.5 * u * u);
@@ -988,7 +988,7 @@ inline double ks_pdf(double u, KsKernel k) {
 //   Box:    σ²=1/3   → factor sqrt(3) ≈ 1.7321
 //   Tri:    σ²=1/6   → factor sqrt(6) ≈ 2.4495
 //   Epan:   σ²=1/5   → factor sqrt(5) ≈ 2.2361
-inline double ks_h_factor(KsKernel k) {
+inline keel::f64 ks_h_factor(KsKernel k) {
     switch (k) {
         case KsKernel::Normal:       return 1.0;
         case KsKernel::Box:          return std::sqrt(3.0);
@@ -997,7 +997,7 @@ inline double ks_h_factor(KsKernel k) {
     }
     return 1.0;
 }
-inline double ks_cdf(double u, KsKernel k) {
+inline keel::f64 ks_cdf(keel::f64 u, KsKernel k) {
     switch (k) {
         case KsKernel::Normal:
             return 0.5 * (1.0 + std::erf(u / std::sqrt(2.0)));
@@ -1020,19 +1020,19 @@ inline double ks_cdf(double u, KsKernel k) {
 } // anonymous
 namespace {
 
-inline bool finite_double(double v) {
+inline bool finite_double(keel::f64 v) {
     return !std::isnan(v) && !std::isinf(v);
 }
 
 // Flatten + filter helper. `srcs` give pointer/numel pairs (already
 // linearised), `keep_mask[i]` indicates whether row i survives.
-[[maybe_unused]] Value pack_filtered(keel::ArrayRef<double> src, keel::ArrayRef<keel::u8> keep, keel::Allocator *mr)
+[[maybe_unused]] Value pack_filtered(keel::ArrayRef<keel::f64> src, keel::ArrayRef<keel::u8> keep, keel::Allocator *mr)
 {
     keel::usize kept = 0;
     for (keel::u8 k : keep) if (k) ++kept;
     Value out = Value::matrix(kept, 1, ValueType::DOUBLE, mr);
     if (kept == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     keel::usize j = 0;
     for (keel::usize i = 0; i < src.size(); ++i)
         if (keep[i]) od[j++] = src[i];

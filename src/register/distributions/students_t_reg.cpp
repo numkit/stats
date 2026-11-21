@@ -58,24 +58,24 @@ void tcdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArra
             v = dist_empty_like(nx == 0 ? x : nu, mr);
         } else {
             const keel::usize N = dist_match_numel({nx, nnu}, "tcdf");
-            Value z = broadcast_dist2(x, nu, mr, "tcdf", [](double xi, double nui) -> double {
-                if (!(nui > 0.0)) return std::numeric_limits<double>::quiet_NaN();
+            Value z = broadcast_dist2(x, nu, mr, "tcdf", [](keel::f64 xi, keel::f64 nui) -> keel::f64 {
+                if (!(nui > 0.0)) return std::numeric_limits<keel::f64>::quiet_NaN();
                 if (std::isinf(nui)) return 1.0;   // placeholder (overridden below)
                 return nui / (nui + xi * xi);
             });
-            Value hnu = elementwise(nu, [](double ni) { return std::isinf(ni) ? 1.0 : 0.5 * ni; }, mr);
+            Value hnu = elementwise(nu, [](keel::f64 ni) { return std::isinf(ni) ? 1.0 : 0.5 * ni; }, mr);
             Value Iz = ::numkit::builtin::betainc(z, hnu, Value::scalar(0.5, mr), mr);
             const Value &ref = (nnu == N) ? nu : x;
             v = dist_empty_like(ref, mr);
-            double *od = v.doubleDataMut();
+            keel::f64 *od = v.doubleDataMut();
             const keel::usize nIz = Iz.numel();
-            const double NaN = std::numeric_limits<double>::quiet_NaN();
+            const keel::f64 NaN = std::numeric_limits<keel::f64>::quiet_NaN();
             for (keel::usize i = 0; i < N; ++i) {
-                const double nui = nu.elemAsDouble(nnu == 1 ? 0 : i);
-                const double xi = x.elemAsDouble(nx == 1 ? 0 : i);
+                const keel::f64 nui = nu.elemAsDouble(nnu == 1 ? 0 : i);
+                const keel::f64 xi = x.elemAsDouble(nx == 1 ? 0 : i);
                 if (!(nui > 0.0)) { od[i] = NaN; continue; }
                 if (std::isinf(nui)) { od[i] = tNormCdf(xi); continue; }
-                const double Ii = Iz.elemAsDouble(nIz == 1 ? 0 : i);
+                const keel::f64 Ii = Iz.elemAsDouble(nIz == 1 ? 0 : i);
                 od[i] = (xi >= 0.0) ? 1.0 - 0.5 * Ii : 0.5 * Ii;
             }
         }
@@ -102,28 +102,28 @@ void tinv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArra
         return;
     }
     const keel::usize N = dist_match_numel({np, nnu}, "tinv");
-    Value qv = elementwise(p, [](double pi) {
+    Value qv = elementwise(p, [](keel::f64 pi) {
         if (std::isnan(pi) || pi < 0.0 || pi > 1.0) return 0.5;
         return (pi >= 0.5) ? 2.0 * (1.0 - pi) : 2.0 * pi;
     }, mr);
-    Value hnu = elementwise(nu, [](double ni) { return std::isinf(ni) ? 1.0 : 0.5 * ni; }, mr);
+    Value hnu = elementwise(nu, [](keel::f64 ni) { return std::isinf(ni) ? 1.0 : 0.5 * ni; }, mr);
     Value zv = ::numkit::builtin::betaincinv(qv, hnu, Value::scalar(0.5, mr), mr);
     const Value &ref = (nnu == N) ? nu : p;
     Value out = dist_empty_like(ref, mr);
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     const keel::usize nzv = zv.numel();
-    const double NaN = std::numeric_limits<double>::quiet_NaN();
-    const double PINF = std::numeric_limits<double>::infinity();
+    const keel::f64 NaN = std::numeric_limits<keel::f64>::quiet_NaN();
+    const keel::f64 PINF = std::numeric_limits<keel::f64>::infinity();
     for (keel::usize i = 0; i < N; ++i) {
-        const double pi = p.elemAsDouble(np == 1 ? 0 : i);
-        const double nui = nu.elemAsDouble(nnu == 1 ? 0 : i);
+        const keel::f64 pi = p.elemAsDouble(np == 1 ? 0 : i);
+        const keel::f64 nui = nu.elemAsDouble(nnu == 1 ? 0 : i);
         if (!(nui > 0.0) || std::isnan(pi) || pi < 0.0 || pi > 1.0) { od[i] = NaN; continue; }
         if (pi == 0.0) { od[i] = -PINF; continue; }
         if (pi == 1.0) { od[i] = PINF; continue; }
         if (std::isinf(nui)) { od[i] = tNormInv(pi); continue; }
-        const double zi = zv.elemAsDouble(nzv == 1 ? 0 : i);
+        const keel::f64 zi = zv.elemAsDouble(nzv == 1 ? 0 : i);
         if (zi <= 0.0) { od[i] = (pi >= 0.5) ? PINF : -PINF; continue; }
-        const double mag = std::sqrt(nui * (1.0 / zi - 1.0));
+        const keel::f64 mag = std::sqrt(nui * (1.0 / zi - 1.0));
         od[i] = (pi >= 0.5) ? mag : -mag;
     }
     outs[0] = std::move(out);
@@ -132,7 +132,7 @@ void tinv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArra
 void trnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "trnd");  // no max: trailing size args (N-D tail; nk caps at two — bugs/opened/stats/rnd-nd-size-tails.md)
-    const double nu = args[0].toScalar();
+    const keel::f64 nu = args[0].toScalar();
     keel::usize rows, cols;
     parse_rng_size(args, 1, rows, cols, "trnd");
     outs[0] = reshape_rng_nd(trnd(ctx.engine->rng(), nu, rows, cols, ctx.engine->allocator()), args, 1, ctx.engine->allocator(), "trnd");
@@ -142,7 +142,7 @@ void tstat_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRe
 {
     argcheck::checkNargin(args.size(), 1, 1, "tstat");
     emit_vec_stat_1arg(args, nargout, outs, ctx.engine->allocator(), "tstat",
-                       [](double nu) { return tstat(nu); });
+                       [](keel::f64 nu) { return tstat(nu); });
 }
 
 void nctpdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
@@ -183,8 +183,8 @@ void nctstat_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArray
 void nctrnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "nctrnd");  // no max: trailing size args (N-D tail; nk caps at two — bugs/opened/stats/rnd-nd-size-tails.md)
-    const double nu = args[0].toScalar();
-    const double delta = args[1].toScalar();
+    const keel::f64 nu = args[0].toScalar();
+    const keel::f64 delta = args[1].toScalar();
     keel::usize rows, cols;
     parse_rng_size(args, 2, rows, cols, "nctrnd");
     outs[0] = reshape_rng_nd(nctrnd(ctx.engine->rng(), nu, delta, rows, cols, ctx.engine->allocator()), args, 2, ctx.engine->allocator(), "nctrnd");

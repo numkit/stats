@@ -27,13 +27,13 @@ namespace {
 
 // In-place Gaussian elimination + back-sub of (M · x = b), where M is
 // p×p row-major. Returns false if singular (caller sets coef to 0).
-bool solveGauss(double *M, double *b, keel::usize p)
+bool solveGauss(keel::f64 *M, keel::f64 *b, keel::usize p)
 {
     for (keel::usize k = 0; k < p; ++k) {
         keel::usize piv = k;
-        double pmax = std::fabs(M[k * p + k]);
+        keel::f64 pmax = std::fabs(M[k * p + k]);
         for (keel::usize r = k + 1; r < p; ++r) {
-            const double v = std::fabs(M[r * p + k]);
+            const keel::f64 v = std::fabs(M[r * p + k]);
             if (v > pmax) { pmax = v; piv = r; }
         }
         if (pmax == 0.0) return false;
@@ -42,9 +42,9 @@ bool solveGauss(double *M, double *b, keel::usize p)
                 std::swap(M[k * p + j], M[piv * p + j]);
             std::swap(b[k], b[piv]);
         }
-        const double pivVal = M[k * p + k];
+        const keel::f64 pivVal = M[k * p + k];
         for (keel::usize r = k + 1; r < p; ++r) {
-            const double f = M[r * p + k] / pivVal;
+            const keel::f64 f = M[r * p + k] / pivVal;
             for (keel::usize j = k; j < p; ++j)
                 M[r * p + j] -= f * M[k * p + j];
             b[r] -= f * b[k];
@@ -52,7 +52,7 @@ bool solveGauss(double *M, double *b, keel::usize p)
     }
     // Back-substitute.
     for (keel::usize k = p; k-- > 0;) {
-        double s = b[k];
+        keel::f64 s = b[k];
         for (keel::usize j = k + 1; j < p; ++j)
             s -= M[k * p + j] * b[j];
         b[k] = s / M[k * p + k];
@@ -65,37 +65,37 @@ bool solveGauss(double *M, double *b, keel::usize p)
 // (n elements) into `out`. Uses normal equations + Gauss elim.
 //
 // `MM` is `C' · C` (p × p) — caller computes once and reuses.
-void residualiseColumn(const double *C, keel::usize n, keel::usize p,
-                       const double *MM,
-                       const double *Wcol,
-                       double *out,
+void residualiseColumn(const keel::f64 *C, keel::usize n, keel::usize p,
+                       const keel::f64 *MM,
+                       const keel::f64 *Wcol,
+                       keel::f64 *out,
                        keel::Allocator *mr)
 {
     keel::ArenaTemp scratch = keel::get_scratch(mr);
     // RHS b = C' · Wcol  (length p).
-    keel::Array<double> b(p, 0.0, scratch.allocator());
+    keel::Array<keel::f64> b(p, 0.0, scratch.allocator());
     for (keel::usize i = 0; i < p; ++i)
         for (keel::usize k = 0; k < n; ++k)
             b[i] += C[i * n + k] * Wcol[k];
     // Solve (M · coef = b).
-    keel::Array<double> Mcopy(keel::ArrayRef<double>(MM, p * p), scratch.allocator());
+    keel::Array<keel::f64> Mcopy(keel::ArrayRef<keel::f64>(MM, p * p), scratch.allocator());
     if (!solveGauss(Mcopy.data(), b.data(), p)) {
         std::fill(b.begin(), b.end(), 0.0);
     }
     // Residual = Wcol - C · coef.
     for (keel::usize k = 0; k < n; ++k) {
-        double pred = 0.0;
+        keel::f64 pred = 0.0;
         for (keel::usize i = 0; i < p; ++i)
             pred += C[i * n + k] * b[i];
         out[k] = Wcol[k] - pred;
     }
 }
 
-double pearsonOfCentered(const double *a, const double *b, keel::usize n)
+keel::f64 pearsonOfCentered(const keel::f64 *a, const keel::f64 *b, keel::usize n)
 {
     // Both inputs are already residuals (mean ≈ 0). Compute
     // sum(a·b) / sqrt(sum(a²) · sum(b²)).
-    double sab = 0.0, saa = 0.0, sbb = 0.0;
+    keel::f64 sab = 0.0, saa = 0.0, sbb = 0.0;
     for (keel::usize k = 0; k < n; ++k) {
         sab += a[k] * b[k];
         saa += a[k] * a[k];
@@ -152,12 +152,12 @@ Value partialcorri(const Value &Y, const Value &X, const Value &Z,
     const bool hasZ = !Z.isEmpty();
     const keel::usize pZ = hasZ ? keel::as<keel::usize>(Z.dims().dim(1)) : 0;
 
-    const double *Xd = X.doubleData();
-    const double *Yd = Y.doubleData();
-    const double *Zd = hasZ ? Z.doubleData() : nullptr;
+    const keel::f64 *Xd = X.doubleData();
+    const keel::f64 *Yd = Y.doubleData();
+    const keel::f64 *Zd = hasZ ? Z.doubleData() : nullptr;
 
     auto Rout = Value::matrix(pY, pX, ValueType::DOUBLE, mr);
-    double *R = Rout.doubleDataMut();
+    keel::f64 *R = Rout.doubleDataMut();
 
     keel::ArenaTemp scratch = keel::get_scratch(mr);
 
@@ -165,10 +165,10 @@ Value partialcorri(const Value &Y, const Value &X, const Value &Z,
     // pCtrl = 1 + (pX - 1) + pZ. We rebuild `C` from scratch for each
     // j — pX is typically small (≤ 20) and this keeps the code simple.
     const keel::usize pCtrl = 1u + (pX > 0 ? pX - 1u : 0u) + pZ;
-    keel::Array<double> C(n * pCtrl, 0.0, scratch.allocator());
-    keel::Array<double> MM(pCtrl * pCtrl, 0.0, scratch.allocator());
-    keel::Array<double> y_res(n, 0.0, scratch.allocator());
-    keel::Array<double> x_res(n, 0.0, scratch.allocator());
+    keel::Array<keel::f64> C(n * pCtrl, 0.0, scratch.allocator());
+    keel::Array<keel::f64> MM(pCtrl * pCtrl, 0.0, scratch.allocator());
+    keel::Array<keel::f64> y_res(n, 0.0, scratch.allocator());
+    keel::Array<keel::f64> x_res(n, 0.0, scratch.allocator());
 
     for (keel::usize j = 0; j < pX; ++j) {
         // Build C column-major.
@@ -194,7 +194,7 @@ Value partialcorri(const Value &Y, const Value &X, const Value &Z,
         std::fill(MM.begin(), MM.end(), 0.0);
         for (keel::usize a = 0; a < pCtrl; ++a)
             for (keel::usize b = 0; b < pCtrl; ++b) {
-                double s = 0.0;
+                keel::f64 s = 0.0;
                 for (keel::usize k = 0; k < n; ++k)
                     s += C[a * n + k] * C[b * n + k];
                 MM[a * pCtrl + b] = s;
@@ -238,21 +238,21 @@ CanoncorrResult canoncorr(const Value &X, const Value &Y,
     auto Xc = Value::matrix(n, p, ValueType::DOUBLE, mr);
     auto Yc = Value::matrix(n, q, ValueType::DOUBLE, mr);
     {
-        const double *Xd = X.doubleData();
-        double *Xcd = Xc.doubleDataMut();
+        const keel::f64 *Xd = X.doubleData();
+        keel::f64 *Xcd = Xc.doubleDataMut();
         for (keel::usize j = 0; j < p; ++j) {
-            double m = 0.0;
+            keel::f64 m = 0.0;
             for (keel::usize i = 0; i < n; ++i) m += Xd[j * n + i];
-            m /= keel::as<double>(n);
+            m /= keel::as<keel::f64>(n);
             for (keel::usize i = 0; i < n; ++i)
                 Xcd[j * n + i] = Xd[j * n + i] - m;
         }
-        const double *Yd = Y.doubleData();
-        double *Ycd = Yc.doubleDataMut();
+        const keel::f64 *Yd = Y.doubleData();
+        keel::f64 *Ycd = Yc.doubleDataMut();
         for (keel::usize j = 0; j < q; ++j) {
-            double m = 0.0;
+            keel::f64 m = 0.0;
             for (keel::usize i = 0; i < n; ++i) m += Yd[j * n + i];
-            m /= keel::as<double>(n);
+            m /= keel::as<keel::f64>(n);
             for (keel::usize i = 0; i < n; ++i)
                 Ycd[j * n + i] = Yd[j * n + i] - m;
         }
@@ -272,8 +272,8 @@ CanoncorrResult canoncorr(const Value &X, const Value &Y,
     auto sliceCols = [&](const Value &Q, keel::usize cols) {
         const keel::usize rows = Q.dims().rows();
         auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
-        double *od = out.doubleDataMut();
-        const double *qd = Q.doubleData();
+        keel::f64 *od = out.doubleDataMut();
+        const keel::f64 *qd = Q.doubleData();
         for (keel::usize j = 0; j < cols; ++j)
             for (keel::usize i = 0; i < rows; ++i)
                 od[j * rows + i] = qd[j * rows + i];
@@ -285,12 +285,12 @@ CanoncorrResult canoncorr(const Value &X, const Value &Y,
     // M = QX1' · QY1, size p × q.
     auto M = Value::matrix(p, q, ValueType::DOUBLE, mr);
     {
-        double *Md = M.doubleDataMut();
-        const double *qxd = QX1.doubleData();
-        const double *qyd = QY1.doubleData();
+        keel::f64 *Md = M.doubleDataMut();
+        const keel::f64 *qxd = QX1.doubleData();
+        const keel::f64 *qyd = QY1.doubleData();
         for (keel::usize a = 0; a < p; ++a)
             for (keel::usize b = 0; b < q; ++b) {
-                double s = 0.0;
+                keel::f64 s = 0.0;
                 for (keel::usize i = 0; i < n; ++i)
                     s += qxd[a * n + i] * qyd[b * n + i];
                 Md[b * p + a] = s;
@@ -305,15 +305,15 @@ CanoncorrResult canoncorr(const Value &X, const Value &Y,
     // RX1 is upper-triangular → back-sub.
     auto solveR = [&](const Value &R, const Value &RHS, keel::usize cols, keel::usize dim) {
         auto Out = Value::matrix(dim, cols, ValueType::DOUBLE, mr);
-        const double *Rd = R.doubleData();
-        const double *Bd = RHS.doubleData();
-        double *Od = Out.doubleDataMut();
+        const keel::f64 *Rd = R.doubleData();
+        const keel::f64 *Bd = RHS.doubleData();
+        keel::f64 *Od = Out.doubleDataMut();
         for (keel::usize col = 0; col < cols; ++col) {
             for (keel::usize i = dim; i-- > 0;) {
-                double s = Bd[col * dim + i];   // B is dim × cols when sliced
+                keel::f64 s = Bd[col * dim + i];   // B is dim × cols when sliced
                 for (keel::usize j = i + 1; j < dim; ++j)
                     s -= Rd[j * R.dims().rows() + i] * Od[col * dim + j];
-                const double diag = Rd[i * R.dims().rows() + i];
+                const keel::f64 diag = Rd[i * R.dims().rows() + i];
                 Od[col * dim + i] = (std::fabs(diag) > 0.0) ? s / diag : 0.0;
             }
         }
@@ -329,12 +329,12 @@ CanoncorrResult canoncorr(const Value &X, const Value &Y,
     // from svd_decompose; the singular values live on its main diagonal.
     auto r = Value::matrix(k, 1, ValueType::DOUBLE, mr);
     {
-        double *rd = r.doubleDataMut();
-        const double *Sd = S.doubleData();
+        keel::f64 *rd = r.doubleDataMut();
+        const keel::f64 *Sd = S.doubleData();
         const keel::usize Sr = S.dims().rows();
         for (keel::usize i = 0; i < k; ++i) {
             // Clamp to [0, 1] — FP drift can push it slightly outside.
-            const double si = Sd[i * Sr + i];
+            const keel::f64 si = Sd[i * Sr + i];
             rd[i] = std::min(1.0, std::max(0.0, si));
         }
     }

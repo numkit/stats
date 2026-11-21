@@ -57,9 +57,9 @@ void gprnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
                keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 3, "gprnd");  // no max: trailing size args (N-D tail; nk caps at two — bugs/opened/stats/rnd-nd-size-tails.md)
-    const double k     = args[0].toScalar();
-    const double sigma = args[1].toScalar();
-    const double theta = args[2].toScalar();
+    const keel::f64 k     = args[0].toScalar();
+    const keel::f64 sigma = args[1].toScalar();
+    const keel::f64 theta = args[2].toScalar();
     keel::usize rows = 1, cols = 1;
     parse_rng_size(args, 3, rows, cols, "gprnd");
     outs[0] = reshape_rng_nd(gprnd(ctx.engine->rng(), k, sigma, theta, rows, cols, ctx.engine->allocator()), args, 3, ctx.engine->allocator(), "gprnd");
@@ -70,7 +70,7 @@ void gpstat_reg(keel::ArrayRef<Value> args, keel::usize nargout,
 {
     argcheck::checkNargin(args.size(), 2, 3, "gpstat");
     emit_vec_stat_3arg(args, nargout, outs, ctx.engine->allocator(), "gpstat",
-                       [](double k, double sigma, double theta) {
+                       [](keel::f64 k, keel::f64 sigma, keel::f64 theta) {
                            return gpstat(k, sigma, theta);
                        });
 }

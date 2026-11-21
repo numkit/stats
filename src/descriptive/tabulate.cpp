@@ -102,9 +102,9 @@ Value tabulate(const Value &x, keel::Allocator *mr)
         Value T = Value::cell(K, 3, mr);
         for (keel::usize k = 0; k < K; ++k) {
             T.cellAt(k)         = Value::fromString(uniq[k], mr);
-            T.cellAt(k + K)     = Value::scalar(keel::as<double>(cnt[k]), mr);
-            T.cellAt(k + 2 * K) = Value::scalar(keel::as<double>(cnt[k]) * 100.0
-                                                / keel::as<double>(N), mr);
+            T.cellAt(k + K)     = Value::scalar(keel::as<keel::f64>(cnt[k]), mr);
+            T.cellAt(k + 2 * K) = Value::scalar(keel::as<keel::f64>(cnt[k]) * 100.0
+                                                / keel::as<keel::f64>(N), mr);
         }
         return T;
     }
@@ -114,12 +114,12 @@ Value tabulate(const Value &x, keel::Allocator *mr)
         return Value::matrix(0, 1, ValueType::DOUBLE, mr);
 
     // Collect non-NaN values; check positive-integer property.
-    keel::Array<double> v;
+    keel::Array<keel::f64> v;
     v.reserve(N0);
     bool all_pos_int = true;
-    double max_val = 0.0;
+    keel::f64 max_val = 0.0;
     for (keel::usize i = 0; i < N0; ++i) {
-        const double xi = x.elemAsDouble(i);
+        const keel::f64 xi = x.elemAsDouble(i);
         if (std::isnan(xi)) continue;
         if (xi <= 0.0 || std::floor(xi) != xi)
             all_pos_int = false;
@@ -134,21 +134,21 @@ Value tabulate(const Value &x, keel::Allocator *mr)
     if (all_pos_int) {
         const keel::usize K = keel::as<keel::usize>(max_val);
         keel::Array<keel::usize> count(K, 0);
-        for (double xi : v) {
+        for (keel::f64 xi : v) {
             count[keel::as<keel::usize>(xi) - 1]++;
         }
         Value T = Value::matrix(K, 3, ValueType::DOUBLE, mr);
-        double *o = T.doubleDataMut();
+        keel::f64 *o = T.doubleDataMut();
         for (keel::usize k = 0; k < K; ++k) {
-            o[k]            = keel::as<double>(k + 1);   // value
-            o[k + K]        = keel::as<double>(count[k]); // count
+            o[k]            = keel::as<keel::f64>(k + 1);   // value
+            o[k + K]        = keel::as<keel::f64>(count[k]); // count
             // count * (100/N) precomputed reciprocal is 1 ulp off MATLAB's
             // count*100/N; arithmetic-coding-style loops amplify that ulp
             // into 1e-7 output divergence (bugs/closed/math/
             // numeric-divergence-chap10-7.md) — multiply-then-divide, no
             // hoisted reciprocal.
-            o[k + 2 * K]    = keel::as<double>(count[k]) * 100.0
-                              / keel::as<double>(N);
+            o[k + 2 * K]    = keel::as<keel::f64>(count[k]) * 100.0
+                              / keel::as<keel::f64>(N);
         }
         return T;
     }
@@ -156,7 +156,7 @@ Value tabulate(const Value &x, keel::Allocator *mr)
     // Sparse layout: unique sorted values.
     std::sort(v.begin(), v.end());
     // Build unique list with counts.
-    keel::Array<double>  uniq;
+    keel::Array<keel::f64>  uniq;
     keel::Array<keel::usize>  cnt;
     uniq.reserve(N);
     cnt.reserve(N);
@@ -170,12 +170,12 @@ Value tabulate(const Value &x, keel::Allocator *mr)
     }
     const keel::usize K = uniq.size();
     Value T = Value::matrix(K, 3, ValueType::DOUBLE, mr);
-    double *o = T.doubleDataMut();
+    keel::f64 *o = T.doubleDataMut();
     for (keel::usize k = 0; k < K; ++k) {
         o[k]            = uniq[k];
-        o[k + K]        = keel::as<double>(cnt[k]);
-        o[k + 2 * K]    = keel::as<double>(cnt[k]) * 100.0
-                          / keel::as<double>(N);
+        o[k + K]        = keel::as<keel::f64>(cnt[k]);
+        o[k + 2 * K]    = keel::as<keel::f64>(cnt[k]) * 100.0
+                          / keel::as<keel::f64>(N);
     }
     return T;
 }

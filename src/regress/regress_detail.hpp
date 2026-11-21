@@ -29,17 +29,17 @@ namespace {
 
 // Cholesky factor of d×d symmetric PSD matrix M (column-major)
 // into L (lower-triangular, column-major). Returns true on success.
-[[maybe_unused]] bool cholesky(const double *M, double *L, keel::usize d)
+[[maybe_unused]] bool cholesky(const keel::f64 *M, keel::f64 *L, keel::usize d)
 {
     for (keel::usize i = 0; i < d * d; ++i) L[i] = 0.0;
     for (keel::usize j = 0; j < d; ++j) {
-        double s = M[j + j * d];
+        keel::f64 s = M[j + j * d];
         for (keel::usize k = 0; k < j; ++k) s -= L[j + k * d] * L[j + k * d];
         if (s <= 0.0) return false;
-        const double Ljj = std::sqrt(s);
+        const keel::f64 Ljj = std::sqrt(s);
         L[j + j * d] = Ljj;
         for (keel::usize i = j + 1; i < d; ++i) {
-            double t = M[i + j * d];
+            keel::f64 t = M[i + j * d];
             for (keel::usize k = 0; k < j; ++k) t -= L[i + k * d] * L[j + k * d];
             L[i + j * d] = t / Ljj;
         }
@@ -48,20 +48,20 @@ namespace {
 }
 
 // Solve L · z = b (forward substitution).
-[[maybe_unused]] void fwd_solve(const double *L, double *z, const double *b, keel::usize d)
+[[maybe_unused]] void fwd_solve(const keel::f64 *L, keel::f64 *z, const keel::f64 *b, keel::usize d)
 {
     for (keel::usize i = 0; i < d; ++i) {
-        double s = b[i];
+        keel::f64 s = b[i];
         for (keel::usize k = 0; k < i; ++k) s -= L[i + k * d] * z[k];
         z[i] = s / L[i + i * d];
     }
 }
 
 // Solve L^T · x = z (backward substitution).
-[[maybe_unused]] void back_solve(const double *L, double *x, const double *z, keel::usize d)
+[[maybe_unused]] void back_solve(const keel::f64 *L, keel::f64 *x, const keel::f64 *z, keel::usize d)
 {
     for (keel::usize i = d; i-- > 0;) {
-        double s = z[i];
+        keel::f64 s = z[i];
         for (keel::usize k = i + 1; k < d; ++k) s -= L[k + i * d] * x[k];
         x[i] = s / L[i + i * d];
     }
@@ -72,7 +72,7 @@ namespace {
 // regress_full: full regress() worker -> [b, bint, r, rint, stats]. Def in
 // regress.cpp (external).
 std::tuple<Value, Value, Value, Value, Value>
-regress_full(const Value &y, const Value &X, double alpha,
+regress_full(const Value &y, const Value &X, keel::f64 alpha,
              keel::Allocator *mr);
 
 } // namespace numkit::stats

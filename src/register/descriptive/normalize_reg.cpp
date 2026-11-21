@@ -56,9 +56,9 @@ void rescale_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
                  keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "rescale");  // no max: name-value tail in the reference
-    double lo = 0.0, hi = 1.0;
-    double inputMin = std::numeric_limits<double>::quiet_NaN();
-    double inputMax = std::numeric_limits<double>::quiet_NaN();
+    keel::f64 lo = 0.0, hi = 1.0;
+    keel::f64 inputMin = std::numeric_limits<keel::f64>::quiet_NaN();
+    keel::f64 inputMax = std::numeric_limits<keel::f64>::quiet_NaN();
 
     // Positional lo/hi come first (only when arg[1] is not a NV-name).
     keel::usize i = 1;
@@ -93,7 +93,7 @@ void zscore_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     int flag = 0, dim = 0;
     keel::Array<int> vecdimSet;
     if (args.size() >= 2 && !args[1].isEmpty()) {
-        const double fv = argcheck::expectedReal(args[1], 2, "flag", "zscore");
+        const keel::f64 fv = argcheck::expectedReal(args[1], 2, "flag", "zscore");
         argcheck::expectedFlag01(fv, 2, "flag", "zscore");
         flag = keel::as<int>(fv);
     }

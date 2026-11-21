@@ -39,15 +39,15 @@ namespace {
 
 // Rank one column-vector worth of values.
 // Output: ranks vector (length N, NaN for NaN inputs); tieadj scalar.
-double rankOneColumn(const double *col, keel::usize N, double *ranks)
+keel::f64 rankOneColumn(const keel::f64 *col, keel::usize N, keel::f64 *ranks)
 {
     // Build (value, original_index) pairs for non-NaN entries; NaN
     // gets NaN in the rank output and skipped in sorting.
-    keel::Array<std::pair<double, keel::usize>> nz;
+    keel::Array<std::pair<keel::f64, keel::usize>> nz;
     nz.reserve(N);
     for (keel::usize i = 0; i < N; ++i) {
         if (std::isnan(col[i])) {
-            ranks[i] = std::numeric_limits<double>::quiet_NaN();
+            ranks[i] = std::numeric_limits<keel::f64>::quiet_NaN();
         } else {
             nz.emplace_back(col[i], i);
         }
@@ -59,7 +59,7 @@ double rankOneColumn(const double *col, keel::usize N, double *ranks)
                          return a.first < b.first;
                      });
 
-    double tieadj = 0.0;
+    keel::f64 tieadj = 0.0;
     const keel::usize M = nz.size();
     keel::usize i = 0;
     while (i < M) {
@@ -67,14 +67,14 @@ double rankOneColumn(const double *col, keel::usize N, double *ranks)
         while (j < M && nz[j].first == nz[i].first) ++j;
         const keel::usize group_len = j - i;
         // Average rank for positions i..j-1 (1-based ranks).
-        const double avg_rank = (keel::as<double>(i + 1)
-                                + keel::as<double>(j))
+        const keel::f64 avg_rank = (keel::as<keel::f64>(i + 1)
+                                + keel::as<keel::f64>(j))
                               * 0.5;
         for (keel::usize k = i; k < j; ++k) {
             ranks[nz[k].second] = avg_rank;
         }
         if (group_len > 1) {
-            const double t = keel::as<double>(group_len);
+            const keel::f64 t = keel::as<keel::f64>(group_len);
             tieadj += (t * t * t - t) * 0.5;
         }
         i = j;
@@ -107,9 +107,9 @@ tiedrank(const Value &x, keel::Allocator *mr)
         const keel::usize N = x.numel();
         // Output ranks: same shape as x.
         Value r = Value::matrix(R, C, ValueType::DOUBLE, mr);
-        keel::Array<double> col(N);
+        keel::Array<keel::f64> col(N);
         for (keel::usize i = 0; i < N; ++i) col[i] = x.elemAsDouble(i);
-        const double tieadj = rankOneColumn(col.data(), N,
+        const keel::f64 tieadj = rankOneColumn(col.data(), N,
                                             r.doubleDataMut());
         Value ta = Value::scalar(tieadj, mr);
         return {std::move(r), std::move(ta)};
@@ -118,9 +118,9 @@ tiedrank(const Value &x, keel::Allocator *mr)
     // Matrix: column-wise, tieadj is 1-by-C row.
     Value r  = Value::matrix(R, C, ValueType::DOUBLE, mr);
     Value ta = Value::matrix(1, C, ValueType::DOUBLE, mr);
-    double *ro = r.doubleDataMut();
-    double *to = ta.doubleDataMut();
-    keel::Array<double> col(R);
+    keel::f64 *ro = r.doubleDataMut();
+    keel::f64 *to = ta.doubleDataMut();
+    keel::Array<keel::f64> col(R);
     for (keel::usize c = 0; c < C; ++c) {
         for (keel::usize i = 0; i < R; ++i)
             col[i] = x.elemAsDouble(c * R + i);

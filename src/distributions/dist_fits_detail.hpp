@@ -32,15 +32,15 @@ namespace numkit::stats {
 namespace {
 
 // Local digamma ψ(x) via Bernoulli asymptotic + recurrence to x ≥ 6.
-[[maybe_unused]] double digamma(double x)
+[[maybe_unused]] keel::f64 digamma(keel::f64 x)
 {
-    double s = 0.0;
+    keel::f64 s = 0.0;
     while (x < 6.0) {
         s -= 1.0 / x;
         x += 1.0;
     }
-    const double x2 = 1.0 / (x * x);
-    double r = std::log(x) - 0.5 / x;
+    const keel::f64 x2 = 1.0 / (x * x);
+    keel::f64 r = std::log(x) - 0.5 / x;
     r -= x2 * (1.0 / 12.0
               - x2 * (1.0 / 120.0
                      - x2 * (1.0 / 252.0)));
@@ -48,24 +48,24 @@ namespace {
 }
 
 // Trigamma ψ'(x) via same recurrence path.
-[[maybe_unused]] double trigamma(double x)
+[[maybe_unused]] keel::f64 trigamma(keel::f64 x)
 {
-    double s = 0.0;
+    keel::f64 s = 0.0;
     while (x < 6.0) {
         s += 1.0 / (x * x);
         x += 1.0;
     }
-    const double x2 = 1.0 / (x * x);
-    double r = 1.0 / x + 0.5 / (x * x);
+    const keel::f64 x2 = 1.0 / (x * x);
+    keel::f64 r = 1.0 / x + 0.5 / (x * x);
     r += (x2 / x) * (1.0 / 6.0
                     - x2 * (1.0 / 30.0
                            - x2 * (1.0 / 42.0)));
     return r + s;
 }
 
-[[maybe_unused]] keel::Array<double> toFlat(const Value &x)
+[[maybe_unused]] keel::Array<keel::f64> toFlat(const Value &x)
 {
-    keel::Array<double> v(x.numel());
+    keel::Array<keel::f64> v(x.numel());
     for (keel::usize i = 0; i < v.size(); ++i) v[i] = x.elemAsDouble(i);
     return v;
 }
@@ -86,48 +86,48 @@ namespace {
 enum class CITransform { LINEAR, LOG, LOGIT };
 
 template <typename NllFn>
-Value wald_ci_2d(NllFn &&nll, double t1, double t2,
+Value wald_ci_2d(NllFn &&nll, keel::f64 t1, keel::f64 t2,
                  CITransform tr1, CITransform tr2,
-                 double alpha, keel::Allocator *mr)
+                 keel::f64 alpha, keel::Allocator *mr)
 {
     // FD step: eps^{1/3} ≈ 6e-6 is theoretically optimal for 2nd-deriv
     // central FD; relax to 1e-4 for distributions with curved score
     // functions (digamma/trigamma) to suppress roundoff noise.
-    const double h1 = std::max(std::fabs(t1), 1.0) * 1e-4;
-    const double h2 = std::max(std::fabs(t2), 1.0) * 1e-4;
-    const double f00   = nll(t1, t2);
-    const double f1p   = nll(t1 + h1, t2);
-    const double f1m   = nll(t1 - h1, t2);
-    const double f2p   = nll(t1, t2 + h2);
-    const double f2m   = nll(t1, t2 - h2);
-    const double f12pp = nll(t1 + h1, t2 + h2);
-    const double f12mm = nll(t1 - h1, t2 - h2);
-    const double f12pm = nll(t1 + h1, t2 - h2);
-    const double f12mp = nll(t1 - h1, t2 + h2);
-    const double H11 = (f1p - 2.0 * f00 + f1m) / (h1 * h1);
-    const double H22 = (f2p - 2.0 * f00 + f2m) / (h2 * h2);
-    const double H12 = (f12pp - f12pm - f12mp + f12mm) / (4.0 * h1 * h2);
-    const double det = H11 * H22 - H12 * H12;
+    const keel::f64 h1 = std::max(std::fabs(t1), 1.0) * 1e-4;
+    const keel::f64 h2 = std::max(std::fabs(t2), 1.0) * 1e-4;
+    const keel::f64 f00   = nll(t1, t2);
+    const keel::f64 f1p   = nll(t1 + h1, t2);
+    const keel::f64 f1m   = nll(t1 - h1, t2);
+    const keel::f64 f2p   = nll(t1, t2 + h2);
+    const keel::f64 f2m   = nll(t1, t2 - h2);
+    const keel::f64 f12pp = nll(t1 + h1, t2 + h2);
+    const keel::f64 f12mm = nll(t1 - h1, t2 - h2);
+    const keel::f64 f12pm = nll(t1 + h1, t2 - h2);
+    const keel::f64 f12mp = nll(t1 - h1, t2 + h2);
+    const keel::f64 H11 = (f1p - 2.0 * f00 + f1m) / (h1 * h1);
+    const keel::f64 H22 = (f2p - 2.0 * f00 + f2m) / (h2 * h2);
+    const keel::f64 H12 = (f12pp - f12pm - f12mp + f12mm) / (4.0 * h1 * h2);
+    const keel::f64 det = H11 * H22 - H12 * H12;
     Value out = Value::matrix(2, 2, ValueType::DOUBLE, mr);
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     if (std::fabs(det) < 1e-300 || H11 < 0.0 || H22 < 0.0) {
-        for (int i = 0; i < 4; ++i) od[i] = std::numeric_limits<double>::quiet_NaN();
+        for (int i = 0; i < 4; ++i) od[i] = std::numeric_limits<keel::f64>::quiet_NaN();
         return out;
     }
-    const double V11 = H22 / det;
-    const double V22 = H11 / det;
-    const double se1 = std::sqrt(std::max(V11, 0.0));
-    const double se2 = std::sqrt(std::max(V22, 0.0));
+    const keel::f64 V11 = H22 / det;
+    const keel::f64 V22 = H11 / det;
+    const keel::f64 se1 = std::sqrt(std::max(V11, 0.0));
+    const keel::f64 se2 = std::sqrt(std::max(V22, 0.0));
 
     // z_{α/2} from norminv(1 - α/2). Series via std::erf inversion is
     // unnecessary — use the closed-form via erfc^{-1} approximation:
     // For α = 0.05, z = 1.95996398454005423552.
-    auto z_alpha = [](double a) -> double {
+    auto z_alpha = [](keel::f64 a) -> keel::f64 {
         // Wichura AS 241: high-accuracy norm-inv for p = 1 - a/2.
-        const double p = 1.0 - 0.5 * a;
-        const double q = p - 0.5;
+        const keel::f64 p = 1.0 - 0.5 * a;
+        const keel::f64 q = p - 0.5;
         if (std::fabs(q) <= 0.425) {
-            const double r = 0.180625 - q * q;
+            const keel::f64 r = 0.180625 - q * q;
             return q * (((((((2.509080928730122727e3 * r
                 + 3.343057558358812877e4) * r + 6.726577092700870006e4) * r
                 + 4.592195393154987305e4) * r + 1.373169376550946215e4) * r
@@ -138,9 +138,9 @@ Value wald_ci_2d(NllFn &&nll, double t1, double t2,
                 + 5.394196021424751670e3) * r + 6.871159355626076150e2) * r
                 + 4.231333070160091088e1) * r + 1.0);
         }
-        double r = (q < 0.0) ? p : 1.0 - p;
+        keel::f64 r = (q < 0.0) ? p : 1.0 - p;
         r = std::sqrt(-std::log(r));
-        double v;
+        keel::f64 v;
         if (r <= 5.0) {
             r -= 1.6;
             v = (((((((7.74545014278341407640e-4 * r
@@ -168,27 +168,27 @@ Value wald_ci_2d(NllFn &&nll, double t1, double t2,
         }
         return (q < 0.0) ? -v : v;
     };
-    const double z = z_alpha(alpha);
+    const keel::f64 z = z_alpha(alpha);
 
-    auto apply_ci = [z](double t, double se, CITransform tr) -> std::pair<double, double> {
+    auto apply_ci = [z](keel::f64 t, keel::f64 se, CITransform tr) -> std::pair<keel::f64, keel::f64> {
         switch (tr) {
             case CITransform::LINEAR:
                 return {t - z * se, t + z * se};
             case CITransform::LOG: {
                 if (!(t > 0.0))
-                    return {std::numeric_limits<double>::quiet_NaN(),
-                            std::numeric_limits<double>::quiet_NaN()};
-                const double se_log = se / t;
+                    return {std::numeric_limits<keel::f64>::quiet_NaN(),
+                            std::numeric_limits<keel::f64>::quiet_NaN()};
+                const keel::f64 se_log = se / t;
                 return {t * std::exp(-z * se_log), t * std::exp(z * se_log)};
             }
             case CITransform::LOGIT: {
                 if (!(t > 0.0 && t < 1.0))
-                    return {std::numeric_limits<double>::quiet_NaN(),
-                            std::numeric_limits<double>::quiet_NaN()};
-                const double se_logit = se / (t * (1.0 - t));
-                const double logit = std::log(t / (1.0 - t));
-                const double lo = logit - z * se_logit;
-                const double hi = logit + z * se_logit;
+                    return {std::numeric_limits<keel::f64>::quiet_NaN(),
+                            std::numeric_limits<keel::f64>::quiet_NaN()};
+                const keel::f64 se_logit = se / (t * (1.0 - t));
+                const keel::f64 logit = std::log(t / (1.0 - t));
+                const keel::f64 lo = logit - z * se_logit;
+                const keel::f64 hi = logit + z * se_logit;
                 return {1.0 / (1.0 + std::exp(-lo)),
                         1.0 / (1.0 + std::exp(-hi))};
             }
@@ -207,22 +207,22 @@ namespace {
 
 // NLL definitions for each fit. Used by FD-Hessian Wald CI.
 
-[[maybe_unused]] double nll_gam(double a, double b, const keel::Array<double> &xv)
+[[maybe_unused]] keel::f64 nll_gam(keel::f64 a, keel::f64 b, const keel::Array<keel::f64> &xv)
 {
-    if (!(a > 0.0) || !(b > 0.0)) return std::numeric_limits<double>::infinity();
-    const double N = keel::as<double>(xv.size());
-    double sx = 0.0, slx = 0.0;
-    for (double v : xv) { sx += v; slx += std::log(v); }
+    if (!(a > 0.0) || !(b > 0.0)) return std::numeric_limits<keel::f64>::infinity();
+    const keel::f64 N = keel::as<keel::f64>(xv.size());
+    keel::f64 sx = 0.0, slx = 0.0;
+    for (keel::f64 v : xv) { sx += v; slx += std::log(v); }
     return N * std::lgamma(a) + N * a * std::log(b)
          - (a - 1.0) * slx + sx / b;
 }
 
-[[maybe_unused]] double nll_wbl(double a, double b, const keel::Array<double> &xv)
+[[maybe_unused]] keel::f64 nll_wbl(keel::f64 a, keel::f64 b, const keel::Array<keel::f64> &xv)
 {
-    if (!(a > 0.0) || !(b > 0.0)) return std::numeric_limits<double>::infinity();
-    const double N = keel::as<double>(xv.size());
-    double slx = 0.0, sw = 0.0;
-    for (double v : xv) {
+    if (!(a > 0.0) || !(b > 0.0)) return std::numeric_limits<keel::f64>::infinity();
+    const keel::f64 N = keel::as<keel::f64>(xv.size());
+    keel::f64 slx = 0.0, sw = 0.0;
+    for (keel::f64 v : xv) {
         slx += std::log(v);
         sw  += std::pow(v / a, b);
     }
@@ -230,12 +230,12 @@ namespace {
          - (b - 1.0) * slx + sw;
 }
 
-[[maybe_unused]] double nll_beta(double a, double b, const keel::Array<double> &xv)
+[[maybe_unused]] keel::f64 nll_beta(keel::f64 a, keel::f64 b, const keel::Array<keel::f64> &xv)
 {
-    if (!(a > 0.0) || !(b > 0.0)) return std::numeric_limits<double>::infinity();
-    const double N = keel::as<double>(xv.size());
-    double slx = 0.0, sl1mx = 0.0;
-    for (double v : xv) {
+    if (!(a > 0.0) || !(b > 0.0)) return std::numeric_limits<keel::f64>::infinity();
+    const keel::f64 N = keel::as<keel::f64>(xv.size());
+    keel::f64 slx = 0.0, sl1mx = 0.0;
+    for (keel::f64 v : xv) {
         slx   += std::log(v);
         sl1mx += std::log(1.0 - v);
     }
@@ -243,28 +243,28 @@ namespace {
          - (a - 1.0) * slx - (b - 1.0) * sl1mx;
 }
 
-[[maybe_unused]] double nll_nbin(double r, double p, const keel::Array<double> &xv)
+[[maybe_unused]] keel::f64 nll_nbin(keel::f64 r, keel::f64 p, const keel::Array<keel::f64> &xv)
 {
     if (!(r > 0.0) || !(p > 0.0) || !(p < 1.0))
-        return std::numeric_limits<double>::infinity();
-    const double N = keel::as<double>(xv.size());
-    double term = 0.0;
-    double sx = 0.0;
-    for (double v : xv) {
+        return std::numeric_limits<keel::f64>::infinity();
+    const keel::f64 N = keel::as<keel::f64>(xv.size());
+    keel::f64 term = 0.0;
+    keel::f64 sx = 0.0;
+    for (keel::f64 v : xv) {
         term -= std::lgamma(v + r) - std::lgamma(r) - std::lgamma(v + 1.0);
         sx   += v;
     }
     return term - N * r * std::log(p) - sx * std::log(1.0 - p);
 }
 
-[[maybe_unused]] double nll_ev(double mu, double sigma, const keel::Array<double> &xv)
+[[maybe_unused]] keel::f64 nll_ev(keel::f64 mu, keel::f64 sigma, const keel::Array<keel::f64> &xv)
 {
-    if (!(sigma > 0.0)) return std::numeric_limits<double>::infinity();
-    const double N = keel::as<double>(xv.size());
+    if (!(sigma > 0.0)) return std::numeric_limits<keel::f64>::infinity();
+    const keel::f64 N = keel::as<keel::f64>(xv.size());
     // log f(x) = -log σ + t - exp(t), t = (x-μ)/σ. NLL is sum of -log f.
-    double st = 0.0, set = 0.0;
-    for (double v : xv) {
-        const double t = (v - mu) / sigma;
+    keel::f64 st = 0.0, set = 0.0;
+    for (keel::f64 v : xv) {
+        const keel::f64 t = (v - mu) / sigma;
         st  += t;
         set += std::exp(t);
     }
@@ -278,28 +278,28 @@ namespace {
 
 // Build 2×2 Wald CI from analytical Fisher information (H = Hessian
 // of NLL at MLE).
-[[maybe_unused]] Value wald_ci_from_hessian(double t1, double t2,
-                           double H11, double H22, double H12,
+[[maybe_unused]] Value wald_ci_from_hessian(keel::f64 t1, keel::f64 t2,
+                           keel::f64 H11, keel::f64 H22, keel::f64 H12,
                            CITransform tr1, CITransform tr2,
-                           double alpha, keel::Allocator *mr)
+                           keel::f64 alpha, keel::Allocator *mr)
 {
     Value out = Value::matrix(2, 2, ValueType::DOUBLE, mr);
-    double *od = out.doubleDataMut();
-    const double det = H11 * H22 - H12 * H12;
+    keel::f64 *od = out.doubleDataMut();
+    const keel::f64 det = H11 * H22 - H12 * H12;
     if (std::fabs(det) < 1e-300 || H11 < 0.0 || H22 < 0.0) {
-        for (int i = 0; i < 4; ++i) od[i] = std::numeric_limits<double>::quiet_NaN();
+        for (int i = 0; i < 4; ++i) od[i] = std::numeric_limits<keel::f64>::quiet_NaN();
         return out;
     }
-    const double V11 = H22 / det;
-    const double V22 = H11 / det;
-    const double se1 = std::sqrt(std::max(V11, 0.0));
-    const double se2 = std::sqrt(std::max(V22, 0.0));
+    const keel::f64 V11 = H22 / det;
+    const keel::f64 V22 = H11 / det;
+    const keel::f64 se1 = std::sqrt(std::max(V11, 0.0));
+    const keel::f64 se2 = std::sqrt(std::max(V22, 0.0));
     // z_{α/2} — at default α=0.05 returns 1.959963984540054.
-    const double z = [](double a) -> double {
-        const double p = 1.0 - 0.5 * a;
-        const double q = p - 0.5;
+    const keel::f64 z = [](keel::f64 a) -> keel::f64 {
+        const keel::f64 p = 1.0 - 0.5 * a;
+        const keel::f64 q = p - 0.5;
         if (std::fabs(q) <= 0.425) {
-            const double r = 0.180625 - q * q;
+            const keel::f64 r = 0.180625 - q * q;
             return q * (((((((2.509080928730122727e3 * r
                 + 3.343057558358812877e4) * r + 6.726577092700870006e4) * r
                 + 4.592195393154987305e4) * r + 1.373169376550946215e4) * r
@@ -310,9 +310,9 @@ namespace {
                 + 5.394196021424751670e3) * r + 6.871159355626076150e2) * r
                 + 4.231333070160091088e1) * r + 1.0);
         }
-        double r = (q < 0.0) ? p : 1.0 - p;
+        keel::f64 r = (q < 0.0) ? p : 1.0 - p;
         r = std::sqrt(-std::log(r));
-        double v;
+        keel::f64 v;
         if (r <= 5.0) {
             r -= 1.6;
             v = (((((((7.74545014278341407640e-4 * r
@@ -340,25 +340,25 @@ namespace {
         }
         return (q < 0.0) ? -v : v;
     }(alpha);
-    auto apply_ci = [z](double t, double se, CITransform tr) -> std::pair<double, double> {
+    auto apply_ci = [z](keel::f64 t, keel::f64 se, CITransform tr) -> std::pair<keel::f64, keel::f64> {
         switch (tr) {
             case CITransform::LINEAR:
                 return {t - z * se, t + z * se};
             case CITransform::LOG: {
                 if (!(t > 0.0))
-                    return {std::numeric_limits<double>::quiet_NaN(),
-                            std::numeric_limits<double>::quiet_NaN()};
-                const double se_log = se / t;
+                    return {std::numeric_limits<keel::f64>::quiet_NaN(),
+                            std::numeric_limits<keel::f64>::quiet_NaN()};
+                const keel::f64 se_log = se / t;
                 return {t * std::exp(-z * se_log), t * std::exp(z * se_log)};
             }
             case CITransform::LOGIT: {
                 if (!(t > 0.0 && t < 1.0))
-                    return {std::numeric_limits<double>::quiet_NaN(),
-                            std::numeric_limits<double>::quiet_NaN()};
-                const double se_logit = se / (t * (1.0 - t));
-                const double logit = std::log(t / (1.0 - t));
-                const double lo = logit - z * se_logit;
-                const double hi = logit + z * se_logit;
+                    return {std::numeric_limits<keel::f64>::quiet_NaN(),
+                            std::numeric_limits<keel::f64>::quiet_NaN()};
+                const keel::f64 se_logit = se / (t * (1.0 - t));
+                const keel::f64 logit = std::log(t / (1.0 - t));
+                const keel::f64 lo = logit - z * se_logit;
+                const keel::f64 hi = logit + z * se_logit;
                 return {1.0 / (1.0 + std::exp(-lo)),
                         1.0 / (1.0 + std::exp(-hi))};
             }

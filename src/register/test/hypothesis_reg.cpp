@@ -40,7 +40,7 @@ namespace {
     return def;
 }
 
-double parse_alpha(keel::ArrayRef<Value> args, keel::usize i, double def) {
+keel::f64 parse_alpha(keel::ArrayRef<Value> args, keel::usize i, keel::f64 def) {
     if (i >= args.size() || args[i].isEmpty()) return def;
     if (args[i].isChar() || args[i].isString()) return def;
     return args[i].toScalar();
@@ -66,19 +66,19 @@ void ttest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         const keel::usize r = args[0].dims().rows();
         const keel::usize c = args[0].dims().cols();
         Value diff = Value::matrix(r, c, ValueType::DOUBLE, mr);
-        double *dst = diff.doubleDataMut();
+        keel::f64 *dst = diff.doubleDataMut();
         for (keel::usize i = 0; i < y.numel(); ++i)
             dst[i] = args[0].elemAsDouble(i) - y.elemAsDouble(i);
         xData = std::move(diff);
         pairedConsumed = true;
     }
 
-    double m = 0.0;
+    keel::f64 m = 0.0;
     if (!pairedConsumed && args.size() >= 2 && !args[1].isChar()
         && !args[1].isString() && !args[1].isEmpty()) {
         m = args[1].toScalar();
     }
-    double alpha = 0.05;
+    keel::f64 alpha = 0.05;
     TestTail tail = TestTail::Both;
     int dim = 0;
     keel::usize i = (args.size() >= 2 && (args[1].isChar() || args[1].isString())) ? 1 : 2;
@@ -118,7 +118,7 @@ void ttest2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                 keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "ttest2");  // no max: name-value tail in the reference
-    double alpha = parse_alpha(args, 2, 0.05);
+    keel::f64 alpha = parse_alpha(args, 2, 0.05);
     TestTail tail = TestTail::Both;
     // Reference engine default is 'equal' (pooled variance), NOT Welch.
     keel::String vartype = keel::String::from("equal");
@@ -148,9 +148,9 @@ void ztest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 3, "ztest");  // no max: name-value tail in the reference
-    const double m     = args[1].toScalar();
-    const double sigma = args[2].toScalar();
-    double alpha = 0.05;
+    const keel::f64 m     = args[1].toScalar();
+    const keel::f64 sigma = args[2].toScalar();
+    keel::f64 alpha = 0.05;
     TestTail tail = TestTail::Both;
     int dim = 0;
     keel::usize i = 3;
@@ -184,8 +184,8 @@ void vartest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                  keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "vartest");  // no max: name-value tail in the reference
-    const double v = args[1].toScalar();
-    double alpha = 0.05;
+    const keel::f64 v = args[1].toScalar();
+    keel::f64 alpha = 0.05;
     TestTail tail = TestTail::Both;
     int dim = 0;
     keel::usize i = 2;
@@ -219,7 +219,7 @@ void vartest2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                   keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "vartest2");  // no max: name-value tail in the reference
-    double alpha = 0.05;
+    keel::f64 alpha = 0.05;
     TestTail tail = TestTail::Both;
     int dim = 0;
     keel::usize i = 2;
@@ -255,7 +255,7 @@ void kstest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     argcheck::checkNargin(args.size(), 1, "kstest");  // no max: name-value tail in the reference
     Value cdf = (args.size() >= 2 && !(args[1].isChar() || args[1].isString()))
                   ? args[1] : Value();  // empty default
-    double alpha = 0.05;
+    keel::f64 alpha = 0.05;
     TestTail tail = TestTail::Both;
     // Walk trailing args: positional alpha (numeric scalar), positional
     // tail string, and Name-Value pairs ('Alpha', value | 'Tail', value).
@@ -294,7 +294,7 @@ void kstest2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                  keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "kstest2");  // no max: name-value tail in the reference
-    double alpha = 0.05;
+    keel::f64 alpha = 0.05;
     TestTail tail = TestTail::Both;
     keel::usize i = 2;
     while (i < args.size()) {
@@ -325,11 +325,11 @@ void jbtest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                 keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, 3, "jbtest");
-    double alpha = parse_alpha(args, 1, 0.05);
+    keel::f64 alpha = parse_alpha(args, 1, 0.05);
     // 3rd arg = mctol (Monte-Carlo standard-error tolerance).
-    const double mctol = (args.size() > 2 && !args[2].isEmpty())
+    const keel::f64 mctol = (args.size() > 2 && !args[2].isEmpty())
                          ? args[2].toScalar()
-                         : std::numeric_limits<double>::quiet_NaN();
+                         : std::numeric_limits<keel::f64>::quiet_NaN();
     auto [h, p, JB, cv] = jbtest(args[0], alpha, mctol, ctx.engine->allocator());
     outs[0] = std::move(h);
     if (nargout > 1) outs[1] = std::move(p);
@@ -342,7 +342,7 @@ void fishertest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
 {
     argcheck::checkNargin(args.size(), 1, "fishertest");  // no max: name-value tail in the reference
     auto *mr = ctx.engine->allocator();
-    double alpha = 0.05;
+    keel::f64 alpha = 0.05;
     TestTail tail = TestTail::Both;
     for (keel::usize i = 1; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar() && !args[i].isString()) break;
@@ -359,7 +359,7 @@ void fishertest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         Value s = Value::structure(mr);
         s.field("OddsRatio") = OR;
         Value ci = Value::matrix(1, 2, ValueType::DOUBLE, mr);
-        double *cd = ci.doubleDataMut();
+        keel::f64 *cd = ci.doubleDataMut();
         cd[0] = lo.toScalar();
         cd[1] = hi.toScalar();
         s.field("ConfidenceInterval") = std::move(ci);
@@ -381,8 +381,8 @@ void chi2gof_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     Value freq, expected, edges_arg, ctrs_arg;
     int nbins = 10;
     int nparams = -1;       // -1 = use default (2 if auto-fit, 0 if explicit O/E)
-    double alpha = 0.05;
-    double emin = 5.0;
+    keel::f64 alpha = 0.05;
+    keel::f64 emin = 5.0;
 
     bool freq_set = false, expected_set = false, edges_set = false;
     bool nbins_set = false, ctrs_set = false, nparams_set = false;
@@ -424,12 +424,12 @@ void chi2gof_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             // Synthesize edges from the first arg if it's monotone numeric;
             // else default to 1:K with width 1.
             Value edges_out = Value::matrix(1, K + 1, ValueType::DOUBLE, mr);
-            double *ep = edges_out.doubleDataMut();
+            keel::f64 *ep = edges_out.doubleDataMut();
             const Value &xv = args[0];
-            const double x0 = xv.elemAsDouble(0);
-            const double xK = xv.elemAsDouble(K - 1);
-            const double dx = (K > 1) ? (xK - x0) / double(K - 1) : 1.0;
-            for (keel::usize i = 0; i <= K; ++i) ep[i] = x0 + (double(i) - 0.5) * dx;
+            const keel::f64 x0 = xv.elemAsDouble(0);
+            const keel::f64 xK = xv.elemAsDouble(K - 1);
+            const keel::f64 dx = (K > 1) ? (xK - x0) / keel::f64(K - 1) : 1.0;
+            for (keel::usize i = 0; i <= K; ++i) ep[i] = x0 + (keel::f64(i) - 0.5) * dx;
             s.field("edges") = edges_out;
             s.field("O")     = freq;
             s.field("E")     = expected;
@@ -448,18 +448,18 @@ void chi2gof_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     keel::ArenaTemp scratch = keel::get_scratch(mr);
 
     // Compute mean / std of x.
-    double mean = 0.0;
+    keel::f64 mean = 0.0;
     for (keel::usize i = 0; i < N; ++i) mean += x.elemAsDouble(i);
-    mean /= double(N);
-    double sq = 0.0;
+    mean /= keel::f64(N);
+    keel::f64 sq = 0.0;
     for (keel::usize i = 0; i < N; ++i) {
-        const double d = x.elemAsDouble(i) - mean;
+        const keel::f64 d = x.elemAsDouble(i) - mean;
         sq += d * d;
     }
-    const double sd = std::sqrt(sq / double(N - 1));
+    const keel::f64 sd = std::sqrt(sq / keel::f64(N - 1));
 
     // Build edges.
-    keel::Array<double> edges(scratch.allocator());
+    keel::Array<keel::f64> edges(scratch.allocator());
     if (edges_set) {
         const keel::usize M = edges_arg.numel();
         edges.resize(M);
@@ -468,28 +468,28 @@ void chi2gof_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         // Centres → derive edges as midpoints + extrapolation.
         const keel::usize M = ctrs_arg.numel();
         edges.resize(M + 1);
-        const double c0 = ctrs_arg.elemAsDouble(0);
-        const double c1 = ctrs_arg.elemAsDouble(1);
+        const keel::f64 c0 = ctrs_arg.elemAsDouble(0);
+        const keel::f64 c1 = ctrs_arg.elemAsDouble(1);
         edges[0] = c0 - 0.5 * (c1 - c0);
         for (keel::usize i = 0; i + 1 < M; ++i) {
             edges[i + 1] = 0.5 * (ctrs_arg.elemAsDouble(i)
                                   + ctrs_arg.elemAsDouble(i + 1));
         }
-        const double cN1 = ctrs_arg.elemAsDouble(M - 1);
-        const double cN2 = ctrs_arg.elemAsDouble(M - 2);
+        const keel::f64 cN1 = ctrs_arg.elemAsDouble(M - 1);
+        const keel::f64 cN2 = ctrs_arg.elemAsDouble(M - 2);
         edges[M] = cN1 + 0.5 * (cN1 - cN2);
     } else {
         // NBins equally-spaced from min(x) to max(x).
-        double xmin = x.elemAsDouble(0), xmax = xmin;
+        keel::f64 xmin = x.elemAsDouble(0), xmax = xmin;
         for (keel::usize i = 1; i < N; ++i) {
-            const double v = x.elemAsDouble(i);
+            const keel::f64 v = x.elemAsDouble(i);
             if (v < xmin) xmin = v;
             if (v > xmax) xmax = v;
         }
         const int K = std::max(2, nbins);
         edges.resize(K + 1);
         for (int i = 0; i <= K; ++i)
-            edges[i] = xmin + (xmax - xmin) * double(i) / double(K);
+            edges[i] = xmin + (xmax - xmin) * keel::f64(i) / keel::f64(K);
     }
 
     // Build O = histogram of x against edges. MATLAB chi2gof's binning
@@ -498,9 +498,9 @@ void chi2gof_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     // (right-closed first bin extended, right-inclusive everywhere).
     // Verified vs R2025b on (-3:0.05:3) data with both Edges= and NBins=.
     const keel::usize K0 = edges.size() - 1;
-    keel::Array<double> O(K0, 0.0, scratch.allocator());
+    keel::Array<keel::f64> O(K0, 0.0, scratch.allocator());
     for (keel::usize i = 0; i < N; ++i) {
-        const double v = x.elemAsDouble(i);
+        const keel::f64 v = x.elemAsDouble(i);
         if (v < edges[0] || v > edges[K0]) continue;
         for (keel::usize b = 0; b < K0; ++b) {
             bool in;
@@ -520,20 +520,20 @@ void chi2gof_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     }
 
     // Build E under N(mean, sd) by default (via norm CDF).
-    keel::Array<double> E(K0, 0.0, scratch.allocator());
-    auto Phi = [](double z) {
+    keel::Array<keel::f64> E(K0, 0.0, scratch.allocator());
+    auto Phi = [](keel::f64 z) {
         return 0.5 * (1.0 + std::erf(z / std::sqrt(2.0)));
     };
     // Total mass under tail-extended bins so that Σ E = N (matches MATLAB).
     // The first bin extends to -∞, the last to +∞ (chi2gof convention).
     for (keel::usize b = 0; b < K0; ++b) {
-        const double z_lo = (b == 0)        ? -std::numeric_limits<double>::infinity()
+        const keel::f64 z_lo = (b == 0)        ? -std::numeric_limits<keel::f64>::infinity()
                                             : (edges[b]     - mean) / sd;
-        const double z_hi = (b == K0 - 1)   ?  std::numeric_limits<double>::infinity()
+        const keel::f64 z_hi = (b == K0 - 1)   ?  std::numeric_limits<keel::f64>::infinity()
                                             : (edges[b + 1] - mean) / sd;
-        const double F_lo = std::isfinite(z_lo) ? Phi(z_lo) : 0.0;
-        const double F_hi = std::isfinite(z_hi) ? Phi(z_hi) : 1.0;
-        E[b] = double(N) * (F_hi - F_lo);
+        const keel::f64 F_lo = std::isfinite(z_lo) ? Phi(z_lo) : 0.0;
+        const keel::f64 F_hi = std::isfinite(z_hi) ? Phi(z_hi) : 1.0;
+        E[b] = keel::f64(N) * (F_hi - F_lo);
     }
 
     // Apply EMin: merge tail bins with E < emin (working from each end
@@ -558,10 +558,10 @@ void chi2gof_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     merge_right();
 
     // Compute chi2.
-    double chi2 = 0.0;
+    keel::f64 chi2 = 0.0;
     for (keel::usize b = 0; b < O.size(); ++b) {
         if (E[b] > 0.0) {
-            const double d = O[b] - E[b];
+            const keel::f64 d = O[b] - E[b];
             chi2 += d * d / E[b];
         }
     }
@@ -569,13 +569,13 @@ void chi2gof_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     // Default NParams = 2 (mean + std estimated from data) unless user
     // overrode or supplied explicit Edges (MATLAB still defaults to 2).
     const int np = nparams_set ? nparams : 2;
-    const double df = double(K_final) - 1.0 - double(np);
+    const keel::f64 df = keel::f64(K_final) - 1.0 - keel::f64(np);
     Value chi2v = Value::scalar(chi2, mr);
-    const double cdf = (df > 0.0) ? chi2cdf(chi2v, df, mr).toScalar() : 1.0;
-    const double p = std::max(0.0, 1.0 - cdf);
+    const keel::f64 cdf = (df > 0.0) ? chi2cdf(chi2v, df, mr).toScalar() : 1.0;
+    const keel::f64 p = std::max(0.0, 1.0 - cdf);
     const int h = (p < alpha) ? 1 : 0;
 
-    outs[0] = Value::scalar(double(h), mr);
+    outs[0] = Value::scalar(keel::f64(h), mr);
     if (nargout > 1) outs[1] = Value::scalar(p, mr);
     if (nargout > 2) {
         Value s = Value::structure(mr);
@@ -649,12 +649,12 @@ void vartestn_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             throw Error("vartestn: matrix input must have >=2 columns",
                         0, 0, "vartestn", "", "numkit:vartestn:size");
         keel::ArenaTemp scratch = keel::get_scratch(mr);
-        keel::Array<double> vv(R * C, scratch.allocator());
-        keel::Array<double> gg(R * C, scratch.allocator());
+        keel::Array<keel::f64> vv(R * C, scratch.allocator());
+        keel::Array<keel::f64> gg(R * C, scratch.allocator());
         for (keel::usize c = 0; c < C; ++c)
             for (keel::usize r = 0; r < R; ++r) {
                 vv[c * R + r] = X.elemAsDouble(c * R + r);
-                gg[c * R + r] = double(c + 1);
+                gg[c * R + r] = keel::f64(c + 1);
             }
         Value Vx = Value::matrix(R * C, 1, ValueType::DOUBLE, mr);
         Value Vg = Value::matrix(R * C, 1, ValueType::DOUBLE, mr);
@@ -675,7 +675,7 @@ void vartestn_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             s.field("fstat") = stat;
             // df is a 1×2 row vector [df1 df2].
             Value dfv = Value::matrix(1, 2, ValueType::DOUBLE, mr);
-            double *dp = dfv.doubleDataMut();
+            keel::f64 *dp = dfv.doubleDataMut();
             dp[0] = df1.toScalar();
             dp[1] = df2.toScalar();
             s.field("df") = dfv;
@@ -692,7 +692,7 @@ void runstest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
 
     // arg[1] is positional v (scalar), 'ud' string for up-down test, or a
     // name-value start.
-    double v = std::numeric_limits<double>::quiet_NaN();   // sentinel: use median(x)
+    keel::f64 v = std::numeric_limits<keel::f64>::quiet_NaN();   // sentinel: use median(x)
     bool up_down = false;
     keel::usize i = 1;
     if (i < args.size() && (args[i].isChar() || args[i].isString())) {
@@ -705,7 +705,7 @@ void runstest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         ++i;
     }
 
-    double alpha = 0.05;
+    keel::f64 alpha = 0.05;
     TestTail tail = TestTail::Both;
     keel::String method;
 
@@ -731,11 +731,11 @@ void runstest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             Value diffSign = Value::matrix(0, 0, ValueType::DOUBLE, mr);
             xUsed = std::move(diffSign);
         } else {
-            keel::Array<double> diffs;
+            keel::Array<keel::f64> diffs;
             diffs.reserve(Nx - 1);
             for (keel::usize k = 1; k < Nx; ++k) {
-                const double xa = x.elemAsDouble(k - 1);
-                const double xb = x.elemAsDouble(k);
+                const keel::f64 xa = x.elemAsDouble(k - 1);
+                const keel::f64 xb = x.elemAsDouble(k);
                 if (std::isnan(xa) || std::isnan(xb)) continue;
                 diffs.push_back((xb > xa) ? 1.0 : ((xb < xa) ? -1.0 : 0.0));
             }
@@ -766,7 +766,7 @@ void ranksum_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     argcheck::checkNargin(args.size(), 2, "ranksum");  // no max: name-value tail in the reference
     auto *mr = ctx.engine->allocator();
 
-    double alpha = 0.05;
+    keel::f64 alpha = 0.05;
     TestTail tail = TestTail::Both;
     keel::String method;
 
@@ -810,7 +810,7 @@ void signrank_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         ++i;
     }
 
-    double alpha = 0.05;
+    keel::f64 alpha = 0.05;
     TestTail tail = TestTail::Both;
     keel::String method;
 
@@ -856,7 +856,7 @@ void signtest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         ++i;
     }
 
-    double alpha = 0.05;
+    keel::f64 alpha = 0.05;
     TestTail tail = TestTail::Both;
 
     // Optional positional alpha next (legacy 3-arg form), then name-value.
@@ -883,7 +883,7 @@ void signtest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         // MATLAB R2025b stats struct shape: {zval, sign}. zval is NaN
         // for the exact (binomial) path — currently always taken;
         // 'approximate' would populate zval with the normal-approx z.
-        s.field("zval") = Value::scalar(std::numeric_limits<double>::quiet_NaN(), mr);
+        s.field("zval") = Value::scalar(std::numeric_limits<keel::f64>::quiet_NaN(), mr);
         s.field("sign") = sig;
         outs[2] = std::move(s);
     }
@@ -898,7 +898,7 @@ void lillietest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                     keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "lillietest");  // no max: name-value tail in the reference
-    double alpha = 0.05;
+    keel::f64 alpha = 0.05;
     if (args.size() >= 2 && !args[1].isEmpty()) alpha = args[1].toScalar();
     auto [h, p, kstat, critval] =
         lillietest(args[0], alpha, ctx.engine->allocator());
@@ -914,7 +914,7 @@ void ansaribradley_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     argcheck::checkNargin(args.size(), 2, "ansaribradley");  // no max: name-value tail in the reference
     auto *mr = ctx.engine->allocator();
 
-    double alpha = 0.05;
+    keel::f64 alpha = 0.05;
     TestTail tail = TestTail::Both;
 
     keel::usize i = 2;

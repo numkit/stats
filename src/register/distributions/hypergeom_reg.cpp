@@ -68,9 +68,9 @@ void hygeinv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
 void hygernd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 3, "hygernd");  // no max: trailing size args (N-D tail; nk caps at two — bugs/opened/stats/rnd-nd-size-tails.md)
-    const double M = args[0].toScalar();
-    const double K = args[1].toScalar();
-    const double N = args[2].toScalar();
+    const keel::f64 M = args[0].toScalar();
+    const keel::f64 K = args[1].toScalar();
+    const keel::f64 N = args[2].toScalar();
     keel::usize rows = 1, cols = 1;
     parse_rng_size(args, 3, rows, cols, "hygernd");
     outs[0] = reshape_rng_nd(hygernd(ctx.engine->rng(), M, K, N, rows, cols, ctx.engine->allocator()), args, 3, ctx.engine->allocator(), "hygernd");
@@ -80,7 +80,7 @@ void hygestat_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArra
 {
     argcheck::checkNargin(args.size(), 3, 3, "hygestat");
     emit_vec_stat_3arg(args, nargout, outs, ctx.engine->allocator(), "hygestat",
-                       [](double M, double K, double N) {
+                       [](keel::f64 M, keel::f64 K, keel::f64 N) {
                            return hygestat(M, K, N);
                        });
 }

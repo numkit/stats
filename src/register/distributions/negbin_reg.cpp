@@ -62,12 +62,12 @@ void nbincdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
             const keel::usize N = dist_match_numel({nk, nr, np}, "nbincdf");
             const Value &ref = (nr == N) ? r : (np == N ? p : k);
             v = dist_empty_like(ref, mr);
-            double *od = v.doubleDataMut();
-            const double NaN = std::numeric_limits<double>::quiet_NaN();
+            keel::f64 *od = v.doubleDataMut();
+            const keel::f64 NaN = std::numeric_limits<keel::f64>::quiet_NaN();
             for (keel::usize i = 0; i < N; ++i) {
-                const double ri = r.elemAsDouble(nr == 1 ? 0 : i);
-                const double pi = p.elemAsDouble(np == 1 ? 0 : i);
-                const double ki = k.elemAsDouble(nk == 1 ? 0 : i);
+                const keel::f64 ri = r.elemAsDouble(nr == 1 ? 0 : i);
+                const keel::f64 pi = p.elemAsDouble(np == 1 ? 0 : i);
+                const keel::f64 ki = k.elemAsDouble(nk == 1 ? 0 : i);
                 od[i] = nbin_params_ok(ri, pi) ? nbin_cdf_scalar(ki, ri, pi, mr) : NaN;
             }
         }
@@ -95,12 +95,12 @@ void nbininv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
     const keel::usize N = dist_match_numel({nq, nr, np}, "nbininv");
     const Value &ref = (nr == N) ? r : (np == N ? p : q);
     Value out = dist_empty_like(ref, mr);
-    double *od = out.doubleDataMut();
-    const double NaN = std::numeric_limits<double>::quiet_NaN();
+    keel::f64 *od = out.doubleDataMut();
+    const keel::f64 NaN = std::numeric_limits<keel::f64>::quiet_NaN();
     for (keel::usize i = 0; i < N; ++i) {
-        const double ri = r.elemAsDouble(nr == 1 ? 0 : i);
-        const double pi = p.elemAsDouble(np == 1 ? 0 : i);
-        const double qi = q.elemAsDouble(nq == 1 ? 0 : i);
+        const keel::f64 ri = r.elemAsDouble(nr == 1 ? 0 : i);
+        const keel::f64 pi = p.elemAsDouble(np == 1 ? 0 : i);
+        const keel::f64 qi = q.elemAsDouble(nq == 1 ? 0 : i);
         od[i] = nbin_params_ok(ri, pi) ? nbin_inv_scalar(qi, ri, pi) : NaN;
     }
     outs[0] = std::move(out);
@@ -109,8 +109,8 @@ void nbininv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
 void nbinrnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "nbinrnd");  // no max: trailing size args (N-D tail; nk caps at two — bugs/opened/stats/rnd-nd-size-tails.md)
-    const double r = args[0].toScalar();
-    const double p = args[1].toScalar();
+    const keel::f64 r = args[0].toScalar();
+    const keel::f64 p = args[1].toScalar();
     keel::usize rows = 1, cols = 1;
     parse_rng_size(args, 2, rows, cols, "nbinrnd");
     outs[0] = reshape_rng_nd(nbinrnd(ctx.engine->rng(), r, p, rows, cols, ctx.engine->allocator()), args, 2, ctx.engine->allocator(), "nbinrnd");
@@ -120,7 +120,7 @@ void nbinstat_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArra
 {
     argcheck::checkNargin(args.size(), 2, 2, "nbinstat");
     emit_vec_stat_2arg(args, nargout, outs, ctx.engine->allocator(), "nbinstat",
-                       [](double r, double p) { return nbinstat(r, p); });
+                       [](keel::f64 r, keel::f64 p) { return nbinstat(r, p); });
 }
 
 } // namespace detail

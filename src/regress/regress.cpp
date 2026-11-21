@@ -62,21 +62,21 @@ void ridge_argcheck(const Value &y, const Value &X, const Value &kVec)
 // 5-output form: [b, bint, r, rint, stats]. rint = residual CI for
 // outlier detection — added 2026-05-08.
 std::tuple<Value, Value, Value, Value, Value>
-regress_full(const Value &y, const Value &X, double alpha, keel::Allocator *mr)
+regress_full(const Value &y, const Value &X, keel::f64 alpha, keel::Allocator *mr)
 {
     regress_full_argcheck(y, X);
     const keel::usize N = y.numel();
     const keel::usize p = X.dims().cols();
 
     // Build XtX (p×p) and Xty (p×1) using column-major X.
-    keel::Array<double> XtX(p * p, 0.0);
-    keel::Array<double> Xty(p, 0.0);
+    keel::Array<keel::f64> XtX(p * p, 0.0);
+    keel::Array<keel::f64> Xty(p, 0.0);
     for (keel::usize j = 0; j < p; ++j) {
         for (keel::usize i = 0; i < N; ++i) {
-            const double xij = X.elemAsDouble(i + j * N);
+            const keel::f64 xij = X.elemAsDouble(i + j * N);
             Xty[j] += xij * y.elemAsDouble(i);
             for (keel::usize k = j; k < p; ++k) {
-                const double xik = X.elemAsDouble(i + k * N);
+                const keel::f64 xik = X.elemAsDouble(i + k * N);
                 XtX[k + j * p] += xij * xik;
             }
         }
@@ -87,37 +87,37 @@ regress_full(const Value &y, const Value &X, double alpha, keel::Allocator *mr)
             XtX[k + j * p] = XtX[j + k * p];
 
     // Cholesky factor.
-    keel::Array<double> L(p * p, 0.0);
+    keel::Array<keel::f64> L(p * p, 0.0);
     if (!cholesky(XtX.data(), L.data(), p))
         throw Error("regress: design matrix is rank-deficient",
                     0, 0, "regress", "", "numkit:regress:rank");
 
     // Solve XtX β = Xty:  L z = Xty,  L^T β = z.
-    keel::Array<double> beta(p), z(p);
+    keel::Array<keel::f64> beta(p), z(p);
     fwd_solve(L.data(), z.data(), Xty.data(), p);
     back_solve(L.data(), beta.data(), z.data(), p);
 
     // Residuals r = y - X β.
-    keel::Array<double> r(N);
-    double SSR = 0.0;
+    keel::Array<keel::f64> r(N);
+    keel::f64 SSR = 0.0;
     for (keel::usize i = 0; i < N; ++i) {
-        double pred = 0.0;
+        keel::f64 pred = 0.0;
         for (keel::usize j = 0; j < p; ++j) pred += X.elemAsDouble(i + j * N) * beta[j];
-        const double ri = y.elemAsDouble(i) - pred;
+        const keel::f64 ri = y.elemAsDouble(i) - pred;
         r[i] = ri;
         SSR += ri * ri;
     }
-    const double dfErr = double(N) - double(p);
-    const double sigma2 = (dfErr > 0) ? SSR / dfErr
-                                      : std::numeric_limits<double>::quiet_NaN();
+    const keel::f64 dfErr = keel::f64(N) - keel::f64(p);
+    const keel::f64 sigma2 = (dfErr > 0) ? SSR / dfErr
+                                      : std::numeric_limits<keel::f64>::quiet_NaN();
 
     // Compute the FULL (XtX)^{-1} (p×p, column-major) so we can compute
     // both the diagonal (for bint SE) and the leverage h_ii = X·M·X'
     // for rint.
-    keel::Array<double> invMat(p * p, 0.0);
-    keel::Array<double> invDiag(p, 0.0);
+    keel::Array<keel::f64> invMat(p * p, 0.0);
+    keel::Array<keel::f64> invDiag(p, 0.0);
     {
-        keel::Array<double> ej(p), zj(p), mj(p);
+        keel::Array<keel::f64> ej(p), zj(p), mj(p);
         for (keel::usize j = 0; j < p; ++j) {
             std::fill(ej.begin(), ej.end(), 0.0);
             ej[j] = 1.0;
@@ -132,47 +132,47 @@ regress_full(const Value &y, const Value &X, double alpha, keel::Allocator *mr)
     Value bV    = Value::matrix(p, 1, ValueType::DOUBLE, mr);
     Value bintV = Value::matrix(p, 2, ValueType::DOUBLE, mr);
     Value rV    = Value::matrix(N, 1, ValueType::DOUBLE, mr);
-    double *bd = bV.doubleDataMut();
-    double *bid = bintV.doubleDataMut();
-    double *rd = rV.doubleDataMut();
-    double tcrit = 0.0;
+    keel::f64 *bd = bV.doubleDataMut();
+    keel::f64 *bid = bintV.doubleDataMut();
+    keel::f64 *rd = rV.doubleDataMut();
+    keel::f64 tcrit = 0.0;
     if (dfErr > 0) {
         Value pV = Value::scalar(1.0 - alpha / 2.0, mr);
         tcrit = tinv(pV, dfErr, mr).toScalar();
     }
     for (keel::usize j = 0; j < p; ++j) {
         bd[j] = beta[j];
-        const double se = (sigma2 == sigma2 && invDiag[j] > 0)
+        const keel::f64 se = (sigma2 == sigma2 && invDiag[j] > 0)
                           ? std::sqrt(sigma2 * invDiag[j])
-                          : std::numeric_limits<double>::quiet_NaN();
+                          : std::numeric_limits<keel::f64>::quiet_NaN();
         bid[j]     = beta[j] - tcrit * se;
         bid[j + p] = beta[j] + tcrit * se;
     }
     for (keel::usize i = 0; i < N; ++i) rd[i] = r[i];
 
     // stats = [R², F, p_F, sigma²]
-    double yMean = 0.0;
+    keel::f64 yMean = 0.0;
     for (keel::usize i = 0; i < N; ++i) yMean += y.elemAsDouble(i);
-    yMean /= double(N);
-    double SStot = 0.0;
+    yMean /= keel::f64(N);
+    keel::f64 SStot = 0.0;
     for (keel::usize i = 0; i < N; ++i) {
-        const double d = y.elemAsDouble(i) - yMean;
+        const keel::f64 d = y.elemAsDouble(i) - yMean;
         SStot += d * d;
     }
-    const double R2 = (SStot > 0.0) ? 1.0 - SSR / SStot
-                                    : std::numeric_limits<double>::quiet_NaN();
-    const double dfModel = double(p) - 1.0;
-    const double F = (dfModel > 0.0 && dfErr > 0.0 && (1.0 - R2) > 0.0)
+    const keel::f64 R2 = (SStot > 0.0) ? 1.0 - SSR / SStot
+                                    : std::numeric_limits<keel::f64>::quiet_NaN();
+    const keel::f64 dfModel = keel::f64(p) - 1.0;
+    const keel::f64 F = (dfModel > 0.0 && dfErr > 0.0 && (1.0 - R2) > 0.0)
                      ? (R2 / dfModel) / ((1.0 - R2) / dfErr)
-                     : std::numeric_limits<double>::quiet_NaN();
-    double pF = std::numeric_limits<double>::quiet_NaN();
+                     : std::numeric_limits<keel::f64>::quiet_NaN();
+    keel::f64 pF = std::numeric_limits<keel::f64>::quiet_NaN();
     if (!std::isnan(F)) {
         Value fv = Value::scalar(F, mr);
-        const double cdf = fcdf(fv, dfModel, dfErr, mr).toScalar();
+        const keel::f64 cdf = fcdf(fv, dfModel, dfErr, mr).toScalar();
         pF = std::max(0.0, 1.0 - cdf);
     }
     Value statsV = Value::matrix(1, 4, ValueType::DOUBLE, mr);
-    double *sd = statsV.doubleDataMut();
+    keel::f64 *sd = statsV.doubleDataMut();
     sd[0] = R2; sd[1] = F; sd[2] = pF; sd[3] = sigma2;
 
     // rint: 100·(1-α)% CI for residuals, used to diagnose outliers
@@ -185,31 +185,31 @@ regress_full(const Value &y, const Value &X, double alpha, keel::Allocator *mr)
     //   rint  = r_i ± t·ser
     // When h_ii ≥ 1 (perfect leverage) the CI degenerates to [r_i, r_i].
     Value rintV = Value::matrix(N, 2, ValueType::DOUBLE, mr);
-    double *rid = rintV.doubleDataMut();
-    const double nu   = dfErr;
-    const double s2   = sigma2;
-    const double rmse = (s2 == s2 && s2 > 0.0) ? std::sqrt(s2) : 0.0;
-    double tcritR = tcrit;                       // nu<=1 fallback: nu dof
+    keel::f64 *rid = rintV.doubleDataMut();
+    const keel::f64 nu   = dfErr;
+    const keel::f64 s2   = sigma2;
+    const keel::f64 rmse = (s2 == s2 && s2 > 0.0) ? std::sqrt(s2) : 0.0;
+    keel::f64 tcritR = tcrit;                       // nu<=1 fallback: nu dof
     if (nu > 1.0) {
         Value pV = Value::scalar(1.0 - alpha / 2.0, mr);
         tcritR = tinv(pV, nu - 1.0, mr).toScalar();
     }
-    const double epsThresh = 1.4901161193847656e-08;   // sqrt(eps)
+    const keel::f64 epsThresh = 1.4901161193847656e-08;   // sqrt(eps)
     for (keel::usize i = 0; i < N; ++i) {
         // h_ii = sum_{j,k} X[i,j] · invMat[j,k] · X[i,k].
-        double hii = 0.0;
+        keel::f64 hii = 0.0;
         for (keel::usize j = 0; j < p; ++j) {
-            double row = 0.0;
+            keel::f64 row = 0.0;
             for (keel::usize k = 0; k < p; ++k)
                 row += invMat[j + k * p] * X.elemAsDouble(i + k * N);
             hii += X.elemAsDouble(i + j * N) * row;
         }
-        const double oneMinusH = 1.0 - hii;
-        double ser = 0.0;
+        const keel::f64 oneMinusH = 1.0 - hii;
+        keel::f64 ser = 0.0;
         if (oneMinusH > epsThresh && std::isfinite(oneMinusH)) {
             if (nu > 1.0) {
-                const double denom  = (nu - 1.0) * oneMinusH;
-                const double sigmai = std::sqrt(std::max(0.0,
+                const keel::f64 denom  = (nu - 1.0) * oneMinusH;
+                const keel::f64 sigmai = std::sqrt(std::max(0.0,
                     (nu * s2 / (nu - 1.0)) - (r[i] * r[i]) / denom));
                 ser = std::sqrt(oneMinusH) * sigmai;
             } else {
@@ -226,7 +226,7 @@ regress_full(const Value &y, const Value &X, double alpha, keel::Allocator *mr)
 
 // Backward-compat 4-tuple wrapper (for legacy callers; rint dropped).
 std::tuple<Value, Value, Value, Value>
-regress(const Value &y, const Value &X, double alpha, keel::Allocator *mr)
+regress(const Value &y, const Value &X, keel::f64 alpha, keel::Allocator *mr)
 {
     auto [b, bint, r, rint, stats] = regress_full(y, X, alpha, mr);
     (void)rint;
@@ -243,32 +243,32 @@ lscov(const Value &A, const Value &b, const Value &w, keel::Allocator *mr)
     const bool weighted = !w.isEmpty();
     const bool fullCov = weighted && (w.dims().rows() == N && w.dims().cols() == N && N > 1);
 
-    keel::Array<double> XtWX(p * p, 0.0);
-    keel::Array<double> XtWy(p, 0.0);
-    keel::Array<double> Atilde;
-    keel::Array<double> btilde;
+    keel::Array<keel::f64> XtWX(p * p, 0.0);
+    keel::Array<keel::f64> XtWy(p, 0.0);
+    keel::Array<keel::f64> Atilde;
+    keel::Array<keel::f64> btilde;
 
     if (fullCov) {
-        keel::Array<double> V(N * N, 0.0);
+        keel::Array<keel::f64> V(N * N, 0.0);
         for (keel::usize j = 0; j < N; ++j) {
             for (keel::usize i = 0; i < N; ++i) {
-                const double vij = w.elemAsDouble(i + j * N);
-                const double vji = w.elemAsDouble(j + i * N);
+                const keel::f64 vij = w.elemAsDouble(i + j * N);
+                const keel::f64 vji = w.elemAsDouble(j + i * N);
                 if (!std::isfinite(vij) || std::fabs(vij - vji) > 1e-10 * (1.0 + std::fabs(vij)))
                     throw Error("lscov: covariance matrix V must be symmetric positive definite",
                                 0, 0, "lscov", "", "numkit:lscov:covNotSPD");
                 V[i + j * N] = 0.5 * (vij + vji);
             }
         }
-        keel::Array<double> LV(N * N, 0.0);
+        keel::Array<keel::f64> LV(N * N, 0.0);
         if (!cholesky(V.data(), LV.data(), N))
             throw Error("lscov: covariance matrix V must be symmetric positive definite",
                         0, 0, "lscov", "", "numkit:lscov:covNotSPD");
 
         // Whiten A and b: solve LV * Atilde(:,j) = A(:,j), LV * btilde = b.
-        Atilde = keel::Array<double>(N * p, 0.0);
-        btilde = keel::Array<double>(N, 0.0);
-        keel::Array<double> colIn(N);
+        Atilde = keel::Array<keel::f64>(N * p, 0.0);
+        btilde = keel::Array<keel::f64>(N, 0.0);
+        keel::Array<keel::f64> colIn(N);
         for (keel::usize j = 0; j < p; ++j) {
             for (keel::usize i = 0; i < N; ++i) colIn[i] = A.elemAsDouble(i + j * N);
             fwd_solve(LV.data(), Atilde.data() + j * N, colIn.data(), N);
@@ -277,12 +277,12 @@ lscov(const Value &A, const Value &b, const Value &w, keel::Allocator *mr)
         fwd_solve(LV.data(), btilde.data(), colIn.data(), N);
 
         for (keel::usize i = 0; i < N; ++i) {
-            const double bi = btilde[i];
+            const keel::f64 bi = btilde[i];
             for (keel::usize j = 0; j < p; ++j) {
-                const double xij = Atilde[i + j * N];
+                const keel::f64 xij = Atilde[i + j * N];
                 XtWy[j] += xij * bi;
                 for (keel::usize k = j; k < p; ++k) {
-                    const double xik = Atilde[i + k * N];
+                    const keel::f64 xik = Atilde[i + k * N];
                     XtWX[k + j * p] += xij * xik;
                 }
             }
@@ -294,13 +294,13 @@ lscov(const Value &A, const Value &b, const Value &w, keel::Allocator *mr)
 
         // Build XtWX and XtWy with weights baked in (W = diag(w)).
         for (keel::usize i = 0; i < N; ++i) {
-            const double wii = wi(i);
-            const double bi  = b.elemAsDouble(i);
+            const keel::f64 wii = wi(i);
+            const keel::f64 bi  = b.elemAsDouble(i);
             for (keel::usize j = 0; j < p; ++j) {
-                const double xij = A.elemAsDouble(i + j * N);
+                const keel::f64 xij = A.elemAsDouble(i + j * N);
                 XtWy[j] += wii * xij * bi;
                 for (keel::usize k = j; k < p; ++k) {
-                    const double xik = A.elemAsDouble(i + k * N);
+                    const keel::f64 xik = A.elemAsDouble(i + k * N);
                     XtWX[k + j * p] += wii * xij * xik;
                 }
             }
@@ -310,41 +310,41 @@ lscov(const Value &A, const Value &b, const Value &w, keel::Allocator *mr)
         for (keel::usize k = 0; k < j; ++k)
             XtWX[k + j * p] = XtWX[j + k * p];
 
-    keel::Array<double> L(p * p, 0.0);
+    keel::Array<keel::f64> L(p * p, 0.0);
     if (!cholesky(XtWX.data(), L.data(), p))
         throw Error("lscov: design matrix is rank-deficient",
                     0, 0, "lscov", "", "numkit:lscov:rank");
 
-    keel::Array<double> beta(p), z(p);
+    keel::Array<keel::f64> beta(p), z(p);
     fwd_solve(L.data(), z.data(), XtWy.data(), p);
     back_solve(L.data(), beta.data(), z.data(), p);
 
     // weighted residuals + SSR
-    double SSRw = 0.0;
+    keel::f64 SSRw = 0.0;
     if (fullCov) {
         for (keel::usize i = 0; i < N; ++i) {
-            double pred = 0.0;
+            keel::f64 pred = 0.0;
             for (keel::usize j = 0; j < p; ++j) pred += Atilde[i + j * N] * beta[j];
-            const double ri = btilde[i] - pred;
+            const keel::f64 ri = btilde[i] - pred;
             SSRw += ri * ri;
         }
     } else {
         for (keel::usize i = 0; i < N; ++i) {
-            double pred = 0.0;
+            keel::f64 pred = 0.0;
             for (keel::usize j = 0; j < p; ++j) pred += A.elemAsDouble(i + j * N) * beta[j];
-            const double ri = b.elemAsDouble(i) - pred;
-            const double wii = weighted ? w.elemAsDouble(i) : 1.0;
+            const keel::f64 ri = b.elemAsDouble(i) - pred;
+            const keel::f64 wii = weighted ? w.elemAsDouble(i) : 1.0;
             SSRw += wii * ri * ri;
         }
     }
-    const double dfErr = double(N) - double(p);
-    const double mse = (dfErr > 0.0) ? SSRw / dfErr
-                                     : std::numeric_limits<double>::quiet_NaN();
+    const keel::f64 dfErr = keel::f64(N) - keel::f64(p);
+    const keel::f64 mse = (dfErr > 0.0) ? SSRw / dfErr
+                                     : std::numeric_limits<keel::f64>::quiet_NaN();
 
     // (XtWX)⁻¹ then S = mse · (XtWX)⁻¹
-    keel::Array<double> Sm(p * p, 0.0);
+    keel::Array<keel::f64> Sm(p * p, 0.0);
     {
-        keel::Array<double> ej(p), zj(p), mj(p);
+        keel::Array<keel::f64> ej(p), zj(p), mj(p);
         for (keel::usize j = 0; j < p; ++j) {
             std::fill(ej.begin(), ej.end(), 0.0);
             ej[j] = 1.0;
@@ -359,9 +359,9 @@ lscov(const Value &A, const Value &b, const Value &w, keel::Allocator *mr)
     Value stdxV = Value::matrix(p, 1, ValueType::DOUBLE, mr);
     Value mseV  = Value::scalar(mse, mr);
     Value SV    = Value::matrix(p, p, ValueType::DOUBLE, mr);
-    double *xd  = xV.doubleDataMut();
-    double *sxd = stdxV.doubleDataMut();
-    double *Sd  = SV.doubleDataMut();
+    keel::f64 *xd  = xV.doubleDataMut();
+    keel::f64 *sxd = stdxV.doubleDataMut();
+    keel::f64 *Sd  = SV.doubleDataMut();
     for (keel::usize j = 0; j < p; ++j) {
         xd[j]  = beta[j];
         sxd[j] = std::sqrt(std::max(Sm[j + j * p], 0.0));
@@ -379,42 +379,42 @@ Value ridge(const Value &y, const Value &X, const Value &kVec, bool scaled, keel
     const keel::usize Nk = kVec.numel();
 
     // Center y, X by column mean.
-    double yMean = 0.0;
+    keel::f64 yMean = 0.0;
     for (keel::usize i = 0; i < N; ++i) yMean += y.elemAsDouble(i);
-    yMean /= double(N);
-    keel::Array<double> yc(N);
+    yMean /= keel::f64(N);
+    keel::Array<keel::f64> yc(N);
     for (keel::usize i = 0; i < N; ++i) yc[i] = y.elemAsDouble(i) - yMean;
 
-    keel::Array<double> xMean(p, 0.0), xStd(p, 0.0);
+    keel::Array<keel::f64> xMean(p, 0.0), xStd(p, 0.0);
     for (keel::usize j = 0; j < p; ++j) {
         for (keel::usize i = 0; i < N; ++i) xMean[j] += X.elemAsDouble(i + j * N);
-        xMean[j] /= double(N);
+        xMean[j] /= keel::f64(N);
     }
-    keel::Array<double> Xs(N * p);
+    keel::Array<keel::f64> Xs(N * p);
     for (keel::usize j = 0; j < p; ++j) {
-        double sq = 0.0;
+        keel::f64 sq = 0.0;
         for (keel::usize i = 0; i < N; ++i) {
-            const double d = X.elemAsDouble(i + j * N) - xMean[j];
+            const keel::f64 d = X.elemAsDouble(i + j * N) - xMean[j];
             Xs[i + j * N] = d;
             sq += d * d;
         }
         // Sample std with N-1 normalisation (matches the reference engine ridge).
-        const double s = (N > 1) ? std::sqrt(sq / double(N - 1)) : 1.0;
+        const keel::f64 s = (N > 1) ? std::sqrt(sq / keel::f64(N - 1)) : 1.0;
         xStd[j] = s;
         if (s > 0.0)
             for (keel::usize i = 0; i < N; ++i) Xs[i + j * N] /= s;
     }
 
     // X_s' X_s and X_s' y_c.
-    keel::Array<double> XtX(p * p, 0.0);
-    keel::Array<double> Xty(p, 0.0);
+    keel::Array<keel::f64> XtX(p * p, 0.0);
+    keel::Array<keel::f64> Xty(p, 0.0);
     for (keel::usize i = 0; i < N; ++i) {
-        const double yi = yc[i];
+        const keel::f64 yi = yc[i];
         for (keel::usize j = 0; j < p; ++j) {
-            const double xij = Xs[i + j * N];
+            const keel::f64 xij = Xs[i + j * N];
             Xty[j] += xij * yi;
             for (keel::usize kk = j; kk < p; ++kk) {
-                const double xik = Xs[i + kk * N];
+                const keel::f64 xik = Xs[i + kk * N];
                 XtX[kk + j * p] += xij * xik;
             }
         }
@@ -426,11 +426,11 @@ Value ridge(const Value &y, const Value &X, const Value &kVec, bool scaled, keel
     // Allocate output
     const keel::usize outRows = scaled ? p : (p + 1);
     Value B = Value::matrix(outRows, Nk, ValueType::DOUBLE, mr);
-    double *Bd = B.doubleDataMut();
+    keel::f64 *Bd = B.doubleDataMut();
 
-    keel::Array<double> M(p * p), L(p * p), beta(p), z(p);
+    keel::Array<keel::f64> M(p * p), L(p * p), beta(p), z(p);
     for (keel::usize kIdx = 0; kIdx < Nk; ++kIdx) {
-        const double k = kVec.elemAsDouble(kIdx);
+        const keel::f64 k = kVec.elemAsDouble(kIdx);
         // M = XtX + k*I
         for (keel::usize j = 0; j < p * p; ++j) M[j] = XtX[j];
         for (keel::usize j = 0; j < p; ++j) M[j + j * p] += k;
@@ -443,9 +443,9 @@ Value ridge(const Value &y, const Value &X, const Value &kVec, bool scaled, keel
             for (keel::usize j = 0; j < p; ++j) Bd[j + kIdx * outRows] = beta[j];
         } else {
             // Rescale to original units; prepend intercept = mean(y) - Σ β_j·mean(X_j).
-            double intercept = yMean;
+            keel::f64 intercept = yMean;
             for (keel::usize j = 0; j < p; ++j) {
-                const double bj = (xStd[j] > 0.0) ? beta[j] / xStd[j] : 0.0;
+                const keel::f64 bj = (xStd[j] > 0.0) ? beta[j] / xStd[j] : 0.0;
                 Bd[(j + 1) + kIdx * outRows] = bj;
                 intercept -= bj * xMean[j];
             }

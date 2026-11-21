@@ -26,10 +26,10 @@ namespace numkit::stats {
 namespace detail {
 
 namespace {
-inline double argA(keel::ArrayRef<Value> args, keel::usize i) {
+inline keel::f64 argA(keel::ArrayRef<Value> args, keel::usize i) {
     return (args.size() > i && !args[i].isEmpty()) ? args[i].toScalar() : 1.0;
 }
-inline double argB(keel::ArrayRef<Value> args, keel::usize i) {
+inline keel::f64 argB(keel::ArrayRef<Value> args, keel::usize i) {
     return (args.size() > i && !args[i].isEmpty()) ? args[i].toScalar() : 1.0;
 }
 }
@@ -81,8 +81,8 @@ void wblinv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
 void wblrnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "wblrnd");  // no max: trailing size args (N-D tail; nk caps at two — bugs/opened/stats/rnd-nd-size-tails.md)
-    const double a = argA(args, 0);
-    const double b = argB(args, 1);
+    const keel::f64 a = argA(args, 0);
+    const keel::f64 b = argB(args, 1);
     keel::usize rows, cols;
     parse_rng_size(args, 2, rows, cols, "wblrnd");
     outs[0] = reshape_rng_nd(wblrnd(ctx.engine->rng(), a, b, rows, cols, ctx.engine->allocator()), args, 2, ctx.engine->allocator(), "wblrnd");
@@ -92,7 +92,7 @@ void wblstat_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArray
 {
     argcheck::checkNargin(args.size(), 2, 2, "wblstat");
     emit_vec_stat_2arg(args, nargout, outs, ctx.engine->allocator(), "wblstat",
-                       [](double a, double b) { return wblstat(a, b); });
+                       [](keel::f64 a, keel::f64 b) { return wblstat(a, b); });
 }
 
 } // namespace detail

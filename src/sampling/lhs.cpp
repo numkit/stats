@@ -28,11 +28,11 @@ namespace {
 // the RNG mutex. Template'd over RNG type to accept the project's
 // MATLAB-compatible MT19937 stream.
 template <typename Rng>
-void buildOneLhs(double *od, keel::usize n, keel::usize p, bool smooth,
+void buildOneLhs(keel::f64 *od, keel::usize n, keel::usize p, bool smooth,
                  Rng &gen)
 {
     keel::Array<keel::usize> perm(n);
-    const double inv_n = 1.0 / keel::as<double>(n);
+    const keel::f64 inv_n = 1.0 / keel::as<keel::f64>(n);
     for (keel::usize j = 0; j < p; ++j) {
         std::iota(perm.begin(), perm.end(), keel::usize(1));
         for (keel::usize i = n - 1; i > 0; --i) {
@@ -41,24 +41,24 @@ void buildOneLhs(double *od, keel::usize n, keel::usize p, bool smooth,
         }
         if (smooth) {
             for (keel::usize i = 0; i < n; ++i)
-                od[j * n + i] = (keel::as<double>(perm[i]) - keel::random::uniform_f64(gen)) * inv_n;
+                od[j * n + i] = (keel::as<keel::f64>(perm[i]) - keel::random::uniform_f64(gen)) * inv_n;
         } else {
             for (keel::usize i = 0; i < n; ++i)
-                od[j * n + i] = (keel::as<double>(perm[i]) - 0.5) * inv_n;
+                od[j * n + i] = (keel::as<keel::f64>(perm[i]) - 0.5) * inv_n;
         }
     }
 }
 
 // Min pairwise squared Euclidean distance (rows of X, col-major n × p).
-double minPairwiseDistSquared(const double *X, keel::usize n, keel::usize p)
+keel::f64 minPairwiseDistSquared(const keel::f64 *X, keel::usize n, keel::usize p)
 {
     if (n < 2) return 0.0;
-    double best = std::numeric_limits<double>::infinity();
+    keel::f64 best = std::numeric_limits<keel::f64>::infinity();
     for (keel::usize i = 0; i < n; ++i) {
         for (keel::usize k = i + 1; k < n; ++k) {
-            double s = 0.0;
+            keel::f64 s = 0.0;
             for (keel::usize j = 0; j < p; ++j) {
-                const double d = X[j * n + i] - X[j * n + k];
+                const keel::f64 d = X[j * n + i] - X[j * n + k];
                 s += d * d;
             }
             if (s < best) best = s;
@@ -68,33 +68,33 @@ double minPairwiseDistSquared(const double *X, keel::usize n, keel::usize p)
 }
 
 // Max absolute off-diagonal Pearson correlation between columns of X.
-double maxAbsColCorrelation(const double *X, keel::usize n, keel::usize p)
+keel::f64 maxAbsColCorrelation(const keel::f64 *X, keel::usize n, keel::usize p)
 {
     if (p < 2 || n < 2) return 0.0;
     // Compute column means and SDs.
-    keel::Array<double> mu(p), sd(p);
+    keel::Array<keel::f64> mu(p), sd(p);
     for (keel::usize j = 0; j < p; ++j) {
-        double s = 0.0;
+        keel::f64 s = 0.0;
         for (keel::usize i = 0; i < n; ++i) s += X[j * n + i];
-        mu[j] = s / keel::as<double>(n);
+        mu[j] = s / keel::as<keel::f64>(n);
     }
     for (keel::usize j = 0; j < p; ++j) {
-        double v = 0.0;
+        keel::f64 v = 0.0;
         for (keel::usize i = 0; i < n; ++i) {
-            const double d = X[j * n + i] - mu[j];
+            const keel::f64 d = X[j * n + i] - mu[j];
             v += d * d;
         }
-        sd[j] = std::sqrt(v / keel::as<double>(n - 1));
+        sd[j] = std::sqrt(v / keel::as<keel::f64>(n - 1));
         if (sd[j] < 1e-300) sd[j] = 1e-300;
     }
-    double best = 0.0;
+    keel::f64 best = 0.0;
     for (keel::usize a = 0; a < p; ++a) {
         for (keel::usize b = a + 1; b < p; ++b) {
-            double s = 0.0;
+            keel::f64 s = 0.0;
             for (keel::usize i = 0; i < n; ++i)
                 s += (X[a * n + i] - mu[a]) * (X[b * n + i] - mu[b]);
-            const double r = s / (keel::as<double>(n - 1) * sd[a] * sd[b]);
-            const double abr = std::fabs(r);
+            const keel::f64 r = s / (keel::as<keel::f64>(n - 1) * sd[a] * sd[b]);
+            const keel::f64 abr = std::fabs(r);
             if (abr > best) best = abr;
         }
     }
@@ -109,7 +109,7 @@ Value lhsdesign(::numkit::ops::RngContext &rng, keel::usize n, keel::usize p,
 {
     auto out = Value::matrix(n, p, ValueType::DOUBLE, mr);
     if (n == 0 || p == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     if (iterations < 1) iterations = 1;
     if (criterion == LhsCriterion::None) iterations = 1;
 
@@ -121,18 +121,18 @@ Value lhsdesign(::numkit::ops::RngContext &rng, keel::usize n, keel::usize p,
 
     if (iterations == 1 || criterion == LhsCriterion::None) return out;
 
-    double best_score;
-    auto score_of = [&](const double *X) {
+    keel::f64 best_score;
+    auto score_of = [&](const keel::f64 *X) {
         if (criterion == LhsCriterion::Maximin)
             return -minPairwiseDistSquared(X, n, p); // minimise neg → max dist
         return maxAbsColCorrelation(X, n, p);
     };
     best_score = score_of(od);
 
-    keel::Array<double> trial(n * p);
+    keel::Array<keel::f64> trial(n * p);
     for (keel::usize it = 1; it < iterations; ++it) {
         buildOneLhs(trial.data(), n, p, smooth, gen);
-        const double s = score_of(trial.data());
+        const keel::f64 s = score_of(trial.data());
         if (s < best_score) {
             best_score = s;
             std::copy(trial.begin(), trial.end(), od);
@@ -168,7 +168,7 @@ Value lhsnorm(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigm
 
     auto out = Value::matrix(n, d, ValueType::DOUBLE, mr);
     if (n == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
 
     // Stein (1987) rank-based Latin hypercube with covariance Sigma:
     // 1. Draw Z = mvnrnd(mu, Sigma, n) (validates PSD Sigma via psdFactor).
@@ -181,13 +181,13 @@ Value lhsnorm(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigm
     Value muRow = Value::matrix(1, d, ValueType::DOUBLE, mr);
     for (keel::usize j = 0; j < d; ++j)
         muRow.doubleDataMut()[j] = mu.elemAsDouble(j);
-    Value casesVal = Value::scalar(keel::as<double>(n), mr);
+    Value casesVal = Value::scalar(keel::as<keel::f64>(n), mr);
     MvnrndOut mv = mvnrnd_full(rng, muRow, Sigma, casesVal, /*wantT=*/false, mr);
 
-    const double invN = 1.0 / keel::as<double>(n);
+    const keel::f64 invN = 1.0 / keel::as<keel::f64>(n);
     keel::Array<keel::usize> ord(n), rank(n);
     Value uCol = Value::matrix(n, 1, ValueType::DOUBLE, mr);
-    double *ud = uCol.doubleDataMut();
+    keel::f64 *ud = uCol.doubleDataMut();
 
     for (keel::usize j = 0; j < d; ++j) {
         std::iota(ord.begin(), ord.end(), keel::usize(0));
@@ -197,11 +197,11 @@ Value lhsnorm(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigm
         for (keel::usize r = 0; r < n; ++r)
             rank[ord[r]] = r + 1;
         for (keel::usize i = 0; i < n; ++i) {
-            const double xi = smooth ? keel::random::uniform_f64(rng) : 0.5;
-            ud[i] = (keel::as<double>(rank[i]) - xi) * invN;
+            const keel::f64 xi = smooth ? keel::random::uniform_f64(rng) : 0.5;
+            ud[i] = (keel::as<keel::f64>(rank[i]) - xi) * invN;
         }
-        const double muj = mu.elemAsDouble(j);
-        const double sdj = std::sqrt(std::max(0.0, Sigma.elemAsDouble(j + j * d)));
+        const keel::f64 muj = mu.elemAsDouble(j);
+        const keel::f64 sdj = std::sqrt(std::max(0.0, Sigma.elemAsDouble(j + j * d)));
         if (sdj > 0.0) {
             Value zCol = norminv(uCol, muj, sdj, mr);
             for (keel::usize i = 0; i < n; ++i)

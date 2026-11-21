@@ -65,7 +65,7 @@ void geoinv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
 void geornd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "geornd");  // no max: trailing size args (N-D tail; nk caps at two — bugs/opened/stats/rnd-nd-size-tails.md)
-    const double p = args[0].toScalar();
+    const keel::f64 p = args[0].toScalar();
     keel::usize rows = 1, cols = 1;
     parse_rng_size(args, 1, rows, cols, "geornd");
     outs[0] = reshape_rng_nd(geornd(ctx.engine->rng(), p, rows, cols, ctx.engine->allocator()), args, 1, ctx.engine->allocator(), "geornd");
@@ -75,7 +75,7 @@ void geostat_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArray
 {
     argcheck::checkNargin(args.size(), 1, 1, "geostat");
     emit_vec_stat_1arg(args, nargout, outs, ctx.engine->allocator(), "geostat",
-                       [](double p) { return geostat(p); });
+                       [](keel::f64 p) { return geostat(p); });
 }
 
 } // namespace detail

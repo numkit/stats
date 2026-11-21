@@ -40,24 +40,24 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
     else          out = Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
     const keel::usize n = x.numel();
     if (n == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     for (keel::usize i = 0; i < n; ++i) od[i] = op(x.elemAsDouble(i));
     return out;
 }
 
 // log f(k; r, p) = lgamma(k + r) - lgamma(k+1) - lgamma(r)
 //                + r·log(p) + k·log(1-p)
-inline double nbin_pmf(double k, double r, double p) {
+inline keel::f64 nbin_pmf(keel::f64 k, keel::f64 r, keel::f64 p) {
     if (k < 0.0 || std::floor(k) != k) return 0.0;
     if (p == 1.0) return (k == 0.0) ? 1.0 : 0.0;
-    const double lc = std::lgamma(k + r) - std::lgamma(k + 1.0) - std::lgamma(r);
+    const keel::f64 lc = std::lgamma(k + r) - std::lgamma(k + 1.0) - std::lgamma(r);
     return std::exp(lc + r * std::log(p) + k * std::log1p(-p));
 }
 
-inline double nbin_cdf_scalar(double k, double r, double p, keel::Allocator *mr) {
+inline keel::f64 nbin_cdf_scalar(keel::f64 k, keel::f64 r, keel::f64 p, keel::Allocator *mr) {
     if (k < 0.0) return 0.0;
     if (p == 1.0) return 1.0;
-    const double kf = std::floor(k);
+    const keel::f64 kf = std::floor(k);
     // F(k; r, p) = I_p(r, ⌊k⌋ + 1)
     Value xv = Value::scalar(p, mr);
     Value av = Value::scalar(r, mr);
@@ -67,33 +67,33 @@ inline double nbin_cdf_scalar(double k, double r, double p, keel::Allocator *mr)
 }
 
 // (r, p) valid iff r>0 (r may be non-integer) and p ∈ (0, 1]. Else → NaN.
-inline bool nbin_params_ok(double r, double p) {
+inline bool nbin_params_ok(keel::f64 r, keel::f64 p) {
     return r > 0.0 && p > 0.0 && p <= 1.0;
 }
 
-inline double nbinpdfK(double k, double r, double p) {
-    if (!nbin_params_ok(r, p)) return std::numeric_limits<double>::quiet_NaN();
+inline keel::f64 nbinpdfK(keel::f64 k, keel::f64 r, keel::f64 p) {
+    if (!nbin_params_ok(r, p)) return std::numeric_limits<keel::f64>::quiet_NaN();
     return nbin_pmf(k, r, p);
 }
 
 // Smallest integer k with F(k; r, p) ≥ qival, via pmf-recurrence
 // pmf(k+1)/pmf(k) = (k+r)/(k+1)·(1-p). (r, p) assumed valid.
-inline double nbin_inv_scalar(double qival, double r, double p) {
-    if (!(qival >= 0.0 && qival <= 1.0)) return std::numeric_limits<double>::quiet_NaN();
+inline keel::f64 nbin_inv_scalar(keel::f64 qival, keel::f64 r, keel::f64 p) {
+    if (!(qival >= 0.0 && qival <= 1.0)) return std::numeric_limits<keel::f64>::quiet_NaN();
     if (qival == 0.0) return 0.0;
-    if (qival >= 1.0) return std::numeric_limits<double>::infinity();
+    if (qival >= 1.0) return std::numeric_limits<keel::f64>::infinity();
     if (p == 1.0) return 0.0;
-    const double q1m = 1.0 - p;
-    double pmf = std::pow(p, r);   // pmf(0)
-    double cdf = pmf;
-    const double tol = std::max(1e-13, qival * 1e-13);
+    const keel::f64 q1m = 1.0 - p;
+    keel::f64 pmf = std::pow(p, r);   // pmf(0)
+    keel::f64 cdf = pmf;
+    const keel::f64 tol = std::max(1e-13, qival * 1e-13);
     if (cdf >= qival - tol) return 0.0;
-    for (double k = 0.0; k < 1e12; k += 1.0) {
+    for (keel::f64 k = 0.0; k < 1e12; k += 1.0) {
         pmf *= (k + r) / (k + 1.0) * q1m;
         cdf += pmf;
         if (cdf >= qival - tol) return k + 1.0;
     }
-    return std::numeric_limits<double>::infinity();
+    return std::numeric_limits<keel::f64>::infinity();
 }
 
 } // anonymous

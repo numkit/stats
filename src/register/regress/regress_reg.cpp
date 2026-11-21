@@ -29,7 +29,7 @@ void regress_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                  keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 3, "regress");
-    const double alpha = (args.size() >= 3 && !args[2].isEmpty())
+    const keel::f64 alpha = (args.size() >= 3 && !args[2].isEmpty())
                          ? args[2].toScalar() : 0.05;
     auto [b, bint, r, rint, stats] = regress_full(args[0], args[1], alpha, ctx.engine->allocator());
     outs[0] = std::move(b);

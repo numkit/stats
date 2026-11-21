@@ -53,8 +53,8 @@ void chi2cdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
     } else {
         // F(x; k) = gammainc(max(0,x/2), k/2); gammainc broadcasts (xs, k/2)
         // and gammaincScalar gives NaN where k/2<=0 (matches k<=0 → NaN).
-        Value xs = elementwise(a[0], [](double xi) { return std::max(0.0, 0.5 * xi); }, mr);
-        Value half_k = elementwise(k, [](double ki) { return 0.5 * ki; }, mr);
+        Value xs = elementwise(a[0], [](keel::f64 xi) { return std::max(0.0, 0.5 * xi); }, mr);
+        Value half_k = elementwise(k, [](keel::f64 ki) { return 0.5 * ki; }, mr);
         v = ::numkit::builtin::gammainc(xs, half_k, mr);
     }
     if (upper) applyUpperInPlace(v);
@@ -78,17 +78,17 @@ void chi2inv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
         return;
     }
     const keel::usize N = dist_match_numel({np, nk}, "chi2inv");
-    Value half_k = elementwise(k, [](double ki) { return 0.5 * ki; }, mr);
+    Value half_k = elementwise(k, [](keel::f64 ki) { return 0.5 * ki; }, mr);
     Value q = ::numkit::builtin::gammaincinv(p, half_k, mr);
     const keel::usize nq = q.numel();
     const Value &ref = (nk == N) ? k : p;
     Value out = dist_empty_like(ref, mr);
-    double *od = out.doubleDataMut();
-    const double NaN = std::numeric_limits<double>::quiet_NaN();
+    keel::f64 *od = out.doubleDataMut();
+    const keel::f64 NaN = std::numeric_limits<keel::f64>::quiet_NaN();
     for (keel::usize i = 0; i < N; ++i) {
-        const double pi = p.elemAsDouble(np == 1 ? 0 : i);
-        const double ki = k.elemAsDouble(nk == 1 ? 0 : i);
-        const double qi = q.elemAsDouble(nq == 1 ? 0 : i);
+        const keel::f64 pi = p.elemAsDouble(np == 1 ? 0 : i);
+        const keel::f64 ki = k.elemAsDouble(nk == 1 ? 0 : i);
+        const keel::f64 qi = q.elemAsDouble(nq == 1 ? 0 : i);
         od[i] = (ki < 0.0) ? NaN
                            : (ki == 0.0 ? ((pi >= 0.0 && pi <= 1.0) ? 0.0 : NaN) : 2.0 * qi);
     }
@@ -98,7 +98,7 @@ void chi2inv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
 void chi2rnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "chi2rnd");  // no max: trailing size args (N-D tail; nk caps at two — bugs/opened/stats/rnd-nd-size-tails.md)
-    const double k = args[0].toScalar();
+    const keel::f64 k = args[0].toScalar();
     keel::usize rows, cols;
     parse_rng_size(args, 1, rows, cols, "chi2rnd");
     outs[0] = reshape_rng_nd(chi2rnd(ctx.engine->rng(), k, rows, cols, ctx.engine->allocator()), args, 1, ctx.engine->allocator(), "chi2rnd");
@@ -108,7 +108,7 @@ void chi2stat_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArra
 {
     argcheck::checkNargin(args.size(), 1, 1, "chi2stat");
     emit_vec_stat_1arg(args, nargout, outs, ctx.engine->allocator(), "chi2stat",
-                       [](double k) { return chi2stat(k); });
+                       [](keel::f64 k) { return chi2stat(k); });
 }
 
 } // namespace detail

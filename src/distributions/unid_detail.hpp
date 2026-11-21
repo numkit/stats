@@ -40,30 +40,30 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
     else          out = Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
     const keel::usize n = x.numel();
     if (n == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     for (keel::usize i = 0; i < n; ++i) od[i] = op(x.elemAsDouble(i));
     return out;
 }
 
 // Scalar kernels for the parameter-broadcast path (vector N). Own their
 // per-element domain (N<1 or noninteger N → NaN). Mirror the public fns.
-inline double unidpdfK(double k, double N) {
-    if (N < 1.0 || std::floor(N) != N) return std::numeric_limits<double>::quiet_NaN();
+inline keel::f64 unidpdfK(keel::f64 k, keel::f64 N) {
+    if (N < 1.0 || std::floor(N) != N) return std::numeric_limits<keel::f64>::quiet_NaN();
     if (k < 1.0 || k > N || std::floor(k) != k) return 0.0;
     return 1.0 / N;
 }
 
-inline double unidcdfK(double k, double N) {
-    if (N < 1.0 || std::floor(N) != N) return std::numeric_limits<double>::quiet_NaN();
+inline keel::f64 unidcdfK(keel::f64 k, keel::f64 N) {
+    if (N < 1.0 || std::floor(N) != N) return std::numeric_limits<keel::f64>::quiet_NaN();
     if (k < 1.0) return 0.0;
     if (k >= N) return 1.0;
     return std::floor(k) / N;
 }
 
-inline double unidinvK(double p, double N) {
-    if (!(N >= 1.0) || std::floor(N) != N) return std::numeric_limits<double>::quiet_NaN();
-    if (std::isnan(p) || p <= 0.0 || p > 1.0) return std::numeric_limits<double>::quiet_NaN();
-    const double r = std::ceil(p * N);
+inline keel::f64 unidinvK(keel::f64 p, keel::f64 N) {
+    if (!(N >= 1.0) || std::floor(N) != N) return std::numeric_limits<keel::f64>::quiet_NaN();
+    if (std::isnan(p) || p <= 0.0 || p > 1.0) return std::numeric_limits<keel::f64>::quiet_NaN();
+    const keel::f64 r = std::ceil(p * N);
     return r < 1.0 ? 1.0 : (r > N ? N : r);
 }
 

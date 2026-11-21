@@ -32,8 +32,8 @@ namespace numkit::stats {
 
 namespace {
 
-constexpr double kSqrt2  = 1.41421356237309504880;
-constexpr double kSqrt2Pi = 2.50662827463100050241;
+constexpr keel::f64 kSqrt2  = 1.41421356237309504880;
+constexpr keel::f64 kSqrt2Pi = 2.50662827463100050241;
 
 // Apply f(x[i]) elementwise into a fresh DOUBLE Value of same shape.
 template <typename Op>
@@ -46,7 +46,7 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
     else          out = Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
     const keel::usize n = x.numel();
     if (n == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     for (keel::usize i = 0; i < n; ++i) od[i] = op(x.elemAsDouble(i));
     return out;
 }
@@ -55,30 +55,30 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
 // step. For our purposes the existing numkit::builtin::erfinv is sufficient
 // (already tested at ULP-10 in the parity bench).
 
-[[maybe_unused]] double erfinvScalar(double y)
+[[maybe_unused]] keel::f64 erfinvScalar(keel::f64 y)
 {
-    if (y >= 1.0) return std::numeric_limits<double>::infinity();
-    if (y <= -1.0) return -std::numeric_limits<double>::infinity();
+    if (y >= 1.0) return std::numeric_limits<keel::f64>::infinity();
+    if (y <= -1.0) return -std::numeric_limits<keel::f64>::infinity();
     if (y == 0.0) return 0.0;
-    const double ay = keel::abs(y);
-    const double q = 1.0 - ay; // tail probability erfc(|x|) = q
-    const double a = 0.147;
-    const double ln1m = std::log((1.0 + ay) * q);
-    const double term = 2.0 / (M_PI * a) + 0.5 * ln1m;
-    double x = std::copysign(std::sqrt(std::sqrt(term * term - ln1m / a) - term), y);
-    const double invSqrtPi2 = 2.0 / std::sqrt(M_PI);
+    const keel::f64 ay = keel::abs(y);
+    const keel::f64 q = 1.0 - ay; // tail probability erfc(|x|) = q
+    const keel::f64 a = 0.147;
+    const keel::f64 ln1m = std::log((1.0 + ay) * q);
+    const keel::f64 term = 2.0 / (M_PI * a) + 0.5 * ln1m;
+    keel::f64 x = std::copysign(std::sqrt(std::sqrt(term * term - ln1m / a) - term), y);
+    const keel::f64 invSqrtPi2 = 2.0 / std::sqrt(M_PI);
     // 4 Halley iterations for full 53-bit precision across central and tail regions.
     for (int i = 0; i < 4; ++i) {
-        double err;
+        keel::f64 err;
         if (ay <= 0.5) {
             err = std::erf(x) - y;
         } else {
-            const double tailErr = (q - std::erfc(keel::abs(x)));
+            const keel::f64 tailErr = (q - std::erfc(keel::abs(x)));
             err = (y > 0.0) ? tailErr : -tailErr;
         }
-        const double de = invSqrtPi2 * std::exp(-x * x);
+        const keel::f64 de = invSqrtPi2 * std::exp(-x * x);
         if (de == 0.0) break;
-        const double u = err / de;
+        const keel::f64 u = err / de;
         x -= u / (1.0 + x * u);
     }
     return x;
@@ -88,17 +88,17 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
 // Each owns its per-element domain handling so they can be broadcast over
 // vector parameters: sigma<=0 (or NaN) → NaN, matching MATLAB R2025b.
 
-inline double normpdfK(double x, double mu, double sigma)
+inline keel::f64 normpdfK(keel::f64 x, keel::f64 mu, keel::f64 sigma)
 {
     return keel::stats::norm_pdf(x, mu, sigma);
 }
 
-inline double normcdfK(double x, double mu, double sigma)
+inline keel::f64 normcdfK(keel::f64 x, keel::f64 mu, keel::f64 sigma)
 {
     return keel::stats::norm_cdf(x, mu, sigma);
 }
 
-inline double norminvK(double p, double mu, double sigma)
+inline keel::f64 norminvK(keel::f64 p, keel::f64 mu, keel::f64 sigma)
 {
     return keel::stats::norm_inv(p, mu, sigma);
 }

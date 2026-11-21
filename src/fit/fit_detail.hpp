@@ -28,58 +28,58 @@ namespace numkit::stats {
 
 namespace {
 
-[[maybe_unused]] void mean_var(const Value &x, double &mean, double &var, keel::usize &N) {
+[[maybe_unused]] void mean_var(const Value &x, keel::f64 &mean, keel::f64 &var, keel::usize &N) {
     N = x.numel();
     if (N == 0) { mean = 0.0; var = 0.0; return; }
-    double s = 0.0;
+    keel::f64 s = 0.0;
     for (keel::usize i = 0; i < N; ++i) s += x.elemAsDouble(i);
-    mean = s / double(N);
+    mean = s / keel::f64(N);
     if (N < 2) { var = 0.0; return; }
-    double sq = 0.0;
+    keel::f64 sq = 0.0;
     for (keel::usize i = 0; i < N; ++i) {
-        const double d = x.elemAsDouble(i) - mean;
+        const keel::f64 d = x.elemAsDouble(i) - mean;
         sq += d * d;
     }
-    var = sq / double(N - 1);
+    var = sq / keel::f64(N - 1);
 }
 
-[[maybe_unused]] Value rowCI(double lo, double hi, keel::Allocator *mr) {
+[[maybe_unused]] Value rowCI(keel::f64 lo, keel::f64 hi, keel::Allocator *mr) {
     Value v = Value::matrix(2, 1, ValueType::DOUBLE, mr);
-    double *d = v.doubleDataMut();
+    keel::f64 *d = v.doubleDataMut();
     d[0] = lo;
     d[1] = hi;
     return v;
 }
 
-double tinv_scalar(double p, double nu, keel::Allocator *mr) {
+keel::f64 tinv_scalar(keel::f64 p, keel::f64 nu, keel::Allocator *mr) {
     Value pv = Value::scalar(p, mr);
     return tinv(pv, nu, mr).toScalar();
 }
 
-double chi2inv_scalar(double p, double k, keel::Allocator *mr) {
+keel::f64 chi2inv_scalar(keel::f64 p, keel::f64 k, keel::Allocator *mr) {
     Value pv = Value::scalar(p, mr);
     return chi2inv(pv, k, mr).toScalar();
 }
 
 // ── Normal MLE helpers (used by normfit / lognfit cens+freq paths) ────
 
-constexpr double kPi = 3.14159265358979323846;
+constexpr keel::f64 kPi = 3.14159265358979323846;
 
 // Inverse-Mills ratio λ(α) = φ(α)/Φ(-α). For right-censored normal MLE.
-inline double inv_mills(double a) {
-    const double pdf  = std::exp(-0.5 * a * a) / std::sqrt(2.0 * kPi);
-    const double surv = 0.5 * std::erfc(a / std::sqrt(2.0));  // Φ(-a)
+inline keel::f64 inv_mills(keel::f64 a) {
+    const keel::f64 pdf  = std::exp(-0.5 * a * a) / std::sqrt(2.0 * kPi);
+    const keel::f64 surv = 0.5 * std::erfc(a / std::sqrt(2.0));  // Φ(-a)
     return (surv > 1e-300) ? pdf / surv : 0.0;
 }
 
 // z = -norminv(α/2) via Newton iteration on std::erf.
-double zNorm(double alpha) {
-    const double y_target = 1.0 - alpha;
-    double e = y_target;
+keel::f64 zNorm(keel::f64 alpha) {
+    const keel::f64 y_target = 1.0 - alpha;
+    keel::f64 e = y_target;
     for (int it = 0; it < 50; ++it) {
-        const double f  = std::erf(e) - y_target;
-        const double fp = (2.0 / std::sqrt(kPi)) * std::exp(-e * e);
-        const double step = f / fp;
+        const keel::f64 f  = std::erf(e) - y_target;
+        const keel::f64 fp = (2.0 / std::sqrt(kPi)) * std::exp(-e * e);
+        const keel::f64 step = f / fp;
         e -= step;
         if (std::fabs(step) < 1e-15) break;
     }
@@ -90,21 +90,21 @@ double zNorm(double alpha) {
 // censoring + freq weights. Used by both normfit (raw x) and lognfit
 // (y = log(x)).
 struct NormalFitOut {
-    double mu, sd;
-    double mu_lo, mu_hi;
-    double sd_lo, sd_hi;
+    keel::f64 mu, sd;
+    keel::f64 mu_lo, mu_hi;
+    keel::f64 sd_lo, sd_hi;
     bool   ok;
 };
 
 [[maybe_unused]] NormalFitOut
-normal_fit_mle(const keel::Array<double> &y, const keel::Array<double> &fr, const keel::Array<keel::u8> &cn, double alpha, keel::Allocator *mr)
+normal_fit_mle(const keel::Array<keel::f64> &y, const keel::Array<keel::f64> &fr, const keel::Array<keel::u8> &cn, keel::f64 alpha, keel::Allocator *mr)
 {
-    const double nan = std::numeric_limits<double>::quiet_NaN();
+    const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
     NormalFitOut R{nan, nan, nan, nan, nan, nan, false};
     const keel::usize N = y.size();
     if (N < 2) return R;
 
-    double sumf = 0.0;
+    keel::f64 sumf = 0.0;
     int nuncens = 0;
     for (keel::usize i = 0; i < N; ++i) {
         sumf += fr[i];
@@ -116,20 +116,20 @@ normal_fit_mle(const keel::Array<double> &y, const keel::Array<double> &fr, cons
 
     if (!any_cens) {
         // Closed-form weighted moments.
-        double s = 0.0;
+        keel::f64 s = 0.0;
         for (keel::usize i = 0; i < N; ++i) s += fr[i] * y[i];
-        const double mu = s / sumf;
-        double sq = 0.0;
+        const keel::f64 mu = s / sumf;
+        keel::f64 sq = 0.0;
         for (keel::usize i = 0; i < N; ++i) {
-            const double d = y[i] - mu;
+            const keel::f64 d = y[i] - mu;
             sq += fr[i] * d * d;
         }
-        const double sd  = std::sqrt(sq / (sumf - 1.0));
-        const double dof = sumf - 1.0;
-        const double t   = tinv_scalar(1.0 - alpha / 2.0, dof, mr);
-        const double sem = sd / std::sqrt(sumf);
-        const double chiU = chi2inv_scalar(1.0 - alpha / 2.0, dof, mr);
-        const double chiL = chi2inv_scalar(alpha / 2.0, dof, mr);
+        const keel::f64 sd  = std::sqrt(sq / (sumf - 1.0));
+        const keel::f64 dof = sumf - 1.0;
+        const keel::f64 t   = tinv_scalar(1.0 - alpha / 2.0, dof, mr);
+        const keel::f64 sem = sd / std::sqrt(sumf);
+        const keel::f64 chiU = chi2inv_scalar(1.0 - alpha / 2.0, dof, mr);
+        const keel::f64 chiL = chi2inv_scalar(alpha / 2.0, dof, mr);
         R.mu = mu; R.sd = sd;
         R.mu_lo = mu - t * sem; R.mu_hi = mu + t * sem;
         R.sd_lo = std::sqrt(dof * sd * sd / chiU);
@@ -140,75 +140,75 @@ normal_fit_mle(const keel::Array<double> &y, const keel::Array<double> &fr, cons
 
     // Censored MLE via EM on truncated-normal moments. Init from
     // uncensored data only.
-    double mu = 0.0, sd = 0.0;
+    keel::f64 mu = 0.0, sd = 0.0;
     {
-        double s_un = 0.0, w_un = 0.0;
+        keel::f64 s_un = 0.0, w_un = 0.0;
         for (keel::usize i = 0; i < N; ++i) if (!cn[i]) {
             s_un += fr[i] * y[i]; w_un += fr[i];
         }
         mu = s_un / w_un;
-        double sq = 0.0;
+        keel::f64 sq = 0.0;
         for (keel::usize i = 0; i < N; ++i) if (!cn[i]) {
-            const double d = y[i] - mu; sq += fr[i] * d * d;
+            const keel::f64 d = y[i] - mu; sq += fr[i] * d * d;
         }
         sd = std::sqrt(std::max(sq / std::max(w_un - 1.0, 1.0), 1e-12));
     }
     const int    maxIter = 200;
-    const double tolFun  = 1e-10;
+    const keel::f64 tolFun  = 1e-10;
     for (int it = 0; it < maxIter; ++it) {
-        double sumfy = 0.0, sumfy2 = 0.0;
+        keel::f64 sumfy = 0.0, sumfy2 = 0.0;
         for (keel::usize i = 0; i < N; ++i) {
-            const double yi = y[i], fi = fr[i];
+            const keel::f64 yi = y[i], fi = fr[i];
             if (!cn[i]) {
                 sumfy  += fi * yi;
                 sumfy2 += fi * yi * yi;
             } else {
-                const double a   = (yi - mu) / sd;
-                const double lam = inv_mills(a);
-                const double Ey  = mu + sd * lam;
-                const double Eym2 = sd * sd * (1.0 + a * lam);
-                const double Ey2  = Eym2 + 2.0 * mu * sd * lam + mu * mu;
+                const keel::f64 a   = (yi - mu) / sd;
+                const keel::f64 lam = inv_mills(a);
+                const keel::f64 Ey  = mu + sd * lam;
+                const keel::f64 Eym2 = sd * sd * (1.0 + a * lam);
+                const keel::f64 Ey2  = Eym2 + 2.0 * mu * sd * lam + mu * mu;
                 sumfy  += fi * Ey;
                 sumfy2 += fi * Ey2;
             }
         }
-        const double mu_new  = sumfy / sumf;
-        const double var_new = std::max(sumfy2 / sumf - mu_new * mu_new, 1e-300);
-        const double sd_new  = std::sqrt(var_new);
-        const double delta   = std::fabs(mu_new - mu) + std::fabs(sd_new - sd);
+        const keel::f64 mu_new  = sumfy / sumf;
+        const keel::f64 var_new = std::max(sumfy2 / sumf - mu_new * mu_new, 1e-300);
+        const keel::f64 sd_new  = std::sqrt(var_new);
+        const keel::f64 delta   = std::fabs(mu_new - mu) + std::fabs(sd_new - sd);
         mu = mu_new; sd = sd_new;
         if (delta < tolFun) break;
     }
 
     // Analytic observed Fisher info at the MLE.
-    double Imm = 0.0, Ims = 0.0, Iss = 0.0;
+    keel::f64 Imm = 0.0, Ims = 0.0, Iss = 0.0;
     for (keel::usize i = 0; i < N; ++i) {
-        const double fi = fr[i];
-        const double a  = (y[i] - mu) / sd;
+        const keel::f64 fi = fr[i];
+        const keel::f64 a  = (y[i] - mu) / sd;
         if (!cn[i]) {
             Imm +=  fi / (sd * sd);
             Ims +=  2.0 * fi * (y[i] - mu) / (sd * sd * sd);
             Iss += -fi / (sd * sd) + 3.0 * fi * (y[i] - mu) * (y[i] - mu) / (sd * sd * sd * sd);
         } else {
-            const double m  = inv_mills(a);
-            const double mp = m * (m - a);
+            const keel::f64 m  = inv_mills(a);
+            const keel::f64 mp = m * (m - a);
             Imm += fi * mp / (sd * sd);
             Ims += fi * (a * mp + m) / (sd * sd);
             Iss += fi * a * (a * mp + 2.0 * m) / (sd * sd);
         }
     }
-    const double det = Imm * Iss - Ims * Ims;
-    double SEmu = nan, SEsigma = nan;
+    const keel::f64 det = Imm * Iss - Ims * Ims;
+    keel::f64 SEmu = nan, SEsigma = nan;
     if (det > 0.0) {
         SEmu    = std::sqrt(Iss / det);
         SEsigma = std::sqrt(Imm / det);
     }
-    const double z = zNorm(alpha);
+    const keel::f64 z = zNorm(alpha);
 
     R.mu = mu; R.sd = sd;
     R.mu_lo = mu - z * SEmu;
     R.mu_hi = mu + z * SEmu;
-    const double SElogS = (sd > 0.0) ? SEsigma / sd : nan;
+    const keel::f64 SElogS = (sd > 0.0) ? SEsigma / sd : nan;
     R.sd_lo = sd * std::exp(-z * SElogS);
     R.sd_hi = sd * std::exp( z * SElogS);
     R.ok = true;
@@ -217,28 +217,28 @@ normal_fit_mle(const keel::Array<double> &y, const keel::Array<double> &fr, cons
 
 } // anonymous
 namespace {
-[[maybe_unused]] double betainv_scalar2(double p, double a, double b, keel::Allocator *mr)
+[[maybe_unused]] keel::f64 betainv_scalar2(keel::f64 p, keel::f64 a, keel::f64 b, keel::Allocator *mr)
 {
-    if (a <= 0.0 || b <= 0.0) return std::numeric_limits<double>::quiet_NaN();
+    if (a <= 0.0 || b <= 0.0) return std::numeric_limits<keel::f64>::quiet_NaN();
     if (p <= 0.0) return 0.0;
     if (p >= 1.0) return 1.0;
     return betainv(Value::scalar(p, mr), a, b, mr).toScalar();
 }
 }
 namespace {
-constexpr double kLog2Pi = 1.8378770664093454835606594728112352;
+constexpr keel::f64 kLog2Pi = 1.8378770664093454835606594728112352;
 }
 
 // MLE negative-log-likelihood workers (def in fit.cpp, external). lognlike_full/
 // explike_full fill an optional 2x2 asymptotic-covariance via double *avarOut.
-double lognlike_full(double mu, double sigma, const Value &x,
-                     const Value &cens, const Value &freq, double *avarOut);
-double explike_full(double mu, const Value &x,
-                    const Value &cens, const Value &freq, double *avarOut);
-double wbllike_full(double scale, double shape, const Value &x,
+keel::f64 lognlike_full(keel::f64 mu, keel::f64 sigma, const Value &x,
+                     const Value &cens, const Value &freq, keel::f64 *avarOut);
+keel::f64 explike_full(keel::f64 mu, const Value &x,
+                    const Value &cens, const Value &freq, keel::f64 *avarOut);
+keel::f64 wbllike_full(keel::f64 scale, keel::f64 shape, const Value &x,
                     const Value &cens, const Value &freq,
                     keel::Allocator *mr);
-double evlike_full(double mu, double sigma, const Value &x,
+keel::f64 evlike_full(keel::f64 mu, keel::f64 sigma, const Value &x,
                    const Value &cens, const Value &freq,
                    keel::Allocator *mr);
 

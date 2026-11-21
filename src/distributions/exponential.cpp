@@ -20,41 +20,41 @@
 namespace numkit::stats {
 
 namespace {
-inline bool exp_argcheck(double mu) noexcept
+inline bool exp_argcheck(keel::f64 mu) noexcept
 {
     return mu > 0.0;
 }
 } // namespace
 
-Value exppdf(const Value &x, double mu, keel::Allocator *mr)
+Value exppdf(const Value &x, keel::f64 mu, keel::Allocator *mr)
 {
-    return elementwise(x, [=](double xi) { return exppdfK(xi, mu); }, mr);
+    return elementwise(x, [=](keel::f64 xi) { return exppdfK(xi, mu); }, mr);
 }
 
-Value expcdf(const Value &x, double mu, keel::Allocator *mr)
+Value expcdf(const Value &x, keel::f64 mu, keel::Allocator *mr)
 {
-    return elementwise(x, [=](double xi) { return expcdfK(xi, mu); }, mr);
+    return elementwise(x, [=](keel::f64 xi) { return expcdfK(xi, mu); }, mr);
 }
 
-Value expinv(const Value &p, double mu, keel::Allocator *mr)
+Value expinv(const Value &p, keel::f64 mu, keel::Allocator *mr)
 {
-    return elementwise(p, [=](double pi) { return expinvK(pi, mu); }, mr);
+    return elementwise(p, [=](keel::f64 pi) { return expinvK(pi, mu); }, mr);
 }
 
-Value exprnd(::numkit::ops::RngContext &rng, double mu, keel::usize rows, keel::usize cols, keel::Allocator *mr)
+Value exprnd(::numkit::ops::RngContext &rng, keel::f64 mu, keel::usize rows, keel::usize cols, keel::Allocator *mr)
 {
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (!exp_argcheck(mu) || rows * cols == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     const keel::usize n = rows * cols;
     for (keel::usize i = 0; i < n; ++i) od[i] = -mu * std::log(rng.nextUniform());
     return out;
 }
 
-std::tuple<double, double> expstat(double mu)
+std::tuple<keel::f64, keel::f64> expstat(keel::f64 mu)
 {
     if (mu <= 0.0) {
-        const double nan = std::numeric_limits<double>::quiet_NaN();
+        const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
         return std::make_tuple(nan, nan);
     }
     return std::make_tuple(mu, mu * mu);

@@ -98,7 +98,7 @@ Value var(const Value &x, int normFlag, int dim, keel::Allocator *mr)
 
     const int d = resolveDim(x, dim, "var");
     Value r = applyAlongDim(x, d,
-        [normFlag](keel::usize, double *slice, keel::usize n) {
+        [normFlag](keel::usize, keel::f64 *slice, keel::usize n) {
             return varianceTwoPass(slice, n, normFlag);
         }, mr);
     if (x.type() == ValueType::SINGLE)
@@ -118,7 +118,7 @@ Value stdev(const Value &x, int normFlag, int dim, keel::Allocator *mr)
 
     const int d = resolveDim(x, dim, "std");
     Value r = applyAlongDim(x, d,
-        [normFlag](keel::usize, double *slice, keel::usize n) {
+        [normFlag](keel::usize, keel::f64 *slice, keel::usize n) {
             return std::sqrt(varianceTwoPass(slice, n, normFlag));
         }, mr);
     if (x.type() == ValueType::SINGLE)
@@ -143,7 +143,7 @@ Value median(const Value &x, int dim, keel::Allocator *mr)
         return emptyStatReductionNaN(x, dim, mr);
     const int d = resolveDim(x, dim, "median");
     Value r = applyAlongDim(x, d,
-        [](keel::usize, double *slice, keel::usize n) {
+        [](keel::usize, keel::f64 *slice, keel::usize n) {
             return medianFromSlice(slice, n);
         }, mr);
     if (x.type() == ValueType::SINGLE)
@@ -190,14 +190,14 @@ Value prctile(const Value &x, const Value &p, int dim, keel::Allocator *mr)
 // Internal entry point used by registration adapters which parsed
 // 'all' / vecdim / Method themselves. `flatten = true` collapses x to
 // a flat row vector before reduction; `method` selects the algorithm.
-Value quantileWithOpts(const Value &x, const Value &p, int dim, bool flatten, QMethod method, double pScale, const char *fn, keel::Allocator *mr)
+Value quantileWithOpts(const Value &x, const Value &p, int dim, bool flatten, QMethod method, keel::f64 pScale, const char *fn, keel::Allocator *mr)
 {
     if (flatten) {
         // Reshape into a 1Ã—N row, then reduce along dim 2 (the only
         // non-singleton dim â€” gives the canonical "all" semantics).
         Value flat = Value::matrix(1, x.numel(), ValueType::DOUBLE, mr);
         if (x.numel() > 0) {
-            const double *src = x.doubleData();
+            const keel::f64 *src = x.doubleData();
             std::copy(src, src + x.numel(), flat.doubleDataMut());
         }
         return quantileImpl(flat, p, 2, pScale, method, fn, mr);
@@ -242,7 +242,7 @@ Value cov(const Value &x, int normFlag, keel::Allocator *mr)
     validateCovInputs(x, "cov");
 
     keel::ArenaTemp scratch = keel::get_scratch(mr);
-    keel::Array<double> data(scratch.allocator());
+    keel::Array<keel::f64> data(scratch.allocator());
     keel::usize n, p;
     readMatrix(x, data, n, p);
     if (n == 0) {
@@ -252,13 +252,13 @@ Value cov(const Value &x, int normFlag, keel::Allocator *mr)
     }
     centerColumns(data.data(), n, p);
 
-    const double divisor = (normFlag == 0)
-        ? std::max(1.0, keel::as<double>(n) - 1.0)
-        : keel::as<double>(n);
+    const keel::f64 divisor = (normFlag == 0)
+        ? std::max(1.0, keel::as<keel::f64>(n) - 1.0)
+        : keel::as<keel::f64>(n);
 
     if (p == 1) {
         // Vector input â†’ return scalar variance.
-        double s = 0.0;
+        keel::f64 s = 0.0;
         for (keel::usize i = 0; i < n; ++i) s += data[i] * data[i];
         return Value::scalar(s / divisor, mr);
     }
@@ -280,15 +280,15 @@ Value cov(const Value &x, const Value &y, int normFlag, keel::Allocator *mr)
     if (n == 0)
         return Value::matrix(2, 2, ValueType::DOUBLE, mr);
     keel::ArenaTemp scratch = keel::get_scratch(mr);
-    auto data = keel::Array<double>(n * 2, scratch.allocator());
+    auto data = keel::Array<keel::f64>(n * 2, scratch.allocator());
     for (keel::usize i = 0; i < n; ++i) {
         data[i] = x.elemAsDouble(i);          // column 0 (= x)
         data[n + i] = y.elemAsDouble(i);      // column 1 (= y)
     }
     centerColumns(data.data(), n, 2);
-    const double divisor = (normFlag == 0)
-        ? std::max(1.0, keel::as<double>(n) - 1.0)
-        : keel::as<double>(n);
+    const keel::f64 divisor = (normFlag == 0)
+        ? std::max(1.0, keel::as<keel::f64>(n) - 1.0)
+        : keel::as<keel::f64>(n);
     return covMatrixFromCentered(data.data(), n, 2, divisor, mr);
 }
 

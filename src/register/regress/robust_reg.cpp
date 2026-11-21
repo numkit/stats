@@ -48,7 +48,7 @@ void robustfit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                         "'ols', 'talwar', 'welsch'",
                         0, 0, "robustfit", "", "numkit:robustfit:badWeight");
     }
-    double tune = std::numeric_limits<double>::quiet_NaN();
+    keel::f64 tune = std::numeric_limits<keel::f64>::quiet_NaN();
     if (args.size() >= 4 && !args[3].isEmpty())
         tune = args[3].toScalar();
 
@@ -72,7 +72,7 @@ void robustfit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         const keel::usize p = Xin.dims().cols();
         Value Xaug = Value::matrix(n, p + 1, ValueType::DOUBLE,
                                    ctx.engine->allocator());
-        double *xa = Xaug.doubleDataMut();
+        keel::f64 *xa = Xaug.doubleDataMut();
         for (keel::usize i = 0; i < n; ++i) xa[i] = 1.0;        // intercept col
         for (keel::usize j = 0; j < p; ++j)
             for (keel::usize i = 0; i < n; ++i)

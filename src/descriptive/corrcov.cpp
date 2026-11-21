@@ -47,9 +47,9 @@ corrcov(const Value &C, keel::Allocator *mr)
     const keel::usize R = C.dims().rows();
 
     // sigma(i) = sqrt(C(i, i)).
-    keel::Array<double> sigma(R);
+    keel::Array<keel::f64> sigma(R);
     for (keel::usize i = 0; i < R; ++i) {
-        const double v = C.elemAsDouble(i + i * R);   // column-major
+        const keel::f64 v = C.elemAsDouble(i + i * R);   // column-major
         if (v < 0.0)
             throw Error("corrcov: negative variance on diagonal",
                         0, 0, "corrcov", "",
@@ -58,19 +58,19 @@ corrcov(const Value &C, keel::Allocator *mr)
     }
 
     Value Rv = Value::matrix(R, R, ValueType::DOUBLE, mr);
-    double *o = Rv.doubleDataMut();
+    keel::f64 *o = Rv.doubleDataMut();
     for (keel::usize j = 0; j < R; ++j) {
         for (keel::usize i = 0; i < R; ++i) {
-            const double cij = C.elemAsDouble(i + j * R);
-            const double denom = sigma[i] * sigma[j];
+            const keel::f64 cij = C.elemAsDouble(i + j * R);
+            const keel::f64 denom = sigma[i] * sigma[j];
             o[i + j * R] = (denom == 0.0)
-                               ? std::numeric_limits<double>::quiet_NaN()
+                               ? std::numeric_limits<keel::f64>::quiet_NaN()
                                : cij / denom;
         }
     }
     // Sigma as row vector (MATLAB convention).
     Value Sv = Value::matrix(1, R, ValueType::DOUBLE, mr);
-    double *s = Sv.doubleDataMut();
+    keel::f64 *s = Sv.doubleDataMut();
     for (keel::usize i = 0; i < R; ++i) s[i] = sigma[i];
 
     return {std::move(Rv), std::move(Sv)};

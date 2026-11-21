@@ -52,10 +52,10 @@ inline keel::usize stripUpperFlag(keel::ArrayRef<Value> args, bool &upper)
 inline void applyUpperInPlace(Value &y)
 {
     if (y.type() != ValueType::DOUBLE) return;
-    double *d = y.doubleDataMut();
+    keel::f64 *d = y.doubleDataMut();
     const keel::usize n = y.numel();
     for (keel::usize i = 0; i < n; ++i) {
-        const double v = d[i];
+        const keel::f64 v = d[i];
         if (!std::isnan(v)) d[i] = 1.0 - v;
     }
 }
@@ -91,8 +91,8 @@ inline void emit_vec_stat_1arg(keel::ArrayRef<Value> args, keel::usize nargout,
     Value out_v = d.is3D()
         ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr)
         : Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
-    double *pm = out_m.doubleDataMut();
-    double *pv = out_v.doubleDataMut();
+    keel::f64 *pm = out_m.doubleDataMut();
+    keel::f64 *pv = out_v.doubleDataMut();
     const keel::usize n = p.numel();
     for (keel::usize i = 0; i < n; ++i) {
         auto [m, v] = stat_impl(p.elemAsDouble(i));
@@ -132,12 +132,12 @@ inline void emit_vec_stat_2arg(keel::ArrayRef<Value> args, keel::usize nargout,
     Value out_v = d.is3D()
         ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr)
         : Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
-    double *pm = out_m.doubleDataMut();
-    double *pv = out_v.doubleDataMut();
+    keel::f64 *pm = out_m.doubleDataMut();
+    keel::f64 *pv = out_v.doubleDataMut();
     const keel::usize n = ref.numel();
     for (keel::usize i = 0; i < n; ++i) {
-        const double a = av.elemAsDouble(na == 1 ? 0 : i);
-        const double b = bv.elemAsDouble(nb == 1 ? 0 : i);
+        const keel::f64 a = av.elemAsDouble(na == 1 ? 0 : i);
+        const keel::f64 b = bv.elemAsDouble(nb == 1 ? 0 : i);
         auto [m, v] = stat_impl(a, b);
         pm[i] = m;
         pv[i] = v;
@@ -177,12 +177,12 @@ inline void emit_vec_stat_3arg(keel::ArrayRef<Value> args, keel::usize nargout,
     Value out_v = d.is3D()
         ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr)
         : Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
-    double *pm = out_m.doubleDataMut();
-    double *pv = out_v.doubleDataMut();
+    keel::f64 *pm = out_m.doubleDataMut();
+    keel::f64 *pv = out_v.doubleDataMut();
     for (keel::usize i = 0; i < nmax; ++i) {
-        const double a = av.elemAsDouble(na == 1 ? 0 : i);
-        const double b = bv.elemAsDouble(nb == 1 ? 0 : i);
-        const double c = cv.elemAsDouble(nc == 1 ? 0 : i);
+        const keel::f64 a = av.elemAsDouble(na == 1 ? 0 : i);
+        const keel::f64 b = bv.elemAsDouble(nb == 1 ? 0 : i);
+        const keel::f64 c = cv.elemAsDouble(nc == 1 ? 0 : i);
         auto [m, v] = stat_impl(a, b, c);
         pm[i] = m;
         pv[i] = v;
@@ -208,7 +208,7 @@ inline void emit_vec_stat_3arg(keel::ArrayRef<Value> args, keel::usize nargout,
 // Resolve an optional parameter arg with a scalar default WITHOUT copying a
 // present argument: returns a const ref to args[idx] when supplied and
 // non-empty, else fills `holder` with the scalar default and refs that.
-inline const Value &dist_param(keel::ArrayRef<Value> args, keel::usize idx, double defv,
+inline const Value &dist_param(keel::ArrayRef<Value> args, keel::usize idx, keel::f64 defv,
                                keel::Allocator *mr, Value &holder)
 {
     if (idx < args.size() && !args[idx].isEmpty()) return args[idx];
@@ -261,7 +261,7 @@ inline Value broadcast_dist2(const Value &av, const Value &bv,
     Value out = d.is3D()
         ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr)
         : Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     const keel::usize n = ref.numel();
     for (keel::usize i = 0; i < n; ++i)
         od[i] = kernel(av.elemAsDouble(na == 1 ? 0 : i),
@@ -291,7 +291,7 @@ inline Value broadcast_dist3(const Value &av, const Value &bv, const Value &cv,
     Value out = d.is3D()
         ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr)
         : Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     for (keel::usize i = 0; i < nmax; ++i)
         od[i] = kernel(av.elemAsDouble(na == 1 ? 0 : i),
                        bv.elemAsDouble(nb == 1 ? 0 : i),
@@ -323,7 +323,7 @@ inline Value broadcast_dist4(const Value &av, const Value &bv, const Value &cv,
     Value out = d.is3D()
         ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr)
         : Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     for (keel::usize i = 0; i < nmax; ++i)
         od[i] = kernel(av.elemAsDouble(na == 1 ? 0 : i),
                        bv.elemAsDouble(nb == 1 ? 0 : i),

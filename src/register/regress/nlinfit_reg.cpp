@@ -56,7 +56,7 @@ void nlpredci_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                   keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 5, "nlpredci");  // no max: name-value tail in the reference
-    double alpha = 0.05;
+    keel::f64 alpha = 0.05;
     if (args.size() >= 6 && !args[5].isEmpty())
         alpha = args[5].toScalar();
     if (!args[0].isFuncHandle())

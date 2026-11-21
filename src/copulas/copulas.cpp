@@ -53,7 +53,7 @@ copula_U_argcheck(const Value &U, keel::usize d_expected, const char *fn)
         throw Error(keel::format("{}: U has {} columns, expected {}", fn, d, d_expected),
                     0, 0, fn, "", keel::format("numkit:{}:dimU", fn));
     for (keel::usize i = 0; i < n * d; ++i) {
-        const double v = U.elemAsDouble(i);
+        const keel::f64 v = U.elemAsDouble(i);
         if (!(v > 0.0 && v < 1.0))
             throw Error(keel::format("{}: U entries must lie in (0, 1)", fn),
                         0, 0, fn, "", keel::format("numkit:{}:rangeU", fn));
@@ -62,22 +62,22 @@ copula_U_argcheck(const Value &U, keel::usize d_expected, const char *fn)
 }
 
 // 2×2 correlation matrix → extract ρ; validate diag = 1, symmetric.
-double extract_rho_2x2(const Value &R, const char *fn)
+keel::f64 extract_rho_2x2(const Value &R, const char *fn)
 {
     if (R.dims().rows() != 2 || R.dims().cols() != 2)
         throw Error(keel::format("{}: expected 2 × 2 R", fn),
                     0, 0, fn, "", keel::format("numkit:{}:dimR", fn));
-    const double r00 = R.elemAsDouble(0);
-    const double r10 = R.elemAsDouble(1);
-    const double r01 = R.elemAsDouble(2);
-    const double r11 = R.elemAsDouble(3);
+    const keel::f64 r00 = R.elemAsDouble(0);
+    const keel::f64 r10 = R.elemAsDouble(1);
+    const keel::f64 r01 = R.elemAsDouble(2);
+    const keel::f64 r11 = R.elemAsDouble(3);
     if (std::fabs(r00 - 1.0) > 1e-9 || std::fabs(r11 - 1.0) > 1e-9)
         throw Error(keel::format("{}: R must have unit diagonal", fn),
                     0, 0, fn, "", keel::format("numkit:{}:Rdiag", fn));
     if (std::fabs(r01 - r10) > 1e-9)
         throw Error(keel::format("{}: R must be symmetric", fn),
                     0, 0, fn, "", keel::format("numkit:{}:Rsym", fn));
-    const double rho = 0.5 * (r01 + r10);
+    const keel::f64 rho = 0.5 * (r01 + r10);
     if (!(rho > -1.0 && rho < 1.0))
         throw Error(keel::format("{}: ρ must lie strictly in (-1, 1)", fn),
                     0, 0, fn, "", keel::format("numkit:{}:Rrange", fn));
@@ -107,21 +107,21 @@ keel::usize check_R_dim(const Value &R, const char *fn)
 }
 
 // In-place Cholesky (lower) of R (row-major). Returns det R via diag product.
-double chol_lower_inplace(double *R, keel::usize d, const char *fn)
+keel::f64 chol_lower_inplace(keel::f64 *R, keel::usize d, const char *fn)
 {
-    double det = 1.0;
+    keel::f64 det = 1.0;
     for (keel::usize j = 0; j < d; ++j) {
-        double diag = R[j * d + j];
+        keel::f64 diag = R[j * d + j];
         for (keel::usize k = 0; k < j; ++k)
             diag -= R[j * d + k] * R[j * d + k];
         if (!(diag > 0.0))
             throw Error(keel::format("{}: R must be positive definite", fn),
                         0, 0, fn, "", keel::format("numkit:{}:notPD", fn));
-        const double Ljj = std::sqrt(diag);
+        const keel::f64 Ljj = std::sqrt(diag);
         R[j * d + j] = Ljj;
         det *= diag;
         for (keel::usize i = j + 1; i < d; ++i) {
-            double s = R[i * d + j];
+            keel::f64 s = R[i * d + j];
             for (keel::usize k = 0; k < j; ++k)
                 s -= R[i * d + k] * R[j * d + k];
             R[i * d + j] = s / Ljj;
@@ -132,38 +132,38 @@ double chol_lower_inplace(double *R, keel::usize d, const char *fn)
 }
 
 // Solve L · y = b in place; L row-major lower-tri.
-void chol_lower_solve(const double *L, double *y, keel::usize d)
+void chol_lower_solve(const keel::f64 *L, keel::f64 *y, keel::usize d)
 {
     for (keel::usize i = 0; i < d; ++i) {
-        double s = y[i];
+        keel::f64 s = y[i];
         for (keel::usize k = 0; k < i; ++k) s -= L[i * d + k] * y[k];
         y[i] = s / L[i * d + i];
     }
 }
 
 // Scalar Φ^{-1} via norminv.
-inline double phi_inv(double u, keel::Allocator *mr)
+inline keel::f64 phi_inv(keel::f64 u, keel::Allocator *mr)
 {
     Value uv = Value::scalar(u, mr);
     return norminv(uv, 0.0, 1.0, mr).toScalar();
 }
 
 // Scalar Φ via normcdf.
-[[maybe_unused]] inline double phi_cdf(double z, keel::Allocator *mr)
+[[maybe_unused]] inline keel::f64 phi_cdf(keel::f64 z, keel::Allocator *mr)
 {
     Value zv = Value::scalar(z, mr);
     return normcdf(zv, 0.0, 1.0, mr).toScalar();
 }
 
 // Scalar t-inv via tinv.
-inline double t_inv(double u, double nu, keel::Allocator *mr)
+inline keel::f64 t_inv(keel::f64 u, keel::f64 nu, keel::Allocator *mr)
 {
     Value uv = Value::scalar(u, mr);
     return tinv(uv, nu, mr).toScalar();
 }
 
 // Scalar t-cdf via tcdf.
-[[maybe_unused]] inline double t_cdf(double z, double nu, keel::Allocator *mr)
+[[maybe_unused]] inline keel::f64 t_cdf(keel::f64 z, keel::f64 nu, keel::Allocator *mr)
 {
     Value zv = Value::scalar(z, mr);
     return tcdf(zv, nu, mr).toScalar();
@@ -172,7 +172,7 @@ inline double t_inv(double u, double nu, keel::Allocator *mr)
 // Bivariate normal CDF Φ_2(z1, z2; ρ) — via Drezner-Wesolowsky.
 // Reused from mvncdf internal logic; here we duplicate the d=2 case
 // for self-containment. Accurate to ~1e-10.
-double bivnormcdf(double a, double b, double rho)
+keel::f64 bivnormcdf(keel::f64 a, keel::f64 b, keel::f64 rho)
 {
     if (rho == 0.0) {
         // Independent.
@@ -182,11 +182,11 @@ double bivnormcdf(double a, double b, double rho)
     // Drezner-Wesolowsky 16-point Gauss-Legendre on the rho integral
     // P(X ≤ a, Y ≤ b; ρ) = Φ(a)Φ(b) + ∫_0^ρ φ_2(a, b; r) dr.
     // φ_2(a,b;r) = (1/(2π√(1-r²))) exp(-(a²-2rab+b²)/(2(1-r²))).
-    static const double xg[8] = {
+    static const keel::f64 xg[8] = {
         0.04691007703066802, 0.23076534494715845, 0.5, 0.7692346550528415,
         0.9530899229693320, 0.011371399670872466, 0.06283901610246417,
         0.16012699308593585};
-    static const double wg[8] = {
+    static const keel::f64 wg[8] = {
         0.118463442528095, 0.239314335249683, 0.284444444444444,
         0.239314335249683, 0.118463442528095, 0.022935322582543,
         0.05311409766524, 0.080039163554}; (void)xg; (void)wg;
@@ -196,33 +196,33 @@ double bivnormcdf(double a, double b, double rho)
     // 16-point would need its own coefficient table), use trapezoid
     // rule with 4096 panels.
     const int N = 8192;
-    const double half_inv_pi = 1.0 / (2.0 * M_PI);
-    const double a2_p_b2 = a * a + b * b;
-    const double ab = a * b;
-    double total = 0.0;
+    const keel::f64 half_inv_pi = 1.0 / (2.0 * M_PI);
+    const keel::f64 a2_p_b2 = a * a + b * b;
+    const keel::f64 ab = a * b;
+    keel::f64 total = 0.0;
     for (int i = 0; i <= N; ++i) {
-        const double r = rho * keel::as<double>(i) / N;
-        const double one_m_r2 = 1.0 - r * r;
-        const double v = half_inv_pi / std::sqrt(one_m_r2)
+        const keel::f64 r = rho * keel::as<keel::f64>(i) / N;
+        const keel::f64 one_m_r2 = 1.0 - r * r;
+        const keel::f64 v = half_inv_pi / std::sqrt(one_m_r2)
                        * std::exp(-(a2_p_b2 - 2.0 * r * ab) / (2.0 * one_m_r2));
         if (i == 0 || i == N) total += 0.5 * v;
         else                  total += v;
     }
     total *= rho / N;
-    const double Phi_a = 0.5 * (1.0 + std::erf(a / std::sqrt(2.0)));
-    const double Phi_b = 0.5 * (1.0 + std::erf(b / std::sqrt(2.0)));
+    const keel::f64 Phi_a = 0.5 * (1.0 + std::erf(a / std::sqrt(2.0)));
+    const keel::f64 Phi_b = 0.5 * (1.0 + std::erf(b / std::sqrt(2.0)));
     return Phi_a * Phi_b + total;
 }
 
 // Bivariate t-CDF via Monte Carlo (deterministic seed). Suffices for
 // d=2 inside copulacdf.
-double bivtcdf(double a, double b, double rho, double nu)
+keel::f64 bivtcdf(keel::f64 a, keel::f64 b, keel::f64 rho, keel::f64 nu)
 {
     // Delegate to mvtcdf which already has a deterministic MC path.
     // Build X = [a b] and C = [[1 ρ];[ρ 1]].
     const keel::usize d = 2;
     (void)d;
-    const double Cmat[4] = {1.0, rho, rho, 1.0};   // col-major
+    const keel::f64 Cmat[4] = {1.0, rho, rho, 1.0};   // col-major
     Value Cval = Value::matrix(2, 2, ValueType::DOUBLE, nullptr);
     for (keel::usize i = 0; i < 4; ++i) Cval.doubleDataMut()[i] = Cmat[i];
     Value Xval = Value::matrix(1, 2, ValueType::DOUBLE, nullptr);
@@ -239,7 +239,7 @@ Value make_out(keel::usize n, keel::Allocator *mr)
 }
 
 // Read U[row, j] in canonical n×d (or 1×d) col-major layout.
-inline double U_at(const Value &U, keel::usize row, keel::usize j, keel::usize n)
+inline keel::f64 U_at(const Value &U, keel::usize row, keel::usize j, keel::usize n)
 {
     if (U.isScalar()) return U.toScalar();
     return U.elemAsDouble(j * n + row);
@@ -258,23 +258,23 @@ Value copulapdf_gaussian(const Value &U, const Value &R,
     if (n == 0) return out;
 
     // Lower Cholesky of R; det_R = ∏ diag(L)².
-    keel::Array<double> L(d * d);
+    keel::Array<keel::f64> L(d * d);
     for (keel::usize i = 0; i < d; ++i)
         for (keel::usize j = 0; j < d; ++j)
             L[i * d + j] = R.elemAsDouble(j * d + i);   // col-major → row-major
-    const double det_R = chol_lower_inplace(L.data(), d, "copulapdf");
-    const double pref = 1.0 / std::sqrt(det_R);
-    double *od = out.doubleDataMut();
-    keel::Array<double> z(d), y(d);
+    const keel::f64 det_R = chol_lower_inplace(L.data(), d, "copulapdf");
+    const keel::f64 pref = 1.0 / std::sqrt(det_R);
+    keel::f64 *od = out.doubleDataMut();
+    keel::Array<keel::f64> z(d), y(d);
     for (keel::usize i = 0; i < n; ++i) {
         for (keel::usize j = 0; j < d; ++j)
             z[j] = phi_inv(U_at(U, i, j, n), mr);
         // Solve L · y = z, then z' R^{-1} z = y' y.
         y.assign(z.as_ref());
         chol_lower_solve(L.data(), y.data(), d);
-        double yty = 0.0;
+        keel::f64 yty = 0.0;
         for (keel::usize j = 0; j < d; ++j) yty += y[j] * y[j];
-        double ztz = 0.0;
+        keel::f64 ztz = 0.0;
         for (keel::usize j = 0; j < d; ++j) ztz += z[j] * z[j];
         // Quad form for (R^{-1} - I) z = y'y - z'z.
         od[i] = pref * std::exp(-0.5 * (yty - ztz));
@@ -289,14 +289,14 @@ Value copulacdf_gaussian(const Value &U, const Value &R,
     auto [n, dU] = copula_U_argcheck(U, d, "copulacdf");
     auto out = make_out(n, mr);
     if (n == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
 
     if (d == 2) {
         // Fast bivariate path (Drezner-Wesolowsky).
-        const double rho = extract_rho_2x2(R, "copulacdf");
+        const keel::f64 rho = extract_rho_2x2(R, "copulacdf");
         for (keel::usize i = 0; i < n; ++i) {
-            const double z1 = phi_inv(U_at(U, i, 0, n), mr);
-            const double z2 = phi_inv(U_at(U, i, 1, n), mr);
+            const keel::f64 z1 = phi_inv(U_at(U, i, 0, n), mr);
+            const keel::f64 z2 = phi_inv(U_at(U, i, 1, n), mr);
             od[i] = bivnormcdf(z1, z2, rho);
         }
         return out;
@@ -318,7 +318,7 @@ Value copulacdf_gaussian(const Value &U, const Value &R,
 
 // ── Student-t copula ────────────────────────────────────────────────
 
-Value copulapdf_t(const Value &U, const Value &R, double nu,
+Value copulapdf_t(const Value &U, const Value &R, keel::f64 nu,
                   keel::Allocator *mr)
 {
     const keel::usize d = check_R_dim(R, "copulapdf");
@@ -336,33 +336,33 @@ Value copulapdf_t(const Value &U, const Value &R, double nu,
     //   f(z_j; ν) = Γ((ν+1)/2) / [Γ(ν/2) · √(νπ)] · (1 + z_j²/ν)^{-(ν+1)/2}
     // log c(u; R, ν) = log f_d(z; R, ν) - Σ log f_1(z_j; ν)
 
-    keel::Array<double> L(d * d);
+    keel::Array<keel::f64> L(d * d);
     for (keel::usize i = 0; i < d; ++i)
         for (keel::usize j = 0; j < d; ++j)
             L[i * d + j] = R.elemAsDouble(j * d + i);
-    const double det_R = chol_lower_inplace(L.data(), d, "copulapdf");
+    const keel::f64 det_R = chol_lower_inplace(L.data(), d, "copulapdf");
 
-    const double dD = keel::as<double>(d);
-    const double log_norm_mv = std::lgamma(0.5 * (nu + dD))
+    const keel::f64 dD = keel::as<keel::f64>(d);
+    const keel::f64 log_norm_mv = std::lgamma(0.5 * (nu + dD))
                              - std::lgamma(0.5 * nu)
                              - 0.5 * dD * std::log(nu * M_PI)
                              - 0.5 * std::log(det_R);
-    const double log_norm_uni = std::lgamma(0.5 * (nu + 1.0))
+    const keel::f64 log_norm_uni = std::lgamma(0.5 * (nu + 1.0))
                               - std::lgamma(0.5 * nu)
                               - 0.5 * std::log(nu * M_PI);
 
-    double *od = out.doubleDataMut();
-    keel::Array<double> z(d), y(d);
+    keel::f64 *od = out.doubleDataMut();
+    keel::Array<keel::f64> z(d), y(d);
     for (keel::usize i = 0; i < n; ++i) {
         for (keel::usize j = 0; j < d; ++j)
             z[j] = t_inv(U_at(U, i, j, n), nu, mr);
         y.assign(z.as_ref());
         chol_lower_solve(L.data(), y.data(), d);
-        double yty = 0.0;
+        keel::f64 yty = 0.0;
         for (keel::usize j = 0; j < d; ++j) yty += y[j] * y[j];
-        const double log_mv = log_norm_mv
+        const keel::f64 log_mv = log_norm_mv
                             - 0.5 * (nu + dD) * std::log1p(yty / nu);
-        double log_unis = 0.0;
+        keel::f64 log_unis = 0.0;
         for (keel::usize j = 0; j < d; ++j)
             log_unis += log_norm_uni
                       - 0.5 * (nu + 1.0) * std::log1p(z[j] * z[j] / nu);
@@ -371,7 +371,7 @@ Value copulapdf_t(const Value &U, const Value &R, double nu,
     return out;
 }
 
-Value copulacdf_t(const Value &U, const Value &R, double nu,
+Value copulacdf_t(const Value &U, const Value &R, keel::f64 nu,
                   keel::Allocator *mr)
 {
     const keel::usize d = check_R_dim(R, "copulacdf");
@@ -381,13 +381,13 @@ Value copulacdf_t(const Value &U, const Value &R, double nu,
                     0, 0, "copulacdf", "", "numkit:copulacdf:badNu");
     auto out = make_out(n, mr);
     if (n == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     if (d == 2) {
         // Fast bivariate path.
-        const double rho = extract_rho_2x2(R, "copulacdf");
+        const keel::f64 rho = extract_rho_2x2(R, "copulacdf");
         for (keel::usize i = 0; i < n; ++i) {
-            const double z1 = t_inv(U_at(U, i, 0, n), nu, mr);
-            const double z2 = t_inv(U_at(U, i, 1, n), nu, mr);
+            const keel::f64 z1 = t_inv(U_at(U, i, 0, n), nu, mr);
+            const keel::f64 z2 = t_inv(U_at(U, i, 1, n), nu, mr);
             od[i] = bivtcdf(z1, z2, rho, nu);
         }
         return out;
@@ -404,7 +404,7 @@ Value copulacdf_t(const Value &U, const Value &R, double nu,
 
 // ── Clayton copula ──────────────────────────────────────────────────
 
-Value copulapdf_clayton(const Value &U, double alpha,
+Value copulapdf_clayton(const Value &U, keel::f64 alpha,
                         keel::Allocator *mr)
 {
     auto [n, d] = copula_U_argcheck(U, 2, "copulapdf");
@@ -413,11 +413,11 @@ Value copulapdf_clayton(const Value &U, double alpha,
                     0, 0, "copulapdf", "", "numkit:copulapdf:badAlpha");
     auto out = make_out(n, mr);
     if (n == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     for (keel::usize i = 0; i < n; ++i) {
-        const double u = U_at(U, i, 0, n);
-        const double v = U_at(U, i, 1, n);
-        const double t = std::pow(u, -alpha) + std::pow(v, -alpha) - 1.0;
+        const keel::f64 u = U_at(U, i, 0, n);
+        const keel::f64 v = U_at(U, i, 1, n);
+        const keel::f64 t = std::pow(u, -alpha) + std::pow(v, -alpha) - 1.0;
         od[i] = (1.0 + alpha)
               * std::pow(u * v, -(1.0 + alpha))
               * std::pow(t, -(2.0 + 1.0 / alpha));
@@ -425,7 +425,7 @@ Value copulapdf_clayton(const Value &U, double alpha,
     return out;
 }
 
-Value copulacdf_clayton(const Value &U, double alpha,
+Value copulacdf_clayton(const Value &U, keel::f64 alpha,
                         keel::Allocator *mr)
 {
     auto [n, d] = copula_U_argcheck(U, 2, "copulacdf");
@@ -434,11 +434,11 @@ Value copulacdf_clayton(const Value &U, double alpha,
                     0, 0, "copulacdf", "", "numkit:copulacdf:badAlpha");
     auto out = make_out(n, mr);
     if (n == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     for (keel::usize i = 0; i < n; ++i) {
-        const double u = U_at(U, i, 0, n);
-        const double v = U_at(U, i, 1, n);
-        const double t = std::pow(u, -alpha) + std::pow(v, -alpha) - 1.0;
+        const keel::f64 u = U_at(U, i, 0, n);
+        const keel::f64 v = U_at(U, i, 1, n);
+        const keel::f64 t = std::pow(u, -alpha) + std::pow(v, -alpha) - 1.0;
         od[i] = std::pow(t, -1.0 / alpha);
     }
     return out;
@@ -446,30 +446,30 @@ Value copulacdf_clayton(const Value &U, double alpha,
 
 // ── Frank copula ────────────────────────────────────────────────────
 
-Value copulapdf_frank(const Value &U, double alpha,
+Value copulapdf_frank(const Value &U, keel::f64 alpha,
                       keel::Allocator *mr)
 {
     auto [n, d] = copula_U_argcheck(U, 2, "copulapdf");
     auto out = make_out(n, mr);
     if (n == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     // Frank pdf:
     //   c(u, v; α) = α (1 - e^{-α}) e^{-α(u+v)} /
     //               [ (1 - e^{-α}) - (1 - e^{-αu})(1 - e^{-αv}) ]^2
-    const double em_a = std::exp(-alpha);
-    const double one_m_em_a = 1.0 - em_a;
+    const keel::f64 em_a = std::exp(-alpha);
+    const keel::f64 one_m_em_a = 1.0 - em_a;
     for (keel::usize i = 0; i < n; ++i) {
-        const double u = U_at(U, i, 0, n);
-        const double v = U_at(U, i, 1, n);
-        const double em_au = std::exp(-alpha * u);
-        const double em_av = std::exp(-alpha * v);
-        const double denom = one_m_em_a - (1.0 - em_au) * (1.0 - em_av);
+        const keel::f64 u = U_at(U, i, 0, n);
+        const keel::f64 v = U_at(U, i, 1, n);
+        const keel::f64 em_au = std::exp(-alpha * u);
+        const keel::f64 em_av = std::exp(-alpha * v);
+        const keel::f64 denom = one_m_em_a - (1.0 - em_au) * (1.0 - em_av);
         od[i] = alpha * one_m_em_a * em_au * em_av / (denom * denom);
     }
     return out;
 }
 
-Value copulacdf_frank(const Value &U, double alpha,
+Value copulacdf_frank(const Value &U, keel::f64 alpha,
                       keel::Allocator *mr)
 {
     auto [n, d] = copula_U_argcheck(U, 2, "copulacdf");
@@ -479,15 +479,15 @@ Value copulacdf_frank(const Value &U, double alpha,
                     0, 0, "copulacdf", "", "numkit:copulacdf:badAlpha");
     auto out = make_out(n, mr);
     if (n == 0) return out;
-    double *od = out.doubleDataMut();
-    const double em_a = std::exp(-alpha);
-    const double one_m_em_a = 1.0 - em_a;   // (e^{-α} - 1) negated for sign
+    keel::f64 *od = out.doubleDataMut();
+    const keel::f64 em_a = std::exp(-alpha);
+    const keel::f64 one_m_em_a = 1.0 - em_a;   // (e^{-α} - 1) negated for sign
     for (keel::usize i = 0; i < n; ++i) {
-        const double u = U_at(U, i, 0, n);
-        const double v = U_at(U, i, 1, n);
-        const double num = (std::exp(-alpha * u) - 1.0)
+        const keel::f64 u = U_at(U, i, 0, n);
+        const keel::f64 v = U_at(U, i, 1, n);
+        const keel::f64 num = (std::exp(-alpha * u) - 1.0)
                          * (std::exp(-alpha * v) - 1.0);
-        const double inside = 1.0 + num / (em_a - 1.0);
+        const keel::f64 inside = 1.0 + num / (em_a - 1.0);
         od[i] = -std::log(inside) / alpha;
         // Numerical: this might equal -log(1 + num/(em_a-1))/α.
         // Equivalent form using one_m_em_a:
@@ -499,7 +499,7 @@ Value copulacdf_frank(const Value &U, double alpha,
 
 // ── Gumbel copula ───────────────────────────────────────────────────
 
-Value copulapdf_gumbel(const Value &U, double alpha,
+Value copulapdf_gumbel(const Value &U, keel::f64 alpha,
                        keel::Allocator *mr)
 {
     auto [n, d] = copula_U_argcheck(U, 2, "copulapdf");
@@ -508,21 +508,21 @@ Value copulapdf_gumbel(const Value &U, double alpha,
                     0, 0, "copulapdf", "", "numkit:copulapdf:badAlpha");
     auto out = make_out(n, mr);
     if (n == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     // Gumbel pdf (Nelsen 4.6):
     //   c(u, v; α) = C(u, v) · (uv)^{-1} · (lu·lv)^{α-1} · A^{1/α - 2} ·
     //               [(α - 1) + A^{1/α}]
     // where lu = -log u, lv = -log v, A = lu^α + lv^α.
     for (keel::usize i = 0; i < n; ++i) {
-        const double u = U_at(U, i, 0, n);
-        const double v = U_at(U, i, 1, n);
-        const double lu = -std::log(u);
-        const double lv = -std::log(v);
-        const double lu_a = std::pow(lu, alpha);
-        const double lv_a = std::pow(lv, alpha);
-        const double A = lu_a + lv_a;
-        const double A_inv_a = std::pow(A, 1.0 / alpha);
-        const double C = std::exp(-A_inv_a);
+        const keel::f64 u = U_at(U, i, 0, n);
+        const keel::f64 v = U_at(U, i, 1, n);
+        const keel::f64 lu = -std::log(u);
+        const keel::f64 lv = -std::log(v);
+        const keel::f64 lu_a = std::pow(lu, alpha);
+        const keel::f64 lv_a = std::pow(lv, alpha);
+        const keel::f64 A = lu_a + lv_a;
+        const keel::f64 A_inv_a = std::pow(A, 1.0 / alpha);
+        const keel::f64 C = std::exp(-A_inv_a);
         od[i] = C / (u * v)
               * std::pow(lu * lv, alpha - 1.0)
               * std::pow(A, 1.0 / alpha - 2.0)
@@ -531,7 +531,7 @@ Value copulapdf_gumbel(const Value &U, double alpha,
     return out;
 }
 
-Value copulacdf_gumbel(const Value &U, double alpha,
+Value copulacdf_gumbel(const Value &U, keel::f64 alpha,
                        keel::Allocator *mr)
 {
     auto [n, d] = copula_U_argcheck(U, 2, "copulacdf");
@@ -540,13 +540,13 @@ Value copulacdf_gumbel(const Value &U, double alpha,
                     0, 0, "copulacdf", "", "numkit:copulacdf:badAlpha");
     auto out = make_out(n, mr);
     if (n == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     for (keel::usize i = 0; i < n; ++i) {
-        const double u = U_at(U, i, 0, n);
-        const double v = U_at(U, i, 1, n);
-        const double lu = -std::log(u);
-        const double lv = -std::log(v);
-        const double A = std::pow(lu, alpha) + std::pow(lv, alpha);
+        const keel::f64 u = U_at(U, i, 0, n);
+        const keel::f64 v = U_at(U, i, 1, n);
+        const keel::f64 lu = -std::log(u);
+        const keel::f64 lv = -std::log(v);
+        const keel::f64 A = std::pow(lu, alpha) + std::pow(lv, alpha);
         od[i] = std::exp(-std::pow(A, 1.0 / alpha));
     }
     return out;

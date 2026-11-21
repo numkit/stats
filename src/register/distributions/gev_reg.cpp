@@ -57,9 +57,9 @@ void gevrnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
                 keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 3, "gevrnd");  // no max: trailing size args (N-D tail; nk caps at two — bugs/opened/stats/rnd-nd-size-tails.md)
-    const double k     = args[0].toScalar();
-    const double sigma = args[1].toScalar();
-    const double mu    = args[2].toScalar();
+    const keel::f64 k     = args[0].toScalar();
+    const keel::f64 sigma = args[1].toScalar();
+    const keel::f64 mu    = args[2].toScalar();
     keel::usize rows = 1, cols = 1;
     parse_rng_size(args, 3, rows, cols, "gevrnd");
     outs[0] = reshape_rng_nd(gevrnd(ctx.engine->rng(), k, sigma, mu, rows, cols, ctx.engine->allocator()), args, 3, ctx.engine->allocator(), "gevrnd");
@@ -70,7 +70,7 @@ void gevstat_reg(keel::ArrayRef<Value> args, keel::usize nargout,
 {
     argcheck::checkNargin(args.size(), 3, 3, "gevstat");
     emit_vec_stat_3arg(args, nargout, outs, ctx.engine->allocator(), "gevstat",
-                       [](double k, double sigma, double mu) {
+                       [](keel::f64 k, keel::f64 sigma, keel::f64 mu) {
                            return gevstat(k, sigma, mu);
                        });
     return;

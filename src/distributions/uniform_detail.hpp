@@ -40,7 +40,7 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
     else          out = Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
     const keel::usize n = x.numel();
     if (n == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     for (keel::usize i = 0; i < n; ++i) od[i] = op(x.elemAsDouble(i));
     return out;
 }

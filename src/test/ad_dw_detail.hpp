@@ -4,6 +4,6 @@
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 namespace numkit::stats {
-double dwStatAndPLeft(const Value &r, const Value &X, bool exact,
-                      double &dwOut, keel::Allocator *mr);
+keel::f64 dwStatAndPLeft(const Value &r, const Value &X, bool exact,
+                      keel::f64 &dwOut, keel::Allocator *mr);
 } // namespace numkit::stats

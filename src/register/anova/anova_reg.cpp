@@ -46,13 +46,13 @@ void anova1_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         const keel::usize R = X.dims().rows(), C = X.dims().cols();
         yStore = Value::matrix(R * C, 1, ValueType::DOUBLE, mr);
         gStore = Value::matrix(R * C, 1, ValueType::DOUBLE, mr);
-        double *yd = yStore.doubleDataMut();
-        double *gd = gStore.doubleDataMut();
+        keel::f64 *yd = yStore.doubleDataMut();
+        keel::f64 *gd = gStore.doubleDataMut();
         keel::usize k = 0;
         for (keel::usize c = 0; c < C; ++c)
             for (keel::usize r = 0; r < R; ++r) {
                 yd[k] = X.elemAsDouble(c * R + r);
-                gd[k] = keel::as<double>(c + 1);
+                gd[k] = keel::as<keel::f64>(c + 1);
                 ++k;
             }
         yp = &yStore;
@@ -72,9 +72,9 @@ void anova1_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         //                  'Error', ssW,dfW,ssW/dfW,[],[]
         //                  'Total', ssB+ssW,dfB+dfW,[],[],[] }.
         Value tbl = Value::cell(4, 6, mr);
-        const double nan = std::numeric_limits<double>::quiet_NaN();
+        const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
         auto strV = [&](const char *s){ return Value::fromString(s, mr); };
-        auto numV = [&](double v){ return Value::scalar(v, mr); };
+        auto numV = [&](keel::f64 v){ return Value::scalar(v, mr); };
         auto setCell = [&](keel::usize r, keel::usize c, const Value &v) {
             // column-major linear index for 4×6 cell: r + c*4
             tbl.cellAt(r + c * 4) = v;
@@ -116,29 +116,29 @@ void anova1_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         Value meansV = Value::matrix(K, 1, ValueType::DOUBLE, mr);
         Value nV     = Value::matrix(K, 1, ValueType::DOUBLE, mr);
         Value gnamesV = Value::matrix(K, 1, ValueType::DOUBLE, mr);
-        double *mD = meansV.doubleDataMut();
-        double *nD = nV.doubleDataMut();
-        double *gD = gnamesV.doubleDataMut();
-        double sse = 0.0;
+        keel::f64 *mD = meansV.doubleDataMut();
+        keel::f64 *nD = nV.doubleDataMut();
+        keel::f64 *gD = gnamesV.doubleDataMut();
+        keel::f64 sse = 0.0;
         keel::usize total = 0;
         for (keel::usize k = 0; k < K; ++k) {
             const auto &g = buckets[k];
             const keel::usize ng = g.values.size();
-            double sum = 0.0;
-            for (double x : g.values) sum += x;
-            const double m = (ng > 0) ? sum / keel::as<double>(ng) : 0.0;
+            keel::f64 sum = 0.0;
+            for (keel::f64 x : g.values) sum += x;
+            const keel::f64 m = (ng > 0) ? sum / keel::as<keel::f64>(ng) : 0.0;
             mD[k] = m;
-            nD[k] = keel::as<double>(ng);
+            nD[k] = keel::as<keel::f64>(ng);
             gD[k] = g.label;
-            for (double x : g.values) {
-                const double d = x - m;
+            for (keel::f64 x : g.values) {
+                const keel::f64 d = x - m;
                 sse += d * d;
             }
             total += ng;
         }
-        const double sPooled = (total > K)
-            ? std::sqrt(sse / keel::as<double>(total - K))
-            : std::numeric_limits<double>::quiet_NaN();
+        const keel::f64 sPooled = (total > K)
+            ? std::sqrt(sse / keel::as<keel::f64>(total - K))
+            : std::numeric_limits<keel::f64>::quiet_NaN();
 
         Value s = Value::structure(mr);
         s.field("F")      = Value::scalar(F, mr);
@@ -176,12 +176,12 @@ void kruskalwallis_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         const keel::usize R = dd.rows(), C = dd.cols();
         Value yFlat = Value::matrix(R * C, 1, ValueType::DOUBLE, mr);
         Value gFlat = Value::matrix(R * C, 1, ValueType::DOUBLE, mr);
-        double *yp = yFlat.doubleDataMut();
-        double *gp = gFlat.doubleDataMut();
+        keel::f64 *yp = yFlat.doubleDataMut();
+        keel::f64 *gp = gFlat.doubleDataMut();
         for (keel::usize c = 0; c < C; ++c)
             for (keel::usize r = 0; r < R; ++r) {
                 yp[c * R + r] = args[0].elemAsDouble(c * R + r);
-                gp[c * R + r] = keel::as<double>(c + 1);
+                gp[c * R + r] = keel::as<keel::f64>(c + 1);
             }
         yArg = std::move(yFlat);
         gArg = std::move(gFlat);
@@ -197,9 +197,9 @@ void kruskalwallis_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         // mirror MATLAB shape; SS / MS pieces aren't strictly defined for
         // the K-W rank statistic, but populate what we can.
         Value tbl = Value::cell(4, 6, mr);
-        const double nan = std::numeric_limits<double>::quiet_NaN();
+        const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
         auto strV = [&](const char *s){ return Value::fromString(s, mr); };
-        auto numV = [&](double v){ return Value::scalar(v, mr); };
+        auto numV = [&](keel::f64 v){ return Value::scalar(v, mr); };
         auto setCell = [&](keel::usize r, keel::usize c, const Value &v) {
             tbl.cellAt(r + c * 4) = v;
         };
@@ -225,12 +225,12 @@ void kruskalwallis_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         // Compute per-group n[] and meanRanks[] for the documented stats
         // struct shape {gnames, n, source, meanranks, sumt}.
         const keel::usize N = yArg.numel();
-        struct Pair { double v; keel::usize idx; double g; };
+        struct Pair { keel::f64 v; keel::usize idx; keel::f64 g; };
         keel::Array<Pair> all;
         all.reserve(N);
         for (keel::usize i = 0; i < N; ++i) {
-            const double v = yArg.elemAsDouble(i);
-            const double g = gArg.elemAsDouble(i);
+            const keel::f64 v = yArg.elemAsDouble(i);
+            const keel::f64 g = gArg.elemAsDouble(i);
             if (std::isnan(v) || std::isnan(g)) continue;
             all.push_back({v, i, g});
         }
@@ -239,35 +239,35 @@ void kruskalwallis_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         for (keel::usize i = 0; i < M; ++i) ord[i] = i;
         std::sort(ord.begin(), ord.end(),
                   [&](keel::usize a, keel::usize b){ return all[a].v < all[b].v; });
-        keel::Array<double> rk(M);
+        keel::Array<keel::f64> rk(M);
         keel::Array<keel::usize> tieSizes;
         keel::usize i = 0;
         while (i < M) {
             keel::usize j = i + 1;
             while (j < M && all[ord[j]].v == all[ord[i]].v) ++j;
-            const double avg = keel::as<double>(i + j + 1) / 2.0;
+            const keel::f64 avg = keel::as<keel::f64>(i + j + 1) / 2.0;
             for (keel::usize k = i; k < j; ++k) rk[ord[k]] = avg;
             if (j - i > 1) tieSizes.push_back(j - i);
             i = j;
         }
         // Bucket per group label (sorted unique).
-        keel::Array<double> uniq;
+        keel::Array<keel::f64> uniq;
         uniq.reserve(M);
         for (auto &p : all) uniq.push_back(p.g);
         std::sort(uniq.begin(), uniq.end());
         uniq.resize(std::unique(uniq.begin(), uniq.end()) - uniq.begin());
         const keel::usize K = uniq.size();
         keel::Array<keel::usize> n(K, 0);
-        keel::Array<double> sumR(K, 0.0);
+        keel::Array<keel::f64> sumR(K, 0.0);
         for (keel::usize k = 0; k < M; ++k) {
             auto it = std::lower_bound(uniq.begin(), uniq.end(), all[k].g);
             const keel::usize gi = keel::as<keel::usize>(it - uniq.begin());
             n[gi] += 1;
             sumR[gi] += rk[k];
         }
-        double sumt = 0.0;
+        keel::f64 sumt = 0.0;
         for (keel::usize t : tieSizes) {
-            const double td = keel::as<double>(t);
+            const keel::f64 td = keel::as<keel::f64>(t);
             sumt += td * td * td - td;
         }
 
@@ -275,8 +275,8 @@ void kruskalwallis_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         Value mrVec = Value::matrix(K, 1, ValueType::DOUBLE, mr);
         Value gnames = Value::cell(K, 1, mr);
         for (keel::usize k = 0; k < K; ++k) {
-            nVec.doubleDataMut()[k] = keel::as<double>(n[k]);
-            mrVec.doubleDataMut()[k] = (n[k] > 0) ? sumR[k] / keel::as<double>(n[k]) : 0.0;
+            nVec.doubleDataMut()[k] = keel::as<keel::f64>(n[k]);
+            mrVec.doubleDataMut()[k] = (n[k] > 0) ? sumR[k] / keel::as<keel::f64>(n[k]) : 0.0;
             // gnames as decimal string of the label (matches MATLAB)
             char buf[64];
             std::snprintf(buf, sizeof(buf), "%g", uniq[k]);
@@ -324,69 +324,69 @@ void anova2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         throw Error("anova2: row count must be an integer multiple (>= 2) of reps and columns >= 2",
                     0, 0, "anova2", "", "numkit:anova2:tooSmall");
     const keel::usize r = M / R;
-    const double nan = std::numeric_limits<double>::quiet_NaN();
+    const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
 
-    double pCols = nan, pRows = nan, pInter = nan;
-    double Fc = nan, Fr = nan, Fi = nan;
-    double dfC = 0.0, dfR = 0.0, dfI = 0.0, dfE = 0.0;
-    double ssC = 0.0, ssR = 0.0, ssI = 0.0, ssE = 0.0;
+    keel::f64 pCols = nan, pRows = nan, pInter = nan;
+    keel::f64 Fc = nan, Fr = nan, Fi = nan;
+    keel::f64 dfC = 0.0, dfR = 0.0, dfI = 0.0, dfE = 0.0;
+    keel::f64 ssC = 0.0, ssR = 0.0, ssI = 0.0, ssE = 0.0;
 
-    keel::Array<double> rowMean(r, 0.0), colMean(c, 0.0);
-    double grandSum = 0.0;
+    keel::Array<keel::f64> rowMean(r, 0.0), colMean(c, 0.0);
+    keel::f64 grandSum = 0.0;
     for (keel::usize j = 0; j < c; ++j) {
         for (keel::usize i = 0; i < r; ++i) {
             for (keel::usize k = 0; k < R; ++k) {
-                const double v = Y.elemAsDouble((i * R + k) + j * M);
+                const keel::f64 v = Y.elemAsDouble((i * R + k) + j * M);
                 rowMean[i] += v;
                 colMean[j] += v;
                 grandSum += v;
             }
         }
     }
-    const double N = keel::as<double>(r * c * R);
-    const double grandMean = grandSum / N;
+    const keel::f64 N = keel::as<keel::f64>(r * c * R);
+    const keel::f64 grandMean = grandSum / N;
     for (keel::usize i = 0; i < r; ++i)
-        rowMean[i] /= keel::as<double>(c * R);
+        rowMean[i] /= keel::as<keel::f64>(c * R);
     for (keel::usize j = 0; j < c; ++j)
-        colMean[j] /= keel::as<double>(r * R);
+        colMean[j] /= keel::as<keel::f64>(r * R);
 
     if (R == 1) {
         std::tie(pCols, pRows, Fc, Fr, dfC, dfR, dfE, ssC, ssR, ssE) =
             anova2(Y, mr);
     } else {
-        keel::Array<double> cellMean(r * c, 0.0);
+        keel::Array<keel::f64> cellMean(r * c, 0.0);
         for (keel::usize j = 0; j < c; ++j) {
             for (keel::usize i = 0; i < r; ++i) {
-                double s = 0.0;
+                keel::f64 s = 0.0;
                 for (keel::usize k = 0; k < R; ++k)
                     s += Y.elemAsDouble((i * R + k) + j * M);
-                cellMean[i + j * r] = s / keel::as<double>(R);
+                cellMean[i + j * r] = s / keel::as<keel::f64>(R);
             }
         }
         for (keel::usize i = 0; i < r; ++i) {
-            const double d = rowMean[i] - grandMean;
-            ssR += keel::as<double>(c * R) * d * d;
+            const keel::f64 d = rowMean[i] - grandMean;
+            ssR += keel::as<keel::f64>(c * R) * d * d;
         }
         for (keel::usize j = 0; j < c; ++j) {
-            const double d = colMean[j] - grandMean;
-            ssC += keel::as<double>(r * R) * d * d;
+            const keel::f64 d = colMean[j] - grandMean;
+            ssC += keel::as<keel::f64>(r * R) * d * d;
         }
         for (keel::usize j = 0; j < c; ++j) {
             for (keel::usize i = 0; i < r; ++i) {
-                const double cm = cellMean[i + j * r];
-                const double di = cm - rowMean[i] - colMean[j] + grandMean;
-                ssI += keel::as<double>(R) * di * di;
+                const keel::f64 cm = cellMean[i + j * r];
+                const keel::f64 di = cm - rowMean[i] - colMean[j] + grandMean;
+                ssI += keel::as<keel::f64>(R) * di * di;
                 for (keel::usize k = 0; k < R; ++k) {
-                    const double de = Y.elemAsDouble((i * R + k) + j * M) - cm;
+                    const keel::f64 de = Y.elemAsDouble((i * R + k) + j * M) - cm;
                     ssE += de * de;
                 }
             }
         }
-        dfC = keel::as<double>(c - 1);
-        dfR = keel::as<double>(r - 1);
-        dfI = keel::as<double>((r - 1) * (c - 1));
-        dfE = keel::as<double>(r * c * (R - 1));
-        const double msE = (dfE > 0.0) ? (ssE / dfE) : nan;
+        dfC = keel::as<keel::f64>(c - 1);
+        dfR = keel::as<keel::f64>(r - 1);
+        dfI = keel::as<keel::f64>((r - 1) * (c - 1));
+        dfE = keel::as<keel::f64>(r * c * (R - 1));
+        const keel::f64 msE = (dfE > 0.0) ? (ssE / dfE) : nan;
         if (msE > 0.0) {
             Fc = (ssC / dfC) / msE;
             Fr = (ssR / dfR) / msE;
@@ -395,7 +395,7 @@ void anova2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             pRows  = std::max(0.0, 1.0 - fcdf(Value::scalar(Fr, mr), dfR, dfE, mr).toScalar());
             pInter = std::max(0.0, 1.0 - fcdf(Value::scalar(Fi, mr), dfI, dfE, mr).toScalar());
         } else if (msE == 0.0) {
-            const double inf = std::numeric_limits<double>::infinity();
+            const keel::f64 inf = std::numeric_limits<keel::f64>::infinity();
             Fc = Fr = Fi = inf;
             pCols = pRows = pInter = 0.0;
         }
@@ -404,7 +404,7 @@ void anova2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     // p output: 1x3 row [p_cols, p_rows, p_inter] (or 1x2 when reps==1 in some callers,
     // keep 1x3 with p_inter = NaN for reps=1, and real pInter for reps>1).
     auto pV = Value::matrix(1, 3, ValueType::DOUBLE, mr);
-    double *pd = pV.doubleDataMut();
+    keel::f64 *pd = pV.doubleDataMut();
     pd[0] = pCols;
     pd[1] = pRows;
     pd[2] = pInter;
@@ -414,7 +414,7 @@ void anova2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         const keel::usize tblRows = (R > 1) ? 6 : 5;
         Value tbl = Value::cell(tblRows, 6, mr);
         auto strV = [&](const char *s){ return Value::fromString(s, mr); };
-        auto numV = [&](double v){ return Value::scalar(v, mr); };
+        auto numV = [&](keel::f64 v){ return Value::scalar(v, mr); };
         auto setCell = [&](keel::usize rr, keel::usize cc, const Value &v) {
             tbl.cellAt(rr + cc * tblRows) = v;
         };
@@ -471,9 +471,9 @@ void anova2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         s.field("source")   = Value::fromString("anova2", mr);
         s.field("sigmasq")  = Value::scalar(dfE > 0 ? ssE / dfE : nan, mr);
         s.field("colmeans") = std::move(colMeansV);
-        s.field("coln")     = Value::scalar(keel::as<double>(r * R), mr);
+        s.field("coln")     = Value::scalar(keel::as<keel::f64>(r * R), mr);
         s.field("rowmeans") = std::move(rowMeansV);
-        s.field("rown")     = Value::scalar(keel::as<double>(c * R), mr);
+        s.field("rown")     = Value::scalar(keel::as<keel::f64>(c * R), mr);
         s.field("inter")    = Value::logicalScalar(R > 1, mr);
         s.field("pval")     = Value::scalar(pInter, mr);
         s.field("df")       = Value::scalar(dfE, mr);

@@ -38,7 +38,7 @@ namespace {
 
 // Format a numeric group value the way MATLAB's grp2idx labels it: integers
 // print with no decimals, other values with ~5 significant digits.
-keel::String fmtGroupNum(double v)
+keel::String fmtGroupNum(keel::f64 v)
 {
     char buf[64];
     if (std::isfinite(v) && std::floor(v) == v && std::fabs(v) < 1e15)
@@ -64,7 +64,7 @@ Grp2idxResult grp2idx(const Value &s, keel::Allocator *mr)
     grp2idx_argcheck(s);
     const keel::usize n = s.numel();
 
-    keel::Array<double>       g;        // index per element (NaN allowed)
+    keel::Array<keel::f64>       g;        // index per element (NaN allowed)
     keel::Array<keel::String> names;    // group names in group order
 
     if (s.isCell() || (s.isString() && n != 1)) {
@@ -77,7 +77,7 @@ Grp2idxResult grp2idx(const Value &s, keel::Allocator *mr)
             for (keel::usize k = 0; k < names.size(); ++k)
                 if (names[k] == str) { idx = keel::as<int>(k); break; }
             if (idx < 0) { names.push_back(std::move(str)); idx = keel::as<int>(names.size()) - 1; }
-            g.push_back(keel::as<double>(idx + 1));
+            g.push_back(keel::as<keel::f64>(idx + 1));
         }
     } else if (s.isChar() || s.isString()) {
         // A single char row / string scalar is one group label.
@@ -85,25 +85,25 @@ Grp2idxResult grp2idx(const Value &s, keel::Allocator *mr)
         g.push_back(1.0);
     } else {
         // Numeric / logical: sorted-ascending unique values; NaN -> NaN index.
-        keel::Array<double> uniq;
+        keel::Array<keel::f64> uniq;
         uniq.reserve(n);
         for (keel::usize i = 0; i < n; ++i) {
-            const double xi = s.elemAsDouble(i);
+            const keel::f64 xi = s.elemAsDouble(i);
             if (!std::isnan(xi)) uniq.push_back(xi);
         }
         std::sort(uniq.begin(), uniq.end());
         uniq.resize(std::unique(uniq.begin(), uniq.end()) - uniq.begin());
         names.reserve(uniq.size());
-        for (double u : uniq) names.push_back(fmtGroupNum(u));
+        for (keel::f64 u : uniq) names.push_back(fmtGroupNum(u));
         g.reserve(n);
         for (keel::usize i = 0; i < n; ++i) {
-            const double xi = s.elemAsDouble(i);
+            const keel::f64 xi = s.elemAsDouble(i);
             if (std::isnan(xi)) {
-                g.push_back(std::numeric_limits<double>::quiet_NaN());
+                g.push_back(std::numeric_limits<keel::f64>::quiet_NaN());
                 continue;
             }
             const auto it = std::lower_bound(uniq.begin(), uniq.end(), xi);
-            g.push_back(keel::as<double>((it - uniq.begin()) + 1));
+            g.push_back(keel::as<keel::f64>((it - uniq.begin()) + 1));
         }
     }
 

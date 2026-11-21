@@ -32,7 +32,7 @@ namespace detail {
 
 namespace {
 // Helper: read optional `alpha` (2nd positional arg), default 0.05.
-double parse_alpha(keel::ArrayRef<Value> args, keel::usize idx = 1)
+keel::f64 parse_alpha(keel::ArrayRef<Value> args, keel::usize idx = 1)
 {
     if (args.size() > idx) {
         const Value &v = args[idx];

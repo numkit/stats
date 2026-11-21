@@ -40,19 +40,19 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
     else          out = Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
     const keel::usize n = x.numel();
     if (n == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     for (keel::usize i = 0; i < n; ++i) od[i] = op(x.elemAsDouble(i));
     return out;
 }
 
-inline double besseli_scalar(double nu, double xx, keel::Allocator *mr)
+inline keel::f64 besseli_scalar(keel::f64 nu, keel::f64 xx, keel::Allocator *mr)
 {
     Value nv = Value::scalar(nu, mr);
     Value xv = Value::scalar(xx, mr);
     return ::numkit::builtin::besseli(nv, xv, mr).toScalar();
 }
 
-inline double marcumq_scalar(double a, double b, keel::Allocator *mr)
+inline keel::f64 marcumq_scalar(keel::f64 a, keel::f64 b, keel::Allocator *mr)
 {
     Value av = Value::scalar(a, mr);
     Value bv = Value::scalar(b, mr);

@@ -37,7 +37,7 @@ void robustfit_argcheck(const Value &X, const Value &y, keel::usize n, keel::usi
 } // namespace
 
 RobustfitResult robustfit(const Value &X, const Value &y,
-                           RobustWeight weight, double tune,
+                           RobustWeight weight, keel::f64 tune,
                            keel::Allocator *mr)
 {
     const keel::usize n = X.dims().rows();
@@ -46,41 +46,41 @@ RobustfitResult robustfit(const Value &X, const Value &y,
 
     if (std::isnan(tune)) tune = defaultTune(weight);
 
-    keel::Array<double> Xv(n * p);
+    keel::Array<keel::f64> Xv(n * p);
     for (keel::usize i = 0; i < n * p; ++i) Xv[i] = X.elemAsDouble(i);
-    keel::Array<double> yv(n);
+    keel::Array<keel::f64> yv(n);
     for (keel::usize i = 0; i < n; ++i) yv[i] = y.elemAsDouble(i);
 
     // Leverage adjustment (DuMouchel & O'Brien): radj = r / sqrt(1 - h),
     // h = hat-matrix diagonal. MATLAB statrobustfit.m.
-    const keel::Array<double> h = leverage(Xv.data(), n, p);
-    keel::Array<double> adj(n);
+    const keel::Array<keel::f64> h = leverage(Xv.data(), n, p);
+    keel::Array<keel::f64> adj(n);
     for (keel::usize i = 0; i < n; ++i)
         adj[i] = 1.0 / std::sqrt(1.0 - h[i]);
 
     // Floor on the scale estimate so a (near-)perfect fit can't drive s to 0.
-    double tiny_s = 1e-6 * sampleStd(yv.as_ref());
+    keel::f64 tiny_s = 1e-6 * sampleStd(yv.as_ref());
     if (!(tiny_s > 0.0)) tiny_s = 1.0;
 
     // Initial OLS (uniform weights).
-    keel::Array<double> w(n, 1.0);
-    keel::Array<double> beta = weightedLS(Xv.data(), n, p, yv.data(), w.data());
+    keel::Array<keel::f64> w(n, 1.0);
+    keel::Array<keel::f64> beta = weightedLS(Xv.data(), n, p, yv.data(), w.data());
 
-    keel::Array<double> r(n), radj(n), beta_prev(p, 0.0);
+    keel::Array<keel::f64> r(n), radj(n), beta_prev(p, 0.0);
     const int maxIter = 50;
-    const double D = 1.4901161193847656e-08;   // sqrt(eps)
-    double s = 1.0;
+    const keel::f64 D = 1.4901161193847656e-08;   // sqrt(eps)
+    keel::f64 s = 1.0;
     for (int it = 0; it < maxIter; ++it) {
         // Residuals from the current fit, then the leverage-adjusted scale.
         for (keel::usize i = 0; i < n; ++i) {
-            double pred = 0.0;
+            keel::f64 pred = 0.0;
             for (keel::usize j = 0; j < p; ++j)
                 pred += Xv[j * n + i] * beta[j];
             r[i] = yv[i] - pred;
             radj[i] = r[i] * adj[i];
         }
         s = madsigma(radj.as_ref(), p);
-        const double denom = std::max(s, tiny_s) * tune;
+        const keel::f64 denom = std::max(s, tiny_s) * tune;
 
         // New weights from the standardised, leverage-adjusted residuals.
         for (keel::usize i = 0; i < n; ++i)
@@ -100,7 +100,7 @@ RobustfitResult robustfit(const Value &X, const Value &y,
 
     // Pack outputs.
     auto bv = Value::matrix(p, 1, ValueType::DOUBLE, mr);
-    std::memcpy(bv.doubleDataMut(), beta.data(), p * sizeof(double));
+    std::memcpy(bv.doubleDataMut(), beta.data(), p * sizeof(keel::f64));
     return { std::move(bv), Value::scalar(s, mr) };
 }
 
@@ -113,24 +113,24 @@ RobustcovResult robustcov(const Value &X, keel::Allocator *mr)
         throw Error("robustcov: need n > d + 1 observations",
                     0, 0, "robustcov", "", "numkit:robustcov:noDOF");
 
-    keel::Array<double> Xv(n * d);
+    keel::Array<keel::f64> Xv(n * d);
     for (keel::usize i = 0; i < n * d; ++i) Xv[i] = X.elemAsDouble(i);
 
     // Start from classical mean / cov of all rows.
     keel::Array<keel::usize> keep(n);
     for (keel::usize i = 0; i < n; ++i) keep[i] = i;
-    keel::Array<double> mu, C, invC;
+    keel::Array<keel::f64> mu, C, invC;
     meanCovSubset(Xv.data(), n, d, keep.as_ref(), mu, C);
 
     const keel::usize h = keel::as<keel::usize>(
-        std::ceil(0.75 * keel::as<double>(n)));
+        std::ceil(0.75 * keel::as<keel::f64>(n)));
 
     keel::Array<keel::usize> prevKeep;
     for (int it = 0; it < 30; ++it) {
         if (!invertSPD(C.as_ref(), d, invC)) break;
         auto dist = mahalanobisDist(Xv.data(), n, d, mu.data(), invC.data());
         // Pick h rows with smallest distance.
-        keel::Array<std::pair<double, keel::usize>> pairs(n);
+        keel::Array<std::pair<keel::f64, keel::usize>> pairs(n);
         for (keel::usize i = 0; i < n; ++i) pairs[i] = { dist[i], i };
         std::nth_element(pairs.begin(), pairs.begin() + h, pairs.end());
         keel::Array<keel::usize> newKeep(h);
@@ -149,23 +149,23 @@ RobustcovResult robustcov(const Value &X, keel::Allocator *mr)
     // where F_d is the chi-squared CDF with d DOF. For h/n = 0.75
     // and d = 2 this gives c ≈ 1.86, restoring the variance of a
     // trimmed multivariate-normal sample back to the population value.
-    const double hRatio = keel::as<double>(h) / keel::as<double>(n);
+    const keel::f64 hRatio = keel::as<keel::f64>(h) / keel::as<keel::f64>(n);
     Value pVal = Value::scalar(hRatio, mr);
-    const double q = chi2inv(pVal, keel::as<double>(d), mr).toScalar();
+    const keel::f64 q = chi2inv(pVal, keel::as<keel::f64>(d), mr).toScalar();
     Value qVal = Value::scalar(q, mr);
-    const double F_dp2 = chi2cdf(qVal, keel::as<double>(d + 2), mr).toScalar();
-    const double scale = (F_dp2 > 0.0) ? hRatio / F_dp2 : 1.0;
+    const keel::f64 F_dp2 = chi2cdf(qVal, keel::as<keel::f64>(d + 2), mr).toScalar();
+    const keel::f64 scale = (F_dp2 > 0.0) ? hRatio / F_dp2 : 1.0;
     for (auto &c : C) c *= scale;
 
     // Pack outputs.
     auto sigma = Value::matrix(d, d, ValueType::DOUBLE, mr);
     // C is row-major; transpose to col-major for Value layout.
-    double *sd = sigma.doubleDataMut();
+    keel::f64 *sd = sigma.doubleDataMut();
     for (keel::usize i = 0; i < d; ++i)
         for (keel::usize j = 0; j < d; ++j)
             sd[j * d + i] = C[i * d + j];
     auto muV = Value::matrix(1, d, ValueType::DOUBLE, mr);
-    std::memcpy(muV.doubleDataMut(), mu.data(), d * sizeof(double));
+    std::memcpy(muV.doubleDataMut(), mu.data(), d * sizeof(keel::f64));
     return { std::move(sigma), std::move(muV) };
 }
 

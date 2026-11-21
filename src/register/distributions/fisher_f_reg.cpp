@@ -60,13 +60,13 @@ void fcdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArra
             v = dist_empty_like(nx == 0 ? x : (n1 == 0 ? v1 : v2), mr);
         } else {
             dist_match_numel({nx, n1, n2}, "fcdf");
-            Value y = broadcast_dist3(x, v1, v2, mr, "fcdf", [](double xi, double d1, double d2) -> double {
-                if (d1 <= 0.0 || d2 <= 0.0) return std::numeric_limits<double>::quiet_NaN();
+            Value y = broadcast_dist3(x, v1, v2, mr, "fcdf", [](keel::f64 xi, keel::f64 d1, keel::f64 d2) -> keel::f64 {
+                if (d1 <= 0.0 || d2 <= 0.0) return std::numeric_limits<keel::f64>::quiet_NaN();
                 if (xi <= 0.0) return 0.0;
                 return (d1 * xi) / (d1 * xi + d2);
             });
-            Value a = elementwise(v1, [](double d) { return 0.5 * d; }, mr);
-            Value b = elementwise(v2, [](double d) { return 0.5 * d; }, mr);
+            Value a = elementwise(v1, [](keel::f64 d) { return 0.5 * d; }, mr);
+            Value b = elementwise(v2, [](keel::f64 d) { return 0.5 * d; }, mr);
             v = ::numkit::builtin::betainc(y, a, b, mr);
         }
     }
@@ -93,21 +93,21 @@ void finv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArra
         return;
     }
     const keel::usize N = dist_match_numel({np, n1, n2}, "finv");
-    Value a = elementwise(v1, [](double d) { return 0.5 * d; }, mr);
-    Value b = elementwise(v2, [](double d) { return 0.5 * d; }, mr);
+    Value a = elementwise(v1, [](keel::f64 d) { return 0.5 * d; }, mr);
+    Value b = elementwise(v2, [](keel::f64 d) { return 0.5 * d; }, mr);
     Value z = ::numkit::builtin::betaincinv(p, a, b, mr);
     const Value &ref = (n1 == N) ? v1 : (n2 == N ? v2 : p);
     Value out = dist_empty_like(ref, mr);
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     const keel::usize nz = z.numel();
-    const double NaN = std::numeric_limits<double>::quiet_NaN();
+    const keel::f64 NaN = std::numeric_limits<keel::f64>::quiet_NaN();
     for (keel::usize i = 0; i < N; ++i) {
-        const double d1 = v1.elemAsDouble(n1 == 1 ? 0 : i);
-        const double d2 = v2.elemAsDouble(n2 == 1 ? 0 : i);
+        const keel::f64 d1 = v1.elemAsDouble(n1 == 1 ? 0 : i);
+        const keel::f64 d2 = v2.elemAsDouble(n2 == 1 ? 0 : i);
         if (d1 <= 0.0 || d2 <= 0.0) { od[i] = NaN; continue; }
-        const double zi = z.elemAsDouble(nz == 1 ? 0 : i);
+        const keel::f64 zi = z.elemAsDouble(nz == 1 ? 0 : i);
         if (zi <= 0.0) { od[i] = 0.0; continue; }
-        if (zi >= 1.0) { od[i] = std::numeric_limits<double>::infinity(); continue; }
+        if (zi >= 1.0) { od[i] = std::numeric_limits<keel::f64>::infinity(); continue; }
         od[i] = (d2 / d1) * zi / (1.0 - zi);
     }
     outs[0] = std::move(out);
@@ -116,8 +116,8 @@ void finv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArra
 void frnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "frnd");  // no max: trailing size args (N-D tail; nk caps at two — bugs/opened/stats/rnd-nd-size-tails.md)
-    const double v1 = args[0].toScalar();
-    const double v2 = args[1].toScalar();
+    const keel::f64 v1 = args[0].toScalar();
+    const keel::f64 v2 = args[1].toScalar();
     keel::usize rows, cols;
     parse_rng_size(args, 2, rows, cols, "frnd");
     outs[0] = reshape_rng_nd(frnd(ctx.engine->rng(), v1, v2, rows, cols, ctx.engine->allocator()), args, 2, ctx.engine->allocator(), "frnd");
@@ -127,7 +127,7 @@ void fstat_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRe
 {
     argcheck::checkNargin(args.size(), 2, 2, "fstat");
     emit_vec_stat_2arg(args, nargout, outs, ctx.engine->allocator(), "fstat",
-                       [](double v1, double v2) { return fstat(v1, v2); });
+                       [](keel::f64 v1, keel::f64 v2) { return fstat(v1, v2); });
 }
 
 void ncfpdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
@@ -168,9 +168,9 @@ void ncfstat_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArray
 void ncfrnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 3, "ncfrnd");  // no max: trailing size args (N-D tail; nk caps at two — bugs/opened/stats/rnd-nd-size-tails.md)
-    const double nu1 = args[0].toScalar();
-    const double nu2 = args[1].toScalar();
-    const double delta = args[2].toScalar();
+    const keel::f64 nu1 = args[0].toScalar();
+    const keel::f64 nu2 = args[1].toScalar();
+    const keel::f64 delta = args[2].toScalar();
     keel::usize rows, cols;
     parse_rng_size(args, 3, rows, cols, "ncfrnd");
     outs[0] = reshape_rng_nd(ncfrnd(ctx.engine->rng(), nu1, nu2, delta, rows, cols, ctx.engine->allocator()), args, 3, ctx.engine->allocator(), "ncfrnd");

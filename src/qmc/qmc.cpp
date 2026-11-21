@@ -52,16 +52,16 @@ keel::Array<int> rr2_permutation(int p)
     return perm;
 }
 
-double radical_inverse(long long i, int p, const keel::Array<int> *perm = nullptr)
+keel::f64 radical_inverse(long long i, int p, const keel::Array<int> *perm = nullptr)
 {
-    double r = 0.0;
-    double f = 1.0 / keel::as<double>(p);
+    keel::f64 r = 0.0;
+    keel::f64 f = 1.0 / keel::as<keel::f64>(p);
     while (i > 0) {
         int d = keel::as<int>(i % p);
         if (perm) d = (*perm)[keel::as<keel::usize>(d)];
-        r += f * keel::as<double>(d);
+        r += f * keel::as<keel::f64>(d);
         i /= p;
-        f /= keel::as<double>(p);
+        f /= keel::as<keel::f64>(p);
     }
     return r;
 }
@@ -82,9 +82,9 @@ Value haltonset(int d, long long skip, long long leap, keel::Allocator *mr)
     haltonset_argcheck(d);
     Value s = Value::structure(mr);
     s.field("kind") = Value::fromString("halton", mr);
-    s.field("dim")  = Value::scalar(keel::as<double>(d), mr);
-    s.field("skip") = Value::scalar(keel::as<double>(skip), mr);
-    s.field("leap") = Value::scalar(keel::as<double>(leap), mr);
+    s.field("dim")  = Value::scalar(keel::as<keel::f64>(d), mr);
+    s.field("skip") = Value::scalar(keel::as<keel::f64>(skip), mr);
+    s.field("leap") = Value::scalar(keel::as<keel::f64>(leap), mr);
     s.field("scramble") = Value::fromString("", mr);
     return s;
 }
@@ -128,7 +128,7 @@ Value net(const Value &stream, long long n, keel::Allocator *mr)
     const long long step = leap + 1;
     Value X = Value::matrix(keel::as<keel::usize>(n), d, ValueType::DOUBLE, mr);
     if (n == 0) return X;
-    double *xd = X.doubleDataMut();
+    keel::f64 *xd = X.doubleDataMut();
     for (long long row = 0; row < n; ++row) {
         const long long idx = skip + row * step;
         for (keel::usize k = 0; k < d; ++k)

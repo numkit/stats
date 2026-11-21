@@ -88,8 +88,8 @@ enum class CorrType { Pearson, Kendall, Spearman };
 enum class CorrRows { All, Complete, Pairwise };
 enum class CorrTail { Left, Both, Right };
 
-const double kNaN = std::numeric_limits<double>::quiet_NaN();
-const double kInf = std::numeric_limits<double>::infinity();
+const keel::f64 kNaN = std::numeric_limits<keel::f64>::quiet_NaN();
+const keel::f64 kInf = std::numeric_limits<keel::f64>::infinity();
 
 // tail = left|both|right by prefix, then the lt|ne|gt alias table
 // (strncmpi semantics: the given string is a prefix of the choice).
@@ -120,7 +120,7 @@ Value rankColumnsWeighted(const Value &X, const Value *wts,
     const keel::usize p = (X.dims().ndim() >= 2)
                             ? keel::as<keel::usize>(X.dims().dim(1)) : 1;
     Value R = Value::matrix(n, p, ValueType::DOUBLE, mr);
-    double *rd = R.doubleDataMut();
+    keel::f64 *rd = R.doubleDataMut();
     keel::ArenaTemp scratch = keel::get_scratch(mr);
     for (keel::usize c = 0; c < p; ++c) {
         bool hasNaN = false;
@@ -135,17 +135,17 @@ Value rankColumnsWeighted(const Value &X, const Value *wts,
         std::stable_sort(idx.begin(), idx.end(), [&](keel::usize a, keel::usize b) {
             return X.elemAsDouble(a + c * n) < X.elemAsDouble(b + c * n);
         });
-        double wPrev = 0.0;
+        keel::f64 wPrev = 0.0;
         keel::usize i = 0;
         while (i < n) {
             keel::usize j = i;
-            const double v = X.elemAsDouble(idx[i] + c * n);
-            double wGroup = wts->elemAsDouble(idx[i]);
+            const keel::f64 v = X.elemAsDouble(idx[i] + c * n);
+            keel::f64 wGroup = wts->elemAsDouble(idx[i]);
             while (j + 1 < n && X.elemAsDouble(idx[j + 1] + c * n) == v) {
                 ++j;
                 wGroup += wts->elemAsDouble(idx[j]);
             }
-            const double avg = wPrev + 0.5 * (1.0 + wGroup);
+            const keel::f64 avg = wPrev + 0.5 * (1.0 + wGroup);
             for (keel::usize k = i; k <= j; ++k) rd[idx[k] + c * n] = avg;
             wPrev += wGroup;
             i = j + 1;
@@ -156,25 +156,25 @@ Value rankColumnsWeighted(const Value &X, const Value *wts,
 
 // Kendall tau-b between column ci of X and column cj of Y (length n),
 // with optional nonnegative observation weights wts.
-double kendallTauB(const Value &X, keel::usize ci,
+keel::f64 kendallTauB(const Value &X, keel::usize ci,
                    const Value &Y, keel::usize cj, keel::usize n,
                    const Value *wts = nullptr)
 {
-    double s = 0.0, n0 = 0.0, n1 = 0.0, n2 = 0.0;
+    keel::f64 s = 0.0, n0 = 0.0, n1 = 0.0, n2 = 0.0;
     for (keel::usize i = 0; i < n; ++i) {
-        const double ai = X.elemAsDouble(i + ci * n);
-        const double bi = Y.elemAsDouble(i + cj * n);
+        const keel::f64 ai = X.elemAsDouble(i + ci * n);
+        const keel::f64 bi = Y.elemAsDouble(i + cj * n);
         if (std::isnan(ai) || std::isnan(bi)) return kNaN;
-        const double wi = wts ? wts->elemAsDouble(i) : 1.0;
+        const keel::f64 wi = wts ? wts->elemAsDouble(i) : 1.0;
         for (keel::usize j = i + 1; j < n; ++j) {
-            const double aj = X.elemAsDouble(j + ci * n);
-            const double bj = Y.elemAsDouble(j + cj * n);
+            const keel::f64 aj = X.elemAsDouble(j + ci * n);
+            const keel::f64 bj = Y.elemAsDouble(j + cj * n);
             if (std::isnan(aj) || std::isnan(bj)) return kNaN;
-            const double wj = wts ? wts->elemAsDouble(j) : 1.0;
-            const double wij = wi * wj;
+            const keel::f64 wj = wts ? wts->elemAsDouble(j) : 1.0;
+            const keel::f64 wij = wi * wj;
             n0 += wij;
-            const double da = aj - ai;
-            const double db = bj - bi;
+            const keel::f64 da = aj - ai;
+            const keel::f64 db = bj - bi;
             const bool tiea = (da == 0.0);
             const bool tieb = (db == 0.0);
             if (tiea) n1 += wij;
@@ -184,8 +184,8 @@ double kendallTauB(const Value &X, keel::usize ci,
             }
         }
     }
-    const double denom = std::sqrt((n0 - n1) * (n0 - n2));
-    if (denom <= 0.0) return std::numeric_limits<double>::quiet_NaN();
+    const keel::f64 denom = std::sqrt((n0 - n1) * (n0 - n2));
+    if (denom <= 0.0) return std::numeric_limits<keel::f64>::quiet_NaN();
     return s / denom;
 }
 
@@ -202,7 +202,7 @@ Value kendallMatrix(const Value &X, const Value &Y, const Value *wts,
     const keel::usize q = (Y.dims().ndim() >= 2)
                             ? keel::as<keel::usize>(Y.dims().dim(1)) : 1;
     Value out = Value::matrix(p, q, ValueType::DOUBLE, mr);
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     for (keel::usize j = 0; j < q; ++j)
         for (keel::usize i = 0; i < p; ++i)
             od[i + j * p] = kendallTauB(X, i, Y, j, n, wts);
@@ -248,7 +248,7 @@ void gatherRows(const Value &X, const Value *Y, const Value *wts,
                 if (keep[r]) xo[w++ + c * m] = X.complexData()[r + c * n];
     } else {
         Xo = Value::matrix(m, pX, ValueType::DOUBLE, mr);
-        double *xo = Xo.doubleDataMut();
+        keel::f64 *xo = Xo.doubleDataMut();
         for (keel::usize c = 0; c < pX; ++c)
             for (keel::usize r = 0, w = 0; r < n; ++r)
                 if (keep[r]) xo[w++ + c * m] = X.elemAsDouble(r + c * n);
@@ -262,7 +262,7 @@ void gatherRows(const Value &X, const Value *Y, const Value *wts,
                     if (keep[r]) yo[w++ + c * m] = Y->complexData()[r + c * n];
         } else {
             *Yo = Value::matrix(m, pY, ValueType::DOUBLE, mr);
-            double *yo = Yo->doubleDataMut();
+            keel::f64 *yo = Yo->doubleDataMut();
             for (keel::usize c = 0; c < pY; ++c)
                 for (keel::usize r = 0, w = 0; r < n; ++r)
                     if (keep[r]) yo[w++ + c * m] = Y->elemAsDouble(r + c * n);
@@ -270,7 +270,7 @@ void gatherRows(const Value &X, const Value *Y, const Value *wts,
     }
     if (wts) {
         wo = Value::matrix(m, 1, ValueType::DOUBLE, mr);
-        double *wd = wo.doubleDataMut();
+        keel::f64 *wd = wo.doubleDataMut();
         for (keel::usize r = 0, w = 0; r < n; ++r)
             if (keep[r]) wd[w++] = wts->elemAsDouble(r);
     }
@@ -329,13 +329,13 @@ Value pearsonMatrixFull(const Value &X, const Value &Y, const Value *wts,
     // Weighted (or plain) column means; then the centered columns scaled
     // by sqrt(w).
     keel::Array<keel::c64> mx(p), my(q);
-    double sw = 0.0;
+    keel::f64 sw = 0.0;
     if (weighted) {
-        double s = 0.0;
+        keel::f64 s = 0.0;
         for (keel::usize k = 0; k < n; ++k) s += wOf(k);
         sw = s;
     } else {
-        sw = keel::as<double>(n);
+        sw = keel::as<keel::f64>(n);
     }
     for (keel::usize c = 0; c < p; ++c) {
         keel::c64 s(0.0, 0.0);
@@ -350,9 +350,9 @@ Value pearsonMatrixFull(const Value &X, const Value &Y, const Value *wts,
     // coef(i,j) = (Σ conj(x̃) ỹ) / (|x̃| |ỹ|), x̃ = (x-mx)·sqrt(w).
     Value out = complexData ? Value::matrix(p, q, ValueType::COMPLEX, mr)
                             : Value::matrix(p, q, ValueType::DOUBLE, mr);
-    keel::Array<double> nx(p), ny(q);
+    keel::Array<keel::f64> nx(p), ny(q);
     for (keel::usize i = 0; i < p; ++i) {
-        double s = 0.0;
+        keel::f64 s = 0.0;
         for (keel::usize k = 0; k < n; ++k) {
             const auto d = (readX(k, i) - mx[i]) * std::sqrt(wOf(k));
             s += keel::norm(d);
@@ -360,7 +360,7 @@ Value pearsonMatrixFull(const Value &X, const Value &Y, const Value *wts,
         nx[i] = std::sqrt(s);
     }
     for (keel::usize j = 0; j < q; ++j) {
-        double s = 0.0;
+        keel::f64 s = 0.0;
         for (keel::usize k = 0; k < n; ++k) {
             const auto d = (readY(k, j) - my[j]) * std::sqrt(wOf(k));
             s += keel::norm(d);
@@ -398,7 +398,7 @@ Value pearsonMatrixFull(const Value &X, const Value &Y, const Value *wts,
                     ? keel::c64(kNaN, 0.0) : keel::c64(1.0, 0.0);
             }
     } else {
-        double *od = out.doubleDataMut();
+        keel::f64 *od = out.doubleDataMut();
         for (keel::usize k = 0; k < p * q; ++k)
             if (std::fabs(od[k]) > 1.0) od[k] = od[k] / std::fabs(od[k]);
         if (corrXX)
@@ -425,7 +425,7 @@ PairwisePearsonOut corrPairwisePearson(const Value &X, const Value &Y,
     Value out = complexData ? Value::matrix(p, q, ValueType::COMPLEX, mr)
                             : Value::matrix(p, q, ValueType::DOUBLE, mr);
     Value nij = Value::matrix(p, q, ValueType::DOUBLE, mr);
-    double *nd = nij.doubleDataMut();
+    keel::f64 *nd = nij.doubleDataMut();
 
     auto readC = [](const Value &V, keel::usize idx) -> keel::c64 {
         if (V.type() == ValueType::COMPLEX)
@@ -437,34 +437,34 @@ PairwisePearsonOut corrPairwisePearson(const Value &X, const Value &Y,
     auto pairDot = [&](const Value &A, keel::usize ci,
                        const Value &B, keel::usize cj) {
         keel::usize m = 0;
-        double sw = 0.0;
+        keel::f64 sw = 0.0;
         keel::c64 sai(0.0, 0.0), sbj(0.0, 0.0);
         for (keel::usize k = 0; k < n; ++k) {
             if (elemIsNaN(A, k + ci * n) || elemIsNaN(B, k + cj * n)) continue;
             const auto a = readC(A, k + ci * n);
             const auto b = readC(B, k + cj * n);
-            const double w = wts ? wts->elemAsDouble(k) : 1.0;
+            const keel::f64 w = wts ? wts->elemAsDouble(k) : 1.0;
             sw += w; sai += w * a; sbj += w * b;
             ++m;
         }
-        nd[ci + cj * p] = keel::as<double>(m);
+        nd[ci + cj * p] = keel::as<keel::f64>(m);
         keel::c64 rij(kNaN, 0.0);
         if (m >= 1 && sw > 0.0) {
             const auto ma = sai / sw, mb = sbj / sw;
             keel::c64 sab(0.0, 0.0);
-            double saa = 0.0, sbb = 0.0;
+            keel::f64 saa = 0.0, sbb = 0.0;
             for (keel::usize k = 0; k < n; ++k) {
                 if (elemIsNaN(A, k + ci * n) || elemIsNaN(B, k + cj * n)) continue;
                 const auto a = readC(A, k + ci * n);
                 const auto b = readC(B, k + cj * n);
-                const double w = wts ? wts->elemAsDouble(k) : 1.0;
-                const double s = std::sqrt(w);
+                const keel::f64 w = wts ? wts->elemAsDouble(k) : 1.0;
+                const keel::f64 s = std::sqrt(w);
                 const auto da = (a - ma) * s, db = (b - mb) * s;
                 sab += keel::conj(da) * db;
                 saa += keel::norm(da);
                 sbb += keel::norm(db);
             }
-            const double den = std::sqrt(saa * sbb);
+            const keel::f64 den = std::sqrt(saa * sbb);
             if (den > 0.0) {
                 rij = sab / den;
                 if (keel::abs(rij) > 1.0) rij /= keel::abs(rij);
@@ -486,7 +486,7 @@ PairwisePearsonOut corrPairwisePearson(const Value &X, const Value &Y,
             keel::usize m = 0;
             for (keel::usize k = 0; k < n; ++k)
                 if (!elemIsNaN(X, k + i * n)) ++m;
-            nd[i + i * p] = keel::as<double>(m);
+            nd[i + i * p] = keel::as<keel::f64>(m);
             if (complexData) {
                 out.complexDataMut()[i + i * p] = (m >= 1)
                     ? keel::c64(1.0, 0.0) : keel::c64(kNaN, 0.0);
@@ -520,8 +520,8 @@ PairwisePearsonOut corrPairwiseKendall(const Value &X, const Value &Y,
     const keel::usize q = corrColsOf(Y);
     Value out = Value::matrix(p, q, ValueType::DOUBLE, mr);
     Value nij = Value::matrix(p, q, ValueType::DOUBLE, mr);
-    double *od = out.doubleDataMut();
-    double *nd = nij.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
+    keel::f64 *nd = nij.doubleDataMut();
 
     for (keel::usize i = 0; i < p; ++i) {
         const keel::usize j1 = corrXX ? (i + 1) : q;
@@ -535,7 +535,7 @@ PairwisePearsonOut corrPairwiseKendall(const Value &X, const Value &Y,
                     ++m;
                 }
             }
-            nd[i + j * p] = keel::as<double>(m);
+            nd[i + j * p] = keel::as<keel::f64>(m);
             if (m < 2) {
                 od[i + j * p] = kNaN;
                 continue;
@@ -552,7 +552,7 @@ PairwisePearsonOut corrPairwiseKendall(const Value &X, const Value &Y,
                     ++w;
                 }
             }
-            const double tau = kendallTauB(Xa, 0, Yb, 0, m, wts ? &Wa : nullptr);
+            const keel::f64 tau = kendallTauB(Xa, 0, Yb, 0, m, wts ? &Wa : nullptr);
             od[i + j * p] = (corrXX && i == j && !std::isnan(tau)) ? 1.0 : tau;
         }
     }
@@ -575,7 +575,7 @@ PairwisePearsonOut corrPairwiseKendall(const Value &X, const Value &Y,
 // from the same statistics (probe71b C08/C09/C15).
 
 // Pearson: t = r·√((n-2)/(1-r²)), |r|==1 → t = ±Inf (analytic tail).
-double corrPearsonTailP(CorrTail tail, double r, keel::usize n,
+keel::f64 corrPearsonTailP(CorrTail tail, keel::f64 r, keel::usize n,
                         keel::Allocator *mr)
 {
     if (n < 3 || std::isnan(r)) return kNaN;
@@ -587,9 +587,9 @@ double corrPearsonTailP(CorrTail tail, double r, keel::usize n,
         case CorrTail::Left:  return pos ? 1.0 : 0.0;
         }
     }
-    const double df = keel::as<double>(n) - 2.0;
-    const double t = r * std::sqrt(df / (1.0 - r * r));
-    const double cl = tcdf(Value::scalar(t, mr), df, mr).toScalar();
+    const keel::f64 df = keel::as<keel::f64>(n) - 2.0;
+    const keel::f64 t = r * std::sqrt(df / (1.0 - r * r));
+    const keel::f64 cl = tcdf(Value::scalar(t, mr), df, mr).toScalar();
     switch (tail) {
     case CorrTail::Both:  return std::min(1.0, 2.0 * tcdf(
         Value::scalar(-std::fabs(t), mr), df, mr).toScalar());
@@ -603,7 +603,7 @@ double corrPearsonTailP(CorrTail tail, double r, keel::usize n,
 // One-sided p from a discrete exact distribution: lower = P(D ≤ Dobs),
 // upper = P(D ≥ Dobs). left = min(1, lower); right = min(1, upper);
 // both = min(1, 2·min(lower, upper)) (doubling the more significant side).
-double rankTailFromLU(CorrTail tail, double lower, double upper)
+keel::f64 rankTailFromLU(CorrTail tail, keel::f64 lower, keel::f64 upper)
 {
     switch (tail) {
     case CorrTail::Left:  return std::min(1.0, lower);
@@ -617,31 +617,31 @@ double rankTailFromLU(CorrTail tail, double lower, double upper)
 // (probabilities, so no factorial overflow). D = #discordant pairs. The DP
 // ping-pongs two arena buffers sized to the max support (Dmax+1) — no
 // per-iteration allocation.
-std::pair<double, double> corrKendallExactLU(double tau, keel::usize n,
+std::pair<keel::f64, keel::f64> corrKendallExactLU(keel::f64 tau, keel::usize n,
                                              keel::Allocator *mr)
 {
     if (n < 2 || std::isnan(tau)) return { kNaN, kNaN };
     const keel::usize Dmax = n * (n - 1) / 2;
-    long Dobs = std::lround(keel::as<double>(Dmax) * (1.0 - tau) / 2.0);
+    long Dobs = std::lround(keel::as<keel::f64>(Dmax) * (1.0 - tau) / 2.0);
     if (Dobs < 0) Dobs = 0;
     if (Dobs > keel::as<long>(Dmax)) Dobs = keel::as<long>(Dmax);
     keel::ArenaTemp sc = keel::get_scratch(mr);
-    keel::Array<double> prob(Dmax + 1, 0.0, sc.allocator());      // P(#inversions == d)
-    keel::Array<double> next(Dmax + 1, 0.0, sc.allocator());
+    keel::Array<keel::f64> prob(Dmax + 1, 0.0, sc.allocator());      // P(#inversions == d)
+    keel::Array<keel::f64> next(Dmax + 1, 0.0, sc.allocator());
     prob[0] = 1.0;
     keel::usize curLen = 1;                            // active prefix length
     for (keel::usize k = 1; k < n; ++k) {
         const keel::usize newLen = curLen + k;
         std::fill(next.begin(), next.begin() + newLen, 0.0);
-        const double w = 1.0 / keel::as<double>(k + 1);
+        const keel::f64 w = 1.0 / keel::as<keel::f64>(k + 1);
         for (keel::usize d = 0; d < curLen; ++d) {
-            const double pv = prob[d] * w;
+            const keel::f64 pv = prob[d] * w;
             for (keel::usize s = 0; s <= k; ++s) next[d + s] += pv;
         }
         keel::swap(prob, next);                       // O(1), same arena
         curLen = newLen;
     }
-    double lower = 0.0, upper = 0.0;
+    keel::f64 lower = 0.0, upper = 0.0;
     for (long d = 0; d <= Dobs; ++d) lower += prob[keel::as<keel::usize>(d)];
     for (long d = Dobs; d < keel::as<long>(curLen); ++d)
         upper += prob[keel::as<keel::usize>(d)];
@@ -650,10 +650,10 @@ std::pair<double, double> corrKendallExactLU(double tau, keel::usize n,
 
 // Exact Spearman {lower, upper} by enumerating permutations (small n).
 // D = Σ(rankX_i - rankY_i)²; under H0 it is the displacement of a random perm.
-std::pair<double, double> corrSpearmanExactLU(double rho, keel::usize n,
+std::pair<keel::f64, keel::f64> corrSpearmanExactLU(keel::f64 rho, keel::usize n,
                                               keel::Allocator *mr)
 {
-    const double scale = keel::as<double>(n) * (keel::as<double>(n) * n - 1.0) / 6.0;
+    const keel::f64 scale = keel::as<keel::f64>(n) * (keel::as<keel::f64>(n) * n - 1.0) / 6.0;
     long Dobs = std::lround((1.0 - rho) * scale);
     if (Dobs < 0) Dobs = 0;
     keel::ArenaTemp sc = keel::get_scratch(mr);
@@ -670,8 +670,8 @@ std::pair<double, double> corrSpearmanExactLU(double rho, keel::usize n,
         if (D >= Dobs) ++geCount;
         ++total;
     } while (std::next_permutation(perm.begin(), perm.end()));
-    return { keel::as<double>(leCount) / keel::as<double>(total),
-             keel::as<double>(geCount) / keel::as<double>(total) };
+    return { keel::as<keel::f64>(leCount) / keel::as<keel::f64>(total),
+             keel::as<keel::f64>(geCount) / keel::as<keel::f64>(total) };
 }
 
 // ── Spearman: the reference engine's two-branch contract ──────────────
@@ -685,22 +685,22 @@ std::pair<double, double> corrSpearmanExactLU(double rho, keel::usize n,
 
 // AS 89: upper tail probability of Spearman's D (no ties), Edgeworth
 // expansion with continuity correction (algorithm AS 89).
-double as89Upper(double D, keel::usize n, double n3c)
+keel::f64 as89Upper(keel::f64 D, keel::usize n, keel::f64 n3c)
 {
-    static const double c[12] = { .2274, .2531, .1745, .0758, .1033, .3932,
+    static const keel::f64 c[12] = { .2274, .2531, .1745, .0758, .1033, .3932,
                                   .0879, .0151, .0072, .0831, .0131, .00046 };
-    const double x = (2.0 * (D - 1.0) / n3c - 1.0)
-                   * std::sqrt(keel::as<double>(n) - 1.0);
-    const double y = x * x;
-    const double u = x * (c[0] + (c[1] + c[2] / n) / n +
+    const keel::f64 x = (2.0 * (D - 1.0) / n3c - 1.0)
+                   * std::sqrt(keel::as<keel::f64>(n) - 1.0);
+    const keel::f64 y = x * x;
+    const keel::f64 u = x * (c[0] + (c[1] + c[2] / n) / n +
                           y * (-c[3] + (c[4] + c[5] / n) / n -
                           y * (c[6] + c[7] / n - y * (c[8] - c[9] / n +
                           y * (c[10] - c[11] * y) / n))) / n) / n;
-    const double pv = u / std::exp(0.5 * y) + 0.5 * std::erfc(x / std::sqrt(2.0));
+    const keel::f64 pv = u / std::exp(0.5 * y) + 0.5 * std::erfc(x / std::sqrt(2.0));
     return std::min(1.0, std::max(0.0, pv));
 }
 
-double as89Tail(CorrTail tail, double D, keel::usize n, double n3c)
+keel::f64 as89Tail(CorrTail tail, keel::f64 D, keel::usize n, keel::f64 n3c)
 {
     switch (tail) {
     case CorrTail::Both:
@@ -712,7 +712,7 @@ double as89Tail(CorrTail tail, double D, keel::usize n, double n3c)
 }
 
 // No-ties Spearman p from rho (rho -> D statistic -> exact / AS89).
-double corrSpearmanNoTiesTailP(CorrTail tail, double rho, keel::usize n,
+keel::f64 corrSpearmanNoTiesTailP(CorrTail tail, keel::f64 rho, keel::usize n,
                                keel::Allocator *mr)
 {
     if (n < 2 || std::isnan(rho)) return kNaN;
@@ -720,18 +720,18 @@ double corrSpearmanNoTiesTailP(CorrTail tail, double rho, keel::usize n,
         const auto lo_up = corrSpearmanExactLU(rho, n, mr);
         return rankTailFromLU(tail, lo_up.first, lo_up.second);
     }
-    const double n3c = (keel::as<double>(n) + 1.0) * n
-                     * (keel::as<double>(n) - 1.0) / 3.0;
-    const double scale = n3c / 2.0;
-    const double D = scale - std::lround(rho * scale);
+    const keel::f64 n3c = (keel::as<keel::f64>(n) + 1.0) * n
+                     * (keel::as<keel::f64>(n) - 1.0) / 3.0;
+    const keel::f64 scale = n3c / 2.0;
+    const keel::f64 D = scale - std::lround(rho * scale);
     return as89Tail(tail, D, n, n3c);
 }
 
 // Exact {lower, upper} tail by enumerating all n! permutations of the y
 // MIDRANKS against a fixed x midrank column (the tied-data exact form).
-std::pair<double, double> spearmanExactMidrankLU(const double *xr,
-                                                 const double *yr,
-                                                 keel::usize n, double Dobs,
+std::pair<keel::f64, keel::f64> spearmanExactMidrankLU(const keel::f64 *xr,
+                                                 const keel::f64 *yr,
+                                                 keel::usize n, keel::f64 Dobs,
                                                  keel::Allocator *mr)
 {
     keel::ArenaTemp sc = keel::get_scratch(mr);
@@ -739,17 +739,17 @@ std::pair<double, double> spearmanExactMidrankLU(const double *xr,
     for (keel::usize i = 0; i < n; ++i) perm[i] = keel::as<int>(i);
     keel::usize total = 0, leCount = 0, geCount = 0;
     do {
-        double D = 0.0;
+        keel::f64 D = 0.0;
         for (keel::usize i = 0; i < n; ++i) {
-            const double d = xr[i] - yr[perm[i]];
+            const keel::f64 d = xr[i] - yr[perm[i]];
             D += d * d;
         }
         if (D <= Dobs) ++leCount;
         if (D >= Dobs) ++geCount;
         ++total;
     } while (std::next_permutation(perm.begin(), perm.end()));
-    return { keel::as<double>(leCount) / keel::as<double>(total),
-             keel::as<double>(geCount) / keel::as<double>(total) };
+    return { keel::as<keel::f64>(leCount) / keel::as<keel::f64>(total),
+             keel::as<keel::f64>(geCount) / keel::as<keel::f64>(total) };
 }
 
 // Spearman coefficient (+ p-values). Computes coef into `coef` and, when
@@ -772,8 +772,8 @@ void spearmanFull(const Value &X, const Value &Y, bool corrXX, CorrTail tail,
         yr = yrP.first;
         yadjV = yrP.second;
     }
-    const double *xadj = xadjV.doubleData();
-    const double *yadj = yadjV.doubleData();
+    const keel::f64 *xadj = xadjV.doubleData();
+    const keel::f64 *yadj = yadjV.doubleData();
     bool anyTies = false;
     for (keel::usize c = 0; c < p1; ++c) anyTies = anyTies || (xadj[c] > 0.0);
     if (!corrXX)
@@ -783,11 +783,11 @@ void spearmanFull(const Value &X, const Value &Y, bool corrXX, CorrTail tail,
         coef = corrXX ? corr_xx(xr, mr) : corr_xy(xr, yr, mr);
         if (!wantP) return;
         p = Value::matrix(p1, p2, ValueType::DOUBLE, mr);
-        double *pd = p.doubleDataMut();
-        const double *rd = coef.doubleData();
+        keel::f64 *pd = p.doubleDataMut();
+        const keel::f64 *rd = coef.doubleData();
         for (keel::usize j = 0; j < p2; ++j)
             for (keel::usize i = 0; i < p1; ++i) {
-                const double rij = rd[i + j * p1];
+                const keel::f64 rij = rd[i + j * p1];
                 if (corrXX && i == j) {
                     pd[i + j * p1] = std::isnan(rij) ? kNaN : 1.0;
                     continue;
@@ -798,36 +798,36 @@ void spearmanFull(const Value &X, const Value &Y, bool corrXX, CorrTail tail,
     }
 
     // Ties + p-values: the tie-corrected per-pair form.
-    const double n3c = (keel::as<double>(n) + 1.0) * n
-                     * (keel::as<double>(n) - 1.0) / 3.0;
-    const double n3c2 = (keel::as<double>(n) + 1.0) * n
-                      * (keel::as<double>(n) - 1.0) / 2.0;
-    const double *xd = xr.doubleData();
-    const double *yd = yr.doubleData();
+    const keel::f64 n3c = (keel::as<keel::f64>(n) + 1.0) * n
+                     * (keel::as<keel::f64>(n) - 1.0) / 3.0;
+    const keel::f64 n3c2 = (keel::as<keel::f64>(n) + 1.0) * n
+                      * (keel::as<keel::f64>(n) - 1.0) / 2.0;
+    const keel::f64 *xd = xr.doubleData();
+    const keel::f64 *yd = yr.doubleData();
     coef = Value::matrix(p1, p2, ValueType::DOUBLE, mr);
-    double *cd = coef.doubleDataMut();
+    keel::f64 *cd = coef.doubleDataMut();
     p = Value::matrix(p1, p2, ValueType::DOUBLE, mr);
-    double *pd = p.doubleDataMut();
+    keel::f64 *pd = p.doubleDataMut();
     for (keel::usize i = 0; i < p1; ++i) {
         const keel::usize j1 = corrXX ? i + 1 : p2;
         for (keel::usize j = 0; j < j1; ++j) {
-            double D = 0.0;
+            keel::f64 D = 0.0;
             for (keel::usize k = 0; k < n; ++k) {
-                const double d = xd[k + i * n] - yd[k + j * n];
+                const keel::f64 d = xd[k + i * n] - yd[k + j * n];
                 D += d * d;
             }
-            const double meanD = (n3c - (xadj[i] + yadj[j]) / 3.0) / 2.0;
-            const double vx = n3c / 2.0 - xadj[i] / 3.0;
-            const double vy = n3c / 2.0 - yadj[j] / 3.0;
+            const keel::f64 meanD = (n3c - (xadj[i] + yadj[j]) / 3.0) / 2.0;
+            const keel::f64 vx = n3c / 2.0 - xadj[i] / 3.0;
+            const keel::f64 vy = n3c / 2.0 - yadj[j] / 3.0;
             const bool constantCol = (xadj[i] == n3c2) || (yadj[j] == n3c2);
-            const double stdD = constantCol ? 0.0
+            const keel::f64 stdD = constantCol ? 0.0
                               : std::sqrt(vx * vy / (n - 1.0));
             if (stdD == 0.0) {
                 cd[i + j * p1] = kNaN;
                 pd[i + j * p1] = kNaN;
                 continue;
             }
-            const double rho = (meanD - D) / (std::sqrt(n - 1.0) * stdD);
+            const keel::f64 rho = (meanD - D) / (std::sqrt(n - 1.0) * stdD);
             cd[i + j * p1] = rho;
             if (corrXX && i == j) {
                 pd[i + j * p1] = kNaN;   // overwritten by the diag pass below
@@ -839,10 +839,10 @@ void spearmanFull(const Value &X, const Value &Y, bool corrXX, CorrTail tail,
                 pd[i + j * p1] = rankTailFromLU(tail, lu.first, lu.second);
             } else {
                 // Student-t with the tie-corrected r.
-                double t = std::copysign(kInf, rho);
+                keel::f64 t = std::copysign(kInf, rho);
                 if (std::fabs(rho) < 1.0)
                     t = rho * std::sqrt((n - 2.0) / (1.0 - rho * rho));
-                const double df = n - 2.0;
+                const keel::f64 df = n - 2.0;
                 switch (tail) {
                 case CorrTail::Both:
                     pd[i + j * p1] = std::min(1.0, 2.0 * tcdf(
@@ -889,9 +889,9 @@ void corrPairwiseSpearman(const Value &X, const Value &Y, const Value *wts,
     const keel::usize p1 = corrColsOf(X);
     const keel::usize p2 = corrXX ? p1 : corrColsOf(Y);
     coef = Value::matrix(p1, p2, ValueType::DOUBLE, mr);
-    double *cd = coef.doubleDataMut();
+    keel::f64 *cd = coef.doubleDataMut();
     if (wantP) p = Value::matrix(p1, p2, ValueType::DOUBLE, mr);
-    double *pd = wantP ? p.doubleDataMut() : nullptr;
+    keel::f64 *pd = wantP ? p.doubleDataMut() : nullptr;
 
     for (keel::usize i = 0; i < p1; ++i) {
         const keel::usize j1 = corrXX ? (i + 1) : p2;
@@ -946,15 +946,15 @@ void corrPairwiseSpearman(const Value &X, const Value &Y, const Value *wts,
 }
 
 // Large-n Kendall: tie-free normal approximation z = 3τ√(n(n-1)/2(2n+5)).
-double corrKendallNormalP(CorrTail tail, double tau, keel::usize n)
+keel::f64 corrKendallNormalP(CorrTail tail, keel::f64 tau, keel::usize n)
 {
     if (n < 2 || std::isnan(tau)) return kNaN;
     if (std::fabs(tau) >= 1.0)
         return rankTailFromLU(tail, tau > 0 ? 1.0 : 0.0, tau > 0 ? 0.0 : 1.0);
-    const double z = 3.0 * tau * std::sqrt(keel::as<double>(n) * (n - 1))
+    const keel::f64 z = 3.0 * tau * std::sqrt(keel::as<keel::f64>(n) * (n - 1))
                    / std::sqrt(2.0 * (2.0 * n + 5.0));
     // Φ(z) = erfc(-z/√2)/2
-    const double phi = 0.5 * std::erfc(-z / std::sqrt(2.0));
+    const keel::f64 phi = 0.5 * std::erfc(-z / std::sqrt(2.0));
     switch (tail) {
     case CorrTail::Left:  return std::min(1.0, phi);
     case CorrTail::Right: return std::min(1.0, 1.0 - phi);
@@ -972,18 +972,18 @@ Value corrPValueMatrix(const Value &r, const Value *nij, keel::usize n,
     const keel::usize p = keel::as<keel::usize>(r.dims().dim(0));
     const keel::usize q = keel::as<keel::usize>(r.dims().dim(1));
     Value P = Value::matrix(p, q, ValueType::DOUBLE, mr);
-    double *pd = P.doubleDataMut();
-    const double *rd = r.doubleData();
-    const double *nd = nij ? nij->doubleData() : nullptr;
+    keel::f64 *pd = P.doubleDataMut();
+    const keel::f64 *rd = r.doubleData();
+    const keel::f64 *nd = nij ? nij->doubleData() : nullptr;
     for (keel::usize j = 0; j < q; ++j)
         for (keel::usize i = 0; i < p; ++i) {
-            const double rij = rd[i + j * p];
+            const keel::f64 rij = rd[i + j * p];
             if (corrXX && i == j) {
                 pd[i + j * p] = std::isnan(rij) ? kNaN : 1.0;
                 continue;
             }
             const keel::usize nn = nd ? keel::as<keel::usize>(nd[i + j * p]) : n;
-            double pv;
+            keel::f64 pv;
             if (ct == CorrType::Pearson)
                 pv = corrPearsonTailP(tail, rij, nn, mr);
             else if (ct == CorrType::Kendall && nn <= 100) {
@@ -1016,7 +1016,7 @@ Value nanMatrix(keel::usize r, keel::usize c, bool single,
     const keel::usize cnt = r * c;
     for (keel::usize k = 0; k < cnt; ++k) {
         if (single) out.singleDataMut()[k] =
-            std::numeric_limits<float>::quiet_NaN();
+            std::numeric_limits<keel::f32>::quiet_NaN();
         else out.doubleDataMut()[k] = kNaN;
     }
     return out;
@@ -1029,7 +1029,7 @@ Value castToSingle(const Value &X, keel::Allocator *mr)
     Value out = Value::matrix(r, c, ValueType::SINGLE, mr);
     const keel::usize cnt = r * c;
     for (keel::usize k = 0; k < cnt; ++k)
-        out.singleDataMut()[k] = keel::as<float>(X.elemAsDouble(k));
+        out.singleDataMut()[k] = keel::as<keel::f32>(X.elemAsDouble(k));
     return out;
 }
 
@@ -1070,7 +1070,7 @@ void dropNaNRowsAny(keel::Array<Value> &M, keel::Allocator *mr)
         const keel::usize nn = keel::as<keel::usize>(Mt.dims().dim(0));
         const keel::usize p = keel::as<keel::usize>(Mt.dims().dim(1));
         Value out = Value::matrix(m, p, ValueType::DOUBLE, mr);
-        double *od = out.doubleDataMut();
+        keel::f64 *od = out.doubleDataMut();
         for (keel::usize c = 0; c < p; ++c)
             for (keel::usize r = 0, w = 0; r < nn; ++r)
                 if (keep[r]) od[w++ + c * m] = Mt.elemAsDouble(r + c * nn);
@@ -1086,35 +1086,35 @@ keel::usize centeredRank(const Value &Z, keel::Allocator *mr)
     const keel::usize pZ = keel::as<keel::usize>(Z.dims().dim(1));
     if (m < 2 || pZ == 0) return 0;
     keel::ArenaTemp sc = keel::get_scratch(mr);
-    keel::Array<double> A(m * pZ, 0.0, sc.allocator());
-    const double *zd = Z.doubleData();
-    double maxNorm = 0.0;
+    keel::Array<keel::f64> A(m * pZ, 0.0, sc.allocator());
+    const keel::f64 *zd = Z.doubleData();
+    keel::f64 maxNorm = 0.0;
     for (keel::usize j = 0; j < pZ; ++j) {
-        double mean = 0.0;
+        keel::f64 mean = 0.0;
         for (keel::usize i = 0; i < m; ++i) mean += zd[i + j * m];
-        mean /= keel::as<double>(m);
-        double colNorm2 = 0.0;
+        mean /= keel::as<keel::f64>(m);
+        keel::f64 colNorm2 = 0.0;
         for (keel::usize i = 0; i < m; ++i) {
-            const double d = zd[i + j * m] - mean;
+            const keel::f64 d = zd[i + j * m] - mean;
             A[i + j * m] = d;
             colNorm2 += d * d;
         }
         maxNorm = std::max(maxNorm, std::sqrt(colNorm2));
     }
     if (maxNorm == 0.0) return 0;
-    const double tol = keel::as<double>(std::max(m, pZ))
-                     * std::numeric_limits<double>::epsilon() * maxNorm;
+    const keel::f64 tol = keel::as<keel::f64>(std::max(m, pZ))
+                     * std::numeric_limits<keel::f64>::epsilon() * maxNorm;
     // Modified Gram-Schmidt / column-pivoted QR rank count.
     keel::usize rnk = 0;
     keel::Array<keel::u8> used(pZ, 0, sc.allocator());
     for (keel::usize step = 0; step < std::min(m, pZ); ++step) {
         keel::usize bestCol = 0;
-        double bestNorm = -1.0;
+        keel::f64 bestNorm = -1.0;
         for (keel::usize j = 0; j < pZ; ++j) {
             if (used[j]) continue;
-            double s = 0.0;
+            keel::f64 s = 0.0;
             for (keel::usize i = 0; i < m; ++i) s += A[i + j * m] * A[i + j * m];
-            const double nrm = std::sqrt(s);
+            const keel::f64 nrm = std::sqrt(s);
             if (nrm > bestNorm) { bestNorm = nrm; bestCol = j; }
         }
         if (bestNorm <= tol) break;
@@ -1123,7 +1123,7 @@ keel::usize centeredRank(const Value &Z, keel::Allocator *mr)
         for (keel::usize i = 0; i < m; ++i) A[i + bestCol * m] /= bestNorm;
         for (keel::usize j = 0; j < pZ; ++j) {
             if (used[j]) continue;
-            double dot = 0.0;
+            keel::f64 dot = 0.0;
             for (keel::usize i = 0; i < m; ++i)
                 dot += A[i + bestCol * m] * A[i + j * m];
             for (keel::usize i = 0; i < m; ++i)
@@ -1197,7 +1197,7 @@ CorrOut corr_full(const Value &x, const Value *Y, keel::ArrayRef<Value> nv,
                                      n, wtsRaw.dims().rows(), wtsRaw.dims().cols()),
                         0, 0, "corr", "", "numkit:corr:incorrectSize");
         for (keel::usize k = 0; k < n; ++k) {
-            const double w = wtsRaw.elemAsDouble(k);
+            const keel::f64 w = wtsRaw.elemAsDouble(k);
             if (!(w >= 0.0))
                 throw Error(keel::format("corr: expected Weights to be nonnegative (got {} "
                                          "at position {}).", w, k + 1),
@@ -1511,11 +1511,11 @@ CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
 
     auto buildPMatrix = [&](const Value &R, long df) -> Value {
         Value P = Value::matrix(dx, dy, ValueType::DOUBLE, mr);
-        double *pd = P.doubleDataMut();
-        const double *rd = R.doubleData();
+        keel::f64 *pd = P.doubleDataMut();
+        const keel::f64 *rd = R.doubleData();
         for (keel::usize j = 0; j < dy; ++j) {
             for (keel::usize i = 0; i < dx; ++i) {
-                const double rij = rd[i + j * dx];
+                const keel::f64 rij = rd[i + j * dx];
                 if (!crossCorr && i == j) {
                     pd[i + j * dx] = std::isnan(rij) ? kNaN : 1.0;
                     continue;
@@ -1550,9 +1550,9 @@ CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
         const keel::usize dz = keel::as<keel::usize>(zD.dims().dim(1));
         const Value &yRef = y ? yD : xD;
         R = Value::matrix(dx, dy, ValueType::DOUBLE, mr);
-        double *rd = R.doubleDataMut();
+        keel::f64 *rd = R.doubleDataMut();
         if (wantP) P = Value::matrix(dx, dy, ValueType::DOUBLE, mr);
-        double *pd = wantP ? P.doubleDataMut() : nullptr;
+        keel::f64 *pd = wantP ? P.doubleDataMut() : nullptr;
 
         for (keel::usize i = 0; i < dx; ++i) {
             const keel::usize j1 = crossCorr ? dy : (i + 1);
@@ -1612,7 +1612,7 @@ CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
                     continue;
                 }
                 Value r1 = partialcorr_of(xSub, ySub, zSub, mr);
-                double rij = r1.elemAsDouble(0);
+                keel::f64 rij = r1.elemAsDouble(0);
                 if (std::fabs(rij) > 1.0) rij = (rij > 0.0) ? 1.0 : -1.0;
                 rd[i + j * dx] = rij;
                 if (pd) {

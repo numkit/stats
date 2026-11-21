@@ -40,18 +40,18 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
     else          out = Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
     const keel::usize n = x.numel();
     if (n == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     for (keel::usize i = 0; i < n; ++i) od[i] = op(x.elemAsDouble(i));
     return out;
 }
 
 // Sample inverse-cdf: x = theta + sigma · ((1-u)^(-k) - 1)/k for k≠0,
 // x = theta − sigma·log1p(−u) for k=0.
-inline double gp_inv_one(double u, double k, double sigma, double theta) {
-    if (!(u >= 0.0 && u <= 1.0)) return std::numeric_limits<double>::quiet_NaN();
+inline keel::f64 gp_inv_one(keel::f64 u, keel::f64 k, keel::f64 sigma, keel::f64 theta) {
+    if (!(u >= 0.0 && u <= 1.0)) return std::numeric_limits<keel::f64>::quiet_NaN();
     if (u == 0.0) return theta;
     if (u == 1.0) return (k < 0) ? theta - sigma / k
-                                 :  std::numeric_limits<double>::infinity();
+                                 :  std::numeric_limits<keel::f64>::infinity();
     if (k == 0.0) return theta - sigma * std::log1p(-u);
     return theta + sigma * (std::pow(1.0 - u, -k) - 1.0) / k;
 }

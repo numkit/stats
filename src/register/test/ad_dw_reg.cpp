@@ -31,7 +31,7 @@ void adtest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                 keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "adtest");  // no max: name-value tail in the reference
-    double alpha = 0.05;
+    keel::f64 alpha = 0.05;
     if (args.size() >= 2 && !args[1].isEmpty())
         alpha = args[1].toScalar();
     auto [h, p, stat, cv] = adtest(args[0], alpha, ctx.engine->allocator());
@@ -85,9 +85,9 @@ void dwtest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         throw Error("dwtest: option name without value",
                     0, 0, "dwtest", "", "numkit:dwtest:badOption");
 
-    double dw = 0.0;
-    const double pLeft = dwStatAndPLeft(args[0], args[1], exact, dw, mr);
-    double p;
+    keel::f64 dw = 0.0;
+    const keel::f64 pLeft = dwStatAndPLeft(args[0], args[1], exact, dw, mr);
+    keel::f64 p;
     if (tail == 1)      p = pLeft;                  // 'right': positive autocorrelation
     else if (tail == 2) p = 1.0 - pLeft;            // 'left' : negative autocorrelation
     else                p = std::min(1.0, 2.0 * std::min(pLeft, 1.0 - pLeft)); // 'both'

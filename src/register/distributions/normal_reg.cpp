@@ -67,8 +67,8 @@ void normrnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
     const Value &muVal = args[0];
     const Value &sigVal = args[1];
     if (muVal.isScalar() && sigVal.isScalar()) {
-        const double mu = muVal.toScalar();
-        const double sigma = sigVal.toScalar();
+        const keel::f64 mu = muVal.toScalar();
+        const keel::f64 sigma = sigVal.toScalar();
         keel::usize rows, cols;
         parse_rng_size(args, 2, rows, cols, "normrnd");
         outs[0] = reshape_rng_nd(normrnd(ctx.engine->rng(), mu, sigma, rows, cols, mr), args, 2, mr, "normrnd");
@@ -91,12 +91,12 @@ void normrnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
         throw Error("normrnd: Non-scalar arguments must match in size.",
                     0, 0, "normrnd", "", "numkit:normrnd:size");
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     auto &rng = ctx.engine->rng();
     for (keel::usize i = 0; i < n; ++i) {
-        const double m = muVal.elemAsDouble(nmu == 1 ? 0 : i);
-        const double s = sigVal.elemAsDouble(nsig == 1 ? 0 : i);
-        od[i] = (s < 0.0) ? std::numeric_limits<double>::quiet_NaN()
+        const keel::f64 m = muVal.elemAsDouble(nmu == 1 ? 0 : i);
+        const keel::f64 s = sigVal.elemAsDouble(nsig == 1 ? 0 : i);
+        od[i] = (s < 0.0) ? std::numeric_limits<keel::f64>::quiet_NaN()
                           : (m + s * rng.nextNormal());
     }
     if (args.size() > 2) {
@@ -118,7 +118,7 @@ void normstat_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArra
 {
     argcheck::checkNargin(args.size(), 2, 2, "normstat");
     emit_vec_stat_2arg(args, nargout, outs, ctx.engine->allocator(), "normstat",
-                       [](double mu, double sigma) { return normstat(mu, sigma); });
+                       [](keel::f64 mu, keel::f64 sigma) { return normstat(mu, sigma); });
 }
 
 } // namespace detail

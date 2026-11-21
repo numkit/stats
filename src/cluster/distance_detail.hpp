@@ -62,10 +62,10 @@ enum class Metric { Euclidean, SqEuclidean, Cityblock, Chebychev, Minkowski,
 // Invert a small dense matrix in-place (D × D, row-major in `A`) using
 // Gauss-Jordan with partial pivoting. Uses the supplied scratch arena
 // for the 2D-wide augmented matrix. Throws on singular matrix.
-inline void invert_small(double *A, keel::usize D,
+inline void invert_small(keel::f64 *A, keel::usize D,
                          keel::Allocator *scratch_mr)
 {
-    keel::Array<double> aug(D * 2 * D, 0.0, scratch_mr);
+    keel::Array<keel::f64> aug(D * 2 * D, 0.0, scratch_mr);
     // Build augmented [A | I].
     for (keel::usize r = 0; r < D; ++r) {
         for (keel::usize c = 0; c < D; ++c) aug[r * 2 * D + c] = A[r * D + c];
@@ -74,9 +74,9 @@ inline void invert_small(double *A, keel::usize D,
     for (keel::usize k = 0; k < D; ++k) {
         // Partial pivot.
         keel::usize piv = k;
-        double pmax = std::fabs(aug[k * 2 * D + k]);
+        keel::f64 pmax = std::fabs(aug[k * 2 * D + k]);
         for (keel::usize r = k + 1; r < D; ++r) {
-            const double v = std::fabs(aug[r * 2 * D + k]);
+            const keel::f64 v = std::fabs(aug[r * 2 * D + k]);
             if (v > pmax) { pmax = v; piv = r; }
         }
         if (pmax < 1e-14)
@@ -87,12 +87,12 @@ inline void invert_small(double *A, keel::usize D,
             for (keel::usize c = 0; c < 2 * D; ++c)
                 std::swap(aug[k * 2 * D + c], aug[piv * 2 * D + c]);
         }
-        const double pivval = aug[k * 2 * D + k];
-        const double inv_pivval = 1.0 / pivval;
+        const keel::f64 pivval = aug[k * 2 * D + k];
+        const keel::f64 inv_pivval = 1.0 / pivval;
         for (keel::usize c = 0; c < 2 * D; ++c) aug[k * 2 * D + c] *= inv_pivval;
         for (keel::usize r = 0; r < D; ++r) {
             if (r == k) continue;
-            const double factor = aug[r * 2 * D + k];
+            const keel::f64 factor = aug[r * 2 * D + k];
             if (factor == 0.0) continue;
             for (keel::usize c = 0; c < 2 * D; ++c)
                 aug[r * 2 * D + c] -= factor * aug[k * 2 * D + c];
@@ -105,18 +105,18 @@ inline void invert_small(double *A, keel::usize D,
 
 // Compute the unbiased covariance matrix of the M×D data `X` (column-major
 // in the Value) into the supplied D*D row-major buffer.
-[[maybe_unused]] void data_cov(const Value &X, double *cov_out,
+[[maybe_unused]] void data_cov(const Value &X, keel::f64 *cov_out,
               keel::Allocator *scratch_mr)
 {
     const keel::usize M = X.dims().rows();
     const keel::usize D = X.dims().cols();
-    keel::Array<double> mean(D, 0.0, scratch_mr);
+    keel::Array<keel::f64> mean(D, 0.0, scratch_mr);
     for (keel::usize c = 0; c < D; ++c) {
         for (keel::usize r = 0; r < M; ++r) mean[c] += X.elemAsDouble(c * M + r);
-        mean[c] /= keel::as<double>(M);
+        mean[c] /= keel::as<keel::f64>(M);
     }
     std::fill(cov_out, cov_out + D * D, 0.0);
-    keel::Array<double> dev(D, scratch_mr);
+    keel::Array<keel::f64> dev(D, scratch_mr);
     for (keel::usize r = 0; r < M; ++r) {
         for (keel::usize c = 0; c < D; ++c)
             dev[c] = X.elemAsDouble(c * M + r) - mean[c];
@@ -124,19 +124,19 @@ inline void invert_small(double *A, keel::usize D,
             for (keel::usize b = 0; b < D; ++b)
                 cov_out[a * D + b] += dev[a] * dev[b];
     }
-    const double inv_dof = (M > 1) ? 1.0 / keel::as<double>(M - 1) : 1.0;
+    const keel::f64 inv_dof = (M > 1) ? 1.0 / keel::as<keel::f64>(M - 1) : 1.0;
     for (keel::usize i = 0; i < D * D; ++i) cov_out[i] *= inv_dof;
 }
 
 // Mahalanobis distance: d = sqrt((u - v)ᵀ · C_inv · (u - v)). Uses the
 // caller's `diff` scratch buffer to avoid per-call allocation.
-inline double mahal_distance(const double *u, const double *v, keel::usize D,
-                              const double *Cinv, double *diff)
+inline keel::f64 mahal_distance(const keel::f64 *u, const keel::f64 *v, keel::usize D,
+                              const keel::f64 *Cinv, keel::f64 *diff)
 {
     for (keel::usize k = 0; k < D; ++k) diff[k] = u[k] - v[k];
-    double s = 0.0;
+    keel::f64 s = 0.0;
     for (keel::usize a = 0; a < D; ++a) {
-        double row = 0.0;
+        keel::f64 row = 0.0;
         for (keel::usize b = 0; b < D; ++b) row += Cinv[a * D + b] * diff[b];
         s += diff[a] * row;
     }
@@ -145,12 +145,12 @@ inline double mahal_distance(const double *u, const double *v, keel::usize D,
 
 // Standardized-euclidean distance: √Σ((xₖ−yₖ)·inv_scaleₖ)². `inv_scale[k]`
 // is 1/Sₖ where S defaults to the per-column sample std of the data set.
-inline double seuclidean_distance(const double *x, const double *y,
-                                  const double *inv_scale, keel::usize D)
+inline keel::f64 seuclidean_distance(const keel::f64 *x, const keel::f64 *y,
+                                  const keel::f64 *inv_scale, keel::usize D)
 {
-    double s = 0.0;
+    keel::f64 s = 0.0;
     for (keel::usize k = 0; k < D; ++k) {
-        const double d = (x[k] - y[k]) * inv_scale[k];
+        const keel::f64 d = (x[k] - y[k]) * inv_scale[k];
         s += d * d;
     }
     return std::sqrt(s);
@@ -159,75 +159,75 @@ inline double seuclidean_distance(const double *x, const double *y,
 // Correlation distance 1 − corr(x, y). NaN when either vector is constant
 // (zero variance) — MATLAB's behaviour. Shared by the 'correlation' metric
 // and (applied to tied ranks) by 'spearman'.
-inline double correlation_distance(const double *x, const double *y, keel::usize D)
+inline keel::f64 correlation_distance(const keel::f64 *x, const keel::f64 *y, keel::usize D)
 {
-    double mx = 0, my = 0;
+    keel::f64 mx = 0, my = 0;
     for (keel::usize k = 0; k < D; ++k) { mx += x[k]; my += y[k]; }
-    mx /= keel::as<double>(D);
-    my /= keel::as<double>(D);
-    double xy = 0, xx = 0, yy = 0;
+    mx /= keel::as<keel::f64>(D);
+    my /= keel::as<keel::f64>(D);
+    keel::f64 xy = 0, xx = 0, yy = 0;
     for (keel::usize k = 0; k < D; ++k) {
-        const double dx = x[k] - mx, dy = y[k] - my;
+        const keel::f64 dx = x[k] - mx, dy = y[k] - my;
         xy += dx * dy; xx += dx * dx; yy += dy * dy;
     }
-    const double denom = std::sqrt(xx) * std::sqrt(yy);
+    const keel::f64 denom = std::sqrt(xx) * std::sqrt(yy);
     return (denom > 0.0) ? (1.0 - xy / denom)
-                         : std::numeric_limits<double>::quiet_NaN();
+                         : std::numeric_limits<keel::f64>::quiet_NaN();
 }
 
-inline double row_distance(const double *x, const double *y, keel::usize D,
-                           Metric m, double p)
+inline keel::f64 row_distance(const keel::f64 *x, const keel::f64 *y, keel::usize D,
+                           Metric m, keel::f64 p)
 {
     switch (m) {
         case Metric::Euclidean: {
-            double s = 0.0;
-            for (keel::usize k = 0; k < D; ++k) { double d = x[k] - y[k]; s += d * d; }
+            keel::f64 s = 0.0;
+            for (keel::usize k = 0; k < D; ++k) { keel::f64 d = x[k] - y[k]; s += d * d; }
             return std::sqrt(s);
         }
         case Metric::SqEuclidean: {
-            double s = 0.0;
-            for (keel::usize k = 0; k < D; ++k) { double d = x[k] - y[k]; s += d * d; }
+            keel::f64 s = 0.0;
+            for (keel::usize k = 0; k < D; ++k) { keel::f64 d = x[k] - y[k]; s += d * d; }
             return s;
         }
         case Metric::Cityblock: {
-            double s = 0.0;
+            keel::f64 s = 0.0;
             for (keel::usize k = 0; k < D; ++k) s += std::fabs(x[k] - y[k]);
             return s;
         }
         case Metric::Chebychev: {
-            double m_ = 0.0;
+            keel::f64 m_ = 0.0;
             for (keel::usize k = 0; k < D; ++k) {
-                double d = std::fabs(x[k] - y[k]);
+                keel::f64 d = std::fabs(x[k] - y[k]);
                 if (d > m_) m_ = d;
             }
             return m_;
         }
         case Metric::Minkowski: {
-            double s = 0.0;
+            keel::f64 s = 0.0;
             for (keel::usize k = 0; k < D; ++k) {
-                double d = std::fabs(x[k] - y[k]);
+                keel::f64 d = std::fabs(x[k] - y[k]);
                 s += std::pow(d, p);
             }
             return std::pow(s, 1.0 / p);
         }
         case Metric::Cosine: {
-            double xy = 0, xx = 0, yy = 0;
+            keel::f64 xy = 0, xx = 0, yy = 0;
             for (keel::usize k = 0; k < D; ++k) {
                 xy += x[k] * y[k];
                 xx += x[k] * x[k];
                 yy += y[k] * y[k];
             }
-            const double denom = std::sqrt(xx) * std::sqrt(yy);
+            const keel::f64 denom = std::sqrt(xx) * std::sqrt(yy);
             // Zero-norm row → cosine undefined; MATLAB returns NaN (not 1).
             return (denom > 0.0) ? (1.0 - xy / denom)
-                                 : std::numeric_limits<double>::quiet_NaN();
+                                 : std::numeric_limits<keel::f64>::quiet_NaN();
         }
         case Metric::Correlation:
             return correlation_distance(x, y, D);
         case Metric::Hamming: {
             int diff = 0;
             for (keel::usize k = 0; k < D; ++k) if (x[k] != y[k]) ++diff;
-            return double(diff) / double(D);
+            return keel::f64(diff) / keel::f64(D);
         }
         case Metric::Jaccard: {
             int diff = 0, considered = 0;
@@ -238,7 +238,7 @@ inline double row_distance(const double *x, const double *y, keel::usize D,
                     if (xi != yi) ++diff;
                 }
             }
-            return considered > 0 ? double(diff) / double(considered) : 0.0;
+            return considered > 0 ? keel::f64(diff) / keel::f64(considered) : 0.0;
         }
         case Metric::Mahalanobis:
         case Metric::Seuclidean:
@@ -252,7 +252,7 @@ inline double row_distance(const double *x, const double *y, keel::usize D,
 }
 
 // Read row r of an M×D Value into a flat raw buffer. Column-major storage.
-inline void read_row(const Value &X, keel::usize r, double *out) {
+inline void read_row(const Value &X, keel::usize r, keel::f64 *out) {
     const keel::usize M = X.dims().rows();
     const keel::usize D = X.dims().cols();
     for (keel::usize k = 0; k < D; ++k) out[k] = X.elemAsDouble(k * M + r);
@@ -260,27 +260,27 @@ inline void read_row(const Value &X, keel::usize r, double *out) {
 
 // Per-column sample standard deviation (divisor n−1) of an M×D Value into
 // `scale_out` (length D). The default 'seuclidean' coordinate scale.
-inline void col_std(const Value &X, double *scale_out,
+inline void col_std(const Value &X, keel::f64 *scale_out,
                     keel::Allocator * /*scratch_mr*/)
 {
     const keel::usize M = X.dims().rows();
     const keel::usize D = X.dims().cols();
     for (keel::usize c = 0; c < D; ++c) {
-        double mean = 0.0;
+        keel::f64 mean = 0.0;
         for (keel::usize r = 0; r < M; ++r) mean += X.elemAsDouble(c * M + r);
-        mean /= keel::as<double>(M);
-        double ss = 0.0;
+        mean /= keel::as<keel::f64>(M);
+        keel::f64 ss = 0.0;
         for (keel::usize r = 0; r < M; ++r) {
-            const double d = X.elemAsDouble(c * M + r) - mean;
+            const keel::f64 d = X.elemAsDouble(c * M + r) - mean;
             ss += d * d;
         }
-        scale_out[c] = (M > 1) ? std::sqrt(ss / keel::as<double>(M - 1)) : 0.0;
+        scale_out[c] = (M > 1) ? std::sqrt(ss / keel::as<keel::f64>(M - 1)) : 0.0;
     }
 }
 
 // Average-tie ranks (MATLAB `tiedrank`) of the D values in `v`, written to
 // `r` in the same order. Ties share the mean of their 1-based ranks.
-inline void tiedrank_row(const double *v, keel::usize D, double *r,
+inline void tiedrank_row(const keel::f64 *v, keel::usize D, keel::f64 *r,
                          keel::Allocator *scratch_mr)
 {
     keel::Array<keel::usize> idx(D, scratch_mr);
@@ -291,8 +291,8 @@ inline void tiedrank_row(const double *v, keel::usize D, double *r,
     while (i < D) {
         keel::usize j = i;
         while (j + 1 < D && v[idx[j + 1]] == v[idx[i]]) ++j;
-        const double avg = (keel::as<double>(i + 1) +
-                            keel::as<double>(j + 1)) / 2.0;
+        const keel::f64 avg = (keel::as<keel::f64>(i + 1) +
+                            keel::as<keel::f64>(j + 1)) / 2.0;
         for (keel::usize t = i; t <= j; ++t) r[idx[t]] = avg;
         i = j + 1;
     }
@@ -300,12 +300,12 @@ inline void tiedrank_row(const double *v, keel::usize D, double *r,
 
 // Build the M×D row-major tied-rank transform of X (each row ranked across
 // its D coordinates) into `R`. Backs the 'spearman' metric.
-inline void tiedrank_rows(const Value &X, double *R,
+inline void tiedrank_rows(const Value &X, keel::f64 *R,
                           keel::Allocator *scratch_mr)
 {
     const keel::usize M = X.dims().rows();
     const keel::usize D = X.dims().cols();
-    keel::Array<double> row(D, scratch_mr);
+    keel::Array<keel::f64> row(D, scratch_mr);
     for (keel::usize r = 0; r < M; ++r) {
         read_row(X, r, row.data());
         tiedrank_row(row.data(), D, R + r * D, scratch_mr);
@@ -316,12 +316,12 @@ inline void tiedrank_rows(const Value &X, double *R,
 
 // Internal pdist/pdist2 overloads (with optional Mahalanobis covariance C_opt)
 // + the top-k variant, used by the reg adapters. Defs in distance.cpp (external).
-Value pdist(const Value &X, keel::StringRef metric, double p,
+Value pdist(const Value &X, keel::StringRef metric, keel::f64 p,
             const Value *C_opt, keel::Allocator *mr);
-Value pdist2(const Value &X, const Value &Y, keel::StringRef metric, double p,
+Value pdist2(const Value &X, const Value &Y, keel::StringRef metric, keel::f64 p,
              const Value *C_opt, keel::Allocator *mr);
 void pdist2_topk(const Value &X, const Value &Y, keel::StringRef metric,
-                 double p, const Value *C_opt, keel::usize k, bool largest,
+                 keel::f64 p, const Value *C_opt, keel::usize k, bool largest,
                  Value &Dout, Value &Iout, keel::Allocator *mr);
 
 } // namespace numkit::stats

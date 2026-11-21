@@ -32,35 +32,35 @@ Value narrowToSingle(Value d, keel::Allocator *mr)
 {
     if (d.type() != ValueType::DOUBLE) return d;
     Value r = createForDims(d.dims(), ValueType::SINGLE, mr);
-    const double *src = d.doubleData();
-    float *dst = r.singleDataMut();
+    const keel::f64 *src = d.doubleData();
+    keel::f32 *dst = r.singleDataMut();
     for (keel::usize i = 0; i < d.numel(); ++i)
-        dst[i] = keel::as<float>(src[i]);
+        dst[i] = keel::as<keel::f32>(src[i]);
     return r;
 }
 
 // Per-slice skewness. n < 2: NaN (m2 == 0 by definition). normFlag=0
 // requires n >= 3 for the bias correction; otherwise NaN.
-double skewnessFromSlice(const double *data, keel::usize n, int normFlag)
+keel::f64 skewnessFromSlice(const keel::f64 *data, keel::usize n, int normFlag)
 {
     if (n < 2) return std::nan("");
-    double mean = 0.0;
+    keel::f64 mean = 0.0;
     for (keel::usize i = 0; i < n; ++i) mean += data[i];
-    mean /= keel::as<double>(n);
-    double m2 = 0.0, m3 = 0.0;
+    mean /= keel::as<keel::f64>(n);
+    keel::f64 m2 = 0.0, m3 = 0.0;
     for (keel::usize i = 0; i < n; ++i) {
-        const double d = data[i] - mean;
-        const double d2 = d * d;
+        const keel::f64 d = data[i] - mean;
+        const keel::f64 d2 = d * d;
         m2 += d2;
         m3 += d2 * d;
     }
-    m2 /= keel::as<double>(n);
-    m3 /= keel::as<double>(n);
+    m2 /= keel::as<keel::f64>(n);
+    m3 /= keel::as<keel::f64>(n);
     if (m2 <= 0.0) return std::nan("");
-    double y = m3 / std::pow(m2, 1.5);
+    keel::f64 y = m3 / std::pow(m2, 1.5);
     if (normFlag == 0) {
         if (n < 3) return std::nan("");
-        const double nd = keel::as<double>(n);
+        const keel::f64 nd = keel::as<keel::f64>(n);
         y *= std::sqrt(nd * (nd - 1.0)) / (nd - 2.0);
     }
     return y;
@@ -68,26 +68,26 @@ double skewnessFromSlice(const double *data, keel::usize n, int normFlag)
 
 // Per-slice kurtosis (NON-excess; equals 3 for normal). normFlag=0
 // requires n >= 4 for the bias correction; otherwise NaN.
-double kurtosisFromSlice(const double *data, keel::usize n, int normFlag)
+keel::f64 kurtosisFromSlice(const keel::f64 *data, keel::usize n, int normFlag)
 {
     if (n < 2) return std::nan("");
-    double mean = 0.0;
+    keel::f64 mean = 0.0;
     for (keel::usize i = 0; i < n; ++i) mean += data[i];
-    mean /= keel::as<double>(n);
-    double m2 = 0.0, m4 = 0.0;
+    mean /= keel::as<keel::f64>(n);
+    keel::f64 m2 = 0.0, m4 = 0.0;
     for (keel::usize i = 0; i < n; ++i) {
-        const double d = data[i] - mean;
-        const double d2 = d * d;
+        const keel::f64 d = data[i] - mean;
+        const keel::f64 d2 = d * d;
         m2 += d2;
         m4 += d2 * d2;
     }
-    m2 /= keel::as<double>(n);
-    m4 /= keel::as<double>(n);
+    m2 /= keel::as<keel::f64>(n);
+    m4 /= keel::as<keel::f64>(n);
     if (m2 <= 0.0) return std::nan("");
-    double y = m4 / (m2 * m2);
+    keel::f64 y = m4 / (m2 * m2);
     if (normFlag == 0) {
         if (n < 4) return std::nan("");
-        const double nd = keel::as<double>(n);
+        const keel::f64 nd = keel::as<keel::f64>(n);
         y = ((nd - 1.0) / ((nd - 2.0) * (nd - 3.0)))
                 * ((nd + 1.0) * y - 3.0 * (nd - 1.0))
             + 3.0;
@@ -105,14 +105,14 @@ void moments_argcheck(const Value &x, int normFlag, const char *fn)
                      0, 0, fn, "", keel::format("numkit:{}:complex", fn));
 }
 
-Value dispatchMomentReduction(const Value &x, int dim, int normFlag, const char *fn, double (*fromSlice)(const double *, keel::usize, int), keel::Allocator *mr)
+Value dispatchMomentReduction(const Value &x, int dim, int normFlag, const char *fn, keel::f64 (*fromSlice)(const keel::f64 *, keel::usize, int), keel::Allocator *mr)
 {
     moments_argcheck(x, normFlag, fn);
     if (x.isEmpty())
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     const int d = resolveDim(x, dim, fn);
     Value r = applyAlongDim(x, d,
-        [normFlag, fromSlice](keel::usize, double *slice, keel::usize n) {
+        [normFlag, fromSlice](keel::usize, keel::f64 *slice, keel::usize n) {
             // MATLAB skewness/kurtosis treat NaN as missing and remove it.
             // Compact the non-NaN values to the front of the (mutable)
             // slice and reduce the count before the moment kernel runs.

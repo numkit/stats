@@ -31,8 +31,8 @@ namespace {
 // MATLAB-style ascending numeric order most of the time; for strict
 // matches, callers can sort labels first).
 struct Group {
-    double label;
-    keel::Array<double> values;
+    keel::f64 label;
+    keel::Array<keel::f64> values;
 };
 
 keel::Array<Group> bucket(const Value &y, const Value &group)
@@ -43,13 +43,13 @@ keel::Array<Group> bucket(const Value &y, const Value &group)
                     0, 0, "anova1", "", "numkit:anova1:size");
     keel::Array<Group> g;
     for (keel::usize i = 0; i < N; ++i) {
-        const double yi = y.elemAsDouble(i);
-        const double li = group.elemAsDouble(i);
+        const keel::f64 yi = y.elemAsDouble(i);
+        const keel::f64 li = group.elemAsDouble(i);
         if (std::isnan(yi) || std::isnan(li)) continue;
         bool found = false;
         for (auto &gg : g) if (gg.label == li) { gg.values.push_back(yi); found = true; break; }
         if (!found) {
-            Group ng{li, keel::Array<double>{}};
+            Group ng{li, keel::Array<keel::f64>{}};
             ng.values.push_back(yi);
             g.push_back(std::move(ng));
         }
@@ -64,8 +64,8 @@ keel::Array<Group> bucket(const Value &y, const Value &group)
 
 // anova2: two-way ANOVA core (10-tuple of doubles: pCols,pRows,Fc,Fr,dfC,dfR,
 // dfE,ssC,ssR,ssE). Def in anova.cpp (external).
-std::tuple<double, double, double, double, double,
-           double, double, double, double, double>
+std::tuple<keel::f64, keel::f64, keel::f64, keel::f64, keel::f64,
+           keel::f64, keel::f64, keel::f64, keel::f64, keel::f64>
 anova2(const Value &Y, keel::Allocator *mr);
 
 } // namespace numkit::stats

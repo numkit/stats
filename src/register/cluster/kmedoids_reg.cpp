@@ -66,8 +66,8 @@ void kmedoids_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         info.field("algorithm")     = Value::fromString(algorithm, mr);
         info.field("start")         = Value::fromString(start, mr);
         info.field("distance")      = Value::fromString(metric, mr);
-        info.field("iterations")    = Value::scalar(double(R.iters), mr);
-        info.field("bestReplicate") = Value::scalar(double(R.best_rep), mr);
+        info.field("iterations")    = Value::scalar(keel::f64(R.iters), mr);
+        info.field("bestReplicate") = Value::scalar(keel::f64(R.best_rep), mr);
         outs[5] = std::move(info);
     }
 }
@@ -76,10 +76,10 @@ void dbscan_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                 keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 3, "dbscan");  // no max: name-value tail in the reference
-    const double eps    = args[1].toScalar();
+    const keel::f64 eps    = args[1].toScalar();
     const int    minpts = (int)args[2].toScalar();
     keel::String metric  = keel::String::from("euclidean");
-    double p = 2.0;
+    keel::f64 p = 2.0;
     auto lower = [](keel::StringRef sv) {
         keel::String s = keel::String::from(sv);
         for (auto &c : s) c = keel::to_ascii_lower(c);

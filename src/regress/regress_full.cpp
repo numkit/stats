@@ -59,7 +59,7 @@ void ridge_full_argcheck(const Value &y, const Value &X, const Value &flag, bool
 {
     scaled = true;
     if (!flag.isEmpty()) {
-        const double f = flag.elemAsDouble(0);
+        const keel::f64 f = flag.elemAsDouble(0);
         if (f == 0.0) scaled = false;
         else if (f != 1.0)
             throw Error(keel::format("ridge: the scaling flag must be 0 or 1 (got {}).", f),
@@ -126,7 +126,7 @@ Value nlparci_full(const Value &beta, const Value &resid,
     // (beta, resid, 'covar', Sigma[, 'alpha', a]) — the named-argument
     // path keys off a char/string 3rd argument.
     Value J, Sigma;
-    double alpha = 0.05;
+    keel::f64 alpha = 0.05;
     if (!tail.empty() && (tail[0].isChar() || tail[0].isString())) {
         for (keel::usize i = 0; i + 1 < tail.size(); i += 2) {
             static constexpr keel::StringRef kNv[] = { "jacobian",
@@ -174,7 +174,7 @@ Value nlparci_full(const Value &beta, const Value &resid,
                                  "positive (n = {}, p = {}).", n, pp),
                     0, 0, "nlparci", "", "numkit:nlparci:noDOF");
 
-    keel::Array<double> se(pp, 0.0);
+    keel::Array<keel::f64> se(pp, 0.0);
     if (!Sigma.isEmpty()) {
         // se = sqrt(diag(Sigma)) (probe76 N03).
         for (keel::usize j = 0; j < pp; ++j)
@@ -198,13 +198,13 @@ Value nlparci_full(const Value &beta, const Value &resid,
         Value ci = nlparci(beta, residC, Jc, alpha, mr);
         // The kernel's half-widths: recompute via its covariance route —
         // extract se from ci directly (ci = beta ± se·t).
-        const double tcrit = tinv(Value::scalar(1.0 - alpha / 2.0, mr),
-                                  keel::as<double>(n - pp), mr).toScalar();
+        const keel::f64 tcrit = tinv(Value::scalar(1.0 - alpha / 2.0, mr),
+                                  keel::as<keel::f64>(n - pp), mr).toScalar();
         Value out = Value::matrix(pp, 2, ValueType::DOUBLE, mr);
-        double *od = out.doubleDataMut();
+        keel::f64 *od = out.doubleDataMut();
         for (keel::usize j = 0; j < pp; ++j) {
-            const double half = (ci.elemAsDouble(j + pp) - ci.elemAsDouble(j)) / 2.0;
-            const double sej = tcrit != 0.0 ? half / tcrit : 0.0;
+            const keel::f64 half = (ci.elemAsDouble(j + pp) - ci.elemAsDouble(j)) / 2.0;
+            const keel::f64 sej = tcrit != 0.0 ? half / tcrit : 0.0;
             se[j] = sej;
             od[j] = beta.elemAsDouble(j) - half;
             od[j + pp] = beta.elemAsDouble(j) + half;
@@ -212,12 +212,12 @@ Value nlparci_full(const Value &beta, const Value &resid,
         return out;
     }
 
-    const double tcrit = tinv(Value::scalar(1.0 - alpha / 2.0, mr),
-                              keel::as<double>(n - pp), mr).toScalar();
+    const keel::f64 tcrit = tinv(Value::scalar(1.0 - alpha / 2.0, mr),
+                              keel::as<keel::f64>(n - pp), mr).toScalar();
     Value out = Value::matrix(pp, 2, ValueType::DOUBLE, mr);
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     for (keel::usize j = 0; j < pp; ++j) {
-        const double d = se[j] * tcrit;
+        const keel::f64 d = se[j] * tcrit;
         od[j] = beta.elemAsDouble(j) - d;
         od[j + pp] = beta.elemAsDouble(j) + d;
     }
@@ -279,7 +279,7 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
 
     // Option parse: the NV form when the next argument is a string,
     // else the legacy positional (clev, N, offset, const).
-    double clev = 0.95;
+    keel::f64 clev = 0.95;
     Value Nv = Value::scalar(1.0, mr);
     Value offset = Value::scalar(0.0, mr);
     bool isconst = true;
@@ -366,7 +366,7 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
                     "with one entry per row of X.",
                     0, 0, "glmval", "", "numkit:glmval:wrongArgSizeOffset");
 
-    auto invLink = [&](double eta) -> double {
+    auto invLink = [&](keel::f64 eta) -> keel::f64 {
         if (useCustomCallback) {
             Value arg = Value::scalar(eta, mr);
             Value res;
@@ -399,9 +399,9 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
         Value out = Value::matrix(rows, width, ValueType::DOUBLE, mr);
         for (keel::usize r = 0; r < rows; ++r)
             for (keel::usize j = 0; j < width; ++j) {
-                const double xj = isconst && j == 0 ? 1.0
+                const keel::f64 xj = isconst && j == 0 ? 1.0
                     : Xw.elemAsDouble(r + (isconst ? j - 1 : j) * rows);
-                const double eta = b.elemAsDouble(0) * xj
+                const keel::f64 eta = b.elemAsDouble(0) * xj
                     + (offset.isScalar() ? offset.elemAsDouble(0)
                                          : offset.elemAsDouble(r));
                 out.doubleDataMut()[r + j * rows] =
@@ -412,9 +412,9 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
     }
 
     Value yhat = Value::matrix(rows, 1, ValueType::DOUBLE, mr);
-    keel::Array<double> etaVec(rows, 0.0);
+    keel::Array<keel::f64> etaVec(rows, 0.0);
     for (keel::usize r = 0; r < rows; ++r) {
-        double eta = isconst ? b.elemAsDouble(0) : 0.0;
+        keel::f64 eta = isconst ? b.elemAsDouble(0) : 0.0;
         for (keel::usize j = 0; j < cols; ++j)
             eta += Xw.elemAsDouble(r + j * rows)
                  * b.elemAsDouble(j + (isconst ? 1 : 0));
@@ -430,7 +430,7 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
         return { std::move(yhat), Value(), Value() };
 
     // Extract covariance matrix C (wantCoef x wantCoef) from statsVal.
-    keel::Array<double> covMat(wantCoef * wantCoef, 0.0);
+    keel::Array<keel::f64> covMat(wantCoef * wantCoef, 0.0);
     if (statsVal.hasField("covb")
         && keel::as<keel::usize>(statsVal.field("covb").numel()) == wantCoef * wantCoef) {
         const Value &cb = statsVal.field("covb");
@@ -443,7 +443,7 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
             && keel::as<keel::usize>(statsVal.field("coeffcorr").numel()) == wantCoef * wantCoef;
         for (keel::usize j = 0; j < wantCoef; ++j)
             for (keel::usize k = 0; k < wantCoef; ++k) {
-                const double corr_jk = hasCorr
+                const keel::f64 corr_jk = hasCorr
                     ? statsVal.field("coeffcorr").elemAsDouble(j + k * wantCoef)
                     : (j == k ? 1.0 : 0.0);
                 covMat[j + k * wantCoef] = se.elemAsDouble(j) * se.elemAsDouble(k) * corr_jk;
@@ -453,15 +453,15 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
                     0, 0, "glmval", "", "numkit:glmval:needSTATS");
     }
 
-    const double dfe = statsVal.hasField("dfe")
+    const keel::f64 dfe = statsVal.hasField("dfe")
         ? statsVal.field("dfe").elemAsDouble(0)
-        : std::numeric_limits<double>::infinity();
+        : std::numeric_limits<keel::f64>::infinity();
     const bool estdisp = statsVal.hasField("estdisp")
         ? (statsVal.field("estdisp").elemAsDouble(0) != 0.0)
         : std::isfinite(dfe);
-    const double alpha = 1.0 - clev;
-    const double p_df = keel::as<double>(wantCoef);
-    double crit = 0.0;
+    const keel::f64 alpha = 1.0 - clev;
+    const keel::f64 p_df = keel::as<keel::f64>(wantCoef);
+    keel::f64 crit = 0.0;
     if (!simultaneous) {
         crit = (estdisp && std::isfinite(dfe))
             ? tinv(Value::scalar(1.0 - alpha / 2.0, mr), dfe, mr).toScalar()
@@ -474,7 +474,7 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
 
     Value dylo = Value::matrix(rows, 1, ValueType::DOUBLE, mr);
     Value dyhi = Value::matrix(rows, 1, ValueType::DOUBLE, mr);
-    keel::Array<double> xr(wantCoef, 0.0);
+    keel::Array<keel::f64> xr(wantCoef, 0.0);
     for (keel::usize r = 0; r < rows; ++r) {
         if (isconst) {
             xr[0] = 1.0;
@@ -484,17 +484,17 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
             for (keel::usize j = 0; j < cols; ++j)
                 xr[j] = Xw.elemAsDouble(r + j * rows);
         }
-        double varEta = 0.0;
+        keel::f64 varEta = 0.0;
         for (keel::usize j = 0; j < wantCoef; ++j)
             for (keel::usize k = 0; k < wantCoef; ++k)
                 varEta += xr[j] * covMat[j + k * wantCoef] * xr[k];
-        const double seEta = std::sqrt(std::max(0.0, varEta));
-        const double nr = Nv.isScalar() ? Nv.elemAsDouble(0) : Nv.elemAsDouble(r);
-        const double y1 = nr * invLink(etaVec[r] - crit * seEta);
-        const double y2 = nr * invLink(etaVec[r] + crit * seEta);
-        const double ymin = std::min(y1, y2);
-        const double ymax = std::max(y1, y2);
-        const double yh = yhat.doubleData()[r];
+        const keel::f64 seEta = std::sqrt(std::max(0.0, varEta));
+        const keel::f64 nr = Nv.isScalar() ? Nv.elemAsDouble(0) : Nv.elemAsDouble(r);
+        const keel::f64 y1 = nr * invLink(etaVec[r] - crit * seEta);
+        const keel::f64 y2 = nr * invLink(etaVec[r] + crit * seEta);
+        const keel::f64 ymin = std::min(y1, y2);
+        const keel::f64 ymax = std::max(y1, y2);
+        const keel::f64 yh = yhat.doubleData()[r];
         dylo.doubleDataMut()[r] = yh - ymin;
         dyhi.doubleDataMut()[r] = ymax - yh;
     }

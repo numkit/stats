@@ -58,8 +58,8 @@ void ricernd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
                  keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "ricernd");  // no max: absent from the R2025b reference build
-    const double s     = args[0].toScalar();
-    const double sigma = args[1].toScalar();
+    const keel::f64 s     = args[0].toScalar();
+    const keel::f64 sigma = args[1].toScalar();
     keel::usize rows = 1, cols = 1;
     parse_rng_size(args, 2, rows, cols, "ricernd");
     outs[0] = reshape_rng_nd(ricernd(ctx.engine->rng(), s, sigma, rows, cols, ctx.engine->allocator()), args, 2, ctx.engine->allocator(), "ricernd");
@@ -71,7 +71,7 @@ void ricestat_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     argcheck::checkNargin(args.size(), 1, "ricestat");  // no max: absent from the R2025b reference build
     auto *mr = ctx.engine->allocator();
     emit_vec_stat_2arg(args, nargout, outs, ctx.engine->allocator(), "ricestat",
-                       [mr](double s, double sigma) { return ricestat(s, sigma, mr); });
+                       [mr](keel::f64 s, keel::f64 sigma) { return ricestat(s, sigma, mr); });
 }
 
 } // namespace detail

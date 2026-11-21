@@ -47,54 +47,54 @@ Metric parse_metric(keel::StringRef s) {
     return Metric::Euclidean;
 }
 
-inline double dist_pair(const double *a, const double *b, keel::usize D, Metric m,
-                        double p = 2.0) {
+inline keel::f64 dist_pair(const keel::f64 *a, const keel::f64 *b, keel::usize D, Metric m,
+                        keel::f64 p = 2.0) {
     switch (m) {
         case Metric::Euclidean: {
-            double s = 0.0;
-            for (keel::usize k = 0; k < D; ++k) { double d = a[k] - b[k]; s += d * d; }
+            keel::f64 s = 0.0;
+            for (keel::usize k = 0; k < D; ++k) { keel::f64 d = a[k] - b[k]; s += d * d; }
             return std::sqrt(s);
         }
         case Metric::SqEuclidean: {
-            double s = 0.0;
-            for (keel::usize k = 0; k < D; ++k) { double d = a[k] - b[k]; s += d * d; }
+            keel::f64 s = 0.0;
+            for (keel::usize k = 0; k < D; ++k) { keel::f64 d = a[k] - b[k]; s += d * d; }
             return s;
         }
         case Metric::Cityblock: {
-            double s = 0.0;
+            keel::f64 s = 0.0;
             for (keel::usize k = 0; k < D; ++k) s += std::fabs(a[k] - b[k]);
             return s;
         }
         case Metric::Chebychev: {
-            double m_ = 0.0;
+            keel::f64 m_ = 0.0;
             for (keel::usize k = 0; k < D; ++k) {
-                double d = std::fabs(a[k] - b[k]);
+                keel::f64 d = std::fabs(a[k] - b[k]);
                 if (d > m_) m_ = d;
             }
             return m_;
         }
         case Metric::Minkowski: {
-            double s = 0.0;
+            keel::f64 s = 0.0;
             for (keel::usize k = 0; k < D; ++k) {
-                double d = std::fabs(a[k] - b[k]);
+                keel::f64 d = std::fabs(a[k] - b[k]);
                 s += std::pow(d, p);
             }
             return std::pow(s, 1.0 / p);
         }
         case Metric::Cosine: {
-            double xy = 0, xx = 0, yy = 0;
+            keel::f64 xy = 0, xx = 0, yy = 0;
             for (keel::usize k = 0; k < D; ++k) {
                 xy += a[k] * b[k];
                 xx += a[k] * a[k];
                 yy += b[k] * b[k];
             }
-            const double denom = std::sqrt(xx) * std::sqrt(yy);
+            const keel::f64 denom = std::sqrt(xx) * std::sqrt(yy);
             return (denom > 0.0) ? (1.0 - xy / denom) : 1.0;
         }
         case Metric::Hamming: {
             int diff = 0;
             for (keel::usize k = 0; k < D; ++k) if (a[k] != b[k]) ++diff;
-            return double(diff) / double(D);
+            return keel::f64(diff) / keel::f64(D);
         }
         case Metric::Jaccard: {
             int diff = 0, considered = 0;
@@ -105,7 +105,7 @@ inline double dist_pair(const double *a, const double *b, keel::usize D, Metric 
                     if (xi != yi) ++diff;
                 }
             }
-            return considered > 0 ? double(diff) / double(considered) : 0.0;
+            return considered > 0 ? keel::f64(diff) / keel::f64(considered) : 0.0;
         }
         case Metric::Precomputed:
             return 0.0;  // never used through this dispatch
@@ -114,10 +114,10 @@ inline double dist_pair(const double *a, const double *b, keel::usize D, Metric 
 }
 
 // Read X (N×D, column-major) into a flat row-major ScratchVec.
-keel::Array<double> read_rows(const Value &X, keel::Allocator *scratch_mr) {
+keel::Array<keel::f64> read_rows(const Value &X, keel::Allocator *scratch_mr) {
     const keel::usize N = X.dims().rows();
     const keel::usize D = X.dims().cols();
-    keel::Array<double> out(N * D, scratch_mr);
+    keel::Array<keel::f64> out(N * D, scratch_mr);
     for (keel::usize r = 0; r < N; ++r)
         for (keel::usize c = 0; c < D; ++c)
             out[r * D + c] = X.elemAsDouble(c * N + r);
@@ -132,7 +132,7 @@ void kmedoids_argcheck(const Value &X, int K)
                     "numkit:kmedoids:badK");
 }
 
-void dbscan_argcheck(double eps)
+void dbscan_argcheck(keel::f64 eps)
 {
     if (eps <= 0.0)
         throw Error("dbscan: eps must be positive",
@@ -156,19 +156,19 @@ kmedoids_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_ite
     const keel::usize D = X.dims().cols();
 
     keel::ArenaTemp scratch = keel::get_scratch(mr);
-    keel::Array<double> Xv = read_rows(X, scratch.allocator());
+    keel::Array<keel::f64> Xv = read_rows(X, scratch.allocator());
     auto &gen = rng;
 
     keel::Array<int>    best_med((keel::usize)K, scratch.allocator());
     keel::Array<int>    best_idx(N, scratch.allocator());
-    keel::Array<double> best_sumd((keel::usize)K, scratch.allocator());
-    double best_total = std::numeric_limits<double>::infinity();
+    keel::Array<keel::f64> best_sumd((keel::usize)K, scratch.allocator());
+    keel::f64 best_total = std::numeric_limits<keel::f64>::infinity();
     int    best_iters = 0;
     int    best_rep   = 0;
 
     keel::Array<int>    med((keel::usize)K, scratch.allocator());
     keel::Array<int>    idx(N, scratch.allocator());
-    keel::Array<double> sumd((keel::usize)K, scratch.allocator());
+    keel::Array<keel::f64> sumd((keel::usize)K, scratch.allocator());
     keel::Array<int>    members(scratch.allocator());
     members.reserve(N);
 
@@ -188,9 +188,9 @@ kmedoids_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_ite
             std::fill(sumd.begin(), sumd.end(), 0.0);
             for (keel::usize i = 0; i < N; ++i) {
                 int best = 0;
-                double bd = std::numeric_limits<double>::infinity();
+                keel::f64 bd = std::numeric_limits<keel::f64>::infinity();
                 for (int k = 0; k < K; ++k) {
-                    const double d = dist_pair(&Xv[i * D],
+                    const keel::f64 d = dist_pair(&Xv[i * D],
                                                 &Xv[(keel::usize)med[k] * D], D, m);
                     if (d < bd) { bd = d; best = k; }
                 }
@@ -208,9 +208,9 @@ kmedoids_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_ite
                 if (members.empty()) continue;
 
                 int new_med = med[k];
-                double best_sum = std::numeric_limits<double>::infinity();
+                keel::f64 best_sum = std::numeric_limits<keel::f64>::infinity();
                 for (int cand : members) {
-                    double s = 0.0;
+                    keel::f64 s = 0.0;
                     for (int p : members) {
                         s += dist_pair(&Xv[(keel::usize)cand * D],
                                        &Xv[(keel::usize)p * D], D, m);
@@ -223,11 +223,11 @@ kmedoids_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_ite
         }
 
         // Re-evaluate total against final medoids.
-        double total = 0.0;
+        keel::f64 total = 0.0;
         std::fill(sumd.begin(), sumd.end(), 0.0);
         for (keel::usize i = 0; i < N; ++i) {
             const int k = idx[i];
-            const double d = dist_pair(&Xv[i * D], &Xv[(keel::usize)med[k] * D], D, m);
+            const keel::f64 d = dist_pair(&Xv[i * D], &Xv[(keel::usize)med[k] * D], D, m);
             sumd[k] += d;
             total += d;
         }
@@ -246,13 +246,13 @@ kmedoids_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_ite
 
     R.idx = Value::matrix(N, 1, ValueType::DOUBLE, mr);
     {
-        double *ip = R.idx.doubleDataMut();
-        for (keel::usize i = 0; i < N; ++i) ip[i] = double(best_idx[i] + 1);
+        keel::f64 *ip = R.idx.doubleDataMut();
+        for (keel::usize i = 0; i < N; ++i) ip[i] = keel::f64(best_idx[i] + 1);
     }
 
     R.C = Value::matrix(K, D, ValueType::DOUBLE, mr);
     {
-        double *mp = R.C.doubleDataMut();
+        keel::f64 *mp = R.C.doubleDataMut();
         for (int k = 0; k < K; ++k)
             for (keel::usize d = 0; d < D; ++d)
                 mp[d * K + k] = Xv[(keel::usize)best_med[k] * D + d];
@@ -260,14 +260,14 @@ kmedoids_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_ite
 
     R.sumd = Value::matrix(K, 1, ValueType::DOUBLE, mr);
     {
-        double *sp = R.sumd.doubleDataMut();
+        keel::f64 *sp = R.sumd.doubleDataMut();
         for (int k = 0; k < K; ++k) sp[k] = best_sumd[k];
     }
 
     // 4th output D — N×K distance from each point to each medoid.
     R.D = Value::matrix(N, K, ValueType::DOUBLE, mr);
     {
-        double *dp = R.D.doubleDataMut();
+        keel::f64 *dp = R.D.doubleDataMut();
         for (keel::usize i = 0; i < N; ++i)
             for (int k = 0; k < K; ++k)
                 dp[k * N + i] = dist_pair(&Xv[i * D],
@@ -277,8 +277,8 @@ kmedoids_full(::numkit::ops::RngContext &rng, const Value &X, int K, int max_ite
     // 5th output midx — K×1 row index (1-based) of each medoid in X.
     R.midx = Value::matrix(K, 1, ValueType::DOUBLE, mr);
     {
-        double *xp = R.midx.doubleDataMut();
-        for (int k = 0; k < K; ++k) xp[k] = double(best_med[k] + 1);
+        keel::f64 *xp = R.midx.doubleDataMut();
+        for (int k = 0; k < K; ++k) xp[k] = keel::f64(best_med[k] + 1);
     }
 
     R.iters    = best_iters;
@@ -300,7 +300,7 @@ kmedoids(::numkit::ops::RngContext &rng, const Value &X, int K, int max_iter, in
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value>
-dbscan(const Value &X, double eps, int minpts, keel::StringRef metric_name, double p, keel::Allocator *mr)
+dbscan(const Value &X, keel::f64 eps, int minpts, keel::StringRef metric_name, keel::f64 p, keel::Allocator *mr)
 {
     dbscan_argcheck(eps);
     if (minpts <= 0) minpts = 1;
@@ -312,8 +312,8 @@ dbscan(const Value &X, double eps, int minpts, keel::StringRef metric_name, doub
     const keel::usize N = X.dims().rows();
 
     keel::ArenaTemp scratch = keel::get_scratch(mr);
-    keel::Array<double> Xv(scratch.allocator());
-    keel::Array<double> Dmat(scratch.allocator());  // N×N row-major (precomputed only)
+    keel::Array<keel::f64> Xv(scratch.allocator());
+    keel::Array<keel::f64> Dmat(scratch.allocator());  // N×N row-major (precomputed only)
     keel::usize D = 0;
     if (precomputed) {
         if (X.dims().cols() != N)
@@ -333,7 +333,7 @@ dbscan(const Value &X, double eps, int minpts, keel::StringRef metric_name, doub
         out.clear();
         for (keel::usize j = 0; j < N; ++j) {
             if (j == i) { out.push_back((int)j); continue; }
-            double d;
+            keel::f64 d;
             if (precomputed) d = Dmat[i * N + j];
             else             d = dist_pair(&Xv[i * D], &Xv[j * D], D, m, p);
             if (d <= eps) out.push_back((int)j);
@@ -380,8 +380,8 @@ dbscan(const Value &X, double eps, int minpts, keel::StringRef metric_name, doub
     }
 
     Value idx = Value::matrix(N, 1, ValueType::DOUBLE, mr);
-    double *ip = idx.doubleDataMut();
-    for (keel::usize i = 0; i < N; ++i) ip[i] = double(labels[i]);
+    keel::f64 *ip = idx.doubleDataMut();
+    for (keel::usize i = 0; i < N; ++i) ip[i] = keel::f64(labels[i]);
 
     Value core_v = Value::matrix(N, 1, ValueType::LOGICAL, mr);
     keel::u8 *cp = core_v.logicalDataMut();
@@ -392,7 +392,7 @@ dbscan(const Value &X, double eps, int minpts, keel::StringRef metric_name, doub
 
 // Backward-compat without p.
 std::tuple<Value, Value>
-dbscan(const Value &X, double eps, int minpts, keel::StringRef metric_name, keel::Allocator *mr)
+dbscan(const Value &X, keel::f64 eps, int minpts, keel::StringRef metric_name, keel::Allocator *mr)
 {
     return dbscan(X, eps, minpts, metric_name, 2.0, mr);
 }

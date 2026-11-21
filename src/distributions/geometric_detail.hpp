@@ -40,7 +40,7 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
     else          out = Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
     const keel::usize n = x.numel();
     if (n == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     for (keel::usize i = 0; i < n; ++i) od[i] = op(x.elemAsDouble(i));
     return out;
 }
@@ -48,32 +48,32 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
 // Scalar kernels for the parameter-broadcast path (vector p). Own their
 // per-element domain (p<=0 or p>1 → NaN). Mirror the public fns. MATLAB's
 // geometric starts at k=0.
-inline double geopdfK(double k, double p) {
-    if (p <= 0.0 || p > 1.0) return std::numeric_limits<double>::quiet_NaN();
+inline keel::f64 geopdfK(keel::f64 k, keel::f64 p) {
+    if (p <= 0.0 || p > 1.0) return std::numeric_limits<keel::f64>::quiet_NaN();
     if (k < 0.0 || std::floor(k) != k) return 0.0;
     if (p == 1.0) return k == 0.0 ? 1.0 : 0.0;
     return std::pow(1.0 - p, k) * p;
 }
 
-inline double geocdfK(double k, double p) {
-    if (p <= 0.0 || p > 1.0) return std::numeric_limits<double>::quiet_NaN();
+inline keel::f64 geocdfK(keel::f64 k, keel::f64 p) {
+    if (p <= 0.0 || p > 1.0) return std::numeric_limits<keel::f64>::quiet_NaN();
     if (k < 0.0) return 0.0;
     if (p == 1.0) return k >= 0.0 ? 1.0 : 0.0;
     return -std::expm1((std::floor(k) + 1.0) * std::log1p(-p));   // 1 - (1-p)^(⌊k⌋+1)
 }
 
-inline double geoinvK(double q, double p) {
-    if (p <= 0.0 || p > 1.0) return std::numeric_limits<double>::quiet_NaN();
-    if (!(q >= 0.0 && q <= 1.0)) return std::numeric_limits<double>::quiet_NaN();
+inline keel::f64 geoinvK(keel::f64 q, keel::f64 p) {
+    if (p <= 0.0 || p > 1.0) return std::numeric_limits<keel::f64>::quiet_NaN();
+    if (!(q >= 0.0 && q <= 1.0)) return std::numeric_limits<keel::f64>::quiet_NaN();
     if (q == 0.0) return 0.0;
-    if (q >= 1.0) return std::numeric_limits<double>::infinity();
+    if (q >= 1.0) return std::numeric_limits<keel::f64>::infinity();
     if (p == 1.0) return 0.0;
-    const double v = std::log1p(-q) / std::log1p(-p) - 1.0;
-    double k = std::ceil(v);
+    const keel::f64 v = std::log1p(-q) / std::log1p(-p) - 1.0;
+    keel::f64 k = std::ceil(v);
     if (k < 0.0) k = 0.0;
     if (k > 0.0) {
-        const double cdf_prev = -std::expm1(k * std::log1p(-p));   // F(k-1)
-        const double tol = std::max(1e-13, q * 1e-13);
+        const keel::f64 cdf_prev = -std::expm1(k * std::log1p(-p));   // F(k-1)
+        const keel::f64 tol = std::max(1e-13, q * 1e-13);
         if (cdf_prev >= q - tol) k -= 1.0;
     }
     return k;

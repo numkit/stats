@@ -35,14 +35,14 @@ namespace numkit::stats {
 
 namespace {
 
-constexpr double kInf = std::numeric_limits<double>::infinity();
+constexpr keel::f64 kInf = std::numeric_limits<keel::f64>::infinity();
 
 bool isMatrixValue(const Value &V)
 {
     return V.dims().ndim() <= 2 && V.numel() > 0;
 }
 
-bool isSymmetric(const keel::Array<double> &M, keel::usize d)
+bool isSymmetric(const keel::Array<keel::f64> &M, keel::usize d)
 {
     for (keel::usize j = 0; j < d; ++j)
         for (keel::usize i = j + 1; i < d; ++i)
@@ -54,36 +54,36 @@ bool isSymmetric(const keel::Array<double> &M, keel::usize d)
 // Strictly PD → r = d and L is lower Cholesky.
 // Rank-deficient PSD → r < d and L has r columns V(:,j)*sqrt(λ_j) for λ_j > tol.
 // Returns false when Sigma has any eigenvalue < -tol.
-bool psdFactor(const keel::Array<double> &Sig, keel::usize d,
-               keel::Array<double> &T, keel::Array<double> &eval,
-               keel::Array<double> &evec, keel::Allocator *mr,
+bool psdFactor(const keel::Array<keel::f64> &Sig, keel::usize d,
+               keel::Array<keel::f64> &T, keel::Array<keel::f64> &eval,
+               keel::Array<keel::f64> &evec, keel::Allocator *mr,
                keel::usize *outRank = nullptr)
 {
     Value Mv = Value::matrix(d, d, ValueType::DOUBLE, mr);
     std::copy(Sig.begin(), Sig.end(), Mv.doubleDataMut());
     auto [V, D] = ::numkit::linalg::eig_symmetric(Mv, mr);
-    evec.assign(keel::ArrayRef<double>(V.doubleData(), d * d));
+    evec.assign(keel::ArrayRef<keel::f64>(V.doubleData(), d * d));
     eval.assign(d, 0.0);
-    double maxAbs = 0.0;
+    keel::f64 maxAbs = 0.0;
     for (keel::usize i = 0; i < d; ++i) {
         eval[i] = D.doubleData()[i + i * d];
         maxAbs = std::max(maxAbs, keel::abs(eval[i]));
     }
-    const double tol = keel::as<double>(d)
-                     * std::numeric_limits<double>::epsilon()
+    const keel::f64 tol = keel::as<keel::f64>(d)
+                     * std::numeric_limits<keel::f64>::epsilon()
                      * std::max(maxAbs, 1.0);
-    for (double e : eval)
+    for (keel::f64 e : eval)
         if (e < -tol) return false;
     // Strictly positive definite → lower Cholesky L (so T = L' is upper Cholesky,
     // matching cholcov output, probe R09). Semidefinite → compact d×r factor.
     bool pd = true;
-    for (double e : eval)
+    for (keel::f64 e : eval)
         if (e <= tol) pd = false;
     if (pd) {
         T.assign(d * d, 0.0);
         for (keel::usize j = 0; j < d; ++j) {
             for (keel::usize i = j; i < d; ++i) {
-                double v = Sig[i + j * d];   // column-major source
+                keel::f64 v = Sig[i + j * d];   // column-major source
                 for (keel::usize k = 0; k < j; ++k)
                     v -= T[i + k * d] * T[j + k * d];
                 T[i + j * d] = (i == j) ? std::sqrt(v)
@@ -108,14 +108,14 @@ bool psdFactor(const keel::Array<double> &Sig, keel::usize d,
     T.assign(d * r, 0.0);
     for (keel::usize col = 0; col < r; ++col) {
         const keel::usize j = posCols[col];
-        const double s = std::sqrt(std::max(eval[j], 0.0));
+        const keel::f64 s = std::sqrt(std::max(eval[j], 0.0));
         keel::usize maxIdx = 0;
-        double maxVal = 0.0;
+        keel::f64 maxVal = 0.0;
         for (keel::usize i = 0; i < d; ++i) {
-            const double a = keel::abs(evec[i + j * d]);
+            const keel::f64 a = keel::abs(evec[i + j * d]);
             if (a > maxVal) { maxVal = a; maxIdx = i; }
         }
-        const double sign = (evec[maxIdx + j * d] < 0.0) ? -1.0 : 1.0;
+        const keel::f64 sign = (evec[maxIdx + j * d] < 0.0) ? -1.0 : 1.0;
         for (keel::usize i = 0; i < d; ++i)
             T[i + col * d] = sign * evec[i + j * d] * s;
     }
@@ -130,13 +130,13 @@ Value castDown(const Value &X, bool single, keel::Allocator *mr)
     Value out = Value::matrix(r, c, ValueType::SINGLE, mr);
     const keel::usize cnt = r * c;
     for (keel::usize k = 0; k < cnt; ++k)
-        out.singleDataMut()[k] = keel::as<float>(X.elemAsDouble(k));
+        out.singleDataMut()[k] = keel::as<keel::f32>(X.elemAsDouble(k));
     return out;
 }
 
 // mu as a flat row (length d) or per-case rows; X keeps the cases×d
 // resolved data. Returns false for a shape error (caller throws).
-double muAt(const Value &mu, keel::usize row, keel::usize col,
+keel::f64 muAt(const Value &mu, keel::usize row, keel::usize col,
             keel::usize muN)
 {
     return muN == 1 ? mu.elemAsDouble(col)
@@ -240,7 +240,7 @@ MvnrndOut mvnrnd_reinterpreted(::numkit::ops::RngContext &rng, const Value &mu,
     auto &gen = rng;
     auto Nz = [](::numkit::ops::RngContext &g) { return g.nextNormal(); };
     out.r = Value::matrix(n, d, ValueType::DOUBLE, mr);
-    double *od = out.r.doubleDataMut();
+    keel::f64 *od = out.r.doubleDataMut();
 
     const keel::usize pages = Sigma.dims().ndim() >= 3
                   ? keel::as<keel::usize>(Sigma.dims().dim(2)) : 1;
@@ -254,9 +254,9 @@ MvnrndOut mvnrnd_reinterpreted(::numkit::ops::RngContext &rng, const Value &mu,
                         0, 0, "mvnrnd", "",
                         "numkit:mvnrnd:inputSizeMismatch2DSigma");
         if (sigmaIsDiag) {
-            keel::Array<double> sd(d);
+            keel::Array<keel::f64> sd(d);
             for (keel::usize j = 0; j < d; ++j) {
-                const double v = Sigma.elemAsDouble(j);
+                const keel::f64 v = Sigma.elemAsDouble(j);
                 if (v < 0.0)
                     throw Error(keel::format("mvnrnd: all elements of the diagonal "
                                 "SIGMA must be non-negative (got {}).", v),
@@ -266,10 +266,10 @@ MvnrndOut mvnrnd_reinterpreted(::numkit::ops::RngContext &rng, const Value &mu,
             }
             if (wantT) {
                 out.T = Value::matrix(d, d, ValueType::DOUBLE, mr);
-                double *td = out.T.doubleDataMut();
+                keel::f64 *td = out.T.doubleDataMut();
                 for (keel::usize j = 0; j < d; ++j) td[j + j * d] = sd[j];
             }
-            keel::Array<double> Z(n * d);
+            keel::Array<keel::f64> Z(n * d);
             for (keel::usize j = 0; j < d; ++j)
                 for (keel::usize r = 0; r < n; ++r)
                     Z[r + j * n] = Nz(gen);
@@ -279,7 +279,7 @@ MvnrndOut mvnrnd_reinterpreted(::numkit::ops::RngContext &rng, const Value &mu,
                         ? Z[r + j * n] * sd[j] + muAt(mu, r, j, muN)
                         : muAt(mu, r, j, muN);   // exact mean at zero var
         } else {
-            keel::Array<double> Sig(d * d), T, eval, evec;
+            keel::Array<keel::f64> Sig(d * d), T, eval, evec;
             for (keel::usize k = 0; k < d * d; ++k)
                 Sig[k] = Sigma.elemAsDouble(k);
             if (!isSymmetric(Sig, d))
@@ -296,18 +296,18 @@ MvnrndOut mvnrnd_reinterpreted(::numkit::ops::RngContext &rng, const Value &mu,
                 // Upper factor (Sigma = T'·T) of shape rank×d, matching
                 // cholcov output — the transpose of the d×rank sampling L.
                 out.T = Value::matrix(rank, d, ValueType::DOUBLE, mr);
-                double *td = out.T.doubleDataMut();
+                keel::f64 *td = out.T.doubleDataMut();
                 for (keel::usize i = 0; i < rank; ++i)
                     for (keel::usize j = 0; j < d; ++j)
                         td[i + j * rank] = T[j + i * d];
             }
-            keel::Array<double> Z(n * rank);
+            keel::Array<keel::f64> Z(n * rank);
             for (keel::usize k = 0; k < rank; ++k)
                 for (keel::usize r = 0; r < n; ++r)
                     Z[r + k * n] = Nz(gen);
             for (keel::usize r = 0; r < n; ++r)
                 for (keel::usize j = 0; j < d; ++j) {
-                    double acc = 0.0;
+                    keel::f64 acc = 0.0;
                     for (keel::usize k = 0; k < rank; ++k)
                         acc += T[j + k * d] * Z[r + k * n];
                     od[j * n + r] = acc + muAt(mu, r, j, muN);
@@ -335,12 +335,12 @@ MvnrndOut mvnrnd_reinterpreted(::numkit::ops::RngContext &rng, const Value &mu,
                         "numkit:mvnrnd:inputSizeMismatchSigmaDimension");
         if (wantT)
             out.T = Value::matrix3d(d, d, pages, ValueType::DOUBLE, mr);
-        keel::Array<double> Sig(d * d), T, eval, evec, z(d);
+        keel::Array<keel::f64> Sig(d * d), T, eval, evec, z(d);
         for (keel::usize p = 0; p < pages; ++p) {
             if (sigmaIsDiag) {
                 // 1×d×n diagonal stack: per-page standard deviations.
                 for (keel::usize j = 0; j < d; ++j) {
-                    const double v = Sigma.elemAsDouble(j + p * d);
+                    const keel::f64 v = Sigma.elemAsDouble(j + p * d);
                     if (v < 0.0)
                         throw Error("mvnrnd: all elements of the diagonal "
                                     "SIGMA must be non-negative.",
@@ -348,7 +348,7 @@ MvnrndOut mvnrnd_reinterpreted(::numkit::ops::RngContext &rng, const Value &mu,
                                     "numkit:mvnrnd:badDiagSigma");
                 }
                 for (keel::usize j = 0; j < d; ++j) {
-                    const double s = std::sqrt(Sigma.elemAsDouble(j + p * d));
+                    const keel::f64 s = std::sqrt(Sigma.elemAsDouble(j + p * d));
                     z[j] = s > 0.0 ? Nz(gen) * s
                                    : muAt(mu, p, j, muN);
                     od[j * n + p] = s > 0.0 ? z[j] + muAt(mu, p, j, muN)
@@ -371,14 +371,14 @@ MvnrndOut mvnrnd_reinterpreted(::numkit::ops::RngContext &rng, const Value &mu,
                             0, 0, "mvnrnd", "",
                             "numkit:mvnrnd:badCovariance3DPos");
             if (wantT) {
-                double *td = out.T.doubleDataMut() + p * d * d;
+                keel::f64 *td = out.T.doubleDataMut() + p * d * d;
                 for (keel::usize i = 0; i < rank; ++i)
                     for (keel::usize j = 0; j < d; ++j)
                         td[i + j * d] = T[j + i * d];
             }
             for (keel::usize k = 0; k < rank; ++k) z[k] = Nz(gen);
             for (keel::usize j = 0; j < d; ++j) {
-                double acc = 0.0;
+                keel::f64 acc = 0.0;
                 for (keel::usize k = 0; k < rank; ++k)
                     acc += T[j + k * d] * z[k];
                 od[j * n + p] = acc + muAt(mu, p, j, muN);
@@ -411,7 +411,7 @@ Value mvtrnd_full(::numkit::ops::RngContext &rng, const Value &C,
                     0, 0, "mvtrnd", "", "numkit:mvtrnd:badCorrelationNotSquare");
 
     // df: scalar, or one value per case.
-    keel::Array<double> dfv(n);
+    keel::Array<keel::f64> dfv(n);
     if (df.isScalar()) {
         dfv.assign(n, df.elemAsDouble(0));
     } else if (df.dims().isVector()
@@ -422,16 +422,16 @@ Value mvtrnd_full(::numkit::ops::RngContext &rng, const Value &C,
                     "element for each row of the output matrix.",
                     0, 0, "mvtrnd", "", "numkit:mvtrnd:inputSizeMismatch");
     }
-    for (double v : dfv)
+    for (keel::f64 v : dfv)
         if (!(v > 0.0))
             throw Error(keel::format("mvtrnd: DF must be positive (got {}).", v),
                         0, 0, "mvtrnd", "", "numkit:mvtrnd:badDF");
 
     // Standardize C to a correlation matrix (silent, probe T06).
     const keel::usize d = m1;
-    keel::Array<double> Cm(d * d, 0.0);
+    keel::Array<keel::f64> Cm(d * d, 0.0);
     for (keel::usize k = 0; k < d * d; ++k) Cm[k] = C.elemAsDouble(k);
-    keel::Array<double> sq(d);
+    keel::Array<keel::f64> sq(d);
     bool unitDiag = true;
     for (keel::usize i = 0; i < d; ++i) {
         sq[i] = std::sqrt(Cm[i + i * d]);
@@ -445,7 +445,7 @@ Value mvtrnd_full(::numkit::ops::RngContext &rng, const Value &C,
         throw Error("mvtrnd: C must be a symmetric positive "
                     "semi-definite matrix.",
                     0, 0, "mvtrnd", "", "numkit:mvtrnd:badCorrelationSymPos");
-    keel::Array<double> T, eval, evec;
+    keel::Array<keel::f64> T, eval, evec;
     keel::usize rank = d;
     if (!psdFactor(Cm, d, T, eval, evec, mr, &rank))
         throw Error("mvtrnd: C must be a symmetric positive "
@@ -454,19 +454,19 @@ Value mvtrnd_full(::numkit::ops::RngContext &rng, const Value &C,
 
     // r = (randn·T) ./ sqrt(χ²(df)/df), one χ² per case via deterministic
     // Marsaglia-Tsang Gamma(df/2, 2) on RngContext (platform-independent).
-    auto sampleChi2 = [](::numkit::ops::RngContext &g, double df_r) -> double {
-        const double a = 0.5 * df_r;
-        const double d_g = (a < 1.0 ? (a + 1.0) : a) - 1.0 / 3.0;
-        const double c_g = 1.0 / std::sqrt(9.0 * d_g);
-        double u = g.nextUniform();
-        const double u_boost = (a < 1.0) ? g.nextUniform() : 1.0;
-        double v = 0.0;
+    auto sampleChi2 = [](::numkit::ops::RngContext &g, keel::f64 df_r) -> keel::f64 {
+        const keel::f64 a = 0.5 * df_r;
+        const keel::f64 d_g = (a < 1.0 ? (a + 1.0) : a) - 1.0 / 3.0;
+        const keel::f64 c_g = 1.0 / std::sqrt(9.0 * d_g);
+        keel::f64 u = g.nextUniform();
+        const keel::f64 u_boost = (a < 1.0) ? g.nextUniform() : 1.0;
+        keel::f64 v = 0.0;
         for (;;) {
-            const double z = g.nextNormal();
+            const keel::f64 z = g.nextNormal();
             v = 1.0 + c_g * z;
             if (v > 0.0) {
                 v = v * v * v;
-                const double z2 = z * z;
+                const keel::f64 z2 = z * z;
                 if (u < 1.0 - 0.0331 * z2 * z2 ||
                     std::log(u) < 0.5 * z2 + d_g * (1.0 - v + std::log(v))) {
                     break;
@@ -474,24 +474,24 @@ Value mvtrnd_full(::numkit::ops::RngContext &rng, const Value &C,
             }
             u = g.nextUniform();
         }
-        const double gam = (a < 1.0) ? (d_g * v * std::pow(u_boost, 1.0 / a)) : (d_g * v);
+        const keel::f64 gam = (a < 1.0) ? (d_g * v * std::pow(u_boost, 1.0 / a)) : (d_g * v);
         return 2.0 * gam;
     };
 
     Value out = Value::matrix(n, d, ValueType::DOUBLE, mr);
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     auto &gen = rng;
-    keel::Array<double> Z(n * rank);
+    keel::Array<keel::f64> Z(n * rank);
     for (keel::usize k = 0; k < rank; ++k)
         for (keel::usize r = 0; r < n; ++r)
             Z[r + k * n] = gen.nextNormal();
-    keel::Array<double> scale(n);
+    keel::Array<keel::f64> scale(n);
     for (keel::usize r = 0; r < n; ++r) {
         scale[r] = std::sqrt(dfv[r] / sampleChi2(gen, dfv[r]));
     }
     for (keel::usize r = 0; r < n; ++r)
         for (keel::usize j = 0; j < d; ++j) {
-            double acc = 0.0;
+            keel::f64 acc = 0.0;
             for (keel::usize k = 0; k < rank; ++k)
                 acc += T[j + k * d] * Z[r + k * n];
             od[j * n + r] = acc * scale[r];
@@ -508,7 +508,7 @@ Value mvncdf_full(keel::ArrayRef<Value> args, keel::Allocator *mr)
     // is parsed for TolFun / MaxFunEvals and stripped from positional args.
     keel::usize nin = args.size();
     keel::usize maxFunEvals = 10000;
-    double tolFun = 1e-5;
+    keel::f64 tolFun = 1e-5;
     if (nin > 0 && (args[nin - 1].isObject() || args[nin - 1].isStruct())) {
         const Value &opts = args[nin - 1];
         if (opts.isStruct()) {
@@ -523,11 +523,11 @@ Value mvncdf_full(keel::ArrayRef<Value> args, keel::Allocator *mr)
                 return nullptr;
             };
             if (const Value *tf = getFieldCI("tolfun")) {
-                const double v = tf->elemAsDouble(0);
+                const keel::f64 v = tf->elemAsDouble(0);
                 if (v > 0.0 && std::isfinite(v)) tolFun = v;
             }
             if (const Value *mf = getFieldCI("maxfunevals")) {
-                const double v = mf->elemAsDouble(0);
+                const keel::f64 v = mf->elemAsDouble(0);
                 if (v >= 100.0 && std::isfinite(v)) maxFunEvals = keel::as<keel::usize>(v);
             }
         }
@@ -580,7 +580,7 @@ Value mvncdf_full(keel::ArrayRef<Value> args, keel::Allocator *mr)
     // the Sigma shape, mirroring the reference's order).
     auto subtractMu = [&](Value &V) {
         if (mu.isEmpty() || mu.isScalar()) {
-            const double m = mu.isEmpty() ? 0.0 : mu.elemAsDouble(0);
+            const keel::f64 m = mu.isEmpty() ? 0.0 : mu.elemAsDouble(0);
             if (m != 0.0) {
                 Value out = Value::matrix(V.dims().dim(0), V.dims().dim(1),
                                           ValueType::DOUBLE, mr);
@@ -663,12 +663,12 @@ Value mvncdf_full(keel::ArrayRef<Value> args, keel::Allocator *mr)
     }
 
     // Standard deviations (diag path) or correlation + factor (matrix).
-    keel::Array<double> sd(d, 1.0);
-    keel::Array<double> L;   // lower Cholesky row-major of correlation
+    keel::Array<keel::f64> sd(d, 1.0);
+    keel::Array<keel::f64> L;   // lower Cholesky row-major of correlation
     if (Sigma.isEmpty() || sigmaIsDiag) {
         if (!Sigma.isEmpty()) {
             for (keel::usize j = 0; j < d; ++j) {
-                const double v = Sigma.elemAsDouble(j);
+                const keel::f64 v = Sigma.elemAsDouble(j);
                 if (!(v > 0.0))
                     throw Error("mvncdf: all elements of the diagonal "
                                 "SIGMA must be positive.",
@@ -680,7 +680,7 @@ Value mvncdf_full(keel::ArrayRef<Value> args, keel::Allocator *mr)
         L.assign(d * d, 0.0);
         for (keel::usize j = 0; j < d; ++j) L[j * d + j] = 1.0;
     } else {
-        keel::Array<double> Sig(d * d), T, eval, evec;
+        keel::Array<keel::f64> Sig(d * d), T, eval, evec;
         for (keel::usize k = 0; k < d * d; ++k)
             Sig[k] = Sigma.elemAsDouble(k);
         if (!isSymmetric(Sig, d)
@@ -689,14 +689,14 @@ Value mvncdf_full(keel::ArrayRef<Value> args, keel::Allocator *mr)
                         "positive semi-definite matrix.",
                         0, 0, "mvncdf", "", "numkit:mvncdf:badMatrixSigma");
         // Standardize to a correlation and Cholesky it.
-        keel::Array<double> rho(d * d, 0.0);
+        keel::Array<keel::f64> rho(d * d, 0.0);
         for (keel::usize j = 0; j < d; ++j) sd[j] = std::sqrt(Sig[j + j * d]);
         for (keel::usize j = 0; j < d; ++j)
             for (keel::usize i = 0; i < d; ++i)
                 rho[i + j * d] = Sig[i + j * d] / (sd[i] * sd[j]);
         L.assign(d * d, 0.0);
         for (keel::usize j = 0; j < d; ++j) {
-            double s = 1.0;
+            keel::f64 s = 1.0;
             for (keel::usize k = 0; k < j; ++k)
                 s -= L[j * d + k] * L[j * d + k];
             if (s <= 0.0)
@@ -706,7 +706,7 @@ Value mvncdf_full(keel::ArrayRef<Value> args, keel::Allocator *mr)
                             "numkit:mvncdf:badMatrixSigma");
             L[j * d + j] = std::sqrt(s);
             for (keel::usize i = j + 1; i < d; ++i) {
-                double t = rho[i + j * d];
+                keel::f64 t = rho[i + j * d];
                 for (keel::usize k = 0; k < j; ++k)
                     t -= L[i * d + k] * L[j * d + k];
                 L[i * d + j] = t / L[j * d + j];
@@ -722,16 +722,16 @@ Value mvncdf_full(keel::ArrayRef<Value> args, keel::Allocator *mr)
     };
 
     Value out = Value::matrix(n, 1, ValueType::DOUBLE, mr);
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
 
     if (sigmaIsDiag || Sigma.isEmpty()) {
         // Independent coordinates: products of univariate probabilities.
         for (keel::usize r = 0; r < n; ++r) {
-            double p = 1.0;
+            keel::f64 p = 1.0;
             for (keel::usize j = 0; j < d; ++j) {
-                const double u = scaleRow(XU, r, j);
+                const keel::f64 u = scaleRow(XU, r, j);
                 if (box) {
-                    const double l = scaleRow(XL, r, j);
+                    const keel::f64 l = scaleRow(XL, r, j);
                     p *= std::max(0.0, phiCdf(u) - phiCdf(l));
                 } else {
                     p *= phiCdf(u);
@@ -740,24 +740,24 @@ Value mvncdf_full(keel::ArrayRef<Value> args, keel::Allocator *mr)
             od[r] = p;
         }
     } else if (d == 1) {
-        const double rho = 1.0;   // single coordinate: plain univariate
+        const keel::f64 rho = 1.0;   // single coordinate: plain univariate
         (void)rho;
         for (keel::usize r = 0; r < n; ++r) {
-            const double u = scaleRow(XU, r, 0);
+            const keel::f64 u = scaleRow(XU, r, 0);
             od[r] = box
                 ? std::max(0.0, phiCdf(u) - phiCdf(scaleRow(XL, r, 0)))
                 : phiCdf(u);
         }
     } else if (d == 2) {
-        const double rhoV = L[1 * 2 + 0];   // correlation
+        const keel::f64 rhoV = L[1 * 2 + 0];   // correlation
         for (keel::usize r = 0; r < n; ++r) {
-            const double hu = scaleRow(XU, r, 0);
-            const double ku = scaleRow(XU, r, 1);
+            const keel::f64 hu = scaleRow(XU, r, 0);
+            const keel::f64 ku = scaleRow(XU, r, 1);
             if (!box) {
                 od[r] = bivariateCdf(hu, ku, rhoV);
             } else {
-                const double hl = scaleRow(XL, r, 0);
-                const double kl = scaleRow(XL, r, 1);
+                const keel::f64 hl = scaleRow(XL, r, 0);
+                const keel::f64 kl = scaleRow(XL, r, 1);
                 od[r] = std::max(0.0,
                     bivariateCdf(hu, ku, rhoV) - bivariateCdf(hl, ku, rhoV)
                     - bivariateCdf(hu, kl, rhoV) + bivariateCdf(hl, kl, rhoV));
@@ -767,7 +767,7 @@ Value mvncdf_full(keel::ArrayRef<Value> args, keel::Allocator *mr)
         // d ≥ 3: Genz (1992) Separation-of-Variables (SOV) quasi-Monte Carlo
         // over standardized lower/upper limits (handles both one-sided and box
         // forms directly without 2^d corner expansion).
-        keel::Array<double> ql(d, -kInf), qu(d);
+        keel::Array<keel::f64> ql(d, -kInf), qu(d);
         for (keel::usize r = 0; r < n; ++r) {
             for (keel::usize j = 0; j < d; ++j) {
                 qu[j] = scaleRow(XU, r, j);

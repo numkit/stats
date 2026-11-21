@@ -94,7 +94,7 @@ void movvar_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
     if (args.size() >= 3 && !args[2].isChar() && !args[2].isString()
         && args[2].isScalar()) {
         // Could be normFlag or dim — disambiguate: normFlag is 0 or 1.
-        const double v = args[2].toScalar();
+        const keel::f64 v = args[2].toScalar();
         if (v == 0.0 || v == 1.0) {
             normFlag = keel::as<int>(v);
             extras_start = 3;
@@ -114,7 +114,7 @@ void movstd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
     keel::usize extras_start = 2;
     if (args.size() >= 3 && !args[2].isChar() && !args[2].isString()
         && args[2].isScalar()) {
-        const double v = args[2].toScalar();
+        const keel::f64 v = args[2].toScalar();
         if (v == 0.0 || v == 1.0) {
             normFlag = keel::as<int>(v);
             extras_start = 3;
@@ -169,7 +169,7 @@ void hampel_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayR
         k = argcheck::expectedPositiveInteger(
             argcheck::expectedReal(args[1], 2, "k", "hampel"), 2, "k", "hampel");
     }
-    const double nsigmas = (args.size() >= 3) ? args[2].toScalar() : 3.0;
+    const keel::f64 nsigmas = (args.size() >= 3) ? args[2].toScalar() : 3.0;
     auto *mr = ctx.engine->allocator();
     const Value &x = args[0];
 

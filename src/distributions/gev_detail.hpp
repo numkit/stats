@@ -30,8 +30,8 @@ namespace numkit::stats {
 
 namespace {
 
-constexpr double kEulerGamma = 0.5772156649015328606065120900824024;
-constexpr double kPi2Over6   = 1.6449340668482264364724151666460252;
+constexpr keel::f64 kEulerGamma = 0.5772156649015328606065120900824024;
+constexpr keel::f64 kPi2Over6   = 1.6449340668482264364724151666460252;
 
 template <typename Op>
 Value elementwise(const Value &x, Op op, keel::Allocator *mr)
@@ -43,19 +43,19 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
     else          out = Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
     const keel::usize n = x.numel();
     if (n == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     for (keel::usize i = 0; i < n; ++i) od[i] = op(x.elemAsDouble(i));
     return out;
 }
 
 // Sample inverse-cdf: x = mu + sigma · ((-log(u))^(-k) - 1)/k for k≠0,
 // x = mu − sigma·log(−log(u)) for k=0.
-inline double gev_inv_one(double u, double k, double sigma, double mu) {
-    if (!(u >= 0.0 && u <= 1.0)) return std::numeric_limits<double>::quiet_NaN();
+inline keel::f64 gev_inv_one(keel::f64 u, keel::f64 k, keel::f64 sigma, keel::f64 mu) {
+    if (!(u >= 0.0 && u <= 1.0)) return std::numeric_limits<keel::f64>::quiet_NaN();
     if (u == 0.0) return (k > 0) ? mu - sigma / k
-                                 : -std::numeric_limits<double>::infinity();
+                                 : -std::numeric_limits<keel::f64>::infinity();
     if (u == 1.0) return (k < 0) ? mu - sigma / k
-                                 :  std::numeric_limits<double>::infinity();
+                                 :  std::numeric_limits<keel::f64>::infinity();
     if (k == 0.0) return mu - sigma * std::log(-std::log(u));
     return mu + sigma * (std::pow(-std::log(u), -k) - 1.0) / k;
 }

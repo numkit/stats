@@ -51,20 +51,20 @@ void cholcov_argcheck(const Value &SIGMA)
 // In-place upper-tri Cholesky attempt. Returns true if SIGMA is PD;
 // fills `out` with R such that R'*R = SIGMA. On any non-positive
 // pivot, returns false.
-bool tryCholesky(const Value &SIGMA, keel::Array<double> &out, keel::usize n)
+bool tryCholesky(const Value &SIGMA, keel::Array<keel::f64> &out, keel::usize n)
 {
-    const double *a = SIGMA.doubleData();
+    const keel::f64 *a = SIGMA.doubleData();
     out.assign(n * n, 0.0);
-    double *r = out.data();
+    keel::f64 *r = out.data();
     for (keel::usize j = 0; j < n; ++j) {
-        double s = a[j + j * n];
+        keel::f64 s = a[j + j * n];
         for (keel::usize k = 0; k < j; ++k)
             s -= r[k + j * n] * r[k + j * n];
         if (s <= 0.0) return false;
         r[j + j * n] = std::sqrt(s);
-        const double inv_diag = 1.0 / r[j + j * n];
+        const keel::f64 inv_diag = 1.0 / r[j + j * n];
         for (keel::usize i = j + 1; i < n; ++i) {
-            double t = a[j + i * n];
+            keel::f64 t = a[j + i * n];
             for (keel::usize k = 0; k < j; ++k)
                 t -= r[k + j * n] * r[k + i * n];
             r[j + i * n] = t * inv_diag;
@@ -86,7 +86,7 @@ cholcov(const Value &SIGMA, keel::Allocator *mr)
     }
 
     // 1. Try positive-definite Cholesky.
-    keel::Array<double> chol_out;
+    keel::Array<keel::f64> chol_out;
     if (tryCholesky(SIGMA, chol_out, R)) {
         Value T = Value::matrix(R, R, ValueType::DOUBLE, mr);
         std::copy(chol_out.begin(), chol_out.end(), T.doubleDataMut());
@@ -98,22 +98,22 @@ cholcov(const Value &SIGMA, keel::Allocator *mr)
     auto [V, D] = ::numkit::linalg::eig_symmetric(SIGMA, mr);
 
     // D is n×n diagonal; extract eigvals into a flat vector.
-    keel::Array<double> d(R);
+    keel::Array<keel::f64> d(R);
     {
-        const double *dd = D.doubleData();
+        const keel::f64 *dd = D.doubleData();
         for (keel::usize i = 0; i < R; ++i) d[i] = dd[i + i * R];
     }
-    double maxAbsD = 0.0;
-    for (double v : d) maxAbsD = std::max(maxAbsD, keel::abs(v));
-    const double tol = std::pow(std::numeric_limits<double>::epsilon(),
+    keel::f64 maxAbsD = 0.0;
+    for (keel::f64 v : d) maxAbsD = std::max(maxAbsD, keel::abs(v));
+    const keel::f64 tol = std::pow(std::numeric_limits<keel::f64>::epsilon(),
                                 0.75) * maxAbsD;
 
     // 3. Count "negative" eigenvalues beyond tolerance.
     keel::usize p = 0;
-    for (double v : d) if (v <= -tol) ++p;
+    for (keel::f64 v : d) if (v <= -tol) ++p;
     if (p > 0) {
         Value T = Value::matrix(0, 0, ValueType::DOUBLE, mr);
-        return {std::move(T), Value::scalar(keel::as<double>(p), mr)};
+        return {std::move(T), Value::scalar(keel::as<keel::f64>(p), mr)};
     }
 
     // 4. PSD: keep eigvals > tol, rebuild T = sqrt(d_keep) .* V_keep'.
@@ -122,11 +122,11 @@ cholcov(const Value &SIGMA, keel::Allocator *mr)
     for (keel::usize i = 0; i < R; ++i) if (d[i] > tol) keep.push_back(i);
     const keel::usize r = keep.size();
     Value T = Value::matrix(r, R, ValueType::DOUBLE, mr);
-    double *o = T.doubleDataMut();
-    const double *vd = V.doubleData();
+    keel::f64 *o = T.doubleDataMut();
+    const keel::f64 *vd = V.doubleData();
     for (keel::usize k = 0; k < r; ++k) {
         const keel::usize col = keep[k];
-        const double s = std::sqrt(d[col]);
+        const keel::f64 s = std::sqrt(d[col]);
         // T(k, j) = s * V(j, col)
         for (keel::usize j = 0; j < R; ++j)
             o[k + j * r] = s * vd[j + col * R];

@@ -32,10 +32,10 @@ Value aveknt(const Value &t, int k, keel::Allocator *mr)
     const keel::usize M = N - keel::as<keel::usize>(k);
     Value out = Value::matrix(1, M, ValueType::DOUBLE, mr);
     if (M == 0) return out;
-    double *od = out.doubleDataMut();
-    const double inv = 1.0 / keel::as<double>(k - 1);
+    keel::f64 *od = out.doubleDataMut();
+    const keel::f64 inv = 1.0 / keel::as<keel::f64>(k - 1);
     for (keel::usize i = 0; i < M; ++i) {
-        double sum = 0.0;
+        keel::f64 sum = 0.0;
         for (keel::usize j = 1; j < keel::as<keel::usize>(k); ++j)
             sum += t.elemAsDouble(i + j);
         od[i] = sum * inv;
@@ -53,9 +53,9 @@ Value augknt(const Value &knots, int k, keel::Allocator *mr)
     // any interior knots stay single. So size = N + 2*(k-1).
     const keel::usize outN = N + 2 * (keel::as<keel::usize>(k) - 1);
     Value out = Value::matrix(1, outN, ValueType::DOUBLE, mr);
-    double *od = out.doubleDataMut();
-    const double first = knots.elemAsDouble(0);
-    const double last  = knots.elemAsDouble(N - 1);
+    keel::f64 *od = out.doubleDataMut();
+    const keel::f64 first = knots.elemAsDouble(0);
+    const keel::f64 last  = knots.elemAsDouble(N - 1);
     keel::usize idx = 0;
     for (int i = 0; i < k; ++i) od[idx++] = first;
     for (keel::usize i = 1; i + 1 < N; ++i) od[idx++] = knots.elemAsDouble(i);
@@ -71,7 +71,7 @@ Value brk2knt(const Value &breaks, const Value &mults, keel::Allocator *mr)
                     0, 0, "brk2knt", "", "numkit:brk2knt:size");
     keel::usize total = 0;
     for (keel::usize i = 0; i < N; ++i) {
-        const double mi = mults.elemAsDouble(i);
+        const keel::f64 mi = mults.elemAsDouble(i);
         if (!(mi >= 0.0))
             throw Error("brk2knt: multiplicities must be non-negative",
                         0, 0, "brk2knt", "", "numkit:brk2knt:m");
@@ -79,11 +79,11 @@ Value brk2knt(const Value &breaks, const Value &mults, keel::Allocator *mr)
     }
     Value out = Value::matrix(1, total, ValueType::DOUBLE, mr);
     if (total == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     keel::usize idx = 0;
     for (keel::usize i = 0; i < N; ++i) {
         const keel::usize mi = keel::as<keel::usize>(mults.elemAsDouble(i));
-        const double bi = breaks.elemAsDouble(i);
+        const keel::f64 bi = breaks.elemAsDouble(i);
         for (keel::usize j = 0; j < mi; ++j) od[idx++] = bi;
     }
     return out;
@@ -93,17 +93,17 @@ std::tuple<Value, Value>
 knt2brk(const Value &knots, keel::Allocator *mr)
 {
     const keel::usize N = knots.numel();
-    keel::Array<double> b;
+    keel::Array<keel::f64> b;
     keel::Array<keel::usize> m;
     if (N == 0) {
         Value bv = Value::matrix(0, 0, ValueType::DOUBLE, mr);
         Value mv = Value::matrix(0, 0, ValueType::DOUBLE, mr);
         return {std::move(bv), std::move(mv)};
     }
-    double cur = knots.elemAsDouble(0);
+    keel::f64 cur = knots.elemAsDouble(0);
     keel::usize cnt = 1;
     for (keel::usize i = 1; i < N; ++i) {
-        const double ki = knots.elemAsDouble(i);
+        const keel::f64 ki = knots.elemAsDouble(i);
         if (ki == cur) {
             ++cnt;
         } else {
@@ -119,9 +119,9 @@ knt2brk(const Value &knots, keel::Allocator *mr)
     const keel::usize K = b.size();
     Value bv = Value::matrix(1, K, ValueType::DOUBLE, mr);
     Value mv = Value::matrix(1, K, ValueType::DOUBLE, mr);
-    double *bd = bv.doubleDataMut();
-    double *md = mv.doubleDataMut();
-    for (keel::usize i = 0; i < K; ++i) { bd[i] = b[i]; md[i] = double(m[i]); }
+    keel::f64 *bd = bv.doubleDataMut();
+    keel::f64 *md = mv.doubleDataMut();
+    for (keel::usize i = 0; i < K; ++i) { bd[i] = b[i]; md[i] = keel::f64(m[i]); }
     return {std::move(bv), std::move(mv)};
 }
 
@@ -160,13 +160,13 @@ Value ppmak(const Value &breaks, const Value &coefs, int d, keel::Allocator *mr)
 
     Value bv = Value::matrix(1, L1, ValueType::DOUBLE, mr);
     {
-        double *bd = bv.doubleDataMut();
+        keel::f64 *bd = bv.doubleDataMut();
         for (keel::usize i = 0; i < L1; ++i) bd[i] = breaks.elemAsDouble(i);
     }
     const keel::usize outR = effD * L;
     Value cv = Value::matrix(outR, effK, ValueType::DOUBLE, mr);
     {
-        double *cd = cv.doubleDataMut();
+        keel::f64 *cd = cv.doubleDataMut();
         if (reshapeDbyLK) {
             for (keel::usize m = 0; m < effK; ++m) {
                 for (keel::usize j = 0; j < L; ++j) {
@@ -185,9 +185,9 @@ Value ppmak(const Value &breaks, const Value &coefs, int d, keel::Allocator *mr)
     s.field("form")   = Value::fromString("pp", mr);
     s.field("breaks") = std::move(bv);
     s.field("coefs")  = std::move(cv);
-    s.field("pieces") = Value::scalar(double(L),    mr);
-    s.field("order")  = Value::scalar(double(effK), mr);
-    s.field("dim")    = Value::scalar(double(effD), mr);
+    s.field("pieces") = Value::scalar(keel::f64(L),    mr);
+    s.field("order")  = Value::scalar(keel::f64(effK), mr);
+    s.field("dim")    = Value::scalar(keel::f64(effD), mr);
     return s;
 }
 
@@ -215,9 +215,9 @@ Value fnval(const Value &pp, const Value &xv, keel::Allocator *mr)
         out = Value::matrix(d, Nx, ValueType::DOUBLE, mr);
     }
     if (Nx == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
 
-    auto findPiece = [&](double x) -> keel::usize {
+    auto findPiece = [&](keel::f64 x) -> keel::usize {
         if (x <= breaks.elemAsDouble(0)) return 0;
         if (x >= breaks.elemAsDouble(L)) return L - 1;
         keel::usize lo = 0, hi = L - 1;
@@ -230,12 +230,12 @@ Value fnval(const Value &pp, const Value &xv, keel::Allocator *mr)
     };
 
     for (keel::usize i = 0; i < Nx; ++i) {
-        const double x = xv.elemAsDouble(i);
+        const keel::f64 x = xv.elemAsDouble(i);
         const keel::usize j = findPiece(x);
-        const double dx = x - breaks.elemAsDouble(j);
+        const keel::f64 dx = x - breaks.elemAsDouble(j);
         for (keel::usize r = 0; r < d; ++r) {
             const keel::usize row = r + j * d;
-            double y = coefs.elemAsDouble(row + 0 * cR);
+            keel::f64 y = coefs.elemAsDouble(row + 0 * cR);
             for (keel::usize m = 1; m < K; ++m)
                 y = y * dx + coefs.elemAsDouble(row + m * cR);
             if (d == 1) od[i] = y;
@@ -267,25 +267,25 @@ PPView readPP(const Value &pp)
     return v;
 }
 
-Value buildPP(const Value &breaks, keel::ArrayRef<double> coefsCM, keel::usize cR, keel::usize cC, keel::usize L, keel::usize d, keel::Allocator *mr)
+Value buildPP(const Value &breaks, keel::ArrayRef<keel::f64> coefsCM, keel::usize cR, keel::usize cC, keel::usize L, keel::usize d, keel::Allocator *mr)
 {
     Value bv = Value::matrix(1, breaks.numel(), ValueType::DOUBLE, mr);
     {
-        double *bd = bv.doubleDataMut();
+        keel::f64 *bd = bv.doubleDataMut();
         for (keel::usize i = 0; i < breaks.numel(); ++i) bd[i] = breaks.elemAsDouble(i);
     }
     Value cv = Value::matrix(cR, cC, ValueType::DOUBLE, mr);
     {
-        double *cd = cv.doubleDataMut();
+        keel::f64 *cd = cv.doubleDataMut();
         for (keel::usize i = 0; i < cR * cC; ++i) cd[i] = coefsCM[i];
     }
     Value s = Value::structure(mr);
     s.field("form")   = Value::fromString("pp", mr);
     s.field("breaks") = std::move(bv);
     s.field("coefs")  = std::move(cv);
-    s.field("pieces") = Value::scalar(double(L), mr);
-    s.field("order")  = Value::scalar(double(cC), mr);
-    s.field("dim")    = Value::scalar(double(d), mr);
+    s.field("pieces") = Value::scalar(keel::f64(L), mr);
+    s.field("order")  = Value::scalar(keel::f64(cC), mr);
+    s.field("dim")    = Value::scalar(keel::f64(d), mr);
     return s;
 }
 
@@ -298,27 +298,27 @@ Value fnder(const Value &pp, int order, keel::Allocator *mr)
                     0, 0, "fnder", "", "numkit:fnder:order");
     PPView v = readPP(pp);
     if (order == 0) {
-        keel::Array<double> coefs(v.coefs.numel());
+        keel::Array<keel::f64> coefs(v.coefs.numel());
         for (keel::usize i = 0; i < coefs.size(); ++i) coefs[i] = v.coefs.elemAsDouble(i);
         return buildPP(v.breaks, coefs.as_ref(), v.coefs.dims().rows(), v.coefs.dims().cols(), v.L, v.d, mr);
     }
     if (keel::as<keel::usize>(order) >= v.K) {
         const keel::usize cR = v.d * v.L;
-        keel::Array<double> zero(cR, 0.0);
+        keel::Array<keel::f64> zero(cR, 0.0);
         return buildPP(v.breaks, zero.as_ref(), cR, 1, v.L, v.d, mr);
     }
     const keel::usize cR = v.d * v.L;
     const keel::usize newK = v.K - keel::as<keel::usize>(order);
-    keel::Array<double> nc(cR * newK, 0.0);
+    keel::Array<keel::f64> nc(cR * newK, 0.0);
 
     for (keel::usize r = 0; r < cR; ++r) {
-        keel::Array<double> cur(v.K);
+        keel::Array<keel::f64> cur(v.K);
         for (keel::usize m = 0; m < v.K; ++m) cur[m] = v.coefs.elemAsDouble(r + m * cR);
         keel::usize curK = v.K;
         for (int it = 0; it < order; ++it) {
-            keel::Array<double> nxt(curK - 1, 0.0);
+            keel::Array<keel::f64> nxt(curK - 1, 0.0);
             for (keel::usize m = 0; m + 1 < curK; ++m)
-                nxt[m] = cur[m] * double(curK - 1 - m);
+                nxt[m] = cur[m] * keel::f64(curK - 1 - m);
             cur = keel::move(nxt);
             --curK;
         }
@@ -332,19 +332,19 @@ Value fnint(const Value &pp, keel::Allocator *mr)
     PPView v = readPP(pp);
     const keel::usize cR = v.d * v.L;
     const keel::usize newK = v.K + 1;
-    keel::Array<double> nc(cR * newK, 0.0);
+    keel::Array<keel::f64> nc(cR * newK, 0.0);
     for (keel::usize r = 0; r < v.d; ++r) {
-        double prev_const = 0.0;
+        keel::f64 prev_const = 0.0;
         for (keel::usize j = 0; j < v.L; ++j) {
             const keel::usize row = r + j * v.d;
             for (keel::usize m = 0; m < v.K; ++m) {
                 nc[row + m * cR] = v.coefs.elemAsDouble(row + m * cR)
-                                   / double(v.K - m);
+                                   / keel::f64(v.K - m);
             }
             nc[row + v.K * cR] = prev_const;
-            const double h = v.breaks.elemAsDouble(j + 1) - v.breaks.elemAsDouble(j);
+            const keel::f64 h = v.breaks.elemAsDouble(j + 1) - v.breaks.elemAsDouble(j);
             // Q(b_{j+1}) = prev_const + Σ_{m=0..K-1} new_c[m]·h^(K-m)
-            double y = nc[row + 0 * cR];
+            keel::f64 y = nc[row + 0 * cR];
             for (keel::usize m = 1; m < v.K; ++m)
                 y = y * h + nc[row + m * cR];
             y = y * h;
@@ -360,7 +360,7 @@ Value csapi(const Value &x, const Value &y, keel::Allocator *mr)
     if (y.numel() != N || N < 2)
         throw Error("csapi: x and y must be vectors of the same length ≥ 2",
                     0, 0, "csapi", "", "numkit:csapi:size");
-    keel::Array<double> xv(N), yv(N);
+    keel::Array<keel::f64> xv(N), yv(N);
     for (keel::usize i = 0; i < N; ++i) {
         xv[i] = x.elemAsDouble(i);
         yv[i] = y.elemAsDouble(i);
@@ -370,7 +370,7 @@ Value csapi(const Value &x, const Value &y, keel::Allocator *mr)
         Value bv = Value::matrix(1, 2, ValueType::DOUBLE, mr);
         bv.doubleDataMut()[0] = xv[0];
         bv.doubleDataMut()[1] = xv[1];
-        keel::Array<double> coefs(4, 0.0);
+        keel::Array<keel::f64> coefs(4, 0.0);
         coefs[0] = 0.0;
         coefs[1] = 0.0;
         coefs[2] = (yv[1] - yv[0]) / (xv[1] - xv[0]);
@@ -379,11 +379,11 @@ Value csapi(const Value &x, const Value &y, keel::Allocator *mr)
     }
 
     const keel::usize L = N - 1;
-    keel::Array<double> h(L);
+    keel::Array<keel::f64> h(L);
     for (keel::usize i = 0; i < L; ++i) h[i] = xv[i + 1] - xv[i];
 
-    keel::Array<double> A(N * N, 0.0), rhs(N, 0.0);
-    auto idx = [&](keel::usize r, keel::usize c) -> double & { return A[r + c * N]; };
+    keel::Array<keel::f64> A(N * N, 0.0), rhs(N, 0.0);
+    auto idx = [&](keel::usize r, keel::usize c) -> keel::f64 & { return A[r + c * N]; };
 
     if (L >= 2) {
         idx(0, 0) = h[1];
@@ -409,9 +409,9 @@ Value csapi(const Value &x, const Value &y, keel::Allocator *mr)
     for (keel::usize i = 0; i < N; ++i) perm[i] = keel::as<int>(i);
     for (keel::usize k = 0; k < N; ++k) {
         keel::usize piv = k;
-        double best = keel::abs(A[k + k * N]);
+        keel::f64 best = keel::abs(A[k + k * N]);
         for (keel::usize i = k + 1; i < N; ++i) {
-            const double vv = keel::abs(A[i + k * N]);
+            const keel::f64 vv = keel::abs(A[i + k * N]);
             if (vv > best) { best = vv; piv = i; }
         }
         if (best == 0.0)
@@ -422,37 +422,37 @@ Value csapi(const Value &x, const Value &y, keel::Allocator *mr)
                 std::swap(A[k + j * N], A[piv + j * N]);
             std::swap(perm[k], perm[piv]);
         }
-        const double pv = A[k + k * N];
+        const keel::f64 pv = A[k + k * N];
         for (keel::usize i = k + 1; i < N; ++i) {
-            const double m = A[i + k * N] / pv;
+            const keel::f64 m = A[i + k * N] / pv;
             A[i + k * N] = m;
             for (keel::usize j = k + 1; j < N; ++j)
                 A[i + j * N] -= m * A[k + j * N];
         }
     }
-    keel::Array<double> z(N), Mvec(N);
+    keel::Array<keel::f64> z(N), Mvec(N);
     for (keel::usize i = 0; i < N; ++i) z[i] = rhs[perm[i]];
     for (keel::usize i = 0; i < N; ++i) {
-        double s = z[i];
+        keel::f64 s = z[i];
         for (keel::usize j = 0; j < i; ++j) s -= A[i + j * N] * z[j];
         z[i] = s;
     }
     for (keel::usize i = N; i-- > 0;) {
-        double s = z[i];
+        keel::f64 s = z[i];
         for (keel::usize j = i + 1; j < N; ++j) s -= A[i + j * N] * Mvec[j];
         Mvec[i] = s / A[i + i * N];
     }
 
     Value bv = Value::matrix(1, N, ValueType::DOUBLE, mr);
     {
-        double *bd = bv.doubleDataMut();
+        keel::f64 *bd = bv.doubleDataMut();
         for (keel::usize i = 0; i < N; ++i) bd[i] = xv[i];
     }
-    keel::Array<double> coefs(L * 4, 0.0);
+    keel::Array<keel::f64> coefs(L * 4, 0.0);
     for (keel::usize i = 0; i < L; ++i) {
-        const double Mi  = Mvec[i];
-        const double Mn  = Mvec[i + 1];
-        const double hi  = h[i];
+        const keel::f64 Mi  = Mvec[i];
+        const keel::f64 Mn  = Mvec[i + 1];
+        const keel::f64 hi  = h[i];
         coefs[i + 0 * L] = (Mn - Mi) / (6.0 * hi);
         coefs[i + 1 * L] = Mi / 2.0;
         coefs[i + 2 * L] = (yv[i + 1] - yv[i]) / hi - hi * (2.0 * Mi + Mn) / 6.0;
@@ -461,13 +461,13 @@ Value csapi(const Value &x, const Value &y, keel::Allocator *mr)
     return buildPP(bv, coefs.as_ref(), L, 4, L, 1, mr);
 }
 
-Value fncmb(const Value &pp1, double c1, const Value &pp2, double c2,
+Value fncmb(const Value &pp1, keel::f64 c1, const Value &pp2, keel::f64 c2,
             keel::Allocator *mr)
 {
     PPView v1 = readPP(pp1);
     const keel::usize cR = v1.coefs.dims().rows();
     const keel::usize cC = v1.coefs.dims().cols();
-    keel::Array<double> nc(cR * cC, 0.0);
+    keel::Array<keel::f64> nc(cR * cC, 0.0);
     if (pp2.isEmpty()) {
         for (keel::usize i = 0; i < cR * cC; ++i)
             nc[i] = c1 * v1.coefs.elemAsDouble(i);
@@ -505,7 +505,7 @@ Value fnbrk(const Value &pp, keel::StringRef part_in, keel::Allocator *mr)
         Value out = Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
         const keel::usize n = v.numel();
         if (n == 0) return out;
-        double *od = out.doubleDataMut();
+        keel::f64 *od = out.doubleDataMut();
         for (keel::usize i = 0; i < n; ++i) od[i] = v.elemAsDouble(i);
         return out;
     };

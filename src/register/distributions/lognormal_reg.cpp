@@ -26,10 +26,10 @@ namespace numkit::stats {
 namespace detail {
 
 namespace {
-inline double argMu(keel::ArrayRef<Value> args, keel::usize i) {
+inline keel::f64 argMu(keel::ArrayRef<Value> args, keel::usize i) {
     return (args.size() > i && !args[i].isEmpty()) ? args[i].toScalar() : 0.0;
 }
-inline double argSigma(keel::ArrayRef<Value> args, keel::usize i) {
+inline keel::f64 argSigma(keel::ArrayRef<Value> args, keel::usize i) {
     return (args.size() > i && !args[i].isEmpty()) ? args[i].toScalar() : 1.0;
 }
 }
@@ -81,8 +81,8 @@ void logninv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
 void lognrnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "lognrnd");  // no max: trailing size args (N-D tail; nk caps at two — bugs/opened/stats/rnd-nd-size-tails.md)
-    const double mu    = argMu(args, 0);
-    const double sigma = argSigma(args, 1);
+    const keel::f64 mu    = argMu(args, 0);
+    const keel::f64 sigma = argSigma(args, 1);
     keel::usize rows, cols;
     parse_rng_size(args, 2, rows, cols, "lognrnd");
     outs[0] = reshape_rng_nd(lognrnd(ctx.engine->rng(), mu, sigma, rows, cols, ctx.engine->allocator()), args, 2, ctx.engine->allocator(), "lognrnd");
@@ -92,7 +92,7 @@ void lognstat_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArra
 {
     argcheck::checkNargin(args.size(), 2, 2, "lognstat");
     emit_vec_stat_2arg(args, nargout, outs, ctx.engine->allocator(), "lognstat",
-                       [](double mu, double sigma) { return lognstat(mu, sigma); });
+                       [](keel::f64 mu, keel::f64 sigma) { return lognstat(mu, sigma); });
 }
 
 } // namespace detail

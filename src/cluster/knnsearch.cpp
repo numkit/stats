@@ -32,7 +32,7 @@ void knnsearch_argcheck(const Value &X, const Value &Y, int K)
                     0, 0, "knnsearch", "", "numkit:knnsearch:K");
 }
 
-void rangesearch_argcheck(const Value &X, const Value &Y, double r)
+void rangesearch_argcheck(const Value &X, const Value &Y, keel::f64 r)
 {
     if (X.dims().cols() != Y.dims().cols())
         throw Error("rangesearch: X and Y must have the same column count",
@@ -45,7 +45,7 @@ void rangesearch_argcheck(const Value &X, const Value &Y, double r)
 } // namespace
 
 std::tuple<Value, Value>
-knnsearch(const Value &X, const Value &Y, int K, keel::StringRef metric, double p, keel::Allocator *mr)
+knnsearch(const Value &X, const Value &Y, int K, keel::StringRef metric, keel::f64 p, keel::Allocator *mr)
 {
     knnsearch_argcheck(X, Y, K);
     const auto &dx = X.dims();
@@ -56,8 +56,8 @@ knnsearch(const Value &X, const Value &Y, int K, keel::StringRef metric, double 
 
     Value Idx = Value::matrix(Ny, keel::as<keel::usize>(K), ValueType::DOUBLE, mr);
     Value Dout = Value::matrix(Ny, keel::as<keel::usize>(K), ValueType::DOUBLE, mr);
-    double *id = Idx.doubleDataMut();
-    double *dd_out = Dout.doubleDataMut();
+    keel::f64 *id = Idx.doubleDataMut();
+    keel::f64 *dd_out = Dout.doubleDataMut();
     if (Nx == 0 || Ny == 0) return {std::move(Idx), std::move(Dout)};
 
     // pdist2 returns Nx × Ny distance matrix (rows = X, cols = Y) per
@@ -69,9 +69,9 @@ knnsearch(const Value &X, const Value &Y, int K, keel::StringRef metric, double 
     if (Dr != Nx || Dc != Ny)
         throw Error("knnsearch: pdist2 returned unexpected shape",
                     0, 0, "knnsearch", "", "numkit:knnsearch:internal");
-    const double *dd = D.doubleData();
+    const keel::f64 *dd = D.doubleData();
 
-    keel::Array<std::pair<double, keel::usize>> heap;
+    keel::Array<std::pair<keel::f64, keel::usize>> heap;
     heap.reserve(Nx);
     for (keel::usize q = 0; q < Ny; ++q) {
         // Collect (dist, index) for query q.
@@ -88,22 +88,22 @@ knnsearch(const Value &X, const Value &Y, int K, keel::StringRef metric, double 
                           });
         for (int k = 0; k < Keff; ++k) {
             id[q + keel::as<keel::usize>(k) * Ny] =
-                keel::as<double>(heap[k].second + 1);  // 1-based
+                keel::as<keel::f64>(heap[k].second + 1);  // 1-based
             dd_out[q + keel::as<keel::usize>(k) * Ny] = heap[k].first;
         }
         // K > Nx: pad rest with NaN.
         for (int k = Keff; k < K; ++k) {
             id[q + keel::as<keel::usize>(k) * Ny] =
-                std::numeric_limits<double>::quiet_NaN();
+                std::numeric_limits<keel::f64>::quiet_NaN();
             dd_out[q + keel::as<keel::usize>(k) * Ny] =
-                std::numeric_limits<double>::quiet_NaN();
+                std::numeric_limits<keel::f64>::quiet_NaN();
         }
     }
     return {std::move(Idx), std::move(Dout)};
 }
 
 std::tuple<Value, Value>
-rangesearch(const Value &X, const Value &Y, double r, keel::StringRef metric, double p, keel::Allocator *mr)
+rangesearch(const Value &X, const Value &Y, keel::f64 r, keel::StringRef metric, keel::f64 p, keel::Allocator *mr)
 {
     rangesearch_argcheck(X, Y, r);
     const auto &dx = X.dims();
@@ -116,13 +116,13 @@ rangesearch(const Value &X, const Value &Y, double r, keel::StringRef metric, do
     if (Nx == 0 || Ny == 0) return {std::move(IdxCells), std::move(DCells)};
 
     Value D = pdist2(X, Y, metric, p, mr);
-    const double *dd = D.doubleData();
+    const keel::f64 *dd = D.doubleData();
 
-    keel::Array<std::pair<double, keel::usize>> hits;
+    keel::Array<std::pair<keel::f64, keel::usize>> hits;
     for (keel::usize q = 0; q < Ny; ++q) {
         hits.clear();
         for (keel::usize i = 0; i < Nx; ++i) {
-            const double v = dd[i + q * Nx];
+            const keel::f64 v = dd[i + q * Nx];
             if (v <= r) hits.emplace_back(v, i);
         }
         std::sort(hits.begin(), hits.end(),
@@ -134,10 +134,10 @@ rangesearch(const Value &X, const Value &Y, double r, keel::StringRef metric, do
         Value rowIdx = Value::matrix(1, M, ValueType::DOUBLE, mr);
         Value rowD   = Value::matrix(1, M, ValueType::DOUBLE, mr);
         if (M > 0) {
-            double *ri = rowIdx.doubleDataMut();
-            double *rd = rowD.doubleDataMut();
+            keel::f64 *ri = rowIdx.doubleDataMut();
+            keel::f64 *rd = rowD.doubleDataMut();
             for (keel::usize k = 0; k < M; ++k) {
-                ri[k] = keel::as<double>(hits[k].second + 1);
+                ri[k] = keel::as<keel::f64>(hits[k].second + 1);
                 rd[k] = hits[k].first;
             }
         }

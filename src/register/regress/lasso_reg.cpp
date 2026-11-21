@@ -28,7 +28,7 @@ void lasso_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 3, "lasso");  // no max: name-value tail in the reference
-    double alpha = 1.0;
+    keel::f64 alpha = 1.0;
     if (args.size() >= 4 && !args[3].isEmpty())
         alpha = args[3].toScalar();
     auto r = lasso(args[0], args[1], args[2], alpha, ctx.engine->allocator());
@@ -53,7 +53,7 @@ void lassoglm_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         throw Error(keel::format("lassoglm: unsupported distribution '{}' "
                                  "(v1: normal, binomial, poisson)", s),
                     0, 0, "lassoglm", "", "numkit:lassoglm:badDistr");
-    double alpha = 1.0;
+    keel::f64 alpha = 1.0;
     if (args.size() >= 5 && !args[4].isEmpty())
         alpha = args[4].toScalar();
     auto r = lassoglm(args[0], args[1], d, args[3], alpha, ctx.engine->allocator());

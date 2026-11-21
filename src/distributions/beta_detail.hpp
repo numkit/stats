@@ -40,7 +40,7 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
     else          out = Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
     const keel::usize n = x.numel();
     if (n == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     for (keel::usize i = 0; i < n; ++i) od[i] = op(x.elemAsDouble(i));
     return out;
 }
@@ -48,17 +48,17 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
 // Scalar pdf kernel for the parameter-broadcast path (vector a/b). Owns its
 // per-element domain: a<=0 or b<=0 → NaN. Mirrors public betapdf exactly,
 // including the x∈{0,1} boundary cases.
-inline double betapdfK(double x, double a, double b)
+inline keel::f64 betapdfK(keel::f64 x, keel::f64 a, keel::f64 b)
 {
-    if (a <= 0.0 || b <= 0.0) return std::numeric_limits<double>::quiet_NaN();
-    const double lbeta = std::lgamma(a) + std::lgamma(b) - std::lgamma(a + b);
+    if (a <= 0.0 || b <= 0.0) return std::numeric_limits<keel::f64>::quiet_NaN();
+    const keel::f64 lbeta = std::lgamma(a) + std::lgamma(b) - std::lgamma(a + b);
     if (x < 0.0 || x > 1.0) return 0.0;
     if (x == 0.0)
         return (a == 1.0) ? std::exp(-lbeta) * (b == 1.0 ? 1.0 : std::pow(1.0, b - 1.0))
-                          : (a > 1.0 ? 0.0 : std::numeric_limits<double>::infinity());
+                          : (a > 1.0 ? 0.0 : std::numeric_limits<keel::f64>::infinity());
     if (x == 1.0)
         return (b == 1.0) ? std::exp(-lbeta) * (a == 1.0 ? 1.0 : std::pow(1.0, a - 1.0))
-                          : (b > 1.0 ? 0.0 : std::numeric_limits<double>::infinity());
+                          : (b > 1.0 ? 0.0 : std::numeric_limits<keel::f64>::infinity());
     return std::exp((a - 1.0) * std::log(x) + (b - 1.0) * std::log1p(-x) - lbeta);
 }
 

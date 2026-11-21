@@ -60,7 +60,7 @@ void betacdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
             v = dist_empty_like(nx == 0 ? a0[0] : (na == 0 ? a : b), mr);
         } else {
             dist_match_numel({nx, na, nb}, "betacdf");
-            Value xc = elementwise(a0[0], [](double xi) {
+            Value xc = elementwise(a0[0], [](keel::f64 xi) {
                 if (xi <= 0.0) return 0.0;
                 if (xi >= 1.0) return 1.0;
                 return xi;
@@ -97,8 +97,8 @@ void betainv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
 void betarnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "betarnd");  // no max: trailing size args (N-D tail; nk caps at two — bugs/opened/stats/rnd-nd-size-tails.md)
-    const double a = args[0].toScalar();
-    const double b = args[1].toScalar();
+    const keel::f64 a = args[0].toScalar();
+    const keel::f64 b = args[1].toScalar();
     keel::usize rows, cols;
     parse_rng_size(args, 2, rows, cols, "betarnd");
     outs[0] = reshape_rng_nd(betarnd(ctx.engine->rng(), a, b, rows, cols, ctx.engine->allocator()), args, 2, ctx.engine->allocator(), "betarnd");
@@ -108,7 +108,7 @@ void betastat_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArra
 {
     argcheck::checkNargin(args.size(), 2, 2, "betastat");
     emit_vec_stat_2arg(args, nargout, outs, ctx.engine->allocator(), "betastat",
-                       [](double a, double b) { return betastat(a, b); });
+                       [](keel::f64 a, keel::f64 b) { return betastat(a, b); });
 }
 
 } // namespace detail

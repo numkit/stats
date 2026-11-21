@@ -41,7 +41,7 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
     else          out = Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
     const keel::usize n = x.numel();
     if (n == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     for (keel::usize i = 0; i < n; ++i) od[i] = op(x.elemAsDouble(i));
     return out;
 }
@@ -50,17 +50,17 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
 // Each owns its per-element domain handling so they can be broadcast over a
 // vector mu: mu<=0 (or NaN) → NaN, matching MATLAB R2025b.
 
-inline double exppdfK(double x, double mu)
+inline keel::f64 exppdfK(keel::f64 x, keel::f64 mu)
 {
     return keel::stats::exp_pdf(x, mu);
 }
 
-inline double expcdfK(double x, double mu)
+inline keel::f64 expcdfK(keel::f64 x, keel::f64 mu)
 {
     return keel::stats::exp_cdf(x, mu);
 }
 
-inline double expinvK(double p, double mu)
+inline keel::f64 expinvK(keel::f64 p, keel::f64 mu)
 {
     return keel::stats::exp_inv(p, mu);
 }

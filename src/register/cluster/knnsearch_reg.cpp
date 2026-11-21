@@ -39,7 +39,7 @@ void knnsearch_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArr
 void rangesearch_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 3, "rangesearch");  // no max: name-value tail in the reference
-    const double r = args[2].toScalar();
+    const keel::f64 r = args[2].toScalar();
     KnnOpts o;
     // parse remaining name-value
     if (args.size() > 3) {

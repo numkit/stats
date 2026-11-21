@@ -63,9 +63,9 @@ void clusterdata_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
 {
     argcheck::checkNargin(args.size(), 1, "clusterdata");  // no max: name-value tail in the reference
     int maxclust = -1;
-    double cutoff = -1.0;
+    keel::f64 cutoff = -1.0;
     int depth = 2;
-    double p = 2.0;
+    keel::f64 p = 2.0;
     keel::String method     = keel::String::from("single");
     keel::String criterion  = keel::String::from("inconsistent");
     keel::String distance_metric = keel::String::from("euclidean");
@@ -80,7 +80,7 @@ void clusterdata_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     // Verified via R2025b probe.
     if (args.size() >= 2 && args[1].numel() == 1
         && !(args[1].isChar() || args[1].isString())) {
-        const double c = args[1].toScalar();
+        const keel::f64 c = args[1].toScalar();
         if (c >= 2.0) maxclust = (int)c;
         else if (c > 0.0) cutoff = c;
     }

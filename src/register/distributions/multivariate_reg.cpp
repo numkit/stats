@@ -45,7 +45,7 @@ void mvnrnd_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     // counts flow through as-is — the contract turns them into 0×d.
     Value cases;
     if (args.size() >= 3 && !args[2].isEmpty()) {
-        const double n = argcheck::expectedReal(args[2], 3, "n", "mvnrnd");
+        const keel::f64 n = argcheck::expectedReal(args[2], 3, "n", "mvnrnd");
         if (std::isnan(n) || n != std::floor(n))
             throw Error(keel::format("mvnrnd: n must be a real integer scalar (got {}).", n),
                         0, 0, "mvnrnd", "", "numkit:mvnrnd:badCases");
@@ -63,7 +63,7 @@ void mvtrnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     argcheck::checkNargin(args.size(), 2, 3, "mvtrnd");
     Value cases;
     if (args.size() >= 3 && !args[2].isEmpty()) {
-        const double n = argcheck::expectedReal(args[2], 3, "cases", "mvtrnd");
+        const keel::f64 n = argcheck::expectedReal(args[2], 3, "cases", "mvtrnd");
         if (std::isnan(n) || n != std::floor(n))
             throw Error(keel::format("mvtrnd: cases must be a real integer scalar (got {}).", n),
                         0, 0, "mvtrnd", "", "numkit:mvtrnd:badCases");
@@ -88,7 +88,7 @@ void wishrnd_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                  keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 3, "wishrnd");
-    const double df = args[1].toScalar();
+    const keel::f64 df = args[1].toScalar();
     const Value D_in = (args.size() > 2) ? args[2] : Value::Empty;
     auto [W, D] = wishrnd_factor(ctx.engine->rng(), args[0], df, D_in, ctx.engine->allocator());
     outs[0] = std::move(W);
@@ -99,7 +99,7 @@ void iwishrnd_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                   keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 3, "iwishrnd");
-    const double df = args[1].toScalar();
+    const keel::f64 df = args[1].toScalar();
     const Value DI_in = (args.size() > 2) ? args[2] : Value::Empty;
     auto [W, DI] = iwishrnd_factor(ctx.engine->rng(), args[0], df, DI_in, ctx.engine->allocator());
     outs[0] = std::move(W);

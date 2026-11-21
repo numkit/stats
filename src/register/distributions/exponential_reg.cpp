@@ -64,7 +64,7 @@ void expinv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
 void exprnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "exprnd");  // no max: trailing size args (N-D tail; nk caps at two — bugs/opened/stats/rnd-nd-size-tails.md)
-    const double mu = args[0].toScalar();
+    const keel::f64 mu = args[0].toScalar();
     keel::usize rows, cols;
     parse_rng_size(args, 1, rows, cols, "exprnd");
     outs[0] = reshape_rng_nd(exprnd(ctx.engine->rng(), mu, rows, cols, ctx.engine->allocator()), args, 1, ctx.engine->allocator(), "exprnd");
@@ -74,7 +74,7 @@ void expstat_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArray
 {
     argcheck::checkNargin(args.size(), 1, 1, "expstat");
     emit_vec_stat_1arg(args, nargout, outs, ctx.engine->allocator(), "expstat",
-                       [](double mu) { return expstat(mu); });
+                       [](keel::f64 mu) { return expstat(mu); });
 }
 
 } // namespace detail

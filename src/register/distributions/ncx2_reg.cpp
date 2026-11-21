@@ -58,8 +58,8 @@ void ncx2rnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
                  keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "ncx2rnd");  // no max: trailing size args (N-D tail; nk caps at two — bugs/opened/stats/rnd-nd-size-tails.md)
-    const double k      = args[0].toScalar();
-    const double lambda = args[1].toScalar();
+    const keel::f64 k      = args[0].toScalar();
+    const keel::f64 lambda = args[1].toScalar();
     keel::usize rows = 1, cols = 1;
     parse_rng_size(args, 2, rows, cols, "ncx2rnd");
     outs[0] = reshape_rng_nd(ncx2rnd(ctx.engine->rng(), k, lambda, rows, cols, ctx.engine->allocator()), args, 2, ctx.engine->allocator(), "ncx2rnd");
@@ -70,7 +70,7 @@ void ncx2stat_reg(keel::ArrayRef<Value> args, keel::usize nargout,
 {
     argcheck::checkNargin(args.size(), 2, 2, "ncx2stat");
     emit_vec_stat_2arg(args, nargout, outs, ctx.engine->allocator(), "ncx2stat",
-                       [](double k, double lambda) { return ncx2stat(k, lambda); });
+                       [](keel::f64 k, keel::f64 lambda) { return ncx2stat(k, lambda); });
 }
 
 } // namespace detail

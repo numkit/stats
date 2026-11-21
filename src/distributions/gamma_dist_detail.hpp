@@ -40,22 +40,22 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
     else          out = Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
     const keel::usize n = x.numel();
     if (n == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     for (keel::usize i = 0; i < n; ++i) od[i] = op(x.elemAsDouble(i));
     return out;
 }
 
 // Scalar pdf kernel for the parameter-broadcast path (vector a/b). Owns its
 // per-element domain: a<0 or b<=0 → NaN, a==0 → 0. Mirrors public gampdf.
-inline double gampdfK(double x, double a, double b)
+inline keel::f64 gampdfK(keel::f64 x, keel::f64 a, keel::f64 b)
 {
-    if (a < 0.0 || b <= 0.0) return std::numeric_limits<double>::quiet_NaN();
+    if (a < 0.0 || b <= 0.0) return std::numeric_limits<keel::f64>::quiet_NaN();
     if (a == 0.0) return 0.0;
     if (x < 0.0) return 0.0;
-    const double log_b = std::log(b);
-    const double lga   = std::lgamma(a);
+    const keel::f64 log_b = std::log(b);
+    const keel::f64 lga   = std::lgamma(a);
     if (x == 0.0) {
-        if (a < 1.0) return std::numeric_limits<double>::infinity();
+        if (a < 1.0) return std::numeric_limits<keel::f64>::infinity();
         if (a > 1.0) return 0.0;
         return std::exp(-lga - log_b);   // a == 1 → 1/b
     }

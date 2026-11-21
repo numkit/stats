@@ -30,41 +30,41 @@
 namespace numkit::stats {
 
 namespace {
-inline bool norm_argcheck(double sigma) noexcept
+inline bool norm_argcheck(keel::f64 sigma) noexcept
 {
     return sigma > 0.0;
 }
 } // namespace
 
-Value normpdf(const Value &x, double mu, double sigma, keel::Allocator *mr)
+Value normpdf(const Value &x, keel::f64 mu, keel::f64 sigma, keel::Allocator *mr)
 {
-    return elementwise(x, [=](double xi) { return normpdfK(xi, mu, sigma); }, mr);
+    return elementwise(x, [=](keel::f64 xi) { return normpdfK(xi, mu, sigma); }, mr);
 }
 
-Value normcdf(const Value &x, double mu, double sigma, keel::Allocator *mr)
+Value normcdf(const Value &x, keel::f64 mu, keel::f64 sigma, keel::Allocator *mr)
 {
-    return elementwise(x, [=](double xi) { return normcdfK(xi, mu, sigma); }, mr);
+    return elementwise(x, [=](keel::f64 xi) { return normcdfK(xi, mu, sigma); }, mr);
 }
 
-Value norminv(const Value &p, double mu, double sigma, keel::Allocator *mr)
+Value norminv(const Value &p, keel::f64 mu, keel::f64 sigma, keel::Allocator *mr)
 {
-    return elementwise(p, [=](double pi) { return norminvK(pi, mu, sigma); }, mr);
+    return elementwise(p, [=](keel::f64 pi) { return norminvK(pi, mu, sigma); }, mr);
 }
 
-Value normrnd(::numkit::ops::RngContext &rng, double mu, double sigma, keel::usize rows, keel::usize cols, keel::Allocator *mr)
+Value normrnd(::numkit::ops::RngContext &rng, keel::f64 mu, keel::f64 sigma, keel::usize rows, keel::usize cols, keel::Allocator *mr)
 {
     if (sigma < 0.0) sigma = 0.0;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     const keel::usize n = rows * cols;
     for (keel::usize i = 0; i < n; ++i) od[i] = mu + sigma * rng.nextNormal();
     return out;
 }
 
-std::tuple<double, double> normstat(double mu, double sigma)
+std::tuple<keel::f64, keel::f64> normstat(keel::f64 mu, keel::f64 sigma)
 {
     if (!norm_argcheck(sigma)) {
-        const double NaN = std::numeric_limits<double>::quiet_NaN();
+        const keel::f64 NaN = std::numeric_limits<keel::f64>::quiet_NaN();
         return std::make_tuple(NaN, NaN);
     }
     return std::make_tuple(mu, sigma * sigma);

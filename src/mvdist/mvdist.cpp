@@ -37,8 +37,8 @@ namespace numkit::stats {
 
 namespace {
 
-constexpr double kLog2Pi = 1.8378770664093454835606594728112352;
-constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
+constexpr keel::f64 kLog2Pi = 1.8378770664093454835606594728112352;
+constexpr keel::f64 kNaN = std::numeric_limits<keel::f64>::quiet_NaN();
 
 bool isMatrixValue(const Value &V)
 {
@@ -48,8 +48,8 @@ bool isMatrixValue(const Value &V)
 // Symmetric eigendecomposition of a d×d column-major matrix read via
 // elemAsDouble. Eigenvalues ascend in `eval`; eigenvectors are the
 // columns of `evec` (column-major d×d).
-void eigSymmetric(keel::ArrayRef<double> M, keel::usize d,
-                  keel::Array<double> &eval, keel::Array<double> &evec,
+void eigSymmetric(keel::ArrayRef<keel::f64> M, keel::usize d,
+                  keel::Array<keel::f64> &eval, keel::Array<keel::f64> &evec,
                   keel::Allocator *mr)
 {
     Value Mv = Value::matrix(d, d, ValueType::DOUBLE, mr);
@@ -69,29 +69,29 @@ void eigSymmetric(keel::ArrayRef<double> M, keel::usize d,
 // fills Σ log(sqrt(λi)) over ALL eigenvalues — a zero eigenvalue gives
 // -Inf, which drives a degenerate density to 0 (probe P15).
 bool psdQuadForms(const Value &X0, keel::usize n, keel::usize d,
-                  keel::ArrayRef<double> Sig,
-                  keel::Array<double> &quad, double &logHalfDet,
+                  keel::ArrayRef<keel::f64> Sig,
+                  keel::Array<keel::f64> &quad, keel::f64 &logHalfDet,
                   keel::Allocator *mr, bool *degenerate = nullptr)
 {
-    keel::Array<double> eval, evec;
+    keel::Array<keel::f64> eval, evec;
     eigSymmetric(Sig, d, eval, evec, mr);
-    double maxAbs = 0.0;
-    for (double e : eval) maxAbs = std::max(maxAbs, keel::abs(e));
-    const double tol = keel::as<double>(d) * std::numeric_limits<double>::epsilon()
+    keel::f64 maxAbs = 0.0;
+    for (keel::f64 e : eval) maxAbs = std::max(maxAbs, keel::abs(e));
+    const keel::f64 tol = keel::as<keel::f64>(d) * std::numeric_limits<keel::f64>::epsilon()
                      * std::max(maxAbs, 1.0);
-    for (double e : eval)
+    for (keel::f64 e : eval)
         if (e < -tol) return false;
     logHalfDet = 0.0;
     if (degenerate) *degenerate = false;
-    for (double e : eval) {
+    for (keel::f64 e : eval) {
         if (e <= tol && degenerate) *degenerate = true;
         logHalfDet += 0.5 * std::log(std::max(e, 0.0));   // 0 → -Inf
     }
-    quad = keel::Array<double>(n, 0.0);
+    quad = keel::Array<keel::f64>(n, 0.0);
     for (keel::usize i = 0; i < d; ++i) {
         if (eval[i] <= tol) continue;                     // null direction
         for (keel::usize r = 0; r < n; ++r) {
-            double s = 0.0;
+            keel::f64 s = 0.0;
             for (keel::usize j = 0; j < d; ++j)
                 s += evec[j + i * d] * X0.elemAsDouble(r + j * n);
             quad[r] += s * s / eval[i];
@@ -102,16 +102,16 @@ bool psdQuadForms(const Value &X0, keel::usize n, keel::usize d,
 
 // Diagonal-sigma quadratic forms + log half determinant.
 void diagQuadForms(const Value &X0, keel::usize n, keel::usize d,
-                   keel::ArrayRef<double> sd,
-                   keel::Array<double> &quad, double &logHalfDet)
+                   keel::ArrayRef<keel::f64> sd,
+                   keel::Array<keel::f64> &quad, keel::f64 &logHalfDet)
 {
     logHalfDet = 0.0;
     for (keel::usize j = 0; j < d; ++j) logHalfDet += std::log(sd[j]);
-    quad = keel::Array<double>(n, 0.0);
+    quad = keel::Array<keel::f64>(n, 0.0);
     for (keel::usize r = 0; r < n; ++r) {
-        double q = 0.0;
+        keel::f64 q = 0.0;
         for (keel::usize j = 0; j < d; ++j) {
-            const double z = X0.elemAsDouble(r + j * n) / sd[j];
+            const keel::f64 z = X0.elemAsDouble(r + j * n) / sd[j];
             q += z * z;
         }
         quad[r] = q;
@@ -126,7 +126,7 @@ Value castDown(const Value &X, bool single, keel::Allocator *mr)
     Value out = Value::matrix(r, c, ValueType::SINGLE, mr);
     const keel::usize cnt = r * c;
     for (keel::usize k = 0; k < cnt; ++k)
-        out.singleDataMut()[k] = keel::as<float>(X.elemAsDouble(k));
+        out.singleDataMut()[k] = keel::as<keel::f32>(X.elemAsDouble(k));
     return out;
 }
 
@@ -160,7 +160,7 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
     if (mu.isEmpty()) {
         X0 = X;
     } else if (mu.isScalar()) {
-        const double m = mu.elemAsDouble(0);
+        const keel::f64 m = mu.elemAsDouble(0);
         X0 = Value::matrix(n, d, ValueType::DOUBLE, mr);
         for (keel::usize k = 0; k < n * d; ++k)
             X0.doubleDataMut()[k] = X.elemAsDouble(k) - m;
@@ -199,9 +199,9 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
     // ── Sigma: empty | 1×k diag row | d×d matrix | d×d×n stack ──────
     keel::usize pages = 1;
     bool sigmaIsDiag = false;
-    keel::Array<double> sd;                        // diag form: sqrt entries
-    keel::Array<double> Sig;                       // matrix form, column-major
-    keel::Array<keel::Array<double>> pageSig;      // stack form
+    keel::Array<keel::f64> sd;                        // diag form: sqrt entries
+    keel::Array<keel::f64> Sig;                       // matrix form, column-major
+    keel::Array<keel::Array<keel::f64>> pageSig;      // stack form
     keel::usize sz1 = 0, sz2 = 0;
     if (Sigma.isEmpty()) {
         // No Sigma: a column X is one d = n observation row.
@@ -214,7 +214,7 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
             n = 1;
         }
         sigmaIsDiag = true;
-        sd = keel::Array<double>(d, 1.0);
+        sd = keel::Array<keel::f64>(d, 1.0);
     } else {
         sz1 = keel::as<keel::usize>(Sigma.dims().dim(0));
         sz2 = keel::as<keel::usize>(Sigma.dims().dim(1));
@@ -245,9 +245,9 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
                                          "(got {}-by-{}).", d, d, sz1, sz2),
                             0, 0, "mvnpdf", "", "numkit:mvnpdf:covSizeMismatch");
             if (sigmaIsDiag) {
-                sd = keel::Array<double>(d, 0.0);
+                sd = keel::Array<keel::f64>(d, 0.0);
                 for (keel::usize j = 0; j < d; ++j) {
-                    const double v = Sigma.elemAsDouble(j);
+                    const keel::f64 v = Sigma.elemAsDouble(j);
                     if (!(v > 0.0))
                         throw Error(keel::format("mvnpdf: all elements of the diagonal "
                                                  "SIGMA must be positive (got {} at position {}).",
@@ -257,7 +257,7 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
                     sd[j] = std::sqrt(v);
                 }
             } else {
-                Sig = keel::Array<double>(d * d, 0.0);
+                Sig = keel::Array<keel::f64>(d * d, 0.0);
                 for (keel::usize k = 0; k < d * d; ++k)
                     Sig[k] = Sigma.elemAsDouble(k);
             }
@@ -291,7 +291,7 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
                 // Row diag [1×d×n] → per-page sqrt rows.
                 for (keel::usize j = 0; j < d; ++j) {
                     for (keel::usize p = 0; p < pages; ++p) {
-                        const double v = Sigma.elemAsDouble(j + p * d);
+                        const keel::f64 v = Sigma.elemAsDouble(j + p * d);
                         if (!(v > 0.0))
                             throw Error("mvnpdf: all elements of the "
                                         "diagonal SIGMA must be positive.",
@@ -302,7 +302,7 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
             } else {
                 pageSig.reserve(pages);
                 for (keel::usize p = 0; p < pages; ++p) {
-                    keel::Array<double> mat(d * d, 0.0);
+                    keel::Array<keel::f64> mat(d * d, 0.0);
                     for (keel::usize k = 0; k < d * d; ++k)
                         mat[k] = Sigma.elemAsDouble(k + p * d * d);
                     pageSig.push_back(keel::move(mat));
@@ -313,15 +313,15 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
 
     // ── density ─────────────────────────────────────────────────────
     Value out = Value::matrix(n, 1, ValueType::DOUBLE, mr);
-    double *od = out.doubleDataMut();
-    const double base = -0.5 * keel::as<double>(d) * kLog2Pi;
-    auto fillRows = [&](keel::ArrayRef<double> quad, double logHalfDet) {
+    keel::f64 *od = out.doubleDataMut();
+    const keel::f64 base = -0.5 * keel::as<keel::f64>(d) * kLog2Pi;
+    auto fillRows = [&](keel::ArrayRef<keel::f64> quad, keel::f64 logHalfDet) {
         for (keel::usize r = 0; r < n; ++r)
             od[r] = std::exp(base - logHalfDet - 0.5 * quad[r]);
     };
     if (pages == 1) {
-        keel::Array<double> quad;
-        double logHalfDet = 0.0;
+        keel::Array<keel::f64> quad;
+        keel::f64 logHalfDet = 0.0;
         bool degenerate = false;
         if (sigmaIsDiag) {
             diagQuadForms(X0, n, d, sd.as_ref(), quad, logHalfDet);
@@ -339,10 +339,10 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
     } else if (sigmaIsDiag) {
         // Per-page diagonal densities.
         for (keel::usize r = 0; r < n; ++r) {
-            double q = 0.0, lhd = 0.0;
+            keel::f64 q = 0.0, lhd = 0.0;
             for (keel::usize j = 0; j < d; ++j) {
-                const double s = std::sqrt(Sigma.elemAsDouble(j + r * d));
-                const double z = X0.elemAsDouble(r + j * n) / s;
+                const keel::f64 s = std::sqrt(Sigma.elemAsDouble(j + r * d));
+                const keel::f64 z = X0.elemAsDouble(r + j * n) / s;
                 q += z * z;
                 lhd += std::log(s);
             }
@@ -354,8 +354,8 @@ Value mvnpdf(const Value &X, const Value &mu, const Value &Sigma,
             Value Xrow = Value::matrix(1, d, ValueType::DOUBLE, mr);
             for (keel::usize j = 0; j < d; ++j)
                 Xrow.doubleDataMut()[j] = X0.elemAsDouble(r + j * n);
-            keel::Array<double> quad;
-            double logHalfDet = 0.0;
+            keel::Array<keel::f64> quad;
+            keel::f64 logHalfDet = 0.0;
             bool degenerate = false;
             if (!psdQuadForms(Xrow, 1, d, pageSig[r].as_ref(), quad, logHalfDet, mr,
                               &degenerate))
@@ -416,7 +416,7 @@ Value mvtpdfCompute(const Value &X, const Value &C, const Value &df,
     single = single || (C.type() == ValueType::SINGLE);
 
     // df: scalar, or one per row.
-    keel::Array<double> dfv(n);
+    keel::Array<keel::f64> dfv(n);
     if (df.isScalar()) {
         std::fill(dfv.begin(), dfv.end(), df.elemAsDouble(0));
     } else if (df.dims().isVector()
@@ -427,7 +427,7 @@ Value mvtpdfCompute(const Value &X, const Value &C, const Value &df,
                     "element for each row of X.",
                     0, 0, "mvtpdf", "", "numkit:mvtpdf:inputSizeMismatchDF");
     }
-    for (double v : dfv)
+    for (keel::f64 v : dfv)
         if (!(v > 0.0))
             throw Error(keel::format("mvtpdf: DF must be positive (got {}).", v),
                         0, 0, "mvtpdf", "", "numkit:mvtpdf:invalidDF");
@@ -435,9 +435,9 @@ Value mvtpdfCompute(const Value &X, const Value &C, const Value &df,
 
     // Standardize C to a correlation matrix (the reference does this
     // silently; probe T06/T10).
-    keel::Array<double> Cm(d * d, 0.0);
+    keel::Array<keel::f64> Cm(d * d, 0.0);
     for (keel::usize k = 0; k < d * d; ++k) Cm[k] = C.elemAsDouble(k);
-    keel::Array<double> sq(d);
+    keel::Array<keel::f64> sq(d);
     bool unitDiag = true;
     for (keel::usize i = 0; i < d; ++i) {
         sq[i] = std::sqrt(Cm[i + i * d]);
@@ -448,23 +448,23 @@ Value mvtpdfCompute(const Value &X, const Value &C, const Value &df,
             for (keel::usize i = 0; i < d; ++i)
                 Cm[i + j * d] /= sq[i] * sq[j];
 
-    keel::Array<double> quad;
-    double logHalfDet = 0.0;
+    keel::Array<keel::f64> quad;
+    keel::f64 logHalfDet = 0.0;
     if (!psdQuadForms(X, n, d, Cm.as_ref(), quad, logHalfDet, mr))
         throw Error("mvtpdf: C must be a symmetric positive "
                     "(semi-)definite matrix.",
                     0, 0, "mvtpdf", "", "numkit:mvtpdf:badCorrelationSymPos");
 
     Value out = Value::matrix(n, 1, ValueType::DOUBLE, mr);
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     for (keel::usize r = 0; r < n; ++r) {
-        const double nu = dfv[r];
-        const double logpdf =
-            std::lgamma((nu + keel::as<double>(d)) / 2.0)
+        const keel::f64 nu = dfv[r];
+        const keel::f64 logpdf =
+            std::lgamma((nu + keel::as<keel::f64>(d)) / 2.0)
             - std::lgamma(nu / 2.0)
-            - 0.5 * keel::as<double>(d) * std::log(nu * M_PI)
+            - 0.5 * keel::as<keel::f64>(d) * std::log(nu * M_PI)
             - logHalfDet
-            - ((nu + keel::as<double>(d)) / 2.0) * std::log1p(quad[r] / nu);
+            - ((nu + keel::as<keel::f64>(d)) / 2.0) * std::log1p(quad[r] / nu);
         od[r] = std::exp(logpdf);
     }
     return castDown(out, single, mr);
@@ -475,15 +475,15 @@ Value mnpdf(const Value &X, const Value &P, keel::Allocator *mr)
     Value x = X, p = P;
     bool single = (X.type() == ValueType::SINGLE)
                   || (P.type() == ValueType::SINGLE);
-    const double epsD = std::numeric_limits<double>::epsilon();
+    const keel::f64 epsD = std::numeric_limits<keel::f64>::epsilon();
 
     // A column p that sums to one is a single probability vector —
     // transpose it (and a column x alongside it).
     if (p.dims().dim(1) == 1 && p.dims().dim(0) > 1) {
-        double s = 0.0;
+        keel::f64 s = 0.0;
         const keel::usize len = keel::as<keel::usize>(p.numel());
         for (keel::usize k = 0; k < len; ++k) s += p.elemAsDouble(k);
-        if (keel::abs(s - 1.0) <= keel::as<double>(len) * epsD) {
+        if (keel::abs(s - 1.0) <= keel::as<keel::f64>(len) * epsD) {
             Value pt = Value::matrix(1, len, ValueType::DOUBLE, mr);
             for (keel::usize k = 0; k < len; ++k)
                 pt.doubleDataMut()[k] = p.elemAsDouble(k);
@@ -511,7 +511,7 @@ Value mnpdf(const Value &X, const Value &P, keel::Allocator *mr)
                     0, 0, "mnpdf", "", "numkit:mnpdf:colSizeMismatch");
 
     Value out = Value::matrix(m, 1, ValueType::DOUBLE, mr);
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     if (mm == 1 || m == 1 || mm == m) {
         if (m == 1 && mm > 1) {
             // Single data row replicates across p's rows.
@@ -527,23 +527,23 @@ Value mnpdf(const Value &X, const Value &P, keel::Allocator *mr)
         for (keel::usize r = 0; r < m; ++r) {
             const keel::usize pr = (mm == 1) ? 0 : r;
             // Row totals and the bad-value classes.
-            double n = 0.0;
+            keel::f64 n = 0.0;
             for (keel::usize j = 0; j < k; ++j)
                 n += x.elemAsDouble(r + j * m);
             bool xBad = false;
             for (keel::usize j = 0; j < k; ++j) {
-                const double v = x.elemAsDouble(r + j * m);
+                const keel::f64 v = x.elemAsDouble(r + j * m);
                 if (v < 0.0 || v != std::round(v)) xBad = true;
             }
-            double pSum = 0.0;
+            keel::f64 pSum = 0.0;
             bool pBad = false;
             for (keel::usize j = 0; j < k; ++j) {
-                const double v = p.elemAsDouble(pr + j * mm);
+                const keel::f64 v = p.elemAsDouble(pr + j * mm);
                 if (v < 0.0 || 1.0 < v) pBad = true;
                 pSum += v;
             }
             if (keel::abs(pSum - 1.0)
-                    > keel::as<double>(k) * epsD)
+                    > keel::as<keel::f64>(k) * epsD)
                 pBad = true;
             const bool nBad = (n < 0.0) || (std::round(n) != n);
             if (pBad || nBad) {
@@ -554,9 +554,9 @@ Value mnpdf(const Value &X, const Value &P, keel::Allocator *mr)
                 od[r] = 0.0;
                 continue;
             }
-            double lp = std::lgamma(n + 1.0);
+            keel::f64 lp = std::lgamma(n + 1.0);
             for (keel::usize j = 0; j < k; ++j) {
-                const double xv = x.elemAsDouble(r + j * m);
+                const keel::f64 xv = x.elemAsDouble(r + j * m);
                 lp -= std::lgamma(xv + 1.0);
                 if (xv > 0.0)
                     lp += xv * std::log(p.elemAsDouble(pr + j * mm));

@@ -63,7 +63,7 @@ void ksdensity_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     argcheck::checkNargin(args.size(), 1, "ksdensity");  // no max: name-value tail (shared reg also serves the kde alias: union contract)
     auto *mr = ctx.engine->allocator();
     Value pts = Value::matrix(0, 0, ValueType::DOUBLE, mr);
-    double bw_user = 0.0;
+    keel::f64 bw_user = 0.0;
     keel::String kernel = keel::String::from("normal");
     keel::String function_mode = keel::String::from("pdf");
     keel::usize numpoints = 100;
@@ -183,7 +183,7 @@ void bounds_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayR
     if (flatten) {
         Value flat = Value::matrix(1, args[0].numel(), ValueType::DOUBLE, mr);
         if (args[0].numel() > 0) {
-            const double *src = args[0].doubleData();
+            const keel::f64 *src = args[0].doubleData();
             std::copy(src, src + args[0].numel(), flat.doubleDataMut());
         }
         auto [lo, hi] = bounds(flat, 2, mr);
@@ -236,7 +236,7 @@ void iqr_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArray
         // Flatten and compute on the 1×N row.
         Value flat = Value::matrix(1, args[0].numel(), ValueType::DOUBLE, mr);
         if (args[0].numel() > 0) {
-            const double *src = args[0].doubleData();
+            const keel::f64 *src = args[0].doubleData();
             std::copy(src, src + args[0].numel(), flat.doubleDataMut());
         }
         outs[0] = iqr(flat, 2, mr);
@@ -250,7 +250,7 @@ void maxk_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef
     argcheck::checkNargin(args.size(), 2, "maxk");  // no max: name-value tail in the reference
     const int k = argcheck::expectedInteger(
         argcheck::expectedReal(args[1], 2, "k", "maxk"), 2, "k", "maxk");
-    argcheck::expectedNonNegative(double(k), 2, "k", "maxk");
+    argcheck::expectedNonNegative(keel::f64(k), 2, "k", "maxk");
     int dim = 0;
     // Optional positional dim (numeric scalar that's not a string).
     keel::usize i = 2;
@@ -295,7 +295,7 @@ void mink_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef
     argcheck::checkNargin(args.size(), 2, "mink");  // no max: name-value tail in the reference
     const int k = argcheck::expectedInteger(
         argcheck::expectedReal(args[1], 2, "k", "mink"), 2, "k", "mink");
-    argcheck::expectedNonNegative(double(k), 2, "k", "mink");
+    argcheck::expectedNonNegative(keel::f64(k), 2, "k", "mink");
     int dim = 0;
     keel::usize i = 2;
     if (i < args.size() && !args[i].isChar() && !args[i].isString()
@@ -366,7 +366,7 @@ Value flattenToRow(const Value &x, keel::Allocator *mr)
 {
     Value flat = Value::matrix(1, x.numel(), ValueType::DOUBLE, mr);
     if (x.numel() > 0) {
-        const double *src = x.doubleData();
+        const keel::f64 *src = x.doubleData();
         std::copy(src, src + x.numel(), flat.doubleDataMut());
     }
     return flat;
@@ -449,7 +449,7 @@ void ecdf_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef
     argcheck::checkNargin(args.size(), 1, "ecdf");  // no max: name-value tail in the reference
     auto *mr = ctx.engine->allocator();
     keel::String function_mode = keel::String::from("cdf");
-    double alpha = 0.05;
+    keel::f64 alpha = 0.05;
     const Value *freq = nullptr;
     auto lower = [](keel::StringRef sv) {
         keel::String s = keel::String::from(sv);
@@ -647,9 +647,9 @@ void filloutliers_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     };
 
     keel::String detect = keel::String::from("median");
-    double tf = 3.0;
+    keel::f64 tf = 3.0;
     bool tf_set = false;
-    double loP = 0.0, hiP = 0.0;
+    keel::f64 loP = 0.0, hiP = 0.0;
     keel::usize i = 2;
     if (i < args.size() && (args[i].isChar() || args[i].isString())) {
         keel::String s = lower(args[i].toString().as_ref());
@@ -739,7 +739,7 @@ void mad_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArray
     int dim  = 0;
     keel::Array<int> vecdimSet;
     if (args.size() >= 2 && !args[1].isEmpty()) {
-        const double fv = argcheck::expectedReal(args[1], 2, "flag", "mad");
+        const keel::f64 fv = argcheck::expectedReal(args[1], 2, "flag", "mad");
         argcheck::expectedFlag01(fv, 2, "flag", "mad");
         flag = keel::as<int>(fv);
     }
@@ -843,7 +843,7 @@ void moment_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
 void trimmean_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 4, "trimmean");
-    const double pct = args[1].toScalar();
+    const keel::f64 pct = args[1].toScalar();
 
     // trimmean(x, percent [, flag] [, dim]). The 3rd arg is EITHER a string
     // flag ('round' default, or 'floor') OR a numeric dim; if a flag is

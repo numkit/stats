@@ -20,61 +20,61 @@
 namespace numkit::stats {
 
 namespace {
-inline bool ev_argcheck(double sigma) noexcept
+inline bool ev_argcheck(keel::f64 sigma) noexcept
 {
     return sigma > 0.0;
 }
 } // namespace
 
-Value evpdf(const Value &x, double mu, double sigma, keel::Allocator *mr)
+Value evpdf(const Value &x, keel::f64 mu, keel::f64 sigma, keel::Allocator *mr)
 {
     if (!ev_argcheck(sigma))
-        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    const double inv_s = 1.0 / sigma;
-    return elementwise(x, [=](double xi) {
-        const double t = (xi - mu) * inv_s;
+        return elementwise(x, [](keel::f64){ return std::numeric_limits<keel::f64>::quiet_NaN(); }, mr);
+    const keel::f64 inv_s = 1.0 / sigma;
+    return elementwise(x, [=](keel::f64 xi) {
+        const keel::f64 t = (xi - mu) * inv_s;
         return inv_s * std::exp(t - std::exp(t));
     }, mr);
 }
 
-Value evcdf(const Value &x, double mu, double sigma, keel::Allocator *mr)
+Value evcdf(const Value &x, keel::f64 mu, keel::f64 sigma, keel::Allocator *mr)
 {
     if (sigma <= 0.0)
-        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    return elementwise(x, [=](double xi) {
-        const double t = (xi - mu) / sigma;
+        return elementwise(x, [](keel::f64){ return std::numeric_limits<keel::f64>::quiet_NaN(); }, mr);
+    return elementwise(x, [=](keel::f64 xi) {
+        const keel::f64 t = (xi - mu) / sigma;
         return -std::expm1(-std::exp(t));
     }, mr);
 }
 
-Value evinv(const Value &p, double mu, double sigma, keel::Allocator *mr)
+Value evinv(const Value &p, keel::f64 mu, keel::f64 sigma, keel::Allocator *mr)
 {
     if (sigma <= 0.0)
-        return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    return elementwise(p, [=](double pi) {
-        if (!(pi >= 0.0 && pi <= 1.0)) return std::numeric_limits<double>::quiet_NaN();
-        if (pi == 0.0) return -std::numeric_limits<double>::infinity();
-        if (pi >= 1.0) return  std::numeric_limits<double>::infinity();
+        return elementwise(p, [](keel::f64){ return std::numeric_limits<keel::f64>::quiet_NaN(); }, mr);
+    return elementwise(p, [=](keel::f64 pi) {
+        if (!(pi >= 0.0 && pi <= 1.0)) return std::numeric_limits<keel::f64>::quiet_NaN();
+        if (pi == 0.0) return -std::numeric_limits<keel::f64>::infinity();
+        if (pi >= 1.0) return  std::numeric_limits<keel::f64>::infinity();
         // x = mu + sigma · log(-log1p(-p))
         return mu + sigma * std::log(-std::log1p(-pi));
     }, mr);
 }
 
-Value evrnd(::numkit::ops::RngContext &rng, double mu, double sigma, keel::usize rows, keel::usize cols, keel::Allocator *mr)
+Value evrnd(::numkit::ops::RngContext &rng, keel::f64 mu, keel::f64 sigma, keel::usize rows, keel::usize cols, keel::Allocator *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (sigma <= 0.0 || rows * cols == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     const keel::usize n = rows * cols;
     for (keel::usize i = 0; i < n; ++i) {
         // genRes53 — MATLAB-canonical 53-bit uniform in [0, 1). Direct
         // call (bypasses std::uniform_real_distribution whose uint32->
         // double mapping is implementation-defined and breaks parity).
-        const double u = gen.genRes53();
+        const keel::f64 u = gen.genRes53();
         // Avoid log(0) for u==0; genRes53 can return exactly 0 (low
         // probability) — guard.
-        const double safe = (u > 0.0) ? u : std::numeric_limits<double>::min();
+        const keel::f64 safe = (u > 0.0) ? u : std::numeric_limits<keel::f64>::min();
         // MATLAB convention: evrnd is Gumbel-MIN (Type-I extreme value
         // for minima), so x = mu + sigma * log(-log(u)) -- direct u, NOT
         // 1-u. (We previously used Gumbel-MAX log(-log1p(-u)).)
@@ -83,10 +83,10 @@ Value evrnd(::numkit::ops::RngContext &rng, double mu, double sigma, keel::usize
     return out;
 }
 
-std::tuple<double, double> evstat(double mu, double sigma)
+std::tuple<keel::f64, keel::f64> evstat(keel::f64 mu, keel::f64 sigma)
 {
     if (sigma <= 0.0) {
-        const double nan = std::numeric_limits<double>::quiet_NaN();
+        const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
         return std::make_tuple(nan, nan);
     }
     return std::make_tuple(mu - sigma * kEulerGamma,

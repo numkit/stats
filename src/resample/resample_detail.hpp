@@ -34,7 +34,7 @@ namespace {
 
 // Sample K indices in [0..N-1] given (optional) weights.
 [[maybe_unused]] keel::Array<int> sample_indices(int N, int K, bool with_replacement,
-                                keel::ArrayRef<double> weights,
+                                keel::ArrayRef<keel::f64> weights,
                                 numkit::ops::RngContext &rng)
 {
     keel::Array<int> out;
@@ -43,8 +43,8 @@ namespace {
     if (weights.empty()) {
         if (with_replacement) {
             for (int i = 0; i < K; ++i) {
-                const double u = rng.nextUniform();
-                int idx = keel::as<int>(std::floor(u * keel::as<double>(N)));
+                const keel::f64 u = rng.nextUniform();
+                int idx = keel::as<int>(std::floor(u * keel::as<keel::f64>(N)));
                 if (idx >= N) idx = N - 1;
                 out.push_back(idx);
             }
@@ -52,7 +52,7 @@ namespace {
             const int take = std::min(K, N);
             Value rp = numkit::ops::randperm(rng, keel::as<keel::usize>(N),
                                              keel::as<keel::usize>(take), nullptr);
-            const double *rpd = rp.doubleData();
+            const keel::f64 *rpd = rp.doubleData();
             for (int i = 0; i < take; ++i)
                 out.push_back(keel::as<int>(rpd[i]) - 1);
         }
@@ -60,7 +60,7 @@ namespace {
         auto &gen = rng.engine();
         // Weighted sampling.
         if (with_replacement) {
-            const keel::ArrayRef<double> wref(weights.data(), weights.size());
+            const keel::ArrayRef<keel::f64> wref(weights.data(), weights.size());
             for (int i = 0; i < K; ++i)
                 out.push_back(keel::as<int>(keel::random::discrete_index(gen, wref)));
         } else {
@@ -68,12 +68,12 @@ namespace {
             // Each positive-weight item i receives key k_i = u_i^(1/w_i), or
             // equivalently log(u_i)/w_i = -Exp(1)/w_i; the top K keys are drawn
             // in descending key order. Exact O(N log N) with zero rejection risk.
-            keel::Array<std::pair<double, int>> keyed;
+            keel::Array<std::pair<keel::f64, int>> keyed;
             keyed.reserve(N);
             for (int i = 0; i < N; ++i) {
-                const double w = weights[keel::as<keel::usize>(i)];
+                const keel::f64 w = weights[keel::as<keel::usize>(i)];
                 if (w > 0.0) {
-                    const double e = std::max(keel::random::exponential_f64(gen, 1.0), 1e-300);
+                    const keel::f64 e = std::max(keel::random::exponential_f64(gen, 1.0), 1e-300);
                     keyed.emplace_back(-e / w, i);
                 }
             }
@@ -87,9 +87,9 @@ namespace {
     return out;
 }
 
-[[maybe_unused]] keel::Array<double> read_vec(const Value &v) {
+[[maybe_unused]] keel::Array<keel::f64> read_vec(const Value &v) {
     const keel::usize n = v.numel();
-    keel::Array<double> out(n);
+    keel::Array<keel::f64> out(n);
     for (keel::usize i = 0; i < n; ++i) out[i] = v.elemAsDouble(i);
     return out;
 }
@@ -97,7 +97,7 @@ namespace {
 } // anonymous
 namespace {
 // Shared enumeration: combinations of `items` taken `K` at a time.
-[[maybe_unused]] Value combnkImpl(keel::ArrayRef<double> items, int K,
+[[maybe_unused]] Value combnkImpl(keel::ArrayRef<keel::f64> items, int K,
                  keel::Allocator *mr)
 {
     const int N = keel::as<int>(items.size());
@@ -116,7 +116,7 @@ namespace {
 
     Value out = Value::matrix((keel::usize)C, (keel::usize)K, ValueType::DOUBLE, mr);
     if (C == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     if (K == 0) return out;
 
     // Enumerate combinations in lex order by index recursion.

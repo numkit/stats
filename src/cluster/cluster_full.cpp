@@ -61,7 +61,7 @@ constexpr keel::StringRef kCriteria[] = {
 
 struct ClusterOpts {
     keel::String metric;
-    double p = 2.0;
+    keel::f64 p = 2.0;
     const Value *C = nullptr;   // Mahalanobis covariance
 };
 
@@ -111,7 +111,7 @@ Value pdist_full(const Value &X, keel::ArrayRef<Value> tail,
             ValueType::SINGLE, mr);
         for (keel::usize k = 0; k < n; ++k)
             out.singleDataMut()[k] =
-                keel::as<float>(d.elemAsDouble(k));
+                keel::as<keel::f32>(d.elemAsDouble(k));
         return out;
     }
     return d;
@@ -132,7 +132,7 @@ Pdist2Out pdist2_full(const Value &X, const Value &Y, keel::ArrayRef<Value> tail
             && i + 1 < tail.size()) {
             const keel::String s = lowerCopy(tail[i].toString());
             if (s == "smallest" || s == "largest") {
-                const double kv = argcheck::expectedReal(
+                const keel::f64 kv = argcheck::expectedReal(
                     tail[i + 1], 4, "k", "pdist2");
                 if (!(kv >= 1.0 && kv == std::floor(kv)))
                     throw Error(keel::format("pdist2: the 'Smallest'/'Largest' count "
@@ -167,7 +167,7 @@ Value linkage_full(const Value &Y, keel::ArrayRef<Value> tail,
 {
     keel::String method = keel::String::from("single");
     keel::String metric = keel::String::from("euclidean");
-    double p = 2.0;
+    keel::f64 p = 2.0;
     // Method: a string 2nd argument (validatestring against the
     // linkage methods — the reference's getParamVal class).
     if (!tail.empty() && (tail[0].isChar() || tail[0].isString())) {
@@ -219,7 +219,7 @@ Value cluster_full(const Value &Z, keel::ArrayRef<Value> tail,
                    keel::Allocator *mr)
 {
     int maxclust = -1;
-    double cutoff = -1.0;
+    keel::f64 cutoff = -1.0;
     int depth = 2;
     keel::String criterion = keel::String::from("inconsistent");
     for (keel::usize i = 0; i < tail.size(); ++i) {
@@ -272,7 +272,7 @@ Value inconsistent_full(const Value &Z, keel::ArrayRef<Value> tail,
 {
     int depth = 2;
     if (!tail.empty()) {
-        const double d = tail[0].elemAsDouble(0);
+        const keel::f64 d = tail[0].elemAsDouble(0);
         if (!(d >= 1.0 && d == std::floor(d)))
             throw Error(keel::format("inconsistent: depth must be a positive integer "
                         "scalar (got {}).", d),

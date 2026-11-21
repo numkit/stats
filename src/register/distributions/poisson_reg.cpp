@@ -58,16 +58,16 @@ void poisscdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mut
             v = dist_empty_like(nk == 0 ? k : lam, mr);
         } else {
             const keel::usize N = dist_match_numel({nk, nl}, "poisscdf");
-            Value xs = elementwise(k, [](double ki) { return ki < 0.0 ? 1.0 : std::floor(ki) + 1.0; }, mr);
+            Value xs = elementwise(k, [](keel::f64 ki) { return ki < 0.0 ? 1.0 : std::floor(ki) + 1.0; }, mr);
             Value lower = ::numkit::builtin::gammainc(lam, xs, mr);   // P(⌊k⌋+1, λ)
             const Value &ref = (nl == N) ? lam : k;
             v = dist_empty_like(ref, mr);
-            double *od = v.doubleDataMut();
+            keel::f64 *od = v.doubleDataMut();
             const keel::usize nlo = lower.numel();
-            const double NaN = std::numeric_limits<double>::quiet_NaN();
+            const keel::f64 NaN = std::numeric_limits<keel::f64>::quiet_NaN();
             for (keel::usize i = 0; i < N; ++i) {
-                const double li = lam.elemAsDouble(nl == 1 ? 0 : i);
-                const double ki = k.elemAsDouble(nk == 1 ? 0 : i);
+                const keel::f64 li = lam.elemAsDouble(nl == 1 ? 0 : i);
+                const keel::f64 ki = k.elemAsDouble(nk == 1 ? 0 : i);
                 if (li < 0.0) { od[i] = NaN; continue; }
                 if (li == 0.0) { od[i] = (ki >= 0.0) ? 1.0 : 0.0; continue; }
                 if (ki < 0.0) { od[i] = 0.0; continue; }
@@ -97,11 +97,11 @@ void poissinv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mut
     const keel::usize N = dist_match_numel({np, nl}, "poissinv");
     const Value &ref = (nl == N) ? lam : p;
     Value out = dist_empty_like(ref, mr);
-    double *od = out.doubleDataMut();
-    const double NaN = std::numeric_limits<double>::quiet_NaN();
+    keel::f64 *od = out.doubleDataMut();
+    const keel::f64 NaN = std::numeric_limits<keel::f64>::quiet_NaN();
     for (keel::usize i = 0; i < N; ++i) {
-        const double li = lam.elemAsDouble(nl == 1 ? 0 : i);
-        const double pi = p.elemAsDouble(np == 1 ? 0 : i);
+        const keel::f64 li = lam.elemAsDouble(nl == 1 ? 0 : i);
+        const keel::f64 pi = p.elemAsDouble(np == 1 ? 0 : i);
         od[i] = (li < 0.0) ? NaN : poiss_inv_scalar(pi, li);
     }
     outs[0] = std::move(out);
@@ -110,7 +110,7 @@ void poissinv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mut
 void poissrnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "poissrnd");  // no max: trailing size args (N-D tail; nk caps at two — bugs/opened/stats/rnd-nd-size-tails.md)
-    const double lambda = args[0].toScalar();
+    const keel::f64 lambda = args[0].toScalar();
     keel::usize rows, cols;
     parse_rng_size(args, 1, rows, cols, "poissrnd");
     outs[0] = reshape_rng_nd(poissrnd(ctx.engine->rng(), lambda, rows, cols, ctx.engine->allocator()), args, 1, ctx.engine->allocator(), "poissrnd");
@@ -120,7 +120,7 @@ void poisstat_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArra
 {
     argcheck::checkNargin(args.size(), 1, 1, "poisstat");
     emit_vec_stat_1arg(args, nargout, outs, ctx.engine->allocator(), "poisstat",
-                       [](double lambda) { return poisstat(lambda); });
+                       [](keel::f64 lambda) { return poisstat(lambda); });
 }
 
 } // namespace detail

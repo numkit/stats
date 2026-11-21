@@ -31,35 +31,35 @@ namespace numkit::stats {
 
 namespace {
 
-inline double sq_dist(const double *a, const double *b, keel::usize D) {
-    double s = 0.0;
-    for (keel::usize k = 0; k < D; ++k) { double d = a[k] - b[k]; s += d * d; }
+inline keel::f64 sq_dist(const keel::f64 *a, const keel::f64 *b, keel::usize D) {
+    keel::f64 s = 0.0;
+    for (keel::usize k = 0; k < D; ++k) { keel::f64 d = a[k] - b[k]; s += d * d; }
     return s;
 }
 
 // k-means++ centroid initialisation. Returns K rows of D values each
 // (flattened K*D-length buffer).
-[[maybe_unused]] keel::Array<double> kmeanspp_init(const keel::Array<double> &X,
+[[maybe_unused]] keel::Array<keel::f64> kmeanspp_init(const keel::Array<keel::f64> &X,
                                  keel::usize N, keel::usize D, int K,
                                  numkit::ops::MatlabMT19937 &gen,
                                  keel::Allocator *scratch_mr)
 {
-    keel::Array<double> C((keel::usize)K * D, scratch_mr);
+    keel::Array<keel::f64> C((keel::usize)K * D, scratch_mr);
     const keel::usize i0 = keel::random::uniform_usize(gen, 0, N - 1);
     std::copy(X.begin() + i0 * D, X.begin() + (i0 + 1) * D, C.begin());
 
-    keel::Array<double> dist(N, std::numeric_limits<double>::infinity(),
+    keel::Array<keel::f64> dist(N, std::numeric_limits<keel::f64>::infinity(),
                             scratch_mr);
     for (int k = 1; k < K; ++k) {
         // Update each point's nearest-centroid distance against the new
         // centroid (k-1).
-        const double *cprev = &C[(keel::usize)(k - 1) * D];
+        const keel::f64 *cprev = &C[(keel::usize)(k - 1) * D];
         for (keel::usize i = 0; i < N; ++i) {
-            const double d = sq_dist(&X[i * D], cprev, D);
+            const keel::f64 d = sq_dist(&X[i * D], cprev, D);
             if (d < dist[i]) dist[i] = d;
         }
         // Sample next centroid with probability proportional to dist.
-        double total = 0.0;
+        keel::f64 total = 0.0;
         for (auto v : dist) total += v;
         if (total <= 0.0) {
             // All points coincide with existing centroids; pick uniformly.
@@ -68,8 +68,8 @@ inline double sq_dist(const double *a, const double *b, keel::usize D) {
                       C.begin() + (keel::usize)k * D);
             continue;
         }
-        const double r = keel::random::uniform_f64(gen, 0.0, total);
-        double acc = 0.0;
+        const keel::f64 r = keel::random::uniform_f64(gen, 0.0, total);
+        keel::f64 acc = 0.0;
         keel::usize pick = N - 1;
         for (keel::usize i = 0; i < N; ++i) {
             acc += dist[i];
@@ -86,16 +86,16 @@ inline double sq_dist(const double *a, const double *b, keel::usize D) {
 // max_iter reached.
 struct LloydResult {
     keel::Array<int>    idx;
-    keel::Array<double> C;
-    keel::Array<double> sumd;
-    double             total{};
+    keel::Array<keel::f64> C;
+    keel::Array<keel::f64> sumd;
+    keel::f64             total{};
 
     LloydResult(keel::Allocator *scratch_mr)
         : idx(scratch_mr), C(scratch_mr), sumd(scratch_mr) {}
 };
 
-[[maybe_unused]] LloydResult lloyd(const keel::Array<double> &X, keel::usize N, keel::usize D, int K,
-                  keel::Array<double> &&C0, int max_iter,
+[[maybe_unused]] LloydResult lloyd(const keel::Array<keel::f64> &X, keel::usize N, keel::usize D, int K,
+                  keel::Array<keel::f64> &&C0, int max_iter,
                   keel::Allocator *scratch_mr)
 {
     LloydResult res(scratch_mr);
@@ -105,7 +105,7 @@ struct LloydResult {
     res.total = 0.0;
 
     keel::Array<int>    counts((keel::usize)K, 0, scratch_mr);
-    keel::Array<double> Cnext((keel::usize)K * D, 0.0, scratch_mr);
+    keel::Array<keel::f64> Cnext((keel::usize)K * D, 0.0, scratch_mr);
 
     for (int iter = 0; iter < max_iter; ++iter) {
         // Assign each point to nearest centroid.
@@ -116,11 +116,11 @@ struct LloydResult {
         res.total = 0.0;
 
         for (keel::usize i = 0; i < N; ++i) {
-            const double *xi = &X[i * D];
+            const keel::f64 *xi = &X[i * D];
             int best = 0;
-            double bd = std::numeric_limits<double>::infinity();
+            keel::f64 bd = std::numeric_limits<keel::f64>::infinity();
             for (int k = 0; k < K; ++k) {
-                const double d = sq_dist(xi, &res.C[(keel::usize)k * D], D);
+                const keel::f64 d = sq_dist(xi, &res.C[(keel::usize)k * D], D);
                 if (d < bd) { bd = d; best = k; }
             }
             if (res.idx[i] != best) { res.idx[i] = best; changed = true; }
@@ -132,7 +132,7 @@ struct LloydResult {
         // Update centroids.
         for (int k = 0; k < K; ++k) {
             if (counts[k] > 0) {
-                const double inv = 1.0 / double(counts[k]);
+                const keel::f64 inv = 1.0 / keel::f64(counts[k]);
                 for (keel::usize d = 0; d < D; ++d)
                     res.C[(keel::usize)k * D + d] = Cnext[(keel::usize)k * D + d] * inv;
             }
@@ -146,9 +146,9 @@ struct LloydResult {
     std::fill(res.sumd.begin(), res.sumd.end(), 0.0);
     res.total = 0.0;
     for (keel::usize i = 0; i < N; ++i) {
-        const double *xi = &X[i * D];
+        const keel::f64 *xi = &X[i * D];
         const int k = res.idx[i];
-        const double d = sq_dist(xi, &res.C[(keel::usize)k * D], D);
+        const keel::f64 d = sq_dist(xi, &res.C[(keel::usize)k * D], D);
         res.sumd[k] += d;
         res.total   += d;
     }

@@ -24,7 +24,7 @@
 namespace numkit::stats {
 
 namespace {
-void randsample_argcheck(keel::ArrayRef<double> w, int N)
+void randsample_argcheck(keel::ArrayRef<keel::f64> w, int N)
 {
     if (!w.empty() && keel::as<int>(w.size()) != N)
         throw Error("randsample: weights length must equal N",
@@ -37,7 +37,7 @@ Value randsample(::numkit::ops::RngContext &rng, int N, int K, bool with_replace
     if (N <= 0 || K <= 0)
         return Value::matrix(K > 0 ? K : 0, 1, ValueType::DOUBLE, mr);
 
-    keel::Array<double> w;
+    keel::Array<keel::f64> w;
     if (weights.numel() > 0) w = read_vec(weights);
     randsample_argcheck(w.as_ref(), N);
 
@@ -46,8 +46,8 @@ Value randsample(::numkit::ops::RngContext &rng, int N, int K, bool with_replace
         idx = sample_indices(N, K, with_replacement, w.as_ref(), rng);
     }
     Value out = Value::matrix((keel::usize)idx.size(), 1, ValueType::DOUBLE, mr);
-    double *od = out.doubleDataMut();
-    for (keel::usize i = 0; i < idx.size(); ++i) od[i] = double(idx[i] + 1);  // 1-based
+    keel::f64 *od = out.doubleDataMut();
+    for (keel::usize i = 0; i < idx.size(); ++i) od[i] = keel::f64(idx[i] + 1);  // 1-based
     return out;
 }
 
@@ -60,7 +60,7 @@ Value datasample(::numkit::ops::RngContext &rng, const Value &X, int K, int dim,
         throw Error("datasample: empty input", 0, 0, "datasample", "",
                     "numkit:datasample:empty");
 
-    keel::Array<double> w;
+    keel::Array<keel::f64> w;
     if (weights.numel() > 0) w = read_vec(weights);
     if (!w.empty() && (int)w.size() != N)
         throw Error("datasample: weights length must equal sample-axis size",
@@ -74,7 +74,7 @@ Value datasample(::numkit::ops::RngContext &rng, const Value &X, int K, int dim,
     if (dim == 2) {
         // Sample columns.
         Value out = Value::matrix(M, idx.size(), ValueType::DOUBLE, mr);
-        double *od = out.doubleDataMut();
+        keel::f64 *od = out.doubleDataMut();
         for (keel::usize k = 0; k < idx.size(); ++k)
             for (keel::usize r = 0; r < M; ++r)
                 od[k * M + r] = X.elemAsDouble((keel::usize)idx[k] * M + r);
@@ -82,7 +82,7 @@ Value datasample(::numkit::ops::RngContext &rng, const Value &X, int K, int dim,
     }
     // Sample rows.
     Value out = Value::matrix(idx.size(), D, ValueType::DOUBLE, mr);
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     for (keel::usize k = 0; k < idx.size(); ++k)
         for (keel::usize c = 0; c < D; ++c)
             od[c * idx.size() + k] = X.elemAsDouble(c * M + (keel::usize)idx[k]);
@@ -99,12 +99,12 @@ Value combnk(int N, int K, keel::Allocator *mr)
     if (N < 0)
         throw Error("combnk: N must be non-negative", 0, 0, "combnk", "",
                     "numkit:combnk:badN");
-    keel::Array<double> items((keel::usize)N);
-    for (int i = 0; i < N; ++i) items[(keel::usize)i] = double(i + 1);
+    keel::Array<keel::f64> items((keel::usize)N);
+    for (int i = 0; i < N; ++i) items[(keel::usize)i] = keel::f64(i + 1);
     return combnkImpl(items.as_ref(), K, mr);
 }
 
-Value combnk(keel::ArrayRef<double> v, int K, keel::Allocator *mr)
+Value combnk(keel::ArrayRef<keel::f64> v, int K, keel::Allocator *mr)
 {
     return combnkImpl(v, K, mr);
 }
@@ -123,7 +123,7 @@ namespace {
 bool parseReplaceFlag(const Value &v, const char *fn, const char *tag)
 {
     if (v.isLogical() || (v.isScalar() && v.isNumeric())) {
-        const double b = v.elemAsDouble(0);
+        const keel::f64 b = v.elemAsDouble(0);
         if (b == 0.0 || b == 1.0) return b != 0.0;
     } else if (v.isChar() || v.isString()) {
         keel::String t = v.toString();
@@ -137,17 +137,17 @@ bool parseReplaceFlag(const Value &v, const char *fn, const char *tag)
 
 // Weight vector: length-n, non-negative, positive sum (NaN caught by
 // the >= test).
-keel::Array<double> parseWeightVector(const Value &w, keel::usize n,
+keel::Array<keel::f64> parseWeightVector(const Value &w, keel::usize n,
                                       const char *fn, const char *sizeTag,
                                       const char *badTag)
 {
-    keel::Array<double> out;
+    keel::Array<keel::f64> out;
     if (w.isEmpty()) return out;
     if (!w.dims().isVector() || keel::as<keel::usize>(w.numel()) != n)
         throw Error(keel::format("{}: W must have length {}.", fn, n),
                     0, 0, fn, "", sizeTag);
     out.resize(n);
-    double sumw = 0.0;
+    keel::f64 sumw = 0.0;
     for (keel::usize i = 0; i < n; ++i) {
         out[i] = w.elemAsDouble(i);
         if (!(out[i] >= 0.0))
@@ -190,13 +190,13 @@ Value randsample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
                         0, 0, "randsample", "", "numkit:randsample:badPopulation");
         N = keel::as<keel::usize>(population.numel());
     }
-    const double kD = args[1].elemAsDouble(0);
+    const keel::f64 kD = args[1].elemAsDouble(0);
     const keel::usize K = keel::as<keel::usize>(std::max(kD, 0.0));
 
     const bool replace = (args.size() >= 3 && !args[2].isEmpty())
         ? parseReplaceFlag(args[2], "randsample", "numkit:randsample:badReplaceValue")
         : false;
-    keel::Array<double> w;
+    keel::Array<keel::f64> w;
     if (args.size() >= 4 && !args[3].isEmpty())
         w = parseWeightVector(args[3], N, "randsample",
                               "numkit:randsample:inputSizeMismatch",
@@ -248,17 +248,17 @@ Value randsample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
                         : Value::matrix(m, 1, single ? ValueType::SINGLE
                                                      : ValueType::DOUBLE, mr);
         for (keel::usize i = 0; i < m; ++i) {
-            const double v = population.elemAsDouble(
+            const keel::f64 v = population.elemAsDouble(
                 keel::as<keel::usize>(idx[i]));
-            if (single) out.singleDataMut()[i] = keel::as<float>(v);
+            if (single) out.singleDataMut()[i] = keel::as<keel::f32>(v);
             else out.doubleDataMut()[i] = v;
         }
         return out;
     }
     Value out = Value::matrix(idx.size(), 1, ValueType::DOUBLE, mr);
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     for (keel::usize i = 0; i < idx.size(); ++i)
-        od[i] = keel::as<double>(idx[i] + 1);
+        od[i] = keel::as<keel::f64>(idx[i] + 1);
     return out;
 }
 
@@ -269,7 +269,7 @@ Value datasample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
         throw Error("datasample: requires the input arguments DATA and K.",
                     0, 0, "datasample", "", "numkit:datasample:tooFewInputs");
     const Value &X = args[0];
-    const double kD = args[1].elemAsDouble(0);
+    const keel::f64 kD = args[1].elemAsDouble(0);
     if (!(args[1].isScalar() && args[1].isNumeric() && kD >= 0.0
             && kD == std::floor(kD)))
         throw Error("datasample: sample size K must be a non-negative "
@@ -317,7 +317,7 @@ Value datasample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
             wRaw = args[i + 1];
         }
     }
-    keel::Array<double> w = parseWeightVector(
+    keel::Array<keel::f64> w = parseWeightVector(
         wRaw, n, "datasample", "numkit:datasample:inputSizeMismatch",
         "numkit:datasample:invalidWeights");
 
@@ -336,7 +336,7 @@ Value datasample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
                         "numkit:datasample:sampleTooLarge");
         if (!w.empty()) {
             keel::usize posCount = 0;
-            for (double v : w) if (v > 0.0) ++posCount;
+            for (keel::f64 v : w) if (v > 0.0) ++posCount;
             if (posCount < K)
                 throw Error("datasample: there must be at least K positive "
                             "weights when sampling without replacement.",
@@ -369,7 +369,7 @@ Value datasample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
             return out;
         }
         Value out = Value::matrix(idx.size(), cols, ValueType::DOUBLE, mr);
-        double *od = out.doubleDataMut();
+        keel::f64 *od = out.doubleDataMut();
         for (keel::usize c = 0; c < cols; ++c)
             for (keel::usize k = 0; k < idx.size(); ++k)
                 od[c * idx.size() + k] =
@@ -395,7 +395,7 @@ Value datasample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
             return out;
         }
         Value out = Value::matrix(rows, idx.size(), ValueType::DOUBLE, mr);
-        double *od = out.doubleDataMut();
+        keel::f64 *od = out.doubleDataMut();
         for (keel::usize k = 0; k < idx.size(); ++k)
             for (keel::usize r = 0; r < rows; ++r)
                 od[k * rows + r] =

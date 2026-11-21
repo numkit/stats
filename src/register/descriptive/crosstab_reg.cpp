@@ -40,7 +40,7 @@ void crosstab_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         // each sorted-unique value of variable j (char row); rows beyond
         // a variable's category count are padded with [] (empty double),
         // matching MATLAB R2025b.
-        keel::Array<keel::Array<double>> uniques;
+        keel::Array<keel::Array<keel::f64>> uniques;
         uniques.push_back(sortedUniqueNoNaN(args[0]));
         if (!y_opt.isEmpty())
             uniques.push_back(sortedUniqueNoNaN(y_opt));

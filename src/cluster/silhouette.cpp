@@ -32,7 +32,7 @@ void silhouette_argcheck(const Value &X, const Value &clust)
 
 } // namespace
 
-Value silhouette(const Value &X, const Value &clust, keel::StringRef metric, double p, keel::Allocator *mr)
+Value silhouette(const Value &X, const Value &clust, keel::StringRef metric, keel::f64 p, keel::Allocator *mr)
 {
     silhouette_argcheck(X, clust);
     const auto &dx = X.dims();
@@ -57,17 +57,17 @@ Value silhouette(const Value &X, const Value &clust, keel::StringRef metric, dou
     if (D.dims().rows() != N || D.dims().cols() != N)
         throw Error("silhouette: pdist2 returned unexpected shape",
                     0, 0, "silhouette", "", "numkit:silhouette:internal");
-    const double *dd = D.doubleData();
+    const keel::f64 *dd = D.doubleData();
 
     Value out = Value::matrix(N, 1, ValueType::DOUBLE, mr);
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
 
     for (keel::usize i = 0; i < N; ++i) {
         const int k = lbl[i];
         const auto &mine = *groups.get(k);
 
         // a(i): mean distance to other points in same cluster.
-        double a = 0.0;
+        keel::f64 a = 0.0;
         if (mine.size() <= 1) {
             // Singleton: s(i) = 0 by MATLAB convention.
             od[i] = 0.0;
@@ -75,25 +75,25 @@ Value silhouette(const Value &X, const Value &clust, keel::StringRef metric, dou
         }
         for (keel::usize j : mine) if (j != i)
             a += dd[i + j * N];   // column-major: D(i, j) = dd[i + j*N]
-        a /= keel::as<double>(mine.size() - 1);
+        a /= keel::as<keel::f64>(mine.size() - 1);
 
         // b(i): min over other clusters of mean distance to that cluster.
-        double b = std::numeric_limits<double>::infinity();
+        keel::f64 b = std::numeric_limits<keel::f64>::infinity();
         for (auto [gk, members] : groups) {
             if (gk == k) continue;
-            double m = 0.0;
+            keel::f64 m = 0.0;
             for (keel::usize j : members) m += dd[i + j * N];
-            m /= keel::as<double>(members.size());
+            m /= keel::as<keel::f64>(members.size());
             if (m < b) b = m;
         }
         if (!std::isfinite(b)) {
             // Only one cluster in total — undefined; MATLAB returns NaN
             // (per behaviour with one group). We mirror that.
-            od[i] = std::numeric_limits<double>::quiet_NaN();
+            od[i] = std::numeric_limits<keel::f64>::quiet_NaN();
             continue;
         }
 
-        const double denom = std::max(a, b);
+        const keel::f64 denom = std::max(a, b);
         od[i] = (denom > 0.0) ? (b - a) / denom : 0.0;
     }
     return out;

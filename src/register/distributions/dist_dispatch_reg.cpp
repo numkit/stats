@@ -89,9 +89,9 @@ Value evalDistStructBase(const Value &pd, const char *suffix, const Value &xVal,
     auto *mr = ctx.engine->allocator();
     const keel::String dist = toLowerStr(pd.field("DistributionName").toString());
     const int nparams = keel::as<int>(pd.field("__nparams").toScalar());
-    const double p1 = (nparams >= 1) ? pd.field("p1").toScalar() : 0.0;
-    const double p2 = (nparams >= 2) ? pd.field("p2").toScalar() : 1.0;
-    const double p3 = (nparams >= 3) ? pd.field("p3").toScalar() : 1.0;
+    const keel::f64 p1 = (nparams >= 1) ? pd.field("p1").toScalar() : 0.0;
+    const keel::f64 p2 = (nparams >= 2) ? pd.field("p2").toScalar() : 1.0;
+    const keel::f64 p3 = (nparams >= 3) ? pd.field("p3").toScalar() : 1.0;
 
     if (dist == "tlocationscale") {
         // mu = p1, sigma = p2, nu = p3
@@ -160,19 +160,19 @@ void dispatchDistStruct(const char *fnName, const char *suffix,
     auto *mr = ctx.engine->allocator();
     const Value &pd = args[0];
     const bool isTrunc = pd.hasField("IsTruncated") && pd.field("IsTruncated").toBool();
-    const double tLo = pd.hasField("TruncLower") ? pd.field("TruncLower").toScalar()
-                                                 : -std::numeric_limits<double>::infinity();
-    const double tHi = pd.hasField("TruncUpper") ? pd.field("TruncUpper").toScalar()
-                                                 : std::numeric_limits<double>::infinity();
+    const keel::f64 tLo = pd.hasField("TruncLower") ? pd.field("TruncLower").toScalar()
+                                                 : -std::numeric_limits<keel::f64>::infinity();
+    const keel::f64 tHi = pd.hasField("TruncUpper") ? pd.field("TruncUpper").toScalar()
+                                                 : std::numeric_limits<keel::f64>::infinity();
     const keel::StringRef sfx(suffix);
 
     if (sfx == "rnd") {
         if (!isTrunc) {
             const keel::String dist = toLowerStr(pd.field("DistributionName").toString());
             const int nparams = keel::as<int>(pd.field("__nparams").toScalar());
-            const double p1 = (nparams >= 1) ? pd.field("p1").toScalar() : 0.0;
-            const double p2 = (nparams >= 2) ? pd.field("p2").toScalar() : 1.0;
-            const double p3 = (nparams >= 3) ? pd.field("p3").toScalar() : 1.0;
+            const keel::f64 p1 = (nparams >= 1) ? pd.field("p1").toScalar() : 0.0;
+            const keel::f64 p2 = (nparams >= 2) ? pd.field("p2").toScalar() : 1.0;
+            const keel::f64 p3 = (nparams >= 3) ? pd.field("p3").toScalar() : 1.0;
             if (dist == "tlocationscale") {
                 const ExternalFunc *fn = ctx.engine->findExternal("trnd", ctx.env);
                 if (!fn) throw Error("random: 'trnd' is not available", 0, 0, "random", "", "numkit:random:missing");
@@ -204,15 +204,15 @@ void dispatchDistStruct(const char *fnName, const char *suffix,
             return;
         }
         // Truncated random: inverse-CDF transform icdf_base(pl + (pu - pl) * rand(sz))
-        const double pl = std::isinf(tLo) && tLo < 0.0
+        const keel::f64 pl = std::isinf(tLo) && tLo < 0.0
             ? 0.0 : evalDistStructBase(pd, "cdf", Value::scalar(tLo, mr), ctx).toScalar();
-        const double pu = std::isinf(tHi) && tHi > 0.0
+        const keel::f64 pu = std::isinf(tHi) && tHi > 0.0
             ? 1.0 : evalDistStructBase(pd, "cdf", Value::scalar(tHi, mr), ctx).toScalar();
-        const double Z = std::max(pu - pl, 0.0);
+        const keel::f64 Z = std::max(pu - pl, 0.0);
         keel::usize rows = 1, cols = 1;
         parse_rng_size(args, 1, rows, cols, "random");
         Value u = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
-        double *ud = u.doubleDataMut();
+        keel::f64 *ud = u.doubleDataMut();
         const keel::usize n = rows * cols;
         auto &rng = ctx.engine->rng();
         for (keel::usize i = 0; i < n; ++i)
@@ -228,18 +228,18 @@ void dispatchDistStruct(const char *fnName, const char *suffix,
         return;
     }
 
-    const double pl = std::isinf(tLo) && tLo < 0.0
+    const keel::f64 pl = std::isinf(tLo) && tLo < 0.0
         ? 0.0 : evalDistStructBase(pd, "cdf", Value::scalar(tLo, mr), ctx).toScalar();
-    const double pu = std::isinf(tHi) && tHi > 0.0
+    const keel::f64 pu = std::isinf(tHi) && tHi > 0.0
         ? 1.0 : evalDistStructBase(pd, "cdf", Value::scalar(tHi, mr), ctx).toScalar();
-    const double Z = std::max(pu - pl, 1e-300);
+    const keel::f64 Z = std::max(pu - pl, 1e-300);
 
     if (sfx == "pdf") {
         Value out = evalDistStructBase(pd, "pdf", xVal, ctx);
-        double *od = out.doubleDataMut();
+        keel::f64 *od = out.doubleDataMut();
         const keel::usize n = out.numel();
         for (keel::usize i = 0; i < n; ++i) {
-            const double xi = xVal.elemAsDouble(i);
+            const keel::f64 xi = xVal.elemAsDouble(i);
             if (xi < tLo || xi > tHi) od[i] = 0.0;
             else od[i] /= Z;
         }
@@ -248,10 +248,10 @@ void dispatchDistStruct(const char *fnName, const char *suffix,
     }
     if (sfx == "cdf") {
         Value out = evalDistStructBase(pd, "cdf", xVal, ctx);
-        double *od = out.doubleDataMut();
+        keel::f64 *od = out.doubleDataMut();
         const keel::usize n = out.numel();
         for (keel::usize i = 0; i < n; ++i) {
-            const double xi = xVal.elemAsDouble(i);
+            const keel::f64 xi = xVal.elemAsDouble(i);
             if (xi <= tLo) od[i] = 0.0;
             else if (xi >= tHi) od[i] = 1.0;
             else od[i] = std::clamp((od[i] - pl) / Z, 0.0, 1.0);
@@ -264,9 +264,9 @@ void dispatchDistStruct(const char *fnName, const char *suffix,
             : Value::matrix(xVal.dims().rows(), xVal.dims().cols(), ValueType::DOUBLE, mr);
         const keel::usize n = xVal.numel();
         for (keel::usize i = 0; i < n; ++i) {
-            const double pi = xVal.elemAsDouble(i);
+            const keel::f64 pi = xVal.elemAsDouble(i);
             pScaled.doubleDataMut()[i] = (pi < 0.0 || pi > 1.0)
-                ? std::numeric_limits<double>::quiet_NaN()
+                ? std::numeric_limits<keel::f64>::quiet_NaN()
                 : (pl + pi * (pu - pl));
         }
         outs[0] = evalDistStructBase(pd, "inv", pScaled, ctx);
@@ -331,7 +331,7 @@ void makedist_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mut
     const keel::String dist = toLowerStr(rawName);
 
     int nparams = 2;
-    double p1 = 0.0, p2 = 1.0, p3 = 1.0;
+    keel::f64 p1 = 0.0, p2 = 1.0, p3 = 1.0;
     keel::StringRef n1 = "p1", n2 = "p2", n3 = "p3";
 
     if (dist == "normal" || dist == "norm" || dist == "gaussian" || dist == "lognormal" || dist == "logn") {
@@ -368,7 +368,7 @@ void makedist_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mut
         if (args[1].isChar() || args[1].isString()) {
             for (keel::usize i = 1; i + 1 < args.size(); i += 2) {
                 const keel::String k = toLowerStr(args[i].toString());
-                const double val = args[i + 1].toScalar();
+                const keel::f64 val = args[i + 1].toScalar();
                 if (k == toLowerStr(n1) || k == "p1") p1 = val;
                 else if (k == toLowerStr(n2) || k == "p2") p2 = val;
                 else if (k == toLowerStr(n3) || k == "p3") p3 = val;
@@ -382,7 +382,7 @@ void makedist_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mut
 
     Value pd = Value::structure(mr);
     pd.setFieldAll("DistributionName", Value::fromString(rawName, mr));
-    pd.setFieldAll("__nparams", Value::scalar(keel::as<double>(nparams), mr));
+    pd.setFieldAll("__nparams", Value::scalar(keel::as<keel::f64>(nparams), mr));
     pd.setFieldAll("p1", Value::scalar(p1, mr));
     pd.setFieldAll("p2", Value::scalar(p2, mr));
     pd.setFieldAll("p3", Value::scalar(p3, mr));
@@ -390,8 +390,8 @@ void makedist_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mut
     if (nparams >= 2) pd.setFieldAll(n2, Value::scalar(p2, mr));
     if (nparams >= 3) pd.setFieldAll(n3, Value::scalar(p3, mr));
     pd.setFieldAll("IsTruncated", Value::logicalScalar(false, mr));
-    pd.setFieldAll("TruncLower", Value::scalar(-std::numeric_limits<double>::infinity(), mr));
-    pd.setFieldAll("TruncUpper", Value::scalar(std::numeric_limits<double>::infinity(), mr));
+    pd.setFieldAll("TruncLower", Value::scalar(-std::numeric_limits<keel::f64>::infinity(), mr));
+    pd.setFieldAll("TruncUpper", Value::scalar(std::numeric_limits<keel::f64>::infinity(), mr));
     outs[0] = std::move(pd);
 }
 
@@ -402,8 +402,8 @@ void truncate_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mut
         throw Error("truncate: first argument must be a probability distribution object",
                     0, 0, "truncate", "", "numkit:truncate:pd");
     auto *mr = ctx.engine->allocator();
-    const double lo = args[1].toScalar();
-    const double hi = args[2].toScalar();
+    const keel::f64 lo = args[1].toScalar();
+    const keel::f64 hi = args[2].toScalar();
     if (!(lo < hi))
         throw Error("truncate: lower bound must be strictly less than upper bound",
                     0, 0, "truncate", "", "numkit:truncate:bounds");

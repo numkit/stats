@@ -30,8 +30,8 @@ namespace numkit::stats {
 
 namespace {
 
-constexpr double kEulerGamma = 0.5772156649015328606065120900824024;
-constexpr double kPi2Over6   = 1.6449340668482264364724151666460252;  // π²/6
+constexpr keel::f64 kEulerGamma = 0.5772156649015328606065120900824024;
+constexpr keel::f64 kPi2Over6   = 1.6449340668482264364724151666460252;  // π²/6
 
 template <typename Op>
 Value elementwise(const Value &x, Op op, keel::Allocator *mr)
@@ -43,7 +43,7 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
     else          out = Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
     const keel::usize n = x.numel();
     if (n == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     for (keel::usize i = 0; i < n; ++i) od[i] = op(x.elemAsDouble(i));
     return out;
 }

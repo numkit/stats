@@ -29,13 +29,13 @@ namespace numkit::stats {
 namespace {
 
 // Sorted-unique values from x (NaN excluded).
-keel::Array<double> sortedUniqueNoNaN(const Value &x)
+keel::Array<keel::f64> sortedUniqueNoNaN(const Value &x)
 {
     const keel::usize N = x.numel();
-    keel::Array<double> v;
+    keel::Array<keel::f64> v;
     v.reserve(N);
     for (keel::usize i = 0; i < N; ++i) {
-        const double xi = x.elemAsDouble(i);
+        const keel::f64 xi = x.elemAsDouble(i);
         if (std::isnan(xi)) continue;
         v.push_back(xi);
     }
@@ -45,7 +45,7 @@ keel::Array<double> sortedUniqueNoNaN(const Value &x)
 }
 
 // Find index of value in sorted unique list (binary search).
-[[maybe_unused]] keel::usize indexOf(const keel::Array<double> &u, double val)
+[[maybe_unused]] keel::usize indexOf(const keel::Array<keel::f64> &u, keel::f64 val)
 {
     auto it = std::lower_bound(u.begin(), u.end(), val);
     return keel::as<keel::usize>(it - u.begin());
@@ -55,7 +55,7 @@ keel::Array<double> sortedUniqueNoNaN(const Value &x)
 // MATLAB crosstab's `labels` output. Integer values print without a
 // decimal point; non-integers fall back to %.5g (num2str's default
 // significant-digit count for the simple decimals seen in group ids).
-[[maybe_unused]] keel::String labelString(double v)
+[[maybe_unused]] keel::String labelString(keel::f64 v)
 {
     char buf[64];
     if (std::isfinite(v) && v == std::floor(v) && std::fabs(v) < 1e15)

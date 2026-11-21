@@ -65,7 +65,7 @@ void raylinv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
 void raylrnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "raylrnd");  // no max: trailing size args (N-D tail; nk caps at two — bugs/opened/stats/rnd-nd-size-tails.md)
-    const double b = args[0].toScalar();
+    const keel::f64 b = args[0].toScalar();
     keel::usize rows, cols;
     parse_rng_size(args, 1, rows, cols, "raylrnd");
     outs[0] = reshape_rng_nd(raylrnd(ctx.engine->rng(), b, rows, cols, ctx.engine->allocator()), args, 1, ctx.engine->allocator(), "raylrnd");
@@ -75,7 +75,7 @@ void raylstat_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArra
 {
     argcheck::checkNargin(args.size(), 1, 1, "raylstat");
     emit_vec_stat_1arg(args, nargout, outs, ctx.engine->allocator(), "raylstat",
-                       [](double b) { return raylstat(b); });
+                       [](keel::f64 b) { return raylstat(b); });
 }
 
 } // namespace detail

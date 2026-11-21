@@ -65,7 +65,7 @@ void unidinv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
 void unidrnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "unidrnd");  // no max: trailing size args (N-D tail; nk caps at two — bugs/opened/stats/rnd-nd-size-tails.md)
-    const double N = args[0].toScalar();
+    const keel::f64 N = args[0].toScalar();
     keel::usize rows, cols;
     parse_rng_size(args, 1, rows, cols, "unidrnd");
     outs[0] = reshape_rng_nd(unidrnd(ctx.engine->rng(), N, rows, cols, ctx.engine->allocator()), args, 1, ctx.engine->allocator(), "unidrnd");
@@ -75,7 +75,7 @@ void unidstat_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArra
 {
     argcheck::checkNargin(args.size(), 1, 1, "unidstat");
     emit_vec_stat_1arg(args, nargout, outs, ctx.engine->allocator(), "unidstat",
-                       [](double N) { return unidstat(N); });
+                       [](keel::f64 N) { return unidstat(N); });
 }
 
 } // namespace detail

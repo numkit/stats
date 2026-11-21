@@ -40,7 +40,7 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
     else          out = Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
     const keel::usize n = x.numel();
     if (n == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     for (keel::usize i = 0; i < n; ++i) od[i] = op(x.elemAsDouble(i));
     return out;
 }
@@ -48,34 +48,34 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
 // Scalar kernels for the parameter-broadcast path (vector a/b). Own their
 // per-element domain (a<=0 or b<=0 → NaN). Mirror the public fns
 // bit-identically, including the x∈{0} boundary and NaN propagation.
-inline double wblpdfK(double x, double a, double b)
+inline keel::f64 wblpdfK(keel::f64 x, keel::f64 a, keel::f64 b)
 {
-    const double NaN = std::numeric_limits<double>::quiet_NaN();
+    const keel::f64 NaN = std::numeric_limits<keel::f64>::quiet_NaN();
     if (!(a > 0.0) || !(b > 0.0)) return NaN;   // also catches NaN params
     if (std::isnan(x)) return NaN;
     if (x < 0.0) return 0.0;
     if (x == 0.0) {
-        if (b < 1.0) return std::numeric_limits<double>::infinity();
+        if (b < 1.0) return std::numeric_limits<keel::f64>::infinity();
         if (b > 1.0) return 0.0;
         return 1.0 / a;   // b == 1 (exponential)
     }
-    const double r = x / a;
+    const keel::f64 r = x / a;
     return (b / a) * std::pow(r, b - 1.0) * std::exp(-std::pow(r, b));
 }
 
-inline double wblcdfK(double x, double a, double b)
+inline keel::f64 wblcdfK(keel::f64 x, keel::f64 a, keel::f64 b)
 {
-    if (a <= 0.0 || b <= 0.0) return std::numeric_limits<double>::quiet_NaN();
+    if (a <= 0.0 || b <= 0.0) return std::numeric_limits<keel::f64>::quiet_NaN();
     if (x <= 0.0) return 0.0;
     return -std::expm1(-std::pow(x / a, b));
 }
 
-inline double wblinvK(double p, double a, double b)
+inline keel::f64 wblinvK(keel::f64 p, keel::f64 a, keel::f64 b)
 {
-    if (a <= 0.0 || b <= 0.0) return std::numeric_limits<double>::quiet_NaN();
-    if (p < 0.0 || p > 1.0) return std::numeric_limits<double>::quiet_NaN();
+    if (a <= 0.0 || b <= 0.0) return std::numeric_limits<keel::f64>::quiet_NaN();
+    if (p < 0.0 || p > 1.0) return std::numeric_limits<keel::f64>::quiet_NaN();
     if (p == 0.0) return 0.0;
-    if (p >= 1.0) return std::numeric_limits<double>::infinity();
+    if (p >= 1.0) return std::numeric_limits<keel::f64>::infinity();
     return a * std::pow(-std::log1p(-p), 1.0 / b);
 }
 

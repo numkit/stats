@@ -64,7 +64,7 @@ Value movmad(const Value &x, keel::ArrayRef<keel::usize> k, int dim, keel::Alloc
 // driver cannot align a weighted kernel at truncated edges (its reducer only
 // sees the shrunk window, not the centre position), so this path walks slices
 // directly. Inputs are DOUBLE-backed (mirrors the rest of the moving driver).
-static Value smoothGaussianDim(const Value &x, const Window &w, double sigma,
+static Value smoothGaussianDim(const Value &x, const Window &w, keel::f64 sigma,
                                int dim, const MovOpts &opt,
                                keel::Allocator *mr)
 {
@@ -72,28 +72,28 @@ static Value smoothGaussianDim(const Value &x, const Window &w, double sigma,
     if (x.isScalar()) return Value::scalar(x.toScalar(), mr);
 
     const long kb = w.kb, kf = w.kf;
-    const double inv2s2 = (sigma > 0.0) ? 1.0 / (2.0 * sigma * sigma) : 0.0;
-    auto perSlice = [&](const double *src, keel::usize n, keel::isize step, double *dst) {
+    const keel::f64 inv2s2 = (sigma > 0.0) ? 1.0 / (2.0 * sigma * sigma) : 0.0;
+    auto perSlice = [&](const keel::f64 *src, keel::usize n, keel::isize step, keel::f64 *dst) {
         const long N = keel::as<long>(n);
         for (long i = 0; i < N; ++i) {
             const long lo = std::max(0L, i - kb), hi = std::min(N - 1, i + kf);
-            double sw = 0.0, ssum = 0.0;
+            keel::f64 sw = 0.0, ssum = 0.0;
             for (long j = lo; j <= hi; ++j) {
-                const double v = src[j * step];
+                const keel::f64 v = src[j * step];
                 if (opt.omit_nan && std::isnan(v)) continue;
-                const double dd = keel::as<double>(j - i);
-                const double wt = std::exp(-dd * dd * inv2s2);
+                const keel::f64 dd = keel::as<keel::f64>(j - i);
+                const keel::f64 wt = std::exp(-dd * dd * inv2s2);
                 ssum += wt * v;
                 sw += wt;
             }
             dst[i * step] = (sw > 0.0) ? ssum / sw
-                                       : std::numeric_limits<double>::quiet_NaN();
+                                       : std::numeric_limits<keel::f64>::quiet_NaN();
         }
     };
 
     auto out = createLike(x, ValueType::DOUBLE, mr);
-    double *dst = out.doubleDataMut();
-    const double *src = x.doubleData();
+    keel::f64 *dst = out.doubleDataMut();
+    const keel::f64 *src = x.doubleData();
     const auto &d = x.dims();
     if (d.isVector()) { perSlice(src, x.numel(), 1, dst); return out; }
 
@@ -121,42 +121,42 @@ static Value smoothGaussianDim(const Value &x, const Window &w, double sigma,
 // is the Vandermonde of [-m..m] to degree `deg`. Row m is the steady-state
 // smoothing kernel; the boundary rows handle the F-point edge windows. Matches
 // MATLAB sgolay/sgolayfilt exactly.
-static void buildSGMatrix(int F, int deg, keel::Array<double> &B)
+static void buildSGMatrix(int F, int deg, keel::Array<keel::f64> &B)
 {
     const int p1 = deg + 1;
     const int m  = (F - 1) / 2;
-    keel::Array<double> AtA(keel::as<keel::usize>(p1) * p1, 0.0);
+    keel::Array<keel::f64> AtA(keel::as<keel::usize>(p1) * p1, 0.0);
     for (int a = 0; a < p1; ++a)
         for (int b = 0; b < p1; ++b) {
-            double s = 0.0;
-            for (int i = 0; i < F; ++i) s += std::pow(keel::as<double>(i - m), a + b);
+            keel::f64 s = 0.0;
+            for (int i = 0; i < F; ++i) s += std::pow(keel::as<keel::f64>(i - m), a + b);
             AtA[a * p1 + b] = s;
         }
     // Invert AtA via Gauss-Jordan on [AtA | I].
     const int W = 2 * p1;
-    keel::Array<double> aug(keel::as<keel::usize>(p1) * W, 0.0);
+    keel::Array<keel::f64> aug(keel::as<keel::usize>(p1) * W, 0.0);
     for (int i = 0; i < p1; ++i) { for (int j = 0; j < p1; ++j) aug[i * W + j] = AtA[i * p1 + j]; aug[i * W + p1 + i] = 1.0; }
     for (int col = 0; col < p1; ++col) {
-        int piv = col; double best = std::fabs(aug[col * W + col]);
-        for (int r = col + 1; r < p1; ++r) { double v = std::fabs(aug[r * W + col]); if (v > best) { best = v; piv = r; } }
+        int piv = col; keel::f64 best = std::fabs(aug[col * W + col]);
+        for (int r = col + 1; r < p1; ++r) { keel::f64 v = std::fabs(aug[r * W + col]); if (v > best) { best = v; piv = r; } }
         if (piv != col) for (int j = 0; j < W; ++j) std::swap(aug[col * W + j], aug[piv * W + j]);
-        const double d = aug[col * W + col];
+        const keel::f64 d = aug[col * W + col];
         for (int j = 0; j < W; ++j) aug[col * W + j] /= d;
         for (int r = 0; r < p1; ++r) {
             if (r == col) continue;
-            const double f = aug[r * W + col];
+            const keel::f64 f = aug[r * W + col];
             if (f == 0.0) continue;
             for (int j = 0; j < W; ++j) aug[r * W + j] -= f * aug[col * W + j];
         }
     }
-    B = keel::Array<double>(keel::as<keel::usize>(F) * F, 0.0);
+    B = keel::Array<keel::f64>(keel::as<keel::usize>(F) * F, 0.0);
     for (int i = 0; i < F; ++i)
         for (int j = 0; j < F; ++j) {
-            double s = 0.0;
+            keel::f64 s = 0.0;
             for (int a = 0; a < p1; ++a) {
-                const double ia = std::pow(keel::as<double>(i - m), a);
+                const keel::f64 ia = std::pow(keel::as<keel::f64>(i - m), a);
                 for (int b = 0; b < p1; ++b)
-                    s += ia * aug[a * W + p1 + b] * std::pow(keel::as<double>(j - m), b);
+                    s += ia * aug[a * W + p1 + b] * std::pow(keel::as<keel::f64>(j - m), b);
             }
             B[keel::as<keel::usize>(i) * F + j] = s;
         }
@@ -165,8 +165,8 @@ static void buildSGMatrix(int F, int deg, keel::Array<double> &B)
 // Apply the SG projection over one slice (stride `step`): interior samples use
 // the centre row; the first/last m samples use the boundary rows of the F-point
 // edge window. Matches MATLAB sgolayfilt's edge handling.
-static void sgolaySlice(const double *src, keel::usize n, keel::isize step, double *dst,
-                        keel::ArrayRef<double> B, int F)
+static void sgolaySlice(const keel::f64 *src, keel::usize n, keel::isize step, keel::f64 *dst,
+                        keel::ArrayRef<keel::f64> B, int F)
 {
     const int N = keel::as<int>(n);
     const int m = (F - 1) / 2;
@@ -175,7 +175,7 @@ static void sgolaySlice(const double *src, keel::usize n, keel::isize step, doub
         if (nn < m)            { row = nn;            base = 0;     }   // leading edge
         else if (nn >= N - m)  { row = nn - (N - F);  base = N - F; }   // trailing edge
         else                   { row = m;             base = nn - m; }  // interior
-        double s = 0.0;
+        keel::f64 s = 0.0;
         for (int j = 0; j < F; ++j) s += B[keel::as<keel::usize>(row) * F + j] * src[keel::as<keel::isize>(base + j) * step];
         dst[keel::as<keel::isize>(nn) * step] = s;
     }
@@ -189,8 +189,8 @@ static Value smoothSGDim(const Value &x, int F, int deg, int dim, keel::Allocato
     if (x.isScalar()) return Value::scalar(x.toScalar(), mr);
 
     auto          out = createLike(x, ValueType::DOUBLE, mr);
-    double *      dst = out.doubleDataMut();
-    const double *src = x.doubleData();
+    keel::f64 *      dst = out.doubleDataMut();
+    const keel::f64 *src = x.doubleData();
     const auto &  d   = x.dims();
 
     const keel::usize sliceLen = d.isVector() ? x.numel()
@@ -200,10 +200,10 @@ static Value smoothSGDim(const Value &x, int F, int deg, int dim, keel::Allocato
     if (Fe % 2 == 0) --Fe;                       // SG window must be odd
     if (Fe < deg + 1) Fe = deg + 1 | 1;          // need > degree (odd)
     if (Fe < 1) Fe = 1;
-    keel::Array<double> B;
+    keel::Array<keel::f64> B;
     if (Fe >= deg + 1) buildSGMatrix(Fe, deg, B);
 
-    auto perSlice = [&](const double *s, keel::usize nlen, keel::isize step, double *o) {
+    auto perSlice = [&](const keel::f64 *s, keel::usize nlen, keel::isize step, keel::f64 *o) {
         if (Fe < deg + 1 || nlen < keel::as<keel::usize>(Fe)) {
             for (keel::usize i = 0; i < nlen; ++i) o[i * step] = s[i * step];  // too short → passthrough
             return;
@@ -238,7 +238,7 @@ static Value smoothSGDim(const Value &x, int F, int deg, int dim, keel::Allocato
 // (window edges → weight 0); the fitted value is the constant term (the fit at
 // the query point). Matches MATLAB exactly. Rank-deficient windows fall back to
 // the weighted mean. P = deg+1 ≤ 3.
-static void localRegressSlice(const double *src, keel::usize n, keel::isize step, double *dst,
+static void localRegressSlice(const keel::f64 *src, keel::usize n, keel::isize step, keel::f64 *dst,
                               int F, int deg)
 {
     const int N = keel::as<int>(n);
@@ -248,22 +248,22 @@ static void localRegressSlice(const double *src, keel::usize n, keel::isize step
         int lo = i - m;
         if (lo < 0)      lo = 0;
         if (lo > N - F)  lo = N - F;
-        double dmax = 0.0;
-        for (int j = lo; j < lo + F; ++j) { const double d = std::fabs(j - i); if (d > dmax) dmax = d; }
+        keel::f64 dmax = 0.0;
+        for (int j = lo; j < lo + F; ++j) { const keel::f64 d = std::fabs(j - i); if (d > dmax) dmax = d; }
         if (dmax == 0.0) dmax = 1.0;
 
-        double AtA[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
-        double Atb[3] = {0, 0, 0};
+        keel::f64 AtA[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+        keel::f64 Atb[3] = {0, 0, 0};
         for (int j = lo; j < lo + F; ++j) {
-            double u = std::fabs(j - i) / dmax;
+            keel::f64 u = std::fabs(j - i) / dmax;
             if (u > 1.0) u = 1.0;
-            const double t1 = 1.0 - u * u * u;
-            const double w  = t1 * t1 * t1;             // tricube
+            const keel::f64 t1 = 1.0 - u * u * u;
+            const keel::f64 w  = t1 * t1 * t1;             // tricube
             if (w == 0.0) continue;
-            double basis[3];
+            keel::f64 basis[3];
             basis[0] = 1.0;
             for (int p = 1; p < P; ++p) basis[p] = basis[p - 1] * (j - i);
-            const double yj = src[keel::as<keel::isize>(j) * step];
+            const keel::f64 yj = src[keel::as<keel::isize>(j) * step];
             for (int a = 0; a < P; ++a) {
                 Atb[a] += w * basis[a] * yj;
                 for (int b = 0; b < P; ++b) AtA[a * P + b] += w * basis[a] * basis[b];
@@ -271,19 +271,19 @@ static void localRegressSlice(const double *src, keel::usize n, keel::isize step
         }
         // Solve the P×P system; the value is x[0]. Gaussian elimination with a
         // pivot threshold; on rank-deficiency fall back to the weighted mean.
-        double M[9], b[3], val;
+        keel::f64 M[9], b[3], val;
         for (int t = 0; t < P * P; ++t) M[t] = AtA[t];
         for (int t = 0; t < P; ++t)     b[t] = Atb[t];
         bool ok = true;
         for (int col = 0; col < P && ok; ++col) {
-            int piv = col; double best = std::fabs(M[col * P + col]);
-            for (int r = col + 1; r < P; ++r) { const double v = std::fabs(M[r * P + col]); if (v > best) { best = v; piv = r; } }
+            int piv = col; keel::f64 best = std::fabs(M[col * P + col]);
+            for (int r = col + 1; r < P; ++r) { const keel::f64 v = std::fabs(M[r * P + col]); if (v > best) { best = v; piv = r; } }
             if (best < 1e-12) { ok = false; break; }
             if (piv != col) { for (int j = 0; j < P; ++j) std::swap(M[col * P + j], M[piv * P + j]); std::swap(b[col], b[piv]); }
-            const double d = M[col * P + col];
+            const keel::f64 d = M[col * P + col];
             for (int j = 0; j < P; ++j) M[col * P + j] /= d;
             b[col] /= d;
-            for (int r = 0; r < P; ++r) { if (r == col) continue; const double f = M[r * P + col]; for (int j = 0; j < P; ++j) M[r * P + j] -= f * M[col * P + j]; b[r] -= f * b[col]; }
+            for (int r = 0; r < P; ++r) { if (r == col) continue; const keel::f64 f = M[r * P + col]; for (int j = 0; j < P; ++j) M[r * P + j] -= f * M[col * P + j]; b[r] -= f * b[col]; }
         }
         val = ok ? b[0] : (AtA[0] > 0.0 ? Atb[0] / AtA[0] : src[keel::as<keel::isize>(i) * step]);
         dst[keel::as<keel::isize>(i) * step] = val;
@@ -297,8 +297,8 @@ static Value smoothLocalRegDim(const Value &x, int F, int deg, int dim, keel::Al
     if (x.isScalar()) return Value::scalar(x.toScalar(), mr);
 
     auto          out = createLike(x, ValueType::DOUBLE, mr);
-    double *      dst = out.doubleDataMut();
-    const double *src = x.doubleData();
+    keel::f64 *      dst = out.doubleDataMut();
+    const keel::f64 *src = x.doubleData();
     const auto &  d   = x.dims();
 
     const keel::usize sliceLen = d.isVector() ? x.numel()
@@ -307,7 +307,7 @@ static Value smoothLocalRegDim(const Value &x, int F, int deg, int dim, keel::Al
     if (Fe > keel::as<int>(sliceLen)) Fe = keel::as<int>(sliceLen);
     if (Fe < 1) Fe = 1;
 
-    auto perSlice = [&](const double *s, keel::usize nlen, keel::isize step, double *o) {
+    auto perSlice = [&](const keel::f64 *s, keel::usize nlen, keel::isize step, keel::f64 *o) {
         if (nlen < keel::as<keel::usize>(Fe) || Fe < 2) {
             for (keel::usize i = 0; i < nlen; ++i) o[i * step] = s[i * step];
             return;
@@ -351,7 +351,7 @@ void smoothdata_argcheck(keel::StringRef method)
     }
 }
 
-void hampel_argcheck(const Value &x, int k, double nsigmas)
+void hampel_argcheck(const Value &x, int k, keel::f64 nsigmas)
 {
     if (k < 0)
         throw Error("hampel: k must be >= 0",
@@ -378,7 +378,7 @@ Value smoothdata(const Value &x, keel::StringRef method, int k, int dim, keel::A
         const keel::usize n = (x.dims().isVector() || x.isScalar())
                           ? x.numel()
                           : x.dims().rows();
-        long auto_k = keel::as<long>(std::round(0.1 * keel::as<double>(n)));
+        long auto_k = keel::as<long>(std::round(0.1 * keel::as<keel::f64>(n)));
         if (auto_k < 3) auto_k = 3;
         if (auto_k > keel::as<long>(n)) auto_k = keel::as<long>(n);
         k = keel::as<int>(auto_k);
@@ -399,7 +399,7 @@ Value smoothdata(const Value &x, keel::StringRef method, int k, int dim, keel::A
         // 'shrink' endpoints.
         const auto w = decodeWindow(kSpan, "smoothdata");
         const int d = resolveDim(x, dim, "smoothdata");
-        const double sigma = (k > 0) ? keel::as<double>(k) / 5.0 : 0.2;
+        const keel::f64 sigma = (k > 0) ? keel::as<keel::f64>(k) / 5.0 : 0.2;
         return smoothGaussianDim(x, w, sigma, d, opt, mr);
     }
     if (m == "sgolay") {
@@ -422,18 +422,18 @@ Value smoothdata(const Value &x, keel::StringRef method, int k, int dim, keel::A
 // ── hampel ────────────────────────────────────────────────────────────
 
 // MAD→σ normal-consistency constant 1/norminv(0.75).
-constexpr double kHampelMadToStd = 1.4826022185056018;
+constexpr keel::f64 kHampelMadToStd = 1.4826022185056018;
 
 // Core single-pass hampel filter over a length-`n` vector. Always fills
 // `dst`; when non-null, also fills `mask` (1 where the point was replaced),
 // `median` (local window median), and `sigma` (local 1.4826·MAD estimate).
-void hampelCore(const double *src, keel::usize n, int k, double nsigmas,
-                       double *dst, keel::u8 *mask, double *median,
-                       double *sigma, keel::Allocator *mr)
+void hampelCore(const keel::f64 *src, keel::usize n, int k, keel::f64 nsigmas,
+                       keel::f64 *dst, keel::u8 *mask, keel::f64 *median,
+                       keel::f64 *sigma, keel::Allocator *mr)
 {
     if (n == 0) return;
     keel::ArenaTemp scratch = keel::get_scratch(mr);
-    auto buf = keel::Array<double>(2 * k + 1, scratch.allocator());
+    auto buf = keel::Array<keel::f64>(2 * k + 1, scratch.allocator());
     for (long i = 0; i < keel::as<long>(n); ++i) {
         const long lo = std::max<long>(0, i - k);
         const long hi = std::min<long>(keel::as<long>(n) - 1, i + k);
@@ -441,14 +441,14 @@ void hampelCore(const double *src, keel::usize n, int k, double nsigmas,
         for (long j = 0; j < len; ++j)
             buf[keel::as<keel::usize>(j)] = src[lo + j];
         // Median + MAD on the same window.
-        auto copy1 = keel::Array<double>(len, scratch.allocator());
+        auto copy1 = keel::Array<keel::f64>(len, scratch.allocator());
         std::copy(buf.data(), buf.data() + len, copy1.data());
-        const double med = winMedianInPlace(copy1.data(), keel::as<keel::usize>(len));
-        auto devs = keel::Array<double>(len, scratch.allocator());
+        const keel::f64 med = winMedianInPlace(copy1.data(), keel::as<keel::usize>(len));
+        auto devs = keel::Array<keel::f64>(len, scratch.allocator());
         for (long j = 0; j < len; ++j)
             devs[keel::as<keel::usize>(j)] = keel::abs(buf[keel::as<keel::usize>(j)] - med);
-        const double mad = winMedianInPlace(devs.data(), keel::as<keel::usize>(len));
-        const double sig = kHampelMadToStd * mad;
+        const keel::f64 mad = winMedianInPlace(devs.data(), keel::as<keel::usize>(len));
+        const keel::f64 sig = kHampelMadToStd * mad;
         const bool isOut = keel::abs(src[i] - med) > nsigmas * sig;
         dst[i] = isOut ? med : src[i];
         if (mask)   mask[keel::as<keel::usize>(i)]   = isOut ? 1 : 0;
@@ -457,12 +457,12 @@ void hampelCore(const double *src, keel::usize n, int k, double nsigmas,
     }
 }
 
-void hampelValidate(const Value &x, int k, double nsigmas)
+void hampelValidate(const Value &x, int k, keel::f64 nsigmas)
 {
     hampel_argcheck(x, k, nsigmas);
 }
 
-Value hampel(const Value &x, int k, double nsigmas, keel::Allocator *mr)
+Value hampel(const Value &x, int k, keel::f64 nsigmas, keel::Allocator *mr)
 {
     hampel_argcheck(x, k, nsigmas);
     auto out = createLike(x, ValueType::DOUBLE, mr);

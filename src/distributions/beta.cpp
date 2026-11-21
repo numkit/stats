@@ -26,34 +26,34 @@
 namespace numkit::stats {
 
 namespace {
-inline bool beta_argcheck(double a, double b) noexcept
+inline bool beta_argcheck(keel::f64 a, keel::f64 b) noexcept
 {
     return a > 0.0 && b > 0.0;
 }
 } // namespace
 
-Value betapdf(const Value &x, double a, double b, keel::Allocator *mr)
+Value betapdf(const Value &x, keel::f64 a, keel::f64 b, keel::Allocator *mr)
 {
     (void)beta_argcheck(a, b);
-    return elementwise(x, [=](double xi) { return keel::stats::beta_pdf(xi, a, b); }, mr);
+    return elementwise(x, [=](keel::f64 xi) { return keel::stats::beta_pdf(xi, a, b); }, mr);
 }
 
-Value betacdf(const Value &x, double a, double b, keel::Allocator *mr)
+Value betacdf(const Value &x, keel::f64 a, keel::f64 b, keel::Allocator *mr)
 {
-    return elementwise(x, [=](double xi) { return keel::stats::beta_cdf(xi, a, b); }, mr);
+    return elementwise(x, [=](keel::f64 xi) { return keel::stats::beta_cdf(xi, a, b); }, mr);
 }
 
-Value betainv(const Value &p, double a, double b, keel::Allocator *mr)
+Value betainv(const Value &p, keel::f64 a, keel::f64 b, keel::Allocator *mr)
 {
-    return elementwise(p, [=](double pi) { return keel::stats::beta_inv(pi, a, b); }, mr);
+    return elementwise(p, [=](keel::f64 pi) { return keel::stats::beta_inv(pi, a, b); }, mr);
 }
 
-Value betarnd(::numkit::ops::RngContext &rng, double a, double b, keel::usize rows, keel::usize cols, keel::Allocator *mr)
+Value betarnd(::numkit::ops::RngContext &rng, keel::f64 a, keel::f64 b, keel::usize rows, keel::usize cols, keel::Allocator *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (a <= 0.0 || b <= 0.0 || rows * cols == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     const keel::usize n = rows * cols;
     for (keel::usize i = 0; i < n; ++i) {
         od[i] = keel::random::beta_f64(gen, a, b);
@@ -61,15 +61,15 @@ Value betarnd(::numkit::ops::RngContext &rng, double a, double b, keel::usize ro
     return out;
 }
 
-std::tuple<double, double> betastat(double a, double b)
+std::tuple<keel::f64, keel::f64> betastat(keel::f64 a, keel::f64 b)
 {
     if (a <= 0.0 || b <= 0.0) {
-        const double nan = std::numeric_limits<double>::quiet_NaN();
+        const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
         return std::make_tuple(nan, nan);
     }
-    const double s = a + b;
-    const double mean = a / s;
-    const double var = (a * b) / (s * s * (s + 1.0));
+    const keel::f64 s = a + b;
+    const keel::f64 mean = a / s;
+    const keel::f64 var = (a * b) / (s * s * (s + 1.0));
     return std::make_tuple(mean, var);
 }
 

@@ -40,26 +40,26 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
     else          out = Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
     const keel::usize n = x.numel();
     if (n == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     for (keel::usize i = 0; i < n; ++i) od[i] = op(x.elemAsDouble(i));
     return out;
 }
 
-inline double bino_pmf(double k, double n, double p) {
+inline keel::f64 bino_pmf(keel::f64 k, keel::f64 n, keel::f64 p) {
     if (k < 0.0 || k > n || std::floor(k) != k) return 0.0;
     if (p == 0.0) return (k == 0.0) ? 1.0 : 0.0;
     if (p == 1.0) return (k == n)   ? 1.0 : 0.0;
     // log f = lgamma(n+1) - lgamma(k+1) - lgamma(n-k+1) + k log p + (n-k) log(1-p)
-    const double lc = std::lgamma(n + 1.0) - std::lgamma(k + 1.0) - std::lgamma(n - k + 1.0);
+    const keel::f64 lc = std::lgamma(n + 1.0) - std::lgamma(k + 1.0) - std::lgamma(n - k + 1.0);
     return std::exp(lc + k * std::log(p) + (n - k) * std::log1p(-p));
 }
 
-inline double bino_cdf_scalar(double k, double n, double p, keel::Allocator *mr) {
+inline keel::f64 bino_cdf_scalar(keel::f64 k, keel::f64 n, keel::f64 p, keel::Allocator *mr) {
     if (k < 0.0) return 0.0;
     if (k >= n) return 1.0;
     if (p == 0.0) return 1.0;            // P(K = 0) = 1
     if (p == 1.0) return 0.0;            // P(K < n) = 0
-    const double kf = std::floor(k);
+    const keel::f64 kf = std::floor(k);
     // F(k) = I_{1-p}(n - kf, kf + 1)
     Value xv = Value::scalar(1.0 - p, mr);
     Value av = Value::scalar(n - kf, mr);
@@ -70,28 +70,28 @@ inline double bino_cdf_scalar(double k, double n, double p, keel::Allocator *mr)
 
 // True iff (n, p) is a valid binomial parameter pair (n a nonneg integer,
 // p ∈ [0, 1]). Out-of-domain → the whole result is NaN, per element.
-inline bool bino_params_ok(double n, double p) {
+inline bool bino_params_ok(keel::f64 n, keel::f64 p) {
     return n >= 0.0 && std::floor(n) == n && p >= 0.0 && p <= 1.0;
 }
 
-inline double binopdfK(double k, double n, double p) {
-    if (!bino_params_ok(n, p)) return std::numeric_limits<double>::quiet_NaN();
+inline keel::f64 binopdfK(keel::f64 k, keel::f64 n, keel::f64 p) {
+    if (!bino_params_ok(n, p)) return std::numeric_limits<keel::f64>::quiet_NaN();
     return bino_pmf(k, n, p);
 }
 
 // Smallest integer j with F(j; n, p) ≥ pival (discrete quantile), via the pmf
 // recurrence pmf(j+1)/pmf(j) = (n-j)/(j+1)·p/(1-p). (n, p) assumed valid.
-inline double bino_inv_scalar(double pival, double n, double p) {
-    if (!(pival >= 0.0 && pival <= 1.0)) return std::numeric_limits<double>::quiet_NaN();
+inline keel::f64 bino_inv_scalar(keel::f64 pival, keel::f64 n, keel::f64 p) {
+    if (!(pival >= 0.0 && pival <= 1.0)) return std::numeric_limits<keel::f64>::quiet_NaN();
     if (pival == 0.0) return 0.0;
     if (pival >= 1.0) return n;
     if (n == 0.0) return 0.0;
-    const double r = p / (1.0 - p);
-    double pmf = std::pow(1.0 - p, n);  // pmf(0)
-    double cdf = pmf;
-    const double tol = std::max(1e-13, pival * 1e-13);
+    const keel::f64 r = p / (1.0 - p);
+    keel::f64 pmf = std::pow(1.0 - p, n);  // pmf(0)
+    keel::f64 cdf = pmf;
+    const keel::f64 tol = std::max(1e-13, pival * 1e-13);
     if (cdf >= pival - tol) return 0.0;
-    for (double j = 0.0; j < n; j += 1.0) {
+    for (keel::f64 j = 0.0; j < n; j += 1.0) {
         pmf *= (n - j) / (j + 1.0) * r;
         cdf += pmf;
         if (cdf >= pival - tol) return j + 1.0;

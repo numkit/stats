@@ -53,7 +53,7 @@ namespace detail {
                                     ValueType::SINGLE, mr);                      \
             for (keel::usize i = 0; i < outs[0].numel(); ++i)                    \
                 sg.singleDataMut()[i] =                                          \
-                    keel::as<float>(outs[0].elemAsDouble(i));                 \
+                    keel::as<keel::f32>(outs[0].elemAsDouble(i));                 \
             outs[0] = keel::move(sg);                                            \
         }                                                                        \
     }
@@ -102,7 +102,7 @@ void nanvar_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
     int w = 0, dim = 0;
     keel::Array<int> vecdimSet;
     if (args.size() >= 2 && !args[1].isEmpty()) {
-        const double wv = argcheck::expectedReal(args[1], 2, "w", "nanvar");
+        const keel::f64 wv = argcheck::expectedReal(args[1], 2, "w", "nanvar");
         argcheck::expectedFlag01(wv, 2, "w", "nanvar");
         w = keel::as<int>(wv);
     }
@@ -126,7 +126,7 @@ void nanstd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
     int w = 0, dim = 0;
     keel::Array<int> vecdimSet;
     if (args.size() >= 2 && !args[1].isEmpty()) {
-        const double wv = argcheck::expectedReal(args[1], 2, "w", "nanstd");
+        const keel::f64 wv = argcheck::expectedReal(args[1], 2, "w", "nanstd");
         argcheck::expectedFlag01(wv, 2, "w", "nanstd");
         w = keel::as<int>(wv);
     }
@@ -161,13 +161,13 @@ void nancov_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
     // args.size() >= 2
     const bool secondIsScalar = (args[1].numel() == 1) && !args[1].isEmpty();
     if (secondIsScalar) {
-        const double wv = argcheck::expectedReal(args[1], 2, "w", "nancov");
+        const keel::f64 wv = argcheck::expectedReal(args[1], 2, "w", "nancov");
         argcheck::expectedFlag01(wv, 2, "w", "nancov");
         outs[0] = nancov(args[0], keel::as<int>(wv), mr);
     } else {
         int w = 0;
         if (args.size() >= 3 && !args[2].isEmpty()) {
-            const double wv = argcheck::expectedReal(args[2], 3, "w", "nancov");
+            const keel::f64 wv = argcheck::expectedReal(args[2], 3, "w", "nancov");
             argcheck::expectedFlag01(wv, 3, "w", "nancov");
             w = keel::as<int>(wv);
         }

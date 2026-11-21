@@ -20,57 +20,57 @@
 namespace numkit::stats {
 
 namespace {
-inline bool gp_argcheck(double sigma) noexcept
+inline bool gp_argcheck(keel::f64 sigma) noexcept
 {
     return sigma > 0.0;
 }
 } // namespace
 
-Value gppdf(const Value &x, double k, double sigma, double theta, keel::Allocator *mr)
+Value gppdf(const Value &x, keel::f64 k, keel::f64 sigma, keel::f64 theta, keel::Allocator *mr)
 {
     if (!gp_argcheck(sigma))
-        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    const double inv_s = 1.0 / sigma;
-    return elementwise(x, [=](double xi) {
-        const double z = (xi - theta) * inv_s;
+        return elementwise(x, [](keel::f64){ return std::numeric_limits<keel::f64>::quiet_NaN(); }, mr);
+    const keel::f64 inv_s = 1.0 / sigma;
+    return elementwise(x, [=](keel::f64 xi) {
+        const keel::f64 z = (xi - theta) * inv_s;
         if (z < 0.0) return 0.0;
         if (k == 0.0) return inv_s * std::exp(-z);
-        const double t = 1.0 + k * z;
+        const keel::f64 t = 1.0 + k * z;
         if (t <= 0.0) return 0.0;
         return inv_s * std::pow(t, -1.0 / k - 1.0);
     }, mr);
 }
 
-Value gpcdf(const Value &x, double k, double sigma, double theta, keel::Allocator *mr)
+Value gpcdf(const Value &x, keel::f64 k, keel::f64 sigma, keel::f64 theta, keel::Allocator *mr)
 {
     if (sigma <= 0.0)
-        return elementwise(x, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    const double inv_s = 1.0 / sigma;
-    return elementwise(x, [=](double xi) {
-        const double z = (xi - theta) * inv_s;
+        return elementwise(x, [](keel::f64){ return std::numeric_limits<keel::f64>::quiet_NaN(); }, mr);
+    const keel::f64 inv_s = 1.0 / sigma;
+    return elementwise(x, [=](keel::f64 xi) {
+        const keel::f64 z = (xi - theta) * inv_s;
         if (z <= 0.0) return 0.0;
         if (k == 0.0) return -std::expm1(-z);
-        const double t = 1.0 + k * z;
+        const keel::f64 t = 1.0 + k * z;
         if (t <= 0.0) return (k > 0) ? 0.0 : 1.0;
         return 1.0 - std::pow(t, -1.0 / k);
     }, mr);
 }
 
-Value gpinv(const Value &p, double k, double sigma, double theta, keel::Allocator *mr)
+Value gpinv(const Value &p, keel::f64 k, keel::f64 sigma, keel::f64 theta, keel::Allocator *mr)
 {
     if (sigma <= 0.0)
-        return elementwise(p, [](double){ return std::numeric_limits<double>::quiet_NaN(); }, mr);
-    return elementwise(p, [=](double pi) {
+        return elementwise(p, [](keel::f64){ return std::numeric_limits<keel::f64>::quiet_NaN(); }, mr);
+    return elementwise(p, [=](keel::f64 pi) {
         return gp_inv_one(pi, k, sigma, theta);
     }, mr);
 }
 
-Value gprnd(::numkit::ops::RngContext &rng, double k, double sigma, double theta, keel::usize rows, keel::usize cols, keel::Allocator *mr)
+Value gprnd(::numkit::ops::RngContext &rng, keel::f64 k, keel::f64 sigma, keel::f64 theta, keel::usize rows, keel::usize cols, keel::Allocator *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (sigma <= 0.0 || rows * cols == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     const keel::usize n = rows * cols;
     for (keel::usize i = 0; i < n; ++i) {
         // genRes53 -- MATLAB-canonical 53-bit uniform.
@@ -80,8 +80,8 @@ Value gprnd(::numkit::ops::RngContext &rng, double k, double sigma, double theta
         // (gpinv(p) uses 1-p which is the standard ICDF; sampling
         // from rand() with the swapped-u form gives the same
         // distribution but matches MATLAB's specific bit sequence.)
-        double u = gen.genRes53();
-        if (u <= 0.0) u = std::numeric_limits<double>::min();
+        keel::f64 u = gen.genRes53();
+        if (u <= 0.0) u = std::numeric_limits<keel::f64>::min();
         if (k == 0.0) {
             od[i] = theta - sigma * std::log(u);
         } else {
@@ -91,16 +91,16 @@ Value gprnd(::numkit::ops::RngContext &rng, double k, double sigma, double theta
     return out;
 }
 
-std::tuple<double, double> gpstat(double k, double sigma, double theta)
+std::tuple<keel::f64, keel::f64> gpstat(keel::f64 k, keel::f64 sigma, keel::f64 theta)
 {
-    const double nan = std::numeric_limits<double>::quiet_NaN();
+    const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
     if (sigma <= 0.0) return std::make_tuple(nan, nan);
     if (!(k < 1.0))
-        return std::make_tuple(std::numeric_limits<double>::infinity(), nan);
-    const double mean = theta + sigma / (1.0 - k);
+        return std::make_tuple(std::numeric_limits<keel::f64>::infinity(), nan);
+    const keel::f64 mean = theta + sigma / (1.0 - k);
     if (!(k < 0.5))
-        return std::make_tuple(mean, std::numeric_limits<double>::infinity());
-    const double var = sigma * sigma / ((1.0 - k) * (1.0 - k) * (1.0 - 2.0 * k));
+        return std::make_tuple(mean, std::numeric_limits<keel::f64>::infinity());
+    const keel::f64 var = sigma * sigma / ((1.0 - k) * (1.0 - k) * (1.0 - 2.0 * k));
     return std::make_tuple(mean, var);
 }
 

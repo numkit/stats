@@ -27,10 +27,10 @@ namespace detail {
 
 namespace {
 // MATLAB defaults: a = 0, b = 1 when omitted.
-inline double argA(keel::ArrayRef<Value> args, keel::usize i) {
+inline keel::f64 argA(keel::ArrayRef<Value> args, keel::usize i) {
     return (args.size() > i && !args[i].isEmpty()) ? args[i].toScalar() : 0.0;
 }
-inline double argB(keel::ArrayRef<Value> args, keel::usize i) {
+inline keel::f64 argB(keel::ArrayRef<Value> args, keel::usize i) {
     return (args.size() > i && !args[i].isEmpty()) ? args[i].toScalar() : 1.0;
 }
 }
@@ -62,8 +62,8 @@ void unifinv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
 void unifrnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "unifrnd");  // no max: trailing size args (N-D tail; nk caps at two — bugs/opened/stats/rnd-nd-size-tails.md)
-    const double a = args[0].toScalar();
-    const double b = args[1].toScalar();
+    const keel::f64 a = args[0].toScalar();
+    const keel::f64 b = args[1].toScalar();
     keel::usize rows, cols;
     parse_rng_size(args, 2, rows, cols, "unifrnd");
     outs[0] = reshape_rng_nd(unifrnd(ctx.engine->rng(), a, b, rows, cols, ctx.engine->allocator()), args, 2, ctx.engine->allocator(), "unifrnd");
@@ -73,7 +73,7 @@ void unifstat_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArra
 {
     argcheck::checkNargin(args.size(), 2, 2, "unifstat");
     emit_vec_stat_2arg(args, nargout, outs, ctx.engine->allocator(), "unifstat",
-                       [](double a, double b) { return unifstat(a, b); });
+                       [](keel::f64 a, keel::f64 b) { return unifstat(a, b); });
 }
 
 } // namespace detail

@@ -63,12 +63,12 @@ void binocdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
             const keel::usize N = dist_match_numel({nk, nn, np}, "binocdf");
             const Value &ref = (nn == N) ? n : (np == N ? p : k);
             v = dist_empty_like(ref, mr);
-            double *od = v.doubleDataMut();
-            const double NaN = std::numeric_limits<double>::quiet_NaN();
+            keel::f64 *od = v.doubleDataMut();
+            const keel::f64 NaN = std::numeric_limits<keel::f64>::quiet_NaN();
             for (keel::usize i = 0; i < N; ++i) {
-                const double ni = n.elemAsDouble(nn == 1 ? 0 : i);
-                const double pi = p.elemAsDouble(np == 1 ? 0 : i);
-                const double ki = k.elemAsDouble(nk == 1 ? 0 : i);
+                const keel::f64 ni = n.elemAsDouble(nn == 1 ? 0 : i);
+                const keel::f64 pi = p.elemAsDouble(np == 1 ? 0 : i);
+                const keel::f64 ki = k.elemAsDouble(nk == 1 ? 0 : i);
                 od[i] = bino_params_ok(ni, pi) ? bino_cdf_scalar(ki, ni, pi, mr) : NaN;
             }
         }
@@ -96,12 +96,12 @@ void binoinv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
     const keel::usize N = dist_match_numel({nq, nn, np}, "binoinv");
     const Value &ref = (nn == N) ? n : (np == N ? p : pin);
     Value out = dist_empty_like(ref, mr);
-    double *od = out.doubleDataMut();
-    const double NaN = std::numeric_limits<double>::quiet_NaN();
+    keel::f64 *od = out.doubleDataMut();
+    const keel::f64 NaN = std::numeric_limits<keel::f64>::quiet_NaN();
     for (keel::usize i = 0; i < N; ++i) {
-        const double ni = n.elemAsDouble(nn == 1 ? 0 : i);
-        const double pi = p.elemAsDouble(np == 1 ? 0 : i);
-        const double qi = pin.elemAsDouble(nq == 1 ? 0 : i);
+        const keel::f64 ni = n.elemAsDouble(nn == 1 ? 0 : i);
+        const keel::f64 pi = p.elemAsDouble(np == 1 ? 0 : i);
+        const keel::f64 qi = pin.elemAsDouble(nq == 1 ? 0 : i);
         od[i] = bino_params_ok(ni, pi) ? bino_inv_scalar(qi, ni, pi) : NaN;
     }
     outs[0] = std::move(out);
@@ -110,8 +110,8 @@ void binoinv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
 void binornd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, "binornd");  // no max: trailing size args (N-D tail; nk caps at two — bugs/opened/stats/rnd-nd-size-tails.md)
-    const double n = args[0].toScalar();
-    const double p = args[1].toScalar();
+    const keel::f64 n = args[0].toScalar();
+    const keel::f64 p = args[1].toScalar();
     keel::usize rows, cols;
     parse_rng_size(args, 2, rows, cols, "binornd");
     outs[0] = reshape_rng_nd(binornd(ctx.engine->rng(), n, p, rows, cols, ctx.engine->allocator()), args, 2, ctx.engine->allocator(), "binornd");
@@ -121,7 +121,7 @@ void binostat_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArra
 {
     argcheck::checkNargin(args.size(), 2, 2, "binostat");
     emit_vec_stat_2arg(args, nargout, outs, ctx.engine->allocator(), "binostat",
-                       [](double n, double p) { return binostat(n, p); });
+                       [](keel::f64 n, keel::f64 p) { return binostat(n, p); });
 }
 
 } // namespace detail

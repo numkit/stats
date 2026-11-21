@@ -22,34 +22,34 @@
 namespace numkit::stats {
 
 namespace {
-inline bool wbl_argcheck(double a, double b) noexcept
+inline bool wbl_argcheck(keel::f64 a, keel::f64 b) noexcept
 {
     return a > 0.0 && b > 0.0;
 }
 } // namespace
 
-Value wblpdf(const Value &x, double a, double b, keel::Allocator *mr)
+Value wblpdf(const Value &x, keel::f64 a, keel::f64 b, keel::Allocator *mr)
 {
     (void)wbl_argcheck(a, b);
-    return elementwise(x, [=](double xi) { return keel::stats::wbl_pdf(xi, a, b); }, mr);
+    return elementwise(x, [=](keel::f64 xi) { return keel::stats::wbl_pdf(xi, a, b); }, mr);
 }
 
-Value wblcdf(const Value &x, double a, double b, keel::Allocator *mr)
+Value wblcdf(const Value &x, keel::f64 a, keel::f64 b, keel::Allocator *mr)
 {
-    return elementwise(x, [=](double xi) { return keel::stats::wbl_cdf(xi, a, b); }, mr);
+    return elementwise(x, [=](keel::f64 xi) { return keel::stats::wbl_cdf(xi, a, b); }, mr);
 }
 
-Value wblinv(const Value &p, double a, double b, keel::Allocator *mr)
+Value wblinv(const Value &p, keel::f64 a, keel::f64 b, keel::Allocator *mr)
 {
-    return elementwise(p, [=](double pi) { return keel::stats::wbl_inv(pi, a, b); }, mr);
+    return elementwise(p, [=](keel::f64 pi) { return keel::stats::wbl_inv(pi, a, b); }, mr);
 }
 
-Value wblrnd(::numkit::ops::RngContext &rng, double a, double b, keel::usize rows, keel::usize cols, keel::Allocator *mr)
+Value wblrnd(::numkit::ops::RngContext &rng, keel::f64 a, keel::f64 b, keel::usize rows, keel::usize cols, keel::Allocator *mr)
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (a <= 0.0 || b <= 0.0 || rows * cols == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     const keel::usize n = rows * cols;
     // keel::random::weibull_f64(rng, shape, scale) — note ORDER FLIP relative
     // to MATLAB (a=scale, b=shape).
@@ -57,16 +57,16 @@ Value wblrnd(::numkit::ops::RngContext &rng, double a, double b, keel::usize row
     return out;
 }
 
-std::tuple<double, double> wblstat(double a, double b)
+std::tuple<keel::f64, keel::f64> wblstat(keel::f64 a, keel::f64 b)
 {
     if (a <= 0.0 || b <= 0.0) {
-        const double nan = std::numeric_limits<double>::quiet_NaN();
+        const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
         return std::make_tuple(nan, nan);
     }
-    const double g1 = std::tgamma(1.0 + 1.0 / b);
-    const double g2 = std::tgamma(1.0 + 2.0 / b);
-    const double mean = a * g1;
-    const double var  = a * a * (g2 - g1 * g1);
+    const keel::f64 g1 = std::tgamma(1.0 + 1.0 / b);
+    const keel::f64 g2 = std::tgamma(1.0 + 2.0 / b);
+    const keel::f64 mean = a * g1;
+    const keel::f64 var  = a * a * (g2 - g1 * g1);
     return std::make_tuple(mean, var);
 }
 

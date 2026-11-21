@@ -26,7 +26,7 @@ namespace {
 // Parse optional NumLags / NumSTD from args starting at `start`. A numeric arg
 // at `start` is positional NumLags; 'NumLags'/'NumSTD' name-value pairs (any
 // case) override. Leaves numLags = -1 (→ default) when unspecified.
-void parseCorrOpts(keel::ArrayRef<Value> args, keel::usize start, int &numLags, double &numSTD,
+void parseCorrOpts(keel::ArrayRef<Value> args, keel::usize start, int &numLags, keel::f64 &numSTD,
                        const char *fn)
 {
     for (keel::usize i = start; i < args.size(); ++i) {
@@ -39,7 +39,7 @@ void parseCorrOpts(keel::ArrayRef<Value> args, keel::usize start, int &numLags, 
                         argcheck::expectedReal(args[i + 1], int(i) + 2,
                                                "NumLags", fn),
                         int(i) + 2, "NumLags", fn);
-                    argcheck::expectedPositive(double(numLags), int(i) + 2,
+                    argcheck::expectedPositive(keel::f64(numLags), int(i) + 2,
                                                "NumLags", fn);
                 }
                 else if (opt == "numstd")  numSTD  = args[i + 1].toScalar();
@@ -49,7 +49,7 @@ void parseCorrOpts(keel::ArrayRef<Value> args, keel::usize start, int &numLags, 
             numLags = argcheck::expectedInteger(
                 argcheck::expectedReal(args[i], int(i) + 1, "NumLags", fn),
                 int(i) + 1, "NumLags", fn);
-            argcheck::expectedPositive(double(numLags), int(i) + 1, "NumLags", fn);
+            argcheck::expectedPositive(keel::f64(numLags), int(i) + 1, "NumLags", fn);
         }
     }
 }
@@ -61,7 +61,7 @@ void autocorr_reg(keel::ArrayRef<Value> args, keel::usize nargout,
 {
     argcheck::checkNargin(args.size(), 1, "autocorr");  // no max: name-value tail in the reference
     int    numLags = -1;
-    double numSTD  = 2.0;
+    keel::f64 numSTD  = 2.0;
     parseCorrOpts(args, 1, numLags, numSTD, "autocorr");
 
     auto [acf, lags, bounds] = autocorr(args[0], numLags, numSTD, ctx.engine->allocator());
@@ -75,7 +75,7 @@ void crosscorr_reg(keel::ArrayRef<Value> args, keel::usize nargout,
 {
     argcheck::checkNargin(args.size(), 2, "crosscorr");  // no max: name-value tail in the reference
     int    numLags = -1;
-    double numSTD  = 2.0;
+    keel::f64 numSTD  = 2.0;
     parseCorrOpts(args, 2, numLags, numSTD, "crosscorr");
 
     auto [xcf, lags, bounds] =
@@ -90,7 +90,7 @@ void parcorr_reg(keel::ArrayRef<Value> args, keel::usize nargout,
 {
     argcheck::checkNargin(args.size(), 1, "parcorr");  // no max: name-value tail in the reference
     int    numLags = -1;
-    double numSTD  = 2.0;
+    keel::f64 numSTD  = 2.0;
     parseCorrOpts(args, 1, numLags, numSTD, "parcorr");
 
     auto [pacf, lags, bounds] = parcorr(args[0], numLags, numSTD, ctx.engine->allocator());

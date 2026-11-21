@@ -85,14 +85,14 @@ keel::Array<keel::usize> decodeWindowValueToScratch(const Value &k, const char *
     };
     keel::Array<keel::usize> out(scratch.allocator());
     if (k.isScalar()) {
-        const double v = k.toScalar();
+        const keel::f64 v = k.toScalar();
         if (!std::isfinite(v) || v <= 0 || std::floor(v) != v) badK();
         out.push_back(keel::as<keel::usize>(v));
         return out;
     }
     if (k.numel() == 2) {
-        const double a = k.elemAsDouble(0);
-        const double b = k.elemAsDouble(1);
+        const keel::f64 a = k.elemAsDouble(0);
+        const keel::f64 b = k.elemAsDouble(1);
         if (!std::isfinite(a) || !std::isfinite(b) ||
             a < 0 || b < 0 || std::floor(a) != a || std::floor(b) != b) badK();
         out.push_back(keel::as<keel::usize>(a));
@@ -116,11 +116,11 @@ struct MovOpts {
     int dim = 0;
     bool omit_nan = false;       // default = includenan
     EndpointMode ep = EndpointMode::Shrink;
-    double ep_fill = std::numeric_limits<double>::quiet_NaN();
+    keel::f64 ep_fill = std::numeric_limits<keel::f64>::quiet_NaN();
     bool has_sample_points = false;
-    keel::Array<double> sample_points;
-    double sp_kb = 0.0;
-    double sp_kf = 0.0;
+    keel::Array<keel::f64> sample_points;
+    keel::f64 sp_kb = 0.0;
+    keel::f64 sp_kf = 0.0;
     const char *fn_name = "movmean";
 };
 
@@ -173,7 +173,7 @@ inline keel::String toLower(keel::StringRef sv)
                 if      (s == "shrink")  o.ep = EndpointMode::Shrink;
                 else if (s == "discard") o.ep = EndpointMode::Discard;
                 else if (s == "fill")    { o.ep = EndpointMode::Fill;
-                                           o.ep_fill = std::numeric_limits<double>::quiet_NaN(); }
+                                           o.ep_fill = std::numeric_limits<keel::f64>::quiet_NaN(); }
                 else
                     throw Error(keel::format("{}: Endpoints must be "
                                              "'shrink', 'discard', 'fill' or a scalar", fn),
@@ -197,7 +197,7 @@ inline keel::String toLower(keel::StringRef sv)
             o.sample_points.clear();
             o.sample_points.reserve(nt);
             for (keel::usize idx = 0; idx < nt; ++idx) {
-                const double tj = val.elemAsDouble(idx);
+                const keel::f64 tj = val.elemAsDouble(idx);
                 if (!std::isfinite(tj) || (idx > 0 && tj <= o.sample_points.back())) {
                     throw Error(keel::format("{}: 'SamplePoints' must be strictly increasing and finite", fn),
                                 0, 0, fn, "", keel::format("numkit:{}:samplePts", fn));
@@ -237,7 +237,7 @@ inline keel::String toLower(keel::StringRef sv)
         badK();
     keel::Array<keel::usize> out(scratch.allocator());
     if (k.isScalar()) {
-        const double v = k.toScalar();
+        const keel::f64 v = k.toScalar();
         if (!std::isfinite(v) || v <= 0.0) badK();
         opt.sp_kb = 0.5 * v;
         opt.sp_kf = 0.5 * v;
@@ -245,8 +245,8 @@ inline keel::String toLower(keel::StringRef sv)
         return out;
     }
     if (k.numel() == 2) {
-        const double a = k.elemAsDouble(0);
-        const double b = k.elemAsDouble(1);
+        const keel::f64 a = k.elemAsDouble(0);
+        const keel::f64 b = k.elemAsDouble(1);
         if (!std::isfinite(a) || !std::isfinite(b) || a < 0.0 || b < 0.0) badK();
         opt.sp_kb = a;
         opt.sp_kf = b;
@@ -274,23 +274,23 @@ inline keel::String toLower(keel::StringRef sv)
 // `omit_nan == true` filters NaN out of the (possibly already padded)
 // window before the reducer; an empty filtered window collapses to NaN.
 template <typename F>
-void runMoving(const double *src, keel::usize n, keel::isize step,
-               double *dst, const Window &w, const keel::ArenaTemp &scratch,
-               bool omit_nan, EndpointMode ep, double ep_fill, F &&fn)
+void runMoving(const keel::f64 *src, keel::usize n, keel::isize step,
+               keel::f64 *dst, const Window &w, const keel::ArenaTemp &scratch,
+               bool omit_nan, EndpointMode ep, keel::f64 ep_fill, F &&fn)
 {
     if (n == 0) return;
     const long N = keel::as<long>(n);
     const long fullLen = w.kb + w.kf + 1;
-    auto buf = keel::Array<double>(fullLen, scratch.allocator());
+    auto buf = keel::Array<keel::f64>(fullLen, scratch.allocator());
     for (long i = 0; i < N; ++i) {
         keel::usize bufN = 0;
         for (long j = -w.kb; j <= w.kf; ++j) {
             const long pos = i + j;
-            double v;
+            keel::f64 v;
             if (pos >= 0 && pos < N) {
                 v = src[pos * step];
             } else if (ep == EndpointMode::Fill) {
-                v = std::numeric_limits<double>::quiet_NaN();
+                v = std::numeric_limits<keel::f64>::quiet_NaN();
             } else if (ep == EndpointMode::Scalar) {
                 v = ep_fill;
             } else {
@@ -299,7 +299,7 @@ void runMoving(const double *src, keel::usize n, keel::isize step,
             if (omit_nan && std::isnan(v)) continue;
             buf[bufN++] = v;
         }
-        dst[i * step] = (bufN == 0) ? std::numeric_limits<double>::quiet_NaN()
+        dst[i * step] = (bufN == 0) ? std::numeric_limits<keel::f64>::quiet_NaN()
                                     : fn(buf.data(), bufN);
     }
 }
@@ -319,75 +319,75 @@ Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &o
                         0, 0, opt.fn_name, "", keel::format("numkit:{}:samplePts", opt.fn_name));
         }
         auto out = Value::scalar(0.0, mr);
-        const double v = x.toScalar();
+        const keel::f64 v = x.toScalar();
         // Single-element window: 'Discard' would empty out — but a scalar
         // input is a degenerate case; mirror Shrink for consistency.
         out.doubleDataMut()[0] = (opt.omit_nan && std::isnan(v))
-                                     ? std::numeric_limits<double>::quiet_NaN()
+                                     ? std::numeric_limits<keel::f64>::quiet_NaN()
                                      : fn(&v, 1);
         return out;
     }
     keel::ArenaTemp scratch = keel::get_scratch(mr);
-    const double *src = x.doubleData();
+    const keel::f64 *src = x.doubleData();
 
-    auto runSamplePoints = [&](const double *colSrc, keel::usize n, keel::isize step,
-                               double *colDst) {
+    auto runSamplePoints = [&](const keel::f64 *colSrc, keel::usize n, keel::isize step,
+                               keel::f64 *colDst) {
         if (n == 0) return;
         const auto &t = opt.sample_points;
-        const double kb = opt.sp_kb;
-        const double kf = opt.sp_kf;
-        const double span = (n > 1) ? std::fabs(t[n - 1] - t[0]) : 1.0;
-        const double tol = 1e-12 * std::max(1.0, span);
-        auto buf = keel::Array<double>(n + 2, scratch.allocator());
+        const keel::f64 kb = opt.sp_kb;
+        const keel::f64 kf = opt.sp_kf;
+        const keel::f64 span = (n > 1) ? std::fabs(t[n - 1] - t[0]) : 1.0;
+        const keel::f64 tol = 1e-12 * std::max(1.0, span);
+        auto buf = keel::Array<keel::f64>(n + 2, scratch.allocator());
         keel::usize outI = 0;
         for (keel::usize i = 0; i < n; ++i) {
             const bool leftOut  = (t[i] - kb < t[0] - tol);
             const bool rightOut = (t[i] + kf > t[n - 1] + tol);
             if (opt.ep == EndpointMode::Discard && (leftOut || rightOut))
                 continue;
-            const double tLo = t[i] - kb - tol;
-            const double tHi = t[i] + kf + tol;
+            const keel::f64 tLo = t[i] - kb - tol;
+            const keel::f64 tHi = t[i] + kf + tol;
             keel::usize bufN = 0;
             if (leftOut) {
                 if (opt.ep == EndpointMode::Fill && !opt.omit_nan)
-                    buf[bufN++] = std::numeric_limits<double>::quiet_NaN();
+                    buf[bufN++] = std::numeric_limits<keel::f64>::quiet_NaN();
                 else if (opt.ep == EndpointMode::Scalar && !(opt.omit_nan && std::isnan(opt.ep_fill)))
                     buf[bufN++] = opt.ep_fill;
             }
             for (keel::usize j = 0; j < n; ++j) {
                 if (t[j] < tLo) continue;
                 if (t[j] > tHi) break;
-                const double v = colSrc[keel::as<keel::isize>(j) * step];
+                const keel::f64 v = colSrc[keel::as<keel::isize>(j) * step];
                 if (opt.omit_nan && std::isnan(v)) continue;
                 buf[bufN++] = v;
             }
             if (rightOut) {
                 if (opt.ep == EndpointMode::Fill && !opt.omit_nan)
-                    buf[bufN++] = std::numeric_limits<double>::quiet_NaN();
+                    buf[bufN++] = std::numeric_limits<keel::f64>::quiet_NaN();
                 else if (opt.ep == EndpointMode::Scalar && !(opt.omit_nan && std::isnan(opt.ep_fill)))
                     buf[bufN++] = opt.ep_fill;
             }
             colDst[keel::as<keel::isize>(outI) * step] =
-                (bufN == 0) ? std::numeric_limits<double>::quiet_NaN()
+                (bufN == 0) ? std::numeric_limits<keel::f64>::quiet_NaN()
                             : fn(buf.data(), bufN);
             ++outI;
         }
     };
 
-    auto runDiscard = [&](const double *colSrc, keel::usize n, keel::isize step,
-                          double *colDst) {
+    auto runDiscard = [&](const keel::f64 *colSrc, keel::usize n, keel::isize step,
+                          keel::f64 *colDst) {
         // Discard: emit only positions i where the window is fully in-bounds,
         // i.e. i in [kb, n-1-kf]. Output length = n - (kb+kf) (or 0).
         const long kb = w.kb, kf = w.kf;
         const long fullLen = kb + kf + 1;
         if (keel::as<long>(n) < fullLen) return;
-        auto buf = keel::Array<double>(fullLen, scratch.allocator());
+        auto buf = keel::Array<keel::f64>(fullLen, scratch.allocator());
         long outI = 0;
         for (long i = kb; i + kf < keel::as<long>(n); ++i) {
             keel::usize bufN = 0;
             if (opt.omit_nan) {
                 for (long j = -kb; j <= kf; ++j) {
-                    const double v = colSrc[(i + j) * step];
+                    const keel::f64 v = colSrc[(i + j) * step];
                     if (!std::isnan(v)) buf[bufN++] = v;
                 }
             } else {
@@ -396,7 +396,7 @@ Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &o
                 bufN = keel::as<keel::usize>(fullLen);
             }
             colDst[outI * step] = (bufN == 0)
-                                      ? std::numeric_limits<double>::quiet_NaN()
+                                      ? std::numeric_limits<keel::f64>::quiet_NaN()
                                       : fn(buf.data(), bufN);
             ++outI;
         }
@@ -407,8 +407,8 @@ Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &o
         if (opt.has_sample_points) {
             if (L == 0) return 0;
             const auto &t = opt.sample_points;
-            const double span = (L > 1) ? std::fabs(t[L - 1] - t[0]) : 1.0;
-            const double tol = 1e-12 * std::max(1.0, span);
+            const keel::f64 span = (L > 1) ? std::fabs(t[L - 1] - t[0]) : 1.0;
+            const keel::f64 tol = 1e-12 * std::max(1.0, span);
             keel::usize cnt = 0;
             for (keel::usize i = 0; i < L; ++i) {
                 if (t[i] - opt.sp_kb >= t[0] - tol && t[i] + opt.sp_kf <= t[L - 1] + tol)
@@ -433,7 +433,7 @@ Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &o
         const keel::usize c = (x.dims().rows() > 1) ? 1    : outN;
         Value out = Value::matrix(r, c, ValueType::DOUBLE, mr);
         if (outN == 0) return out;
-        double *dst = out.doubleDataMut();
+        keel::f64 *dst = out.doubleDataMut();
         if (opt.has_sample_points) {
             runSamplePoints(src, N, /*step=*/1, dst);
         } else if (opt.ep == EndpointMode::Discard) {
@@ -469,11 +469,11 @@ Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &o
     if (d.is3D()) out = Value::matrix3d(outR, outC, outP, ValueType::DOUBLE, mr);
     else          out = Value::matrix(outR, outC, ValueType::DOUBLE, mr);
     if (out.numel() == 0) return out;
-    double *dst = out.doubleDataMut();
+    keel::f64 *dst = out.doubleDataMut();
     const keel::usize outPageStride = outR * outC;
 
-    auto run = [&](const double *colSrc, keel::usize inLen, keel::isize step,
-                   double *colDst) {
+    auto run = [&](const keel::f64 *colSrc, keel::usize inLen, keel::isize step,
+                   keel::f64 *colDst) {
         if (opt.has_sample_points)           runSamplePoints(colSrc, inLen, step, colDst);
         else if (opt.ep == EndpointMode::Discard) runDiscard(colSrc, inLen, step, colDst);
         else                                 runMoving(colSrc, inLen, step, colDst, w, scratch,
@@ -483,22 +483,22 @@ Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &o
     if (dim == 1) {
         for (keel::usize p = 0; p < P; ++p)
             for (keel::usize c = 0; c < C; ++c) {
-                const double *colSrc = src + p * pageStride + c * R;
-                double       *colDst = dst + p * outPageStride + c * outR;
+                const keel::f64 *colSrc = src + p * pageStride + c * R;
+                keel::f64       *colDst = dst + p * outPageStride + c * outR;
                 run(colSrc, R, /*step=*/1, colDst);
             }
     } else if (dim == 2) {
         for (keel::usize p = 0; p < P; ++p)
             for (keel::usize r = 0; r < R; ++r) {
-                const double *rowSrc = src + p * pageStride + r;
-                double       *rowDst = dst + p * outPageStride + r;
+                const keel::f64 *rowSrc = src + p * pageStride + r;
+                keel::f64       *rowDst = dst + p * outPageStride + r;
                 run(rowSrc, C, /*step=*/keel::as<keel::isize>(R), rowDst);
             }
     } else if (dim == 3 && d.is3D()) {
         for (keel::usize c = 0; c < C; ++c)
             for (keel::usize r = 0; r < R; ++r) {
-                const double *pgSrc = src + c * R + r;
-                double       *pgDst = dst + c * outR + r;
+                const keel::f64 *pgSrc = src + c * R + r;
+                keel::f64       *pgDst = dst + c * outR + r;
                 run(pgSrc, P, /*step=*/keel::as<keel::isize>(pageStride), pgDst);
             }
     } else {
@@ -510,91 +510,91 @@ Value movingDriverDim(const Value &x, const Window &w, int dim, const MovOpts &o
 
 // ── per-window reducers ───────────────────────────────────────────────
 
-double winMean(const double *w, keel::usize n)
+keel::f64 winMean(const keel::f64 *w, keel::usize n)
 {
-    if (n == 0) return std::numeric_limits<double>::quiet_NaN();
-    double s = 0.0;
+    if (n == 0) return std::numeric_limits<keel::f64>::quiet_NaN();
+    keel::f64 s = 0.0;
     for (keel::usize i = 0; i < n; ++i) s += w[i];
-    return s / keel::as<double>(n);
+    return s / keel::as<keel::f64>(n);
 }
 
-double winSum(const double *w, keel::usize n)
+keel::f64 winSum(const keel::f64 *w, keel::usize n)
 {
-    double s = 0.0;
+    keel::f64 s = 0.0;
     for (keel::usize i = 0; i < n; ++i) s += w[i];
     return s;
 }
 
-double winMin(const double *w, keel::usize n)
+keel::f64 winMin(const keel::f64 *w, keel::usize n)
 {
-    if (n == 0) return std::numeric_limits<double>::quiet_NaN();
-    double m = w[0];
+    if (n == 0) return std::numeric_limits<keel::f64>::quiet_NaN();
+    keel::f64 m = w[0];
     for (keel::usize i = 1; i < n; ++i)
         if (w[i] < m) m = w[i];
     return m;
 }
 
-double winMax(const double *w, keel::usize n)
+keel::f64 winMax(const keel::f64 *w, keel::usize n)
 {
-    if (n == 0) return std::numeric_limits<double>::quiet_NaN();
-    double m = w[0];
+    if (n == 0) return std::numeric_limits<keel::f64>::quiet_NaN();
+    keel::f64 m = w[0];
     for (keel::usize i = 1; i < n; ++i)
         if (w[i] > m) m = w[i];
     return m;
 }
 
-double winProd(const double *w, keel::usize n)
+keel::f64 winProd(const keel::f64 *w, keel::usize n)
 {
-    double p = 1.0;
+    keel::f64 p = 1.0;
     for (keel::usize i = 0; i < n; ++i) p *= w[i];
     return p;
 }
 
 // nth_element on a scratch copy (window already lives in caller's buf).
-double winMedianInPlace(double *w, keel::usize n)
+keel::f64 winMedianInPlace(keel::f64 *w, keel::usize n)
 {
-    if (n == 0) return std::numeric_limits<double>::quiet_NaN();
+    if (n == 0) return std::numeric_limits<keel::f64>::quiet_NaN();
     if (n == 1) return w[0];
     const keel::usize mid = n / 2;
     std::nth_element(w, w + mid, w + n);
     if (n % 2 == 1)
         return w[mid];
-    const double upper = w[mid];
-    double lower = w[0];
+    const keel::f64 upper = w[mid];
+    keel::f64 lower = w[0];
     for (keel::usize i = 1; i < mid; ++i)
         if (w[i] > lower) lower = w[i];
     return 0.5 * (upper + lower);
 }
 
-double winVar(const double *w, keel::usize n, int normFlag)
+keel::f64 winVar(const keel::f64 *w, keel::usize n, int normFlag)
 {
-    if (n == 0) return std::numeric_limits<double>::quiet_NaN();
+    if (n == 0) return std::numeric_limits<keel::f64>::quiet_NaN();
     // The reference engine defines std/var of a single value as 0 regardless of the
     // normalization (the degenerate 0/0 from N-1 is taken as 0). This is
     // hit at edge windows of length 1 and, under 'omitnan', at interior
     // windows that reduce to a single valid element.
     if (n == 1) return 0.0;
-    double s = 0.0;
+    keel::f64 s = 0.0;
     for (keel::usize i = 0; i < n; ++i) s += w[i];
-    const double mean = s / keel::as<double>(n);
-    double sq = 0.0;
+    const keel::f64 mean = s / keel::as<keel::f64>(n);
+    keel::f64 sq = 0.0;
     for (keel::usize i = 0; i < n; ++i) {
-        const double d = w[i] - mean;
+        const keel::f64 d = w[i] - mean;
         sq += d * d;
     }
-    const double denom = (normFlag == 1) ? keel::as<double>(n)
-                                          : keel::as<double>(n - 1);
+    const keel::f64 denom = (normFlag == 1) ? keel::as<keel::f64>(n)
+                                          : keel::as<keel::f64>(n - 1);
     return sq / denom;
 }
 
 // Median absolute deviation: median(|x - median(x)|).
-double winMadInPlace(double *w, keel::usize n, const keel::ArenaTemp &scratch)
+keel::f64 winMadInPlace(keel::f64 *w, keel::usize n, const keel::ArenaTemp &scratch)
 {
-    if (n == 0) return std::numeric_limits<double>::quiet_NaN();
-    auto copy = keel::Array<double>(n, scratch.allocator());
+    if (n == 0) return std::numeric_limits<keel::f64>::quiet_NaN();
+    auto copy = keel::Array<keel::f64>(n, scratch.allocator());
     std::copy(w, w + n, copy.data());
-    const double med = winMedianInPlace(copy.data(), n);
-    auto devs = keel::Array<double>(n, scratch.allocator());
+    const keel::f64 med = winMedianInPlace(copy.data(), n);
+    auto devs = keel::Array<keel::f64>(n, scratch.allocator());
     for (keel::usize i = 0; i < n; ++i) devs[i] = keel::abs(w[i] - med);
     return winMedianInPlace(devs.data(), n);
 }
@@ -607,7 +607,7 @@ namespace {
 Value cplxRealPart(const Value &f, keel::Allocator *mr)
 {
     auto r = createLike(f, ValueType::DOUBLE, mr);
-    double *d = r.doubleDataMut();
+    keel::f64 *d = r.doubleDataMut();
     const keel::c64 *c = f.complexData();
     const keel::usize n = f.numel();
     for (keel::usize i = 0; i < n; ++i) d[i] = c[i].real();
@@ -616,7 +616,7 @@ Value cplxRealPart(const Value &f, keel::Allocator *mr)
 Value cplxImagPart(const Value &f, keel::Allocator *mr)
 {
     auto r = createLike(f, ValueType::DOUBLE, mr);
-    double *d = r.doubleDataMut();
+    keel::f64 *d = r.doubleDataMut();
     const keel::c64 *c = f.complexData();
     const keel::usize n = f.numel();
     for (keel::usize i = 0; i < n; ++i) d[i] = c[i].imag();
@@ -626,7 +626,7 @@ Value cplxCombine(const Value &re, const Value &im, keel::Allocator *mr)
 {
     auto out = createLike(re, ValueType::COMPLEX, mr);
     keel::c64 *o = out.complexDataMut();
-    const double *r = re.doubleData(), *m = im.doubleData();
+    const keel::f64 *r = re.doubleData(), *m = im.doubleData();
     const keel::usize n = out.numel();
     for (keel::usize i = 0; i < n; ++i) o[i] = keel::c64(r[i], m[i]);
     return out;
@@ -642,7 +642,7 @@ static Value movPromoteIntLogical(const Value &x, keel::Allocator *mr)
     const ValueType t = x.type();
     if (!(isIntegerType(t) || t == ValueType::LOGICAL)) return x;
     Value r = createLike(x, ValueType::DOUBLE, mr);
-    double *dst = r.doubleDataMut();
+    keel::f64 *dst = r.doubleDataMut();
     const keel::usize n = x.numel();
     for (keel::usize i = 0; i < n; ++i) dst[i] = x.elemAsDouble(i);
     return r;
@@ -660,7 +660,7 @@ Value movmean_impl(const Value &x, keel::ArrayRef<keel::usize> k, const MovOpts 
     const Value xd = movPromoteIntLogical(x, mr);
     const auto w = decodeWindow(k, "movmean");
     const int d = resolveDim(xd, opt.dim, "movmean");
-    return movingDriverDim(xd, w, d, opt, [](const double *win, keel::usize n) { return winMean(win, n); }, mr);
+    return movingDriverDim(xd, w, d, opt, [](const keel::f64 *win, keel::usize n) { return winMean(win, n); }, mr);
 }
 
 Value movsum_impl(const Value &x, keel::ArrayRef<keel::usize> k, const MovOpts &opt, keel::Allocator *mr)
@@ -668,7 +668,7 @@ Value movsum_impl(const Value &x, keel::ArrayRef<keel::usize> k, const MovOpts &
     const Value xd = movPromoteIntLogical(x, mr);
     const auto w = decodeWindow(k, "movsum");
     const int d = resolveDim(xd, opt.dim, "movsum");
-    return movingDriverDim(xd, w, d, opt, [](const double *win, keel::usize n) { return winSum(win, n); }, mr);
+    return movingDriverDim(xd, w, d, opt, [](const keel::f64 *win, keel::usize n) { return winSum(win, n); }, mr);
 }
 
 // movmax/movmin PRESERVE the input class (order statistics): integer -> integer
@@ -691,7 +691,7 @@ Value movmin_impl(const Value &x, keel::ArrayRef<keel::usize> k, const MovOpts &
     const Value xd = movPromoteIntLogical(x, mr);
     const auto w = decodeWindow(k, "movmin");
     const int d = resolveDim(xd, opt.dim, "movmin");
-    Value out = movingDriverDim(xd, w, d, opt, [](const double *win, keel::usize n) { return winMin(win, n); }, mr);
+    Value out = movingDriverDim(xd, w, d, opt, [](const keel::f64 *win, keel::usize n) { return winMin(win, n); }, mr);
     if (isIntegerType(ot)) return doubleToIntegerExact(out, ot, mr);   // exact (subset)
     if (ot == ValueType::LOGICAL) return movNarrowToLogical(out, mr);
     return out;
@@ -703,7 +703,7 @@ Value movmax_impl(const Value &x, keel::ArrayRef<keel::usize> k, const MovOpts &
     const Value xd = movPromoteIntLogical(x, mr);
     const auto w = decodeWindow(k, "movmax");
     const int d = resolveDim(xd, opt.dim, "movmax");
-    Value out = movingDriverDim(xd, w, d, opt, [](const double *win, keel::usize n) { return winMax(win, n); }, mr);
+    Value out = movingDriverDim(xd, w, d, opt, [](const keel::f64 *win, keel::usize n) { return winMax(win, n); }, mr);
     if (isIntegerType(ot)) return doubleToIntegerExact(out, ot, mr);   // exact (subset)
     if (ot == ValueType::LOGICAL) return movNarrowToLogical(out, mr);
     return out;
@@ -714,7 +714,7 @@ Value movprod_impl(const Value &x, keel::ArrayRef<keel::usize> k, const MovOpts 
     const Value xd = movPromoteIntLogical(x, mr);
     const auto w = decodeWindow(k, "movprod");
     const int d = resolveDim(xd, opt.dim, "movprod");
-    return movingDriverDim(xd, w, d, opt, [](const double *win, keel::usize n) { return winProd(win, n); }, mr);
+    return movingDriverDim(xd, w, d, opt, [](const keel::f64 *win, keel::usize n) { return winProd(win, n); }, mr);
 }
 
 Value movmedian_impl(const Value &x, keel::ArrayRef<keel::usize> k, const MovOpts &opt, keel::Allocator *mr)
@@ -723,13 +723,13 @@ Value movmedian_impl(const Value &x, keel::ArrayRef<keel::usize> k, const MovOpt
     const Value xd = movPromoteIntLogical(x, mr);
     const auto w = decodeWindow(k, "movmedian");
     const int d = resolveDim(xd, opt.dim, "movmedian");
-    Value out = movingDriverDim(xd, w, d, opt, [](const double *win, keel::usize n) {
-            double tmp[1024];   // typical k <= a few hundred
+    Value out = movingDriverDim(xd, w, d, opt, [](const keel::f64 *win, keel::usize n) {
+            keel::f64 tmp[1024];   // typical k <= a few hundred
             if (n <= sizeof(tmp) / sizeof(tmp[0])) {
                 std::copy(win, win + n, tmp);
                 return winMedianInPlace(tmp, n);
             }
-            keel::Array<double> heap(n);
+            keel::Array<keel::f64> heap(n);
             std::copy(win, win + n, heap.data());
             return winMedianInPlace(heap.data(), n);
         }, mr);
@@ -738,7 +738,7 @@ Value movmedian_impl(const Value &x, keel::ArrayRef<keel::usize> k, const MovOpt
         // away from zero), unlike the truncating doubleToIntegerExact — so round
         // into the double buffer first. LOGICAL input returns DOUBLE (a 0.5
         // median has no logical representation), so no narrow there.
-        double *p = out.doubleDataMut();
+        keel::f64 *p = out.doubleDataMut();
         const keel::usize n = out.numel();
         for (keel::usize i = 0; i < n; ++i) p[i] = std::round(p[i]);
         return doubleToIntegerExact(out, ot, mr);
@@ -753,13 +753,13 @@ Value movvar_impl(const Value &x, keel::ArrayRef<keel::usize> k, int normFlag, c
                      0, 0, "movvar", "", "numkit:movvar:badNormFlag");
     const auto w = decodeWindow(k, "movvar");
     const int d = resolveDim(x, opt.dim, "movvar");
-    return movingDriverDim(x, w, d, opt, [normFlag](const double *win, keel::usize n) { return winVar(win, n, normFlag); }, mr);
+    return movingDriverDim(x, w, d, opt, [normFlag](const keel::f64 *win, keel::usize n) { return winVar(win, n, normFlag); }, mr);
 }
 
 Value movstd_impl(const Value &x, keel::ArrayRef<keel::usize> k, int normFlag, const MovOpts &opt, keel::Allocator *mr)
 {
     auto v = movvar_impl(x, k, normFlag, opt, mr);
-    double *p = v.doubleDataMut();
+    keel::f64 *p = v.doubleDataMut();
     const keel::usize n = v.numel();
     for (keel::usize i = 0; i < n; ++i)
         p[i] = std::sqrt(p[i]);
@@ -770,9 +770,9 @@ Value movmad_impl(const Value &x, keel::ArrayRef<keel::usize> k, const MovOpts &
 {
     const auto w = decodeWindow(k, "movmad");
     const int d = resolveDim(x, opt.dim, "movmad");
-    return movingDriverDim(x, w, d, opt, [mr](const double *win, keel::usize n) -> double {
+    return movingDriverDim(x, w, d, opt, [mr](const keel::f64 *win, keel::usize n) -> keel::f64 {
             keel::ArenaTemp local = keel::get_scratch(mr);
-            auto buf = keel::Array<double>(n, local.allocator());
+            auto buf = keel::Array<keel::f64>(n, local.allocator());
             std::copy(win, win + n, buf.data());
             return winMadInPlace(buf.data(), n, local);
         }, mr);
@@ -782,9 +782,9 @@ Value movmad_impl(const Value &x, keel::ArrayRef<keel::usize> k, const MovOpts &
 
 // hampel internals (def in moving.cpp, external): raw-buffer outlier core +
 // the Value-level argument validator.
-void hampelValidate(const Value &x, int k, double nsigmas);
-void hampelCore(const double *src, keel::usize n, int k, double nsigmas,
-                double *dst, keel::u8 *mask, double *median,
-                double *sigma, keel::Allocator *mr);
+void hampelValidate(const Value &x, int k, keel::f64 nsigmas);
+void hampelCore(const keel::f64 *src, keel::usize n, int k, keel::f64 nsigmas,
+                keel::f64 *dst, keel::u8 *mask, keel::f64 *median,
+                keel::f64 *sigma, keel::Allocator *mr);
 
 } // namespace numkit::stats

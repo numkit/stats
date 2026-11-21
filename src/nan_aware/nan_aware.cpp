@@ -50,7 +50,7 @@ Value nansum(const Value &x, int dim, keel::Allocator *mr)
 
     const int d = resolveDim(x, dim, "nansum");
     return applyAlongDim(x, d,
-        [](keel::usize, double *slice, keel::usize n) {
+        [](keel::usize, keel::f64 *slice, keel::usize n) {
             return nanSumScan(slice, n); // all-NaN → 0
         }, mr);
 }
@@ -61,15 +61,15 @@ Value nanmean(const Value &x, int dim, keel::Allocator *mr)
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     if ((x.dims().isVector() || x.isScalar()) && x.type() == ValueType::DOUBLE) {
         const auto r = nanSumCountScan(x.doubleData(), x.numel());
-        return Value::scalar(r.count > 0 ? r.sum / keel::as<double>(r.count)
+        return Value::scalar(r.count > 0 ? r.sum / keel::as<keel::f64>(r.count)
                                           : std::nan(""), mr);
     }
 
     const int d = resolveDim(x, dim, "nanmean");
     return applyAlongDim(x, d,
-        [](keel::usize, double *slice, keel::usize n) {
+        [](keel::usize, keel::f64 *slice, keel::usize n) {
             const auto r = nanSumCountScan(slice, n);
-            return r.count > 0 ? r.sum / keel::as<double>(r.count)
+            return r.count > 0 ? r.sum / keel::as<keel::f64>(r.count)
                                : std::nan("");
         }, mr);
 }
@@ -83,7 +83,7 @@ Value nanmax(const Value &x, int dim, keel::Allocator *mr)
 
     const int d = resolveDim(x, dim, "nanmax");
     return applyAlongDim(x, d,
-        [](keel::usize, double *slice, keel::usize n) {
+        [](keel::usize, keel::f64 *slice, keel::usize n) {
             return nanMaxScan(slice, n);
         }, mr);
 }
@@ -97,7 +97,7 @@ Value nanmin(const Value &x, int dim, keel::Allocator *mr)
 
     const int d = resolveDim(x, dim, "nanmin");
     return applyAlongDim(x, d,
-        [](keel::usize, double *slice, keel::usize n) {
+        [](keel::usize, keel::f64 *slice, keel::usize n) {
             return nanMinScan(slice, n);
         }, mr);
 }
@@ -112,7 +112,7 @@ Value nanvar(const Value &x, int normFlag, int dim, keel::Allocator *mr)
 
     const int d = resolveDim(x, dim, "nanvar");
     return applyAlongDim(x, d,
-        [normFlag](keel::usize, double *slice, keel::usize n) {
+        [normFlag](keel::usize, keel::f64 *slice, keel::usize n) {
             return nanVarianceTwoPass(slice, n, normFlag);
         }, mr);
 }
@@ -127,7 +127,7 @@ Value nanstdev(const Value &x, int normFlag, int dim, keel::Allocator *mr)
 
     const int d = resolveDim(x, dim, "nanstd");
     return applyAlongDim(x, d,
-        [normFlag](keel::usize, double *slice, keel::usize n) {
+        [normFlag](keel::usize, keel::f64 *slice, keel::usize n) {
             return std::sqrt(nanVarianceTwoPass(slice, n, normFlag));
         }, mr);
 }
@@ -136,7 +136,7 @@ Value nanmedian(const Value &x, int dim, keel::Allocator *mr)
 {
     const int d = resolveDim(x, dim, "nanmedian");
     return applyAlongDim(x, d,
-        [](keel::usize, double *slice, keel::usize n) {
+        [](keel::usize, keel::f64 *slice, keel::usize n) {
             const keel::usize k = compactNonNan(slice, n);
             return medianFromSlice(slice, k); // returns NaN at k==0
         }, mr);
@@ -156,7 +156,7 @@ Value nancov(const Value &x, int normFlag, keel::Allocator *mr)
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
 
     keel::ArenaTemp scratch = keel::get_scratch(mr);
-    keel::Array<double> raw(scratch.allocator());
+    keel::Array<keel::f64> raw(scratch.allocator());
     keel::usize n_orig = 0, p = 0;
     readObsMatrix(x, raw, n_orig, p);
 
@@ -168,22 +168,22 @@ Value nancov(const Value &x, int normFlag, keel::Allocator *mr)
         // All rows dropped → MATLAB returns NaN-filled p×p (or scalar NaN for vector).
         if (p == 1) return Value::scalar(std::nan(""), mr);
         auto out = Value::matrix(p, p, ValueType::DOUBLE, mr);
-        double *d = out.doubleDataMut();
+        keel::f64 *d = out.doubleDataMut();
         for (keel::usize k = 0; k < p * p; ++k) d[k] = std::nan("");
         return out;
     }
 
     // Pack the kept rows into a tight n_kept × p layout.
-    keel::Array<double> tight(n_kept * p, scratch.allocator());
+    keel::Array<keel::f64> tight(n_kept * p, scratch.allocator());
     packKeptRows(raw.data(), n_orig, n_kept, p, tight.data());
 
     centerColumnsLocal(tight.data(), n_kept, p);
-    const double divisor = (normFlag == 0)
-        ? std::max(1.0, keel::as<double>(n_kept) - 1.0)
-        : keel::as<double>(n_kept);
+    const keel::f64 divisor = (normFlag == 0)
+        ? std::max(1.0, keel::as<keel::f64>(n_kept) - 1.0)
+        : keel::as<keel::f64>(n_kept);
 
     if (p == 1) {
-        double s = 0.0;
+        keel::f64 s = 0.0;
         for (keel::usize i = 0; i < n_kept; ++i)
             s += tight[i] * tight[i];
         return Value::scalar(s / divisor, mr);
@@ -207,7 +207,7 @@ Value nancov(const Value &x, const Value &y, int normFlag,
         return Value::matrix(2, 2, ValueType::DOUBLE, mr);
 
     keel::ArenaTemp scratch = keel::get_scratch(mr);
-    auto data = keel::Array<double>(n * 2, scratch.allocator());
+    auto data = keel::Array<keel::f64>(n * 2, scratch.allocator());
     for (keel::usize i = 0; i < n; ++i) {
         data[i]       = x.elemAsDouble(i);      // column 0
         data[n + i]   = y.elemAsDouble(i);      // column 1
@@ -215,16 +215,16 @@ Value nancov(const Value &x, const Value &y, int normFlag,
     const keel::usize n_kept = dropNanRows(data.data(), n, 2);
     if (n_kept == 0) {
         auto out = Value::matrix(2, 2, ValueType::DOUBLE, mr);
-        double *d = out.doubleDataMut();
+        keel::f64 *d = out.doubleDataMut();
         for (keel::usize k = 0; k < 4; ++k) d[k] = std::nan("");
         return out;
     }
-    keel::Array<double> tight(n_kept * 2, scratch.allocator());
+    keel::Array<keel::f64> tight(n_kept * 2, scratch.allocator());
     packKeptRows(data.data(), n, n_kept, 2, tight.data());
     centerColumnsLocal(tight.data(), n_kept, 2);
-    const double divisor = (normFlag == 0)
-        ? std::max(1.0, keel::as<double>(n_kept) - 1.0)
-        : keel::as<double>(n_kept);
+    const keel::f64 divisor = (normFlag == 0)
+        ? std::max(1.0, keel::as<keel::f64>(n_kept) - 1.0)
+        : keel::as<keel::f64>(n_kept);
     return covFromCenteredLocal(tight.data(), n_kept, 2, divisor, mr);
 }
 

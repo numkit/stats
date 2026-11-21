@@ -54,39 +54,39 @@ Agg parseFnName(keel::StringRef name)
 }
 
 // Apply aggregator to a vector of values (NaN excluded).
-double aggregate(Agg fn, const keel::Array<double> &vals)
+keel::f64 aggregate(Agg fn, const keel::Array<keel::f64> &vals)
 {
     // Filter NaN.
-    keel::Array<double> v;
+    keel::Array<keel::f64> v;
     v.reserve(vals.size());
-    for (double x : vals) if (!std::isnan(x)) v.push_back(x);
+    for (keel::f64 x : vals) if (!std::isnan(x)) v.push_back(x);
     const keel::usize n = v.size();
 
     switch (fn) {
         case Agg::Numel:
-            return keel::as<double>(n);
+            return keel::as<keel::f64>(n);
         case Agg::Sum: {
-            double s = 0.0;
-            for (double x : v) s += x;
+            keel::f64 s = 0.0;
+            for (keel::f64 x : v) s += x;
             return s;
         }
         case Agg::Min: {
-            if (n == 0) return std::numeric_limits<double>::quiet_NaN();
-            double m = v[0];
+            if (n == 0) return std::numeric_limits<keel::f64>::quiet_NaN();
+            keel::f64 m = v[0];
             for (keel::usize i = 1; i < n; ++i) m = std::min(m, v[i]);
             return m;
         }
         case Agg::Max: {
-            if (n == 0) return std::numeric_limits<double>::quiet_NaN();
-            double m = v[0];
+            if (n == 0) return std::numeric_limits<keel::f64>::quiet_NaN();
+            keel::f64 m = v[0];
             for (keel::usize i = 1; i < n; ++i) m = std::max(m, v[i]);
             return m;
         }
         case Agg::Mean: {
-            if (n == 0) return std::numeric_limits<double>::quiet_NaN();
-            double s = 0.0;
-            for (double x : v) s += x;
-            return s / keel::as<double>(n);
+            if (n == 0) return std::numeric_limits<keel::f64>::quiet_NaN();
+            keel::f64 s = 0.0;
+            for (keel::f64 x : v) s += x;
+            return s / keel::as<keel::f64>(n);
         }
         case Agg::Std:
         case Agg::Var:
@@ -95,24 +95,24 @@ double aggregate(Agg fn, const keel::Array<double> &vals)
                 // MATLAB std/var of <2 elements: 0 by convention with N
                 // normalisation, NaN with N-1. grpstats uses N-1
                 // convention -> NaN.
-                return std::numeric_limits<double>::quiet_NaN();
+                return std::numeric_limits<keel::f64>::quiet_NaN();
             }
-            double s = 0.0;
-            for (double x : v) s += x;
-            const double m = s / keel::as<double>(n);
-            double ss = 0.0;
-            for (double x : v) {
-                const double d = x - m;
+            keel::f64 s = 0.0;
+            for (keel::f64 x : v) s += x;
+            const keel::f64 m = s / keel::as<keel::f64>(n);
+            keel::f64 ss = 0.0;
+            for (keel::f64 x : v) {
+                const keel::f64 d = x - m;
                 ss += d * d;
             }
-            const double var = ss / keel::as<double>(n - 1);
+            const keel::f64 var = ss / keel::as<keel::f64>(n - 1);
             if (fn == Agg::Var) return var;
-            const double sd = std::sqrt(var);
+            const keel::f64 sd = std::sqrt(var);
             if (fn == Agg::Std) return sd;
-            return sd / std::sqrt(keel::as<double>(n));   // Sem
+            return sd / std::sqrt(keel::as<keel::f64>(n));   // Sem
         }
     }
-    return std::numeric_limits<double>::quiet_NaN();
+    return std::numeric_limits<keel::f64>::quiet_NaN();
 }
 
 void grpstats_argcheck(const Value &X, const Value &group)
@@ -140,11 +140,11 @@ grpstats(const Value &X, const Value &group, keel::ArrayRef<keel::String> fn_nam
     const keel::usize C = row_vec ? 1     : Ncols;
 
     // Find unique non-NaN groups (sorted ascending).
-    keel::Array<double> g(N);
+    keel::Array<keel::f64> g(N);
     for (keel::usize i = 0; i < N; ++i) g[i] = group.elemAsDouble(i);
-    keel::Array<double> u_g;
+    keel::Array<keel::f64> u_g;
     u_g.reserve(N);
-    for (double v : g) if (!std::isnan(v)) u_g.push_back(v);
+    for (keel::f64 v : g) if (!std::isnan(v)) u_g.push_back(v);
     std::sort(u_g.begin(), u_g.end());
     u_g.resize(std::unique(u_g.begin(), u_g.end()) - u_g.begin());
     const keel::usize Ng = u_g.size();
@@ -167,21 +167,21 @@ grpstats(const Value &X, const Value &group, keel::ArrayRef<keel::String> fn_nam
     }
 
     // Aggregate per (group, column).
-    keel::Array<double> bucket;
+    keel::Array<keel::f64> bucket;
     bucket.reserve(N);
     for (keel::usize k = 0; k < Ng; ++k) {
-        const double gk = u_g[k];
+        const keel::f64 gk = u_g[k];
         for (keel::usize c = 0; c < C; ++c) {
             bucket.clear();
             for (keel::usize i = 0; i < N; ++i) {
                 if (g[i] != gk) continue;
-                const double x = row_vec
+                const keel::f64 x = row_vec
                                      ? X.elemAsDouble(i)
                                      : X.elemAsDouble(i + c * Nrows);
                 bucket.push_back(x);
             }
             for (keel::usize f = 0; f < F; ++f) {
-                const double v = aggregate(fns[f], bucket);
+                const keel::f64 v = aggregate(fns[f], bucket);
                 outs[f].doubleDataMut()[k + c * Ng] = v;
             }
         }

@@ -40,40 +40,40 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
     else          out = Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
     const keel::usize n = x.numel();
     if (n == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     for (keel::usize i = 0; i < n; ++i) od[i] = op(x.elemAsDouble(i));
     return out;
 }
 
-inline double besseli_scalar(double nu, double xx, keel::Allocator *mr)
+inline keel::f64 besseli_scalar(keel::f64 nu, keel::f64 xx, keel::Allocator *mr)
 {
     Value nv = Value::scalar(nu, mr);
     Value xv = Value::scalar(xx, mr);
     return ::numkit::builtin::besseli(nv, xv, mr).toScalar();
 }
 
-inline double gammainc_scalar(double xx, double a, keel::Allocator *mr)
+inline keel::f64 gammainc_scalar(keel::f64 xx, keel::f64 a, keel::Allocator *mr)
 {
     Value xv = Value::scalar(xx, mr);
     Value av = Value::scalar(a,  mr);
     return ::numkit::builtin::gammainc(xv, av, mr).toScalar();
 }
 
-[[maybe_unused]] double ncx2cdf_one(double x, double k, double lambda, keel::Allocator *mr)
+[[maybe_unused]] keel::f64 ncx2cdf_one(keel::f64 x, keel::f64 k, keel::f64 lambda, keel::Allocator *mr)
 {
     if (x <= 0.0) return 0.0;
     if (lambda == 0.0) return gammainc_scalar(x / 2.0, k / 2.0, mr);
-    const double halfL = lambda / 2.0;
-    const double halfX = x / 2.0;
-    double Pj = std::exp(-halfL);
-    double sum = 0.0;
+    const keel::f64 halfL = lambda / 2.0;
+    const keel::f64 halfX = x / 2.0;
+    keel::f64 Pj = std::exp(-halfL);
+    keel::f64 sum = 0.0;
     const int maxIter = 2000;
     for (int j = 0; j < maxIter; ++j) {
-        const double cdfTerm = gammainc_scalar(halfX, k / 2.0 + double(j), mr);
-        const double contrib = Pj * cdfTerm;
+        const keel::f64 cdfTerm = gammainc_scalar(halfX, k / 2.0 + keel::f64(j), mr);
+        const keel::f64 contrib = Pj * cdfTerm;
         sum += contrib;
         if (j > 5 && contrib < 1e-16 * (sum + 1e-300)) break;
-        Pj *= halfL / double(j + 1);
+        Pj *= halfL / keel::f64(j + 1);
     }
     return std::min(1.0, sum);
 }

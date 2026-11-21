@@ -23,19 +23,19 @@ namespace numkit::stats {
 
 namespace {
 
-constexpr double kLog2Pi = 1.8378770664093454835606594728112352;
+constexpr keel::f64 kLog2Pi = 1.8378770664093454835606594728112352;
 
-bool cholesky(const double *M, double *L, keel::usize d)
+bool cholesky(const keel::f64 *M, keel::f64 *L, keel::usize d)
 {
     for (keel::usize i = 0; i < d * d; ++i) L[i] = 0.0;
     for (keel::usize j = 0; j < d; ++j) {
-        double s = M[j + j * d];
+        keel::f64 s = M[j + j * d];
         for (keel::usize k = 0; k < j; ++k) s -= L[j + k * d] * L[j + k * d];
         if (s <= 0.0) return false;
-        const double Ljj = std::sqrt(s);
+        const keel::f64 Ljj = std::sqrt(s);
         L[j + j * d] = Ljj;
         for (keel::usize i = j + 1; i < d; ++i) {
-            double t = M[i + j * d];
+            keel::f64 t = M[i + j * d];
             for (keel::usize k = 0; k < j; ++k) t -= L[i + k * d] * L[j + k * d];
             L[i + j * d] = t / Ljj;
         }
@@ -43,10 +43,10 @@ bool cholesky(const double *M, double *L, keel::usize d)
     return true;
 }
 
-void fwd_solve(const double *L, double *z, const double *b, keel::usize d)
+void fwd_solve(const keel::f64 *L, keel::f64 *z, const keel::f64 *b, keel::usize d)
 {
     for (keel::usize i = 0; i < d; ++i) {
-        double s = b[i];
+        keel::f64 s = b[i];
         for (keel::usize k = 0; k < i; ++k) s -= L[i + k * d] * z[k];
         z[i] = s / L[i + i * d];
     }
@@ -90,17 +90,17 @@ classify(const Value &sample, const Value &training, const Value &group, keel::S
     classify_argcheck(sample, training, group, type_in, type, quadratic, diagonal);
 
     // Identify unique group labels (sorted ascending).
-    keel::Array<double> labels;
+    keel::Array<keel::f64> labels;
     labels.reserve(Ntr);
     for (keel::usize i = 0; i < Ntr; ++i) labels.push_back(group.elemAsDouble(i));
-    keel::Array<double> uniq = labels.clone();
+    keel::Array<keel::f64> uniq = labels.clone();
     std::sort(uniq.begin(), uniq.end());
     uniq.resize(std::unique(uniq.begin(), uniq.end()) - uniq.begin());
     const keel::usize K = uniq.size();
 
     // Class counts and means.
     keel::Array<keel::usize> n_k(K, 0);
-    keel::Array<double> mu(K * d, 0.0);
+    keel::Array<keel::f64> mu(K * d, 0.0);
     for (keel::usize i = 0; i < Ntr; ++i) {
         const auto it = std::find(uniq.begin(), uniq.end(), labels[i]);
         const keel::usize k = keel::as<keel::usize>(it - uniq.begin());
@@ -110,36 +110,36 @@ classify(const Value &sample, const Value &training, const Value &group, keel::S
     }
     for (keel::usize k = 0; k < K; ++k)
         for (keel::usize j = 0; j < d; ++j)
-            mu[j + k * d] /= double(n_k[k]);
+            mu[j + k * d] /= keel::f64(n_k[k]);
 
     // Covariance matrix/matrices (pooled or per-class).
-    keel::Array<double> Sigma((quadratic ? K : 1) * d * d, 0.0);
+    keel::Array<keel::f64> Sigma((quadratic ? K : 1) * d * d, 0.0);
 
-    auto sigBlock = [&](keel::usize k) -> double * {
+    auto sigBlock = [&](keel::usize k) -> keel::f64 * {
         return Sigma.data() + (quadratic ? k * d * d : 0);
     };
 
     for (keel::usize i = 0; i < Ntr; ++i) {
         const auto it = std::find(uniq.begin(), uniq.end(), labels[i]);
         const keel::usize k = keel::as<keel::usize>(it - uniq.begin());
-        keel::Array<double> diff(d);
+        keel::Array<keel::f64> diff(d);
         for (keel::usize j = 0; j < d; ++j)
             diff[j] = training.elemAsDouble(i + j * Ntr) - mu[j + k * d];
-        double *S = sigBlock(k);
+        keel::f64 *S = sigBlock(k);
         for (keel::usize a = 0; a < d; ++a)
             for (keel::usize b = 0; b < d; ++b)
                 S[a + b * d] += diff[a] * diff[b];
     }
     if (quadratic) {
         for (keel::usize k = 0; k < K; ++k) {
-            double *S = sigBlock(k);
-            const double denom = (n_k[k] > 1) ? double(n_k[k] - 1) : 1.0;
+            keel::f64 *S = sigBlock(k);
+            const keel::f64 denom = (n_k[k] > 1) ? keel::f64(n_k[k] - 1) : 1.0;
             for (keel::usize i = 0; i < d * d; ++i) S[i] /= denom;
         }
     } else {
         // Pool across classes.
-        const double denom = (Ntr > K) ? double(Ntr - K) : 1.0;
-        double *S = Sigma.data();
+        const keel::f64 denom = (Ntr > K) ? keel::f64(Ntr - K) : 1.0;
+        keel::f64 *S = Sigma.data();
         for (keel::usize i = 0; i < d * d; ++i) S[i] /= denom;
     }
 
@@ -147,7 +147,7 @@ classify(const Value &sample, const Value &training, const Value &group, keel::S
     if (diagonal) {
         const keel::usize blocks = quadratic ? K : 1;
         for (keel::usize k = 0; k < blocks; ++k) {
-            double *S = sigBlock(k);
+            keel::f64 *S = sigBlock(k);
             for (keel::usize a = 0; a < d; ++a)
                 for (keel::usize b = 0; b < d; ++b)
                     if (a != b) S[a + b * d] = 0.0;
@@ -156,84 +156,84 @@ classify(const Value &sample, const Value &training, const Value &group, keel::S
 
     // Pre-factor each covariance block.
     const keel::usize blocks = quadratic ? K : 1;
-    keel::Array<double> Lblocks(blocks * d * d, 0.0);
-    keel::Array<double> sumLogDiag(blocks, 0.0);
+    keel::Array<keel::f64> Lblocks(blocks * d * d, 0.0);
+    keel::Array<keel::f64> sumLogDiag(blocks, 0.0);
     for (keel::usize k = 0; k < blocks; ++k) {
-        double *L = Lblocks.data() + k * d * d;
+        keel::f64 *L = Lblocks.data() + k * d * d;
         if (!cholesky(sigBlock(k), L, d))
             throw Error("classify: covariance is not positive definite",
                         0, 0, "classify", "", "numkit:classify:psd");
-        double s = 0.0;
+        keel::f64 s = 0.0;
         for (keel::usize i = 0; i < d; ++i) s += std::log(L[i + i * d]);
         sumLogDiag[k] = s;
     }
 
     // Prior: empirical n_k / Ntr.
-    keel::Array<double> logPrior(K);
-    for (keel::usize k = 0; k < K; ++k) logPrior[k] = std::log(double(n_k[k]) / double(Ntr));
+    keel::Array<keel::f64> logPrior(K);
+    for (keel::usize k = 0; k < K; ++k) logPrior[k] = std::log(keel::f64(n_k[k]) / keel::f64(Ntr));
 
     // Iterate over sample rows; compute class log-likelihood, pick argmax.
     Value cV    = Value::matrix(Nsamp, 1, ValueType::DOUBLE, mr);
     Value postV = Value::matrix(Nsamp, K, ValueType::DOUBLE, mr);
     Value logpV = Value::matrix(Nsamp, 1, ValueType::DOUBLE, mr);
-    double *cd = cV.doubleDataMut();
-    double *pd = postV.doubleDataMut();
-    double *lpd = logpV.doubleDataMut();
+    keel::f64 *cd = cV.doubleDataMut();
+    keel::f64 *pd = postV.doubleDataMut();
+    keel::f64 *lpd = logpV.doubleDataMut();
 
-    keel::Array<double> lp(K), z(d), x(d);
+    keel::Array<keel::f64> lp(K), z(d), x(d);
     for (keel::usize r = 0; r < Nsamp; ++r) {
         for (keel::usize j = 0; j < d; ++j) x[j] = sample.elemAsDouble(r + j * Nsamp);
-        double maxLp = -std::numeric_limits<double>::infinity();
+        keel::f64 maxLp = -std::numeric_limits<keel::f64>::infinity();
         keel::usize kBest = 0;
         for (keel::usize k = 0; k < K; ++k) {
-            const double *L = Lblocks.data() + (quadratic ? k * d * d : 0);
-            const double sld = quadratic ? sumLogDiag[k] : sumLogDiag[0];
-            keel::Array<double> diff(d);
+            const keel::f64 *L = Lblocks.data() + (quadratic ? k * d * d : 0);
+            const keel::f64 sld = quadratic ? sumLogDiag[k] : sumLogDiag[0];
+            keel::Array<keel::f64> diff(d);
             for (keel::usize j = 0; j < d; ++j) diff[j] = x[j] - mu[j + k * d];
             fwd_solve(L, z.data(), diff.data(), d);
-            double q = 0.0;
+            keel::f64 q = 0.0;
             for (keel::usize j = 0; j < d; ++j) q += z[j] * z[j];
             // log f_k(x) = -0.5·d·log(2π) − sumLogDiag − 0.5·q
             // log discrim_k = log f_k(x) + log π_k
-            const double logFk = -0.5 * double(d) * kLog2Pi - sld - 0.5 * q;
+            const keel::f64 logFk = -0.5 * keel::f64(d) * kLog2Pi - sld - 0.5 * q;
             lp[k] = logFk + logPrior[k];
             if (lp[k] > maxLp) { maxLp = lp[k]; kBest = k; }
         }
         cd[r] = uniq[kBest];
 
         // posterior + logp via log-sum-exp
-        double sumExp = 0.0;
+        keel::f64 sumExp = 0.0;
         for (keel::usize k = 0; k < K; ++k) sumExp += std::exp(lp[k] - maxLp);
-        const double logSum = maxLp + std::log(sumExp);
+        const keel::f64 logSum = maxLp + std::log(sumExp);
         for (keel::usize k = 0; k < K; ++k)
             pd[r + k * Nsamp] = std::exp(lp[k] - logSum);
         lpd[r] = logSum;
     }
 
     // Apparent training error rate.
-    double mis = 0.0;
+    keel::f64 mis = 0.0;
     {
-        keel::Array<double> z2(d), x2(d);
+        keel::Array<keel::f64> z2(d), x2(d);
         for (keel::usize i = 0; i < Ntr; ++i) {
             for (keel::usize j = 0; j < d; ++j) x2[j] = training.elemAsDouble(i + j * Ntr);
-            double maxLp = -std::numeric_limits<double>::infinity();
+            keel::f64 maxLp = -std::numeric_limits<keel::f64>::infinity();
             keel::usize kBest = 0;
             for (keel::usize k = 0; k < K; ++k) {
-                const double *L = Lblocks.data() + (quadratic ? k * d * d : 0);
-                const double sld = quadratic ? sumLogDiag[k] : sumLogDiag[0];
-                keel::Array<double> diff(d);
+                const keel::f64 *L = Lblocks.data() + (quadratic ? k * d * d : 0);
+                const keel::f64 sld = quadratic ? sumLogDiag[k] : sumLogDiag[0];
+                keel::Array<keel::f64> diff(d);
                 for (keel::usize j = 0; j < d; ++j) diff[j] = x2[j] - mu[j + k * d];
                 fwd_solve(L, z2.data(), diff.data(), d);
-                double q = 0.0;
+                keel::f64 q = 0.0;
                 for (keel::usize j = 0; j < d; ++j) q += z2[j] * z2[j];
-                const double logFk = -0.5 * double(d) * kLog2Pi - sld - 0.5 * q;
-                const double l = logFk + logPrior[k];
+                const keel::f64 logFk = -0.5 * keel::f64(d) * kLog2Pi - sld - 0.5 * q;
+                const keel::f64 l = logFk + logPrior[k];
                 if (l > maxLp) { maxLp = l; kBest = k; }
             }
             if (uniq[kBest] != labels[i]) mis += 1.0;
         }
     }
-    Value errV = Value::scalar(mis / double(Ntr), mr);
+    Value errV = Value::scalar(mis / keel::f64(Ntr), mr);
 
     return {std::move(cV), std::move(errV), std::move(postV), std::move(logpV)};
 }

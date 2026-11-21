@@ -25,59 +25,59 @@
 namespace numkit::stats {
 
 namespace {
-inline bool rayl_argcheck(double b) noexcept
+inline bool rayl_argcheck(keel::f64 b) noexcept
 {
     return b > 0.0;
 }
 } // namespace
 
-Value raylpdf(const Value &x, double b, keel::Allocator *mr)
+Value raylpdf(const Value &x, keel::f64 b, keel::Allocator *mr)
 {
     (void)rayl_argcheck(b);
-    return elementwise(x, [=](double xi) { return keel::stats::rayl_pdf(xi, b); }, mr);
+    return elementwise(x, [=](keel::f64 xi) { return keel::stats::rayl_pdf(xi, b); }, mr);
 }
 
-Value raylcdf(const Value &x, double b, keel::Allocator *mr)
+Value raylcdf(const Value &x, keel::f64 b, keel::Allocator *mr)
 {
-    return elementwise(x, [=](double xi) { return keel::stats::rayl_cdf(xi, b); }, mr);
+    return elementwise(x, [=](keel::f64 xi) { return keel::stats::rayl_cdf(xi, b); }, mr);
 }
 
-Value raylinv(const Value &p, double b, keel::Allocator *mr)
+Value raylinv(const Value &p, keel::f64 b, keel::Allocator *mr)
 {
-    return elementwise(p, [=](double pi) { return keel::stats::rayl_inv(pi, b); }, mr);
+    return elementwise(p, [=](keel::f64 pi) { return keel::stats::rayl_inv(pi, b); }, mr);
 }
 
-Value raylrnd(::numkit::ops::RngContext &rng, double b, keel::usize rows, keel::usize cols, keel::Allocator *mr)
+Value raylrnd(::numkit::ops::RngContext &rng, keel::f64 b, keel::usize rows, keel::usize cols, keel::Allocator *mr)
 {
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     const keel::usize n = rows * cols;
     if (n == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     if (!(b > 0.0)) {
-        const double fillVal = (b == 0.0) ? 0.0 : std::numeric_limits<double>::quiet_NaN();
+        const keel::f64 fillVal = (b == 0.0) ? 0.0 : std::numeric_limits<keel::f64>::quiet_NaN();
         for (keel::usize i = 0; i < n; ++i) od[i] = fillVal;
         return out;
     }
     // Reference engine formula: r = sqrt(randn(sizeOut).^2 + randn(sizeOut).^2) .* b
     for (keel::usize i = 0; i < n; ++i) {
-        const double z1 = rng.nextNormal();
+        const keel::f64 z1 = rng.nextNormal();
         od[i] = z1 * z1;
     }
     for (keel::usize i = 0; i < n; ++i) {
-        const double z2 = rng.nextNormal();
+        const keel::f64 z2 = rng.nextNormal();
         od[i] = std::sqrt(od[i] + z2 * z2) * b;
     }
     return out;
 }
 
-std::tuple<double, double> raylstat(double b)
+std::tuple<keel::f64, keel::f64> raylstat(keel::f64 b)
 {
     if (b <= 0.0) {
-        const double nan = std::numeric_limits<double>::quiet_NaN();
+        const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
         return std::make_tuple(nan, nan);
     }
-    const double mean = b * std::sqrt(0.5 * M_PI);
-    const double var  = (2.0 - 0.5 * M_PI) * b * b;
+    const keel::f64 mean = b * std::sqrt(0.5 * M_PI);
+    const keel::f64 var  = (2.0 - 0.5 * M_PI) * b * b;
     return std::make_tuple(mean, var);
 }
 

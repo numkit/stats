@@ -63,8 +63,8 @@ static Value resampleRows(const Value &X, const int *idx, int N, keel::Allocator
         auto out = col
             ? Value::matrix(keel::as<keel::usize>(N), 1, ValueType::DOUBLE, mr)
             : Value::matrix(1, keel::as<keel::usize>(N), ValueType::DOUBLE, mr);
-        const double *xd = X.doubleData();
-        double *od = out.doubleDataMut();
+        const keel::f64 *xd = X.doubleData();
+        keel::f64 *od = out.doubleDataMut();
         for (int i = 0; i < N; ++i) od[i] = xd[idx[i]];
         return out;
     }
@@ -72,8 +72,8 @@ static Value resampleRows(const Value &X, const int *idx, int N, keel::Allocator
     const keel::usize m = keel::as<keel::usize>(X.dims().dim(0));
     const keel::usize cols = keel::as<keel::usize>(X.dims().dim(1));
     auto out = Value::matrix(keel::as<keel::usize>(N), cols, ValueType::DOUBLE, mr);
-    const double *xd = X.doubleData();
-    double *od = out.doubleDataMut();
+    const keel::f64 *xd = X.doubleData();
+    keel::f64 *od = out.doubleDataMut();
     for (int i = 0; i < N; ++i)
         for (keel::usize j = 0; j < cols; ++j)
             od[i + j * N] = xd[idx[i] + j * m];
@@ -114,7 +114,7 @@ void bootstrp_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     // Output is nboot × K (each row = one bootstrap statistic).
     auto out = Value::matrix(keel::as<keel::usize>(nboot), K,
                              ValueType::DOUBLE, mr);
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
 
     // Row 0: stat0.
     for (keel::usize j = 0; j < K; ++j)
@@ -183,19 +183,19 @@ void crossval_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
 
     auto out = Value::matrix(keel::as<keel::usize>(K), 1,
                              ValueType::DOUBLE, mr);
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
 
     const keel::usize pX = (X.dims().ndim() >= 2)
         ? keel::as<keel::usize>(X.dims().dim(1)) : 1;
     const keel::usize pY = (Y.dims().ndim() >= 2)
         ? keel::as<keel::usize>(Y.dims().dim(1)) : 1;
-    const double *Xd = X.doubleData();
-    const double *Yd = Y.doubleData();
+    const keel::f64 *Xd = X.doubleData();
+    const keel::f64 *Yd = Y.doubleData();
 
-    auto sliceRows = [&](const double *src, keel::usize rows_src,
+    auto sliceRows = [&](const keel::f64 *src, keel::usize rows_src,
                          keel::usize cols, keel::ArrayRef<keel::usize> rows) {
         Value v = Value::matrix(rows.size(), cols, ValueType::DOUBLE, mr);
-        double *vd = v.doubleDataMut();
+        keel::f64 *vd = v.doubleDataMut();
         const keel::usize nr = rows.size();
         for (keel::usize j = 0; j < cols; ++j)
             for (keel::usize i = 0; i < nr; ++i)
@@ -241,7 +241,7 @@ void bootci_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     if (nboot < 10)
         throw Error("bootci: nboot must be >= 10 for meaningful CI",
                     0, 0, "bootci", "", "numkit:bootci:badN");
-    double alpha = 0.05;
+    keel::f64 alpha = 0.05;
     if (args.size() >= 4 && !args[3].isEmpty()) {
         alpha = args[3].toScalar();
         if (alpha <= 0.0 || alpha >= 1.0)
@@ -261,23 +261,23 @@ void bootci_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     }
 
     const keel::usize K = keel::as<keel::usize>(boot_stats.dims().dim(1));
-    const double *bd = boot_stats.doubleData();
+    const keel::f64 *bd = boot_stats.doubleData();
 
     auto ci = Value::matrix(2, K, ValueType::DOUBLE, mr);
-    double *cd = ci.doubleDataMut();
+    keel::f64 *cd = ci.doubleDataMut();
 
     keel::ArenaTemp scratch = keel::get_scratch(mr);
-    keel::Array<double> col(nboot, scratch.allocator());
+    keel::Array<keel::f64> col(nboot, scratch.allocator());
     for (keel::usize j = 0; j < K; ++j) {
         for (int i = 0; i < nboot; ++i) col[i] = bd[i + j * nboot];
         std::sort(col.begin(), col.end());
         // Linear-interpolation percentile (matches MATLAB prctile default).
-        auto qFn = [&](double q) {
-            const double pos = q * (keel::as<double>(nboot) - 1.0);
+        auto qFn = [&](keel::f64 q) {
+            const keel::f64 pos = q * (keel::as<keel::f64>(nboot) - 1.0);
             const keel::usize lo = keel::as<keel::usize>(std::floor(pos));
             const keel::usize hi = std::min(keel::as<keel::usize>(lo + 1),
                                               keel::as<keel::usize>(nboot - 1));
-            const double frac = pos - keel::as<double>(lo);
+            const keel::f64 frac = pos - keel::as<keel::f64>(lo);
             return col[lo] * (1.0 - frac) + col[hi] * frac;
         };
         cd[0 + j * 2] = qFn(alpha / 2.0);
@@ -330,7 +330,7 @@ void jackknife_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
                     "numkit:jackknife:emptyStat");
 
     auto out = Value::matrix(keel::as<keel::usize>(n), K, ValueType::DOUBLE, mr);
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     for (keel::usize j = 0; j < K; ++j)
         od[0 + j * keel::as<keel::usize>(n)] = stat0.elemAsDouble(j);
 
@@ -360,9 +360,9 @@ void combnk_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     // chooses 2 from {5} -> empty 0x2. So always route through the set
     // (vector) path; the int->1:N overload is a separate convenience entry.
     keel::ArenaTemp scratch = keel::get_scratch(mr);
-    keel::Array<double> buf(v.numel(), scratch.allocator());
+    keel::Array<keel::f64> buf(v.numel(), scratch.allocator());
     for (keel::usize i = 0; i < v.numel(); ++i) buf[i] = v.elemAsDouble(i);
-    outs[0] = combnk(keel::ArrayRef<double>(buf.data(), buf.size()), K, mr);
+    outs[0] = combnk(keel::ArrayRef<keel::f64>(buf.data(), buf.size()), K, mr);
 }
 
 } // namespace detail

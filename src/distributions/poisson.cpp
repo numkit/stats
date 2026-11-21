@@ -25,16 +25,16 @@ namespace numkit::stats {
 
 namespace {
 
-double samplePoisson1(::numkit::ops::RngContext &rng, double lam, keel::Allocator *mr)
+keel::f64 samplePoisson1(::numkit::ops::RngContext &rng, keel::f64 lam, keel::Allocator *mr)
 {
     if (!(lam > 0.0))
-        return (lam == 0.0) ? 0.0 : std::numeric_limits<double>::quiet_NaN();
+        return (lam == 0.0) ? 0.0 : std::numeric_limits<keel::f64>::quiet_NaN();
     if (!std::isfinite(lam))
-        return std::numeric_limits<double>::quiet_NaN();
-    double k = 0.0;
+        return std::numeric_limits<keel::f64>::quiet_NaN();
+    keel::f64 k = 0.0;
     while (lam >= 15.0) {
-        const double m = std::floor(7.0 * lam / 8.0);
-        const double x = randg(rng, m, 1, 1, mr).toScalar();
+        const keel::f64 m = std::floor(7.0 * lam / 8.0);
+        const keel::f64 x = randg(rng, m, 1, 1, mr).toScalar();
         if (x <= lam) {
             k += m;
             lam -= x;
@@ -45,7 +45,7 @@ double samplePoisson1(::numkit::ops::RngContext &rng, double lam, keel::Allocato
             return k;
         }
     }
-    double t = -std::log(rng.nextUniform());
+    keel::f64 t = -std::log(rng.nextUniform());
     while (t <= lam) {
         k += 1.0;
         t -= std::log(rng.nextUniform());
@@ -56,36 +56,36 @@ double samplePoisson1(::numkit::ops::RngContext &rng, double lam, keel::Allocato
 } // namespace
 
 namespace {
-inline bool poiss_argcheck(double lambda) noexcept
+inline bool poiss_argcheck(keel::f64 lambda) noexcept
 {
     return lambda >= 0.0 && !std::isnan(lambda);
 }
 } // namespace
 
-Value poisspdf(const Value &k, double lambda, keel::Allocator *mr)
+Value poisspdf(const Value &k, keel::f64 lambda, keel::Allocator *mr)
 {
     (void)poiss_argcheck(lambda);
-    return elementwise(k, [=](double ki){ return keel::stats::poiss_pdf(ki, lambda); }, mr);
+    return elementwise(k, [=](keel::f64 ki){ return keel::stats::poiss_pdf(ki, lambda); }, mr);
 }
 
-Value poisscdf(const Value &k, double lambda, keel::Allocator *mr)
+Value poisscdf(const Value &k, keel::f64 lambda, keel::Allocator *mr)
 {
-    return elementwise(k, [=](double ki){ return keel::stats::poiss_cdf(ki, lambda); }, mr);
+    return elementwise(k, [=](keel::f64 ki){ return keel::stats::poiss_cdf(ki, lambda); }, mr);
 }
 
-Value poissinv(const Value &p, double lambda, keel::Allocator *mr)
+Value poissinv(const Value &p, keel::f64 lambda, keel::Allocator *mr)
 {
-    return elementwise(p, [=](double pi){ return keel::stats::poiss_inv(pi, lambda); }, mr);
+    return elementwise(p, [=](keel::f64 pi){ return keel::stats::poiss_inv(pi, lambda); }, mr);
 }
 
-Value poissrnd(::numkit::ops::RngContext &rng, double lambda, keel::usize rows, keel::usize cols, keel::Allocator *mr)
+Value poissrnd(::numkit::ops::RngContext &rng, keel::f64 lambda, keel::usize rows, keel::usize cols, keel::Allocator *mr)
 {
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     if (rows * cols == 0) return out;
-    double *od = out.doubleDataMut();
+    keel::f64 *od = out.doubleDataMut();
     const keel::usize n = rows * cols;
     if (lambda < 0.0 || std::isnan(lambda)) {
-        const double nan = std::numeric_limits<double>::quiet_NaN();
+        const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
         for (keel::usize i = 0; i < n; ++i) od[i] = nan;
         return out;
     }
@@ -97,10 +97,10 @@ Value poissrnd(::numkit::ops::RngContext &rng, double lambda, keel::usize rows, 
     return out;
 }
 
-std::tuple<double, double> poisstat(double lambda)
+std::tuple<keel::f64, keel::f64> poisstat(keel::f64 lambda)
 {
     if (lambda <= 0.0) {
-        const double nan = std::numeric_limits<double>::quiet_NaN();
+        const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
         return std::make_tuple(nan, nan);
     }
     return std::make_tuple(lambda, lambda);

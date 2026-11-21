@@ -23,10 +23,10 @@ namespace numkit::stats {
 namespace {
 
 // Read X (N×D, column-major) into a flat row-major buffer.
-keel::Array<double> read_rows(const Value &X) {
+keel::Array<keel::f64> read_rows(const Value &X) {
     const keel::usize N = X.dims().rows();
     const keel::usize D = X.dims().cols();
-    keel::Array<double> out(N * D);
+    keel::Array<keel::f64> out(N * D);
     for (keel::usize r = 0; r < N; ++r)
         for (keel::usize c = 0; c < D; ++c)
             out[r * D + c] = X.elemAsDouble(c * N + r);
@@ -37,16 +37,16 @@ keel::Array<double> read_rows(const Value &X) {
 //   A holds the eigenvalues on its diagonal (off-diagonals near zero)
 //   V is D×D orthogonal whose columns are the eigenvectors.
 // Both stored row-major.
-void jacobi(keel::Array<double> &A, keel::Array<double> &V, keel::usize D) {
+void jacobi(keel::Array<keel::f64> &A, keel::Array<keel::f64> &V, keel::usize D) {
     V.assign(D * D, 0.0);
     for (keel::usize i = 0; i < D; ++i) V[i * D + i] = 1.0;
 
     const int max_sweeps = 50;
-    const double tol = 1e-12;
+    const keel::f64 tol = 1e-12;
 
     for (int sweep = 0; sweep < max_sweeps; ++sweep) {
         // Sum of squared off-diagonals.
-        double off = 0.0;
+        keel::f64 off = 0.0;
         for (keel::usize p = 0; p < D; ++p)
             for (keel::usize q = p + 1; q < D; ++q)
                 off += A[p * D + q] * A[p * D + q];
@@ -54,21 +54,21 @@ void jacobi(keel::Array<double> &A, keel::Array<double> &V, keel::usize D) {
 
         for (keel::usize p = 0; p < D - 1; ++p) {
             for (keel::usize q = p + 1; q < D; ++q) {
-                const double app = A[p * D + p];
-                const double aqq = A[q * D + q];
-                const double apq = A[p * D + q];
+                const keel::f64 app = A[p * D + p];
+                const keel::f64 aqq = A[q * D + q];
+                const keel::f64 apq = A[p * D + q];
                 if (std::fabs(apq) < 1e-15) continue;
 
                 // Compute rotation angle.
-                const double theta = (aqq - app) / (2.0 * apq);
-                double t;
+                const keel::f64 theta = (aqq - app) / (2.0 * apq);
+                keel::f64 t;
                 if (theta == 0.0) t = 1.0;
                 else {
-                    const double sgn = (theta > 0) ? 1.0 : -1.0;
+                    const keel::f64 sgn = (theta > 0) ? 1.0 : -1.0;
                     t = sgn / (std::fabs(theta) + std::sqrt(theta * theta + 1.0));
                 }
-                const double c = 1.0 / std::sqrt(t * t + 1.0);
-                const double s = t * c;
+                const keel::f64 c = 1.0 / std::sqrt(t * t + 1.0);
+                const keel::f64 s = t * c;
 
                 // Apply rotation to A.
                 A[p * D + p] = app - t * apq;
@@ -77,7 +77,7 @@ void jacobi(keel::Array<double> &A, keel::Array<double> &V, keel::usize D) {
                 A[q * D + p] = 0.0;
                 for (keel::usize r = 0; r < D; ++r) {
                     if (r == p || r == q) continue;
-                    const double arp = A[r * D + p], arq = A[r * D + q];
+                    const keel::f64 arp = A[r * D + p], arq = A[r * D + q];
                     A[r * D + p] = c * arp - s * arq;
                     A[p * D + r] = A[r * D + p];
                     A[r * D + q] = c * arq + s * arp;
@@ -85,7 +85,7 @@ void jacobi(keel::Array<double> &A, keel::Array<double> &V, keel::usize D) {
                 }
                 // Accumulate rotation into V.
                 for (keel::usize r = 0; r < D; ++r) {
-                    const double vrp = V[r * D + p], vrq = V[r * D + q];
+                    const keel::f64 vrp = V[r * D + p], vrq = V[r * D + q];
                     V[r * D + p] = c * vrp - s * vrq;
                     V[r * D + q] = c * vrq + s * vrp;
                 }
@@ -114,43 +114,43 @@ pca(const Value &X, keel::Allocator *mr)
     const keel::usize N = X.dims().rows();
     const keel::usize D = X.dims().cols();
 
-    keel::Array<double> Xv = read_rows(X);
+    keel::Array<keel::f64> Xv = read_rows(X);
 
     // Mean of each column.
-    keel::Array<double> mu(D, 0.0);
+    keel::Array<keel::f64> mu(D, 0.0);
     for (keel::usize r = 0; r < N; ++r)
         for (keel::usize c = 0; c < D; ++c) mu[c] += Xv[r * D + c];
-    for (auto &m : mu) m /= double(N);
+    for (auto &m : mu) m /= keel::f64(N);
 
     // Centred X.
-    keel::Array<double> Xc(N * D);
+    keel::Array<keel::f64> Xc(N * D);
     for (keel::usize r = 0; r < N; ++r)
         for (keel::usize c = 0; c < D; ++c) Xc[r * D + c] = Xv[r * D + c] - mu[c];
 
     // Sample covariance (D×D, divisor n-1).
-    keel::Array<double> C(D * D, 0.0);
+    keel::Array<keel::f64> C(D * D, 0.0);
     for (keel::usize r = 0; r < N; ++r) {
         for (keel::usize a = 0; a < D; ++a)
             for (keel::usize b = 0; b < D; ++b)
                 C[a * D + b] += Xc[r * D + a] * Xc[r * D + b];
     }
-    const double inv_n = 1.0 / double(N - 1);
+    const keel::f64 inv_n = 1.0 / keel::f64(N - 1);
     for (auto &c : C) c *= inv_n;
 
     // Jacobi eigendecomposition: A·V = V·Λ.
-    keel::Array<double> Vmat;
+    keel::Array<keel::f64> Vmat;
     jacobi(C, Vmat, D);
 
     // Extract eigenvalues from C diagonal; sort descending.
-    keel::Array<double> latent(D);
+    keel::Array<keel::f64> latent(D);
     keel::Array<int> order(D);
     for (keel::usize i = 0; i < D; ++i) { latent[i] = C[i * D + i]; order[i] = (int)i; }
     std::sort(order.begin(), order.end(),
               [&](int a, int b) { return latent[a] > latent[b]; });
 
     // Reorder eigenvalues + eigenvectors.
-    keel::Array<double> latent_s(D);
-    keel::Array<double> coeff(D * D, 0.0);  // D×D row-major; cols = eigenvectors
+    keel::Array<keel::f64> latent_s(D);
+    keel::Array<keel::f64> coeff(D * D, 0.0);  // D×D row-major; cols = eigenvectors
     for (keel::usize i = 0; i < D; ++i) {
         const int src = order[i];
         latent_s[i] = latent[src];
@@ -158,24 +158,24 @@ pca(const Value &X, keel::Allocator *mr)
     }
 
     // score = Xc · coeff (N×D × D×D = N×D)
-    keel::Array<double> score(N * D, 0.0);
+    keel::Array<keel::f64> score(N * D, 0.0);
     for (keel::usize r = 0; r < N; ++r)
         for (keel::usize k = 0; k < D; ++k) {
-            double s = 0.0;
+            keel::f64 s = 0.0;
             for (keel::usize j = 0; j < D; ++j) s += Xc[r * D + j] * coeff[j * D + k];
             score[r * D + k] = s;
         }
 
     // explained: percent of variance.
-    double total = 0.0; for (double v : latent_s) total += v;
-    keel::Array<double> explained(D, 0.0);
+    keel::f64 total = 0.0; for (keel::f64 v : latent_s) total += v;
+    keel::Array<keel::f64> explained(D, 0.0);
     if (total > 0.0)
         for (keel::usize i = 0; i < D; ++i) explained[i] = 100.0 * latent_s[i] / total;
 
     // tsquared: Hotelling's T² = Σ_k (score_ik² / latent_k) per row.
-    keel::Array<double> tsq(N, 0.0);
+    keel::Array<keel::f64> tsq(N, 0.0);
     for (keel::usize r = 0; r < N; ++r) {
-        double s = 0.0;
+        keel::f64 s = 0.0;
         for (keel::usize k = 0; k < D; ++k)
             if (latent_s[k] > 1e-15)
                 s += score[r * D + k] * score[r * D + k] / latent_s[k];
@@ -183,9 +183,9 @@ pca(const Value &X, keel::Allocator *mr)
     }
 
     // Pack outputs (column-major).
-    auto pack_NxM = [&](const keel::Array<double> &src, keel::usize rows, keel::usize cols) {
+    auto pack_NxM = [&](const keel::Array<keel::f64> &src, keel::usize rows, keel::usize cols) {
         Value v = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
-        double *p = v.doubleDataMut();
+        keel::f64 *p = v.doubleDataMut();
         for (keel::usize r = 0; r < rows; ++r)
             for (keel::usize c = 0; c < cols; ++c) p[c * rows + r] = src[r * cols + c];
         return v;
@@ -214,29 +214,29 @@ pcacov(const Value &C, keel::Allocator *mr) {
         throw Error("pcacov: C must be square", 0, 0, "pcacov", "",
                     "numkit:pcacov:size");
 
-    keel::Array<double> A(D * D);
+    keel::Array<keel::f64> A(D * D);
     for (keel::usize r = 0; r < D; ++r)
         for (keel::usize c = 0; c < D; ++c) A[r * D + c] = C.elemAsDouble(c * D + r);
 
-    keel::Array<double> V;
+    keel::Array<keel::f64> V;
     jacobi(A, V, D);
 
-    keel::Array<double> latent(D);
+    keel::Array<keel::f64> latent(D);
     keel::Array<int> order(D);
     for (keel::usize i = 0; i < D; ++i) { latent[i] = A[i * D + i]; order[i] = (int)i; }
     std::sort(order.begin(), order.end(),
               [&](int a, int b) { return latent[a] > latent[b]; });
 
-    keel::Array<double> latent_s(D);
-    keel::Array<double> coeff(D * D, 0.0);
+    keel::Array<keel::f64> latent_s(D);
+    keel::Array<keel::f64> coeff(D * D, 0.0);
     for (keel::usize i = 0; i < D; ++i) {
         const int src = order[i];
         latent_s[i] = latent[src];
         for (keel::usize r = 0; r < D; ++r) coeff[r * D + i] = V[r * D + src];
     }
 
-    double total = 0.0; for (double v : latent_s) total += v;
-    keel::Array<double> explained(D, 0.0);
+    keel::f64 total = 0.0; for (keel::f64 v : latent_s) total += v;
+    keel::Array<keel::f64> explained(D, 0.0);
     if (total > 0.0)
         for (keel::usize i = 0; i < D; ++i) explained[i] = 100.0 * latent_s[i] / total;
 
@@ -267,12 +267,12 @@ pcares_full(const Value &X, int ndim, keel::Allocator *mr) {
 
     Value res   = Value::matrix(N, D, ValueType::DOUBLE, mr);
     Value recon = Value::matrix(N, D, ValueType::DOUBLE, mr);
-    double *rd = res.doubleDataMut();
-    double *cd = recon.doubleDataMut();
+    keel::f64 *rd = res.doubleDataMut();
+    keel::f64 *cd = recon.doubleDataMut();
 
     for (keel::usize i = 0; i < N; ++i)
         for (keel::usize j = 0; j < D; ++j) {
-            double r = mu.elemAsDouble(j);
+            keel::f64 r = mu.elemAsDouble(j);
             for (int k = 0; k < ndim; ++k) {
                 r += score.elemAsDouble((keel::usize)k * N + i)
                    * coeff.elemAsDouble((keel::usize)k * D + j);

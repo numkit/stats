@@ -45,7 +45,7 @@ void multcompare_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
                      keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 1, "multcompare");  // no max: name-value tail in the reference
-    double alpha = 0.05;
+    keel::f64 alpha = 0.05;
     McCorrection ctype = McCorrection::Bonferroni;
 
     keel::usize i = 1;

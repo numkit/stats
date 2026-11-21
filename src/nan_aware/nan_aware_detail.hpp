@@ -36,7 +36,7 @@ namespace {
                      0, 0, fn, "", keel::format("numkit:{}:badFlag", fn));
 }
 
-[[maybe_unused]] double medianFromSlice(double *data, keel::usize n)
+[[maybe_unused]] keel::f64 medianFromSlice(keel::f64 *data, keel::usize n)
 {
     if (n == 0) return std::nan("");
     if (n == 1) return data[0];
@@ -44,8 +44,8 @@ namespace {
     std::nth_element(data, data + mid, data + n);
     if (n % 2 == 1)
         return data[mid];
-    const double upper = data[mid];
-    const double lower = *std::max_element(data, data + mid);
+    const keel::f64 upper = data[mid];
+    const keel::f64 lower = *std::max_element(data, data + mid);
     return 0.5 * (lower + upper);
 }
 
@@ -53,7 +53,7 @@ namespace {
 namespace {
 
 // Read x as a column-major n×p matrix; vector → n×1.
-[[maybe_unused]] void readObsMatrix(const Value &x, keel::Array<double> &out,
+[[maybe_unused]] void readObsMatrix(const Value &x, keel::Array<keel::f64> &out,
                     keel::usize &n, keel::usize &p)
 {
     if (x.isEmpty()) { n = p = 0; return; }
@@ -67,8 +67,8 @@ namespace {
     out.resize(n * p);
     if (x.type() == ValueType::DOUBLE) {
         // Column-major copy — same layout as Value storage.
-        const double *src = x.doubleData();
-        std::memcpy(out.data(), src, n * p * sizeof(double));
+        const keel::f64 *src = x.doubleData();
+        std::memcpy(out.data(), src, n * p * sizeof(keel::f64));
     } else {
         for (keel::usize k = 0; k < n * p; ++k)
             out[k] = x.elemAsDouble(k);
@@ -77,7 +77,7 @@ namespace {
 
 // Drop rows where any column has NaN. Compacts in place. Returns the
 // new row count.
-[[maybe_unused]] keel::usize dropNanRows(double *data, keel::usize n, keel::usize p)
+[[maybe_unused]] keel::usize dropNanRows(keel::f64 *data, keel::usize n, keel::usize p)
 {
     keel::usize w = 0;
     for (keel::usize r = 0; r < n; ++r) {
@@ -101,33 +101,33 @@ namespace {
 // In-place column centering for an n_kept × p block stored with stride
 // n_orig (NOT compacted). To keep things simple we instead PACK the
 // kept rows into a fresh contiguous n_kept × p layout before centering.
-[[maybe_unused]] void packKeptRows(const double *src, keel::usize n_orig,
-                   keel::usize n_kept, keel::usize p, double *dst)
+[[maybe_unused]] void packKeptRows(const keel::f64 *src, keel::usize n_orig,
+                   keel::usize n_kept, keel::usize p, keel::f64 *dst)
 {
     for (keel::usize c = 0; c < p; ++c)
         for (keel::usize r = 0; r < n_kept; ++r)
             dst[c * n_kept + r] = src[c * n_orig + r];
 }
 
-[[maybe_unused]] void centerColumnsLocal(double *data, keel::usize n, keel::usize p)
+[[maybe_unused]] void centerColumnsLocal(keel::f64 *data, keel::usize n, keel::usize p)
 {
     for (keel::usize c = 0; c < p; ++c) {
-        double s = 0.0;
+        keel::f64 s = 0.0;
         for (keel::usize r = 0; r < n; ++r) s += data[c * n + r];
-        const double m = s / keel::as<double>(n);
+        const keel::f64 m = s / keel::as<keel::f64>(n);
         for (keel::usize r = 0; r < n; ++r) data[c * n + r] -= m;
     }
 }
 
-[[maybe_unused]] Value covFromCenteredLocal(const double *X, keel::usize n,
-                            keel::usize p, double divisor,
+[[maybe_unused]] Value covFromCenteredLocal(const keel::f64 *X, keel::usize n,
+                            keel::usize p, keel::f64 divisor,
                             keel::Allocator *mr)
 {
     auto out = Value::matrix(p, p, ValueType::DOUBLE, mr);
-    double *dst = out.doubleDataMut();
+    keel::f64 *dst = out.doubleDataMut();
     for (keel::usize i = 0; i < p; ++i)
         for (keel::usize j = 0; j < p; ++j) {
-            double s = 0.0;
+            keel::f64 s = 0.0;
             for (keel::usize r = 0; r < n; ++r)
                 s += X[i * n + r] * X[j * n + r];
             dst[j * p + i] = s / divisor;
