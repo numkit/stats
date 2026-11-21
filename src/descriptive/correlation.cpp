@@ -58,6 +58,7 @@
 #include <keel/complex.h>
 #include <keel/format.h>
 #include <keel/math.h>
+#include <keel/optional.h>
 #include <keel/string.h>
 #include <numkit/stats/descriptive/descriptive.hpp>
 #include "descriptive/descriptive_extras_detail.hpp"
@@ -98,9 +99,9 @@ CorrTail parseTailChoice(const Value &v, keel::StringRef fn)
     static constexpr keel::StringRef kTail[] = {"left", "both", "right"};
     static constexpr keel::StringRef kAlias[] = {"lt", "ne", "gt"};
     keel::i32 m = argcheck::matchStringChoice(v, keel::ArrayRef<keel::StringRef>(kTail));
-    if (m >= 0) return static_cast<CorrTail>(m);
+    if (auto t = keel::try_enum(m, CorrTail::Left, CorrTail::Right)) return *t;
     m = argcheck::matchStringChoice(v, keel::ArrayRef<keel::StringRef>(kAlias));
-    if (m >= 0) return static_cast<CorrTail>(m);
+    if (auto t = keel::try_enum(m, CorrTail::Left, CorrTail::Right)) return *t;
     keel::String vStr = v.toString();
     throw Error(keel::format("{}: Tail must be 'left', 'both', or 'right' "
                              "(aliases 'lt', 'ne', 'gt'), got '{}'.",
@@ -1221,7 +1222,7 @@ CorrOut corr_full(const Value &x, const Value *Y, keel::ArrayRef<Value> nv,
                                      rowsStr.as_ref()),
                         0, 0, "corr", "", "numkit:corr:unknownRows");
         }
-        rows = static_cast<CorrRows>(m);
+        rows = keel::from_underlying<CorrRows>(m);
     }
     // gatherRows/dropCompleteRows read their inputs while writing the
     // outputs — pass DISTINCT in/out variables, then move into Xe/Ye/wEff.
@@ -1274,7 +1275,7 @@ CorrOut corr_full(const Value &x, const Value *Y, keel::ArrayRef<Value> nv,
                                      typeStr.as_ref()),
                         0, 0, "corr", "", "numkit:corr:unknownType");
         }
-        ct = static_cast<CorrType>(m);
+        ct = keel::from_underlying<CorrType>(m);
     }
     CorrTail tail = CorrTail::Both;
     if (!tailRaw.isEmpty())
@@ -1463,7 +1464,7 @@ CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
                                 0, 0, "partialcorr", "",
                                 "numkit:partialcorr:unknownRows");
                 }
-                rows = static_cast<CorrRows>(m);
+                rows = keel::from_underlying<CorrRows>(m);
                 break;
             }
             case 1: {
@@ -1487,7 +1488,7 @@ CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
                                 "Pearson or Spearman).",
                                 0, 0, "partialcorr", "",
                                 "numkit:partialcorr:kendall");
-                ct = static_cast<CorrType>(m);
+                ct = keel::from_underlying<CorrType>(m);
                 break;
             }
             case 2:
