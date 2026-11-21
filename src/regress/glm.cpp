@@ -1,34 +1,49 @@
 // toolboxes/stats/src/regress/glm.cpp
 //
-// Generalized linear model fit + prediction:
-//   glmfit — IRLS GLM fitting (normal / binomial / poisson / gamma)
-//   glmval — predict from fitted coefficients
+// Generalized linear model fit + prediction (glmfit / glmval),
+// delegating IRLS numerical kernels to keel::stats.
 
+#include <keel/arena.h>
 #include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
+#include <keel/stats.h>
+
 #include <numkit/stats/regress/regress.hpp>
-
-#include <numkit/stats/distributions/normal.hpp>     // for probit via norminv/normcdf
-
-#include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
+#include <numkit/value/value.hpp>
 
-#include <algorithm>
-#include <cmath>
 #include <cstring>
-#include <limits>
-
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
-
-#include "glm_detail.hpp"
 
 namespace numkit::stats {
 
 namespace {
-void glmfit_argcheck(const Value &X, const Value & /*y*/, keel::usize n, keel::usize p)
+
+keel::stats::GlmDist toKeelDist(GlmDistribution d) noexcept
+{
+    switch (d) {
+        case GlmDistribution::Normal:          return keel::stats::GlmDist::kNormal;
+        case GlmDistribution::Binomial:        return keel::stats::GlmDist::kBinomial;
+        case GlmDistribution::Poisson:         return keel::stats::GlmDist::kPoisson;
+        case GlmDistribution::Gamma:           return keel::stats::GlmDist::kGamma;
+        case GlmDistribution::InverseGaussian: return keel::stats::GlmDist::kInverseGaussian;
+    }
+    return keel::stats::GlmDist::kNormal;
+}
+
+keel::stats::GlmLink toKeelLink(GlmLink l) noexcept
+{
+    switch (l) {
+        case GlmLink::Identity:   return keel::stats::GlmLink::kIdentity;
+        case GlmLink::Logit:      return keel::stats::GlmLink::kLogit;
+        case GlmLink::Log:        return keel::stats::GlmLink::kLog;
+        case GlmLink::Reciprocal: return keel::stats::GlmLink::kReciprocal;
+        case GlmLink::Probit:     return keel::stats::GlmLink::kProbit;
+    }
+    return keel::stats::GlmLink::kIdentity;
+}
+
+void glmfit_argcheck(const Value &X, keel::usize n, keel::usize p)
 {
     if (X.dims().rows() != n)
         throw Error("glmfit: rows(X) must equal length(y)",
@@ -37,198 +52,62 @@ void glmfit_argcheck(const Value &X, const Value & /*y*/, keel::usize n, keel::u
         throw Error("glmfit: need rows(X) > cols(X) + 1",
                     0, 0, "glmfit", "", "numkit:glmfit:noDOF");
 }
+
 } // namespace
 
 GlmfitResult glmfit(const Value &X, const Value &y,
-                     GlmDistribution distr, GlmLink link,
-                     keel::Allocator *mr)
+                    GlmDistribution distr, GlmLink link,
+                    keel::Allocator *mr)
 {
     const keel::usize n = y.numel();
     const keel::usize p_in = X.dims().cols();
-    const keel::usize p = p_in + 1;   // +1 for auto intercept
-    glmfit_argcheck(X, y, n, p);
+    const keel::usize p = p_in + 1;
+    glmfit_argcheck(X, n, p);
 
-    // If user passed Identity AND it's not Normal, treat that as
-    // "default" and switch to canonical link.
-    if (link == GlmLink::Identity && distr != GlmDistribution::Normal)
-        link = canonicalLink(distr);
-
-    const LinkFn fn = makeLink(link);
-
-    // Build design matrix Xb = [1, X] column-major.
-    keel::Array<keel::f64> Xb(n * p, 0.0);
-    for (keel::usize i = 0; i < n; ++i) Xb[0 * n + i] = 1.0;
-    for (keel::usize j = 0; j < p_in; ++j)
-        for (keel::usize i = 0; i < n; ++i)
-            Xb[(j + 1) * n + i] = X.elemAsDouble(j * n + i);
-
-    keel::Array<keel::f64> yv(n);
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    keel::Array<keel::f64> xv(n * p_in, 0.0, scratch.allocator());
+    for (keel::usize i = 0; i < n * p_in; ++i) xv[i] = X.elemAsDouble(i);
+    keel::Array<keel::f64> yv(n, 0.0, scratch.allocator());
     for (keel::usize i = 0; i < n; ++i) yv[i] = y.elemAsDouble(i);
 
-    // Initial mu and eta.
-    keel::Array<keel::f64> mu(n), eta(n);
-    for (keel::usize i = 0; i < n; ++i) {
-        mu[i] = initialMu(yv[i], distr);
-        // eta = g(mu) — compute via numerical inverse:
-        // We don't have direct g(mu) symbolic, but we can use the
-        // identity g'(mu) = dEta/dMu and iterate. Simpler: bootstrap
-        // eta from a transform consistent with the link.
-        switch (link) {
-        case GlmLink::Identity:   eta[i] = mu[i]; break;
-        case GlmLink::Logit:      eta[i] = std::log(mu[i] / (1.0 - mu[i])); break;
-        case GlmLink::Log:        eta[i] = std::log(std::max(mu[i], 1e-12)); break;
-        case GlmLink::Reciprocal: eta[i] = 1.0 / std::max(mu[i], 1e-12); break;
-        case GlmLink::Probit: {
-            // bootstrap via logit-ish guess
-            const keel::f64 m = std::min(std::max(mu[i], 1e-12), 1.0 - 1e-12);
-            eta[i] = std::log(m / (1.0 - m)) / 1.6;   // rough scaling
-            break;
-        }
-        }
-    }
+    keel::stats::GlmFitOut fit(scratch.allocator());
+    (void)keel::stats::glmfit(xv.as_ref(), yv.as_ref(), n, p_in,
+                              toKeelDist(distr), toKeelLink(link),
+                              fit, scratch.allocator());
 
-    keel::Array<keel::f64> beta(p, 0.0), beta_prev(p, 0.0);
-    const keel::i32 maxIter = 100;
-    const keel::f64 tol = 1e-8;
-    keel::f64 dev = 0.0;
-    for (keel::i32 it = 0; it < maxIter; ++it) {
-        // Working response z = eta + (y - mu) * dEta/dMu, weight = 1 / (V(mu) * (dEta/dMu)²).
-        keel::Array<keel::f64> z(n), w(n);
-        for (keel::usize i = 0; i < n; ++i) {
-            const keel::f64 dE = fn.deta_dmu(mu[i]);
-            const keel::f64 V = varianceFn(mu[i], distr);
-            w[i] = 1.0 / (V * dE * dE + 1e-30);
-            z[i] = eta[i] + (yv[i] - mu[i]) * dE;
-        }
-
-        // Solve weighted least squares: (X' W X) β = X' W z.
-        keel::Array<keel::f64> M(p * p, 0.0), b(p, 0.0);
-        for (keel::usize i = 0; i < p; ++i) {
-            for (keel::usize j = 0; j < p; ++j) {
-                keel::f64 s = 0.0;
-                for (keel::usize k = 0; k < n; ++k)
-                    s += Xb[i * n + k] * w[k] * Xb[j * n + k];
-                M[i * p + j] = s;
-            }
-            keel::f64 s = 0.0;
-            for (keel::usize k = 0; k < n; ++k)
-                s += Xb[i * n + k] * w[k] * z[k];
-            b[i] = s;
-        }
-        if (!gaussSolve(M.data(), b.data(), p)) {
-            // Singular — bail with current beta.
-            break;
-        }
-
-        beta_prev = keel::move(beta);
-        beta = keel::move(b);
-
-        // Update eta = X·β, then mu.
-        for (keel::usize i = 0; i < n; ++i) {
-            keel::f64 e = 0.0;
-            for (keel::usize j = 0; j < p; ++j)
-                e += Xb[j * n + i] * beta[j];
-            eta[i] = e;
-            mu[i] = fn.invLink(e);
-        }
-
-        // Convergence on coefficient change.
-        keel::f64 maxStep = 0.0, maxBeta = 0.0;
-        for (keel::usize j = 0; j < p; ++j) {
-            maxStep = std::max(maxStep, std::fabs(beta[j] - beta_prev[j]));
-            maxBeta = std::max(maxBeta, std::fabs(beta[j]));
-        }
-        if (it > 0 && maxStep < tol * std::max(maxBeta, 1.0)) break;
-    }
-
-    // Deviance and final working weights / covariance.
-    dev = 0.0;
-    keel::f64 pearsonChi2 = 0.0;
-    keel::Array<keel::f64> wFinal(n, 0.0);
-    for (keel::usize i = 0; i < n; ++i) {
-        dev += devTerm(yv[i], mu[i], distr);
-        const keel::f64 dE = fn.deta_dmu(mu[i]);
-        const keel::f64 V = std::max(varianceFn(mu[i], distr), 1e-30);
-        wFinal[i] = 1.0 / (V * dE * dE + 1e-30);
-        const keel::f64 r = yv[i] - mu[i];
-        pearsonChi2 += (r * r) / V;
-    }
-
-    const keel::f64 dfe = keel::as<keel::f64>(n - p);
-    const keel::f64 sfit = std::sqrt(dev / dfe);
-    const bool estdisp = (distr == GlmDistribution::Normal
-                          || distr == GlmDistribution::Gamma
-                          || distr == GlmDistribution::InverseGaussian);
-    const keel::f64 sDisp = !estdisp ? 1.0
-                       : (distr == GlmDistribution::Normal
-                              ? sfit
-                              : std::sqrt(pearsonChi2 / dfe));
-
-    // Invert J = Xb' * W * Xb to obtain covb = s^2 * J^{-1}.
-    keel::Array<keel::f64> J(p * p, 0.0);
-    for (keel::usize i = 0; i < p; ++i)
-        for (keel::usize j = 0; j < p; ++j) {
-            keel::f64 acc = 0.0;
-            for (keel::usize k = 0; k < n; ++k)
-                acc += Xb[i * n + k] * wFinal[k] * Xb[j * n + k];
-            J[i * p + j] = acc;
-        }
-    Value covb = Value::matrix(p, p, ValueType::DOUBLE, mr);
-    keel::f64 *covbD = covb.doubleDataMut();
-    for (keel::usize col = 0; col < p; ++col) {
-        keel::Array<keel::f64> M = J.clone();
-        keel::Array<keel::f64> rhs(p, 0.0);
-        rhs[col] = 1.0;
-        if (gaussSolve(M.data(), rhs.data(), p)) {
-            for (keel::usize row = 0; row < p; ++row)
-                covbD[row + col * p] = (sDisp * sDisp) * rhs[row];
-        }
-    }
-    Value se = Value::matrix(p, 1, ValueType::DOUBLE, mr);
-    Value tStat = Value::matrix(p, 1, ValueType::DOUBLE, mr);
-    for (keel::usize j = 0; j < p; ++j) {
-        const keel::f64 sej = std::sqrt(std::max(0.0, covbD[j + j * p]));
-        se.doubleDataMut()[j] = sej;
-        tStat.doubleDataMut()[j] = (sej > 0.0) ? (beta[j] / sej) : 0.0;
-    }
+    Value bv        = Value::matrix(p, 1, ValueType::DOUBLE, mr);
+    Value covb      = Value::matrix(p, p, ValueType::DOUBLE, mr);
+    Value se        = Value::matrix(p, 1, ValueType::DOUBLE, mr);
     Value coeffcorr = Value::matrix(p, p, ValueType::DOUBLE, mr);
-    for (keel::usize j = 0; j < p; ++j)
-        for (keel::usize k = 0; k < p; ++k) {
-            const keel::f64 sej = se.doubleData()[j];
-            const keel::f64 sek = se.doubleData()[k];
-            coeffcorr.doubleDataMut()[j + k * p] =
-                (sej > 0.0 && sek > 0.0)
-                    ? covbD[j + k * p] / (sej * sek)
-                    : (j == k ? 1.0 : 0.0);
-        }
-    Value resid = Value::matrix(n, 1, ValueType::DOUBLE, mr);
-    Value wts = Value::matrix(n, 1, ValueType::DOUBLE, mr);
-    for (keel::usize i = 0; i < n; ++i) {
-        resid.doubleDataMut()[i] = yv[i] - mu[i];
-        wts.doubleDataMut()[i] = wFinal[i];
-    }
+    Value tStat     = Value::matrix(p, 1, ValueType::DOUBLE, mr);
+    Value resid     = Value::matrix(n, 1, ValueType::DOUBLE, mr);
+    Value wts       = Value::matrix(n, 1, ValueType::DOUBLE, mr);
 
-    auto bv = Value::matrix(p, 1, ValueType::DOUBLE, mr);
-    std::memcpy(bv.doubleDataMut(), beta.data(), p * sizeof(keel::f64));
+    std::memcpy(bv.doubleDataMut(), fit.beta.data(), p * sizeof(keel::f64));
+    std::memcpy(covb.doubleDataMut(), fit.covb.data(), p * p * sizeof(keel::f64));
+    std::memcpy(se.doubleDataMut(), fit.se.data(), p * sizeof(keel::f64));
+    std::memcpy(coeffcorr.doubleDataMut(), fit.coeffcorr.data(), p * p * sizeof(keel::f64));
+    std::memcpy(tStat.doubleDataMut(), fit.t_stat.data(), p * sizeof(keel::f64));
+    std::memcpy(resid.doubleDataMut(), fit.resid.data(), n * sizeof(keel::f64));
+    std::memcpy(wts.doubleDataMut(), fit.wts.data(), n * sizeof(keel::f64));
 
     Value stats = Value::structure(mr);
-    stats.field("beta") = bv;
-    stats.field("dfe") = Value::scalar(dfe, mr);
-    stats.field("sfit") = Value::scalar(sfit, mr);
-    stats.field("s") = Value::scalar(sDisp, mr);
-    stats.field("estdisp") = Value::scalar(estdisp ? 1.0 : 0.0, mr);
-    stats.field("covb") = std::move(covb);
-    stats.field("se") = std::move(se);
+    stats.field("beta")      = bv;
+    stats.field("dfe")       = Value::scalar(fit.dfe, mr);
+    stats.field("sfit")      = Value::scalar(fit.sfit, mr);
+    stats.field("s")         = Value::scalar(fit.s, mr);
+    stats.field("estdisp")   = Value::scalar(fit.estdisp ? 1.0 : 0.0, mr);
+    stats.field("covb")      = std::move(covb);
+    stats.field("se")        = std::move(se);
     stats.field("coeffcorr") = std::move(coeffcorr);
-    stats.field("t") = std::move(tStat);
-    stats.field("resid") = std::move(resid);
-    stats.field("wts") = std::move(wts);
+    stats.field("t")         = std::move(tStat);
+    stats.field("resid")     = std::move(resid);
+    stats.field("wts")       = std::move(wts);
 
-    return { std::move(bv), Value::scalar(dev, mr), std::move(stats) };
+    return {std::move(bv), Value::scalar(fit.deviance, mr), std::move(stats)};
 }
 
-Value glmval(const Value &b, const Value &X, GlmLink link,
-              keel::Allocator *mr)
+Value glmval(const Value &b, const Value &X, GlmLink link, keel::Allocator *mr)
 {
     const keel::usize p = b.numel();
     const keel::usize m = X.dims().rows();
@@ -237,18 +116,15 @@ Value glmval(const Value &b, const Value &X, GlmLink link,
         throw Error("glmval: length(b) must equal cols(X) + 1",
                     0, 0, "glmval", "", "numkit:glmval:shapeMismatch");
 
-    const LinkFn fn = makeLink(link);
-    keel::Array<keel::f64> bv(p);
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    keel::Array<keel::f64> bv(p, 0.0, scratch.allocator());
     for (keel::usize i = 0; i < p; ++i) bv[i] = b.elemAsDouble(i);
+    keel::Array<keel::f64> xv(m * p_in, 0.0, scratch.allocator());
+    for (keel::usize i = 0; i < m * p_in; ++i) xv[i] = X.elemAsDouble(i);
 
-    auto out = Value::matrix(m, 1, ValueType::DOUBLE, mr);
-    keel::f64 *od = out.doubleDataMut();
-    for (keel::usize i = 0; i < m; ++i) {
-        keel::f64 eta = bv[0];      // intercept
-        for (keel::usize j = 0; j < p_in; ++j)
-            eta += X.elemAsDouble(j * m + i) * bv[j + 1];
-        od[i] = fn.invLink(eta);
-    }
+    Value out = Value::matrix(m, 1, ValueType::DOUBLE, mr);
+    (void)keel::stats::glmval(bv.as_ref(), xv.as_ref(), m, p_in, toKeelLink(link),
+                              keel::MutArrayRef<keel::f64>(out.doubleDataMut(), m));
     return out;
 }
 

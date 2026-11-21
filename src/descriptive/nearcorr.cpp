@@ -1,67 +1,27 @@
 // toolboxes/stats/src/descriptive/nearcorr.cpp
 //
-// MATLAB nearcorr: nearest correlation matrix (Higham 2002 alternating
-// projections with Dykstra's correction).
-//
-//   Y = nearcorr(A)
-//   Y = nearcorr(A, 'Tolerance', tol, 'MaxIterations', n, 'Method', m)
-//
-// The full-entry contract (nearcorr_full) owns the input gate and the
-// name-value parse, probed against the reference engine (build/probe71.out
-// N01-N11):
-//   * gate — one rejection class: numeric, nonempty, real, 2-D matrix,
-//     symmetric, entries in [-1, 1], unit diagonal, double or single
-//     (integer classes are rejected — the reference reaches the same
-//     rejection inside its symmetry helper which only accepts float and
-//     logical classes, and logical fails the isnumeric test);
-//   * 'Tolerance'      double scalar > 0, default 1e-6;
-//   * 'MaxIterations'  double scalar > 0 integer, default 200;
-//   * 'Method'         'newton' (default) | 'projection', exact
-//     case-insensitive match;
-//   * 'Weights'        voiced stub — changes the minimizer, filed in
-//     bugs/opened/stats/correlation-deferred-forms.md;
-//   * any bad name/value → one optional-input rejection class.
-//
-// DELIBERATE DIVERGENCE (documented, same minimizer): both Method values
-// run the alternating-projections solver. The reference's 'newton' path
-// is a semismooth Newton iteration on the same KKT system — it converges
-// to the same nearest correlation matrix by a different route; the
-// reference's own convergence study (nearcorr.m refs) reports the same
-// fixed point. Parity specs pin the returned matrix, not the iteration
-// count.
-//
-// Algorithm (Higham, "Computing the Nearest Correlation Matrix --
-// A Problem from Finance", IMA J. Numer. Anal. 22 (3): 329-343, 2002):
-//   Y = A; dS = 0
-//   loop:
-//     R = Y - dS                 -- subtract Dykstra correction
-//     X = proj_PSD(R)            -- eig, clamp negative eigvals to 0
-//     dS = X - R                 -- update Dykstra correction
-//     Y = proj_unit_diag(X)      -- set diagonal entries to 1
-//     until max(||Y-Yold||/||Y||, ||X-Xold||/||X||, ||Y-X||/||Y||) <= tol
-//   restore unit diagonal via X ./ sqrt(diag(X) * diag(X)') and symmetrise.
-//
-// Single inputs compute in double and cast down (the reference runs the
-// iteration in single arithmetic; the fixed point agrees to single
-// precision but the iteration path may differ in the last digits).
+// Nearest correlation matrix (Higham 2002 alternating projections with
+// Dykstra's correction), delegating numerical kernels to keel::stats::nearcorr.
 
+#include <keel/arena.h>
 #include <keel/array.h>
 #include <keel/core.h>
 #include <keel/format.h>
 #include <keel/memory.h>
 #include <keel/ref.h>
+#include <keel/stats.h>
 #include <keel/string.h>
 #include <keel/utf8.h>
+
 #include <numkit/stats/descriptive/descriptive.hpp>
 #include "descriptive/descriptive_extras_detail.hpp"
 
-#include <numkit/linalg/eig.hpp>             // eig_symmetric (migrated)
 #include <numkit/value/argcheck.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 
-#include <algorithm>
 #include <cmath>
+#include <cstring>
 
 namespace numkit::stats {
 
@@ -73,53 +33,6 @@ using argcheck::classMaskOf;
 
 inline constexpr argcheck::ClassMask kFloatReal =
     classMaskOf(ClsDbl) | classMaskOf(ClsSgl);
-
-// Project onto PSD cone via symmetric eigendecomposition.
-// Symmetrise input first to guard against tiny asymmetry from the
-// previous iteration.
-keel::Array<keel::f64>
-projPSD(const keel::Array<keel::f64> &M, keel::usize n, keel::Allocator *mr)
-{
-    // Symmetrise: M_sym = (M + M') / 2
-    keel::Array<keel::f64> Msym(n * n);
-    for (keel::usize j = 0; j < n; ++j)
-        for (keel::usize i = 0; i < n; ++i)
-            Msym[i + j * n] = 0.5 * (M[i + j * n] + M[j + i * n]);
-    Value M_v = Value::matrix(n, n, ValueType::DOUBLE, mr);
-    std::copy(Msym.begin(), Msym.end(), M_v.doubleDataMut());
-
-    auto [V, D] = ::numkit::linalg::eig_symmetric(M_v, mr);
-    const keel::f64 *vd = V.doubleData();
-    const keel::f64 *dd = D.doubleData();
-
-    // Build sqrt(d_pos) and reconstruct V * diag(d_pos) * V'.
-    keel::Array<keel::f64> sqrt_d(n);
-    for (keel::usize i = 0; i < n; ++i)
-        sqrt_d[i] = std::sqrt(std::max(dd[i + i * n], 0.0));
-
-    // X = V * diag(d_pos) * V' = (V * diag(sqrt_d)) * (V * diag(sqrt_d))'
-    keel::Array<keel::f64> VS(n * n);
-    for (keel::usize j = 0; j < n; ++j)
-        for (keel::usize i = 0; i < n; ++i)
-            VS[i + j * n] = vd[i + j * n] * sqrt_d[j];
-
-    keel::Array<keel::f64> X(n * n, 0.0);
-    for (keel::usize i = 0; i < n; ++i)
-        for (keel::usize j = 0; j < n; ++j) {
-            keel::f64 s = 0.0;
-            for (keel::usize k = 0; k < n; ++k)
-                s += VS[i + k * n] * VS[j + k * n];   // VS * VS'
-            X[i + j * n] = s;
-        }
-    return X;
-}
-
-keel::f64 frobNorm(const keel::Array<keel::f64> &M)
-{
-    keel::f64 s = 0.0;
-    for (keel::f64 v : M) s += v * v;
-    return std::sqrt(s);
-}
 
 void nearcorr_argcheck(const Value &A)
 {
@@ -155,20 +68,18 @@ void nearcorr_argcheck(const Value &A)
 
 } // namespace
 
-Value nearcorr_full(const Value &A, keel::ArrayRef<Value> nv,
-                    keel::Allocator *mr)
+Value nearcorr_full(const Value &A, keel::ArrayRef<Value> nv, keel::Allocator *mr)
 {
     nearcorr_argcheck(A);
     const keel::usize N = A.dims().rows();
     const bool wantSingle = (A.type() == ValueType::SINGLE);
 
-    // ── name-value parse (probe71 N05-N07: one optional-input class) ────
     keel::f64 tol = 1e-6;
     keel::f64 maxIterD = 200.0;
-    bool hasWeights = false;
-    keel::Array<keel::f64> wScale;
-    static constexpr keel::StringRef kNv[] = {"tolerance", "maxiterations",
-                                              "method", "weights"};
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    keel::Array<keel::f64> wScale(scratch.allocator());
+
+    static constexpr keel::StringRef kNv[] = {"tolerance", "maxiterations", "method", "weights"};
     const auto badOpt = [&](keel::StringRef why) {
         throw Error(keel::format("nearcorr: error in optional input arguments ({}).", why),
                     0, 0, "nearcorr", "", "numkit:nearcorr:optionalInputError");
@@ -178,7 +89,7 @@ Value nearcorr_full(const Value &A, keel::ArrayRef<Value> nv,
         "numkit:nearcorr:optionalInputError",
         [&](keel::usize hit, const Value &v) {
             switch (hit) {
-            case 0: {  // Tolerance: double scalar > 0
+            case 0: {
                 if (v.type() != ValueType::DOUBLE || !v.isScalar())
                     badOpt("'Tolerance' must be a double scalar");
                 const keel::f64 t = v.toScalar();
@@ -187,7 +98,7 @@ Value nearcorr_full(const Value &A, keel::ArrayRef<Value> nv,
                 tol = t;
                 break;
             }
-            case 1: {  // MaxIterations: double scalar > 0 integer
+            case 1: {
                 if (v.type() != ValueType::DOUBLE || !v.isScalar())
                     badOpt("'MaxIterations' must be a double scalar");
                 const keel::f64 m = v.toScalar();
@@ -196,17 +107,15 @@ Value nearcorr_full(const Value &A, keel::ArrayRef<Value> nv,
                 maxIterD = m;
                 break;
             }
-            case 2: {  // Method: EXACT 'newton' | 'projection' (the
-                       // reference validates with ismember, not a prefix)
+            case 2: {
                 keel::String rawMv = v.toString();
                 keel::String mv = rawMv.clone();
-                for (char &c : mv)
-                    c = keel::to_ascii_lower(c);
+                for (char &c : mv) c = keel::to_ascii_lower(c);
                 if (mv != "newton" && mv != "projection")
                     badOpt(keel::format("'Method' must be 'newton' or 'projection', got '{}'", rawMv));
-                break;  // both accepted — see the divergence note above
+                break;
             }
-            case 3: {  // Weights: positive length-N vector or symmetric positive N×N matrix
+            case 3: {
                 if (!v.isNumeric() || v.isComplex() || v.numel() == 0
                     || v.dims().ndim() > 2
                     || !argcheck::maskAccepts(kFloatReal, argcheck::classBitOf(v.type())))
@@ -233,79 +142,31 @@ Value nearcorr_full(const Value &A, keel::ArrayRef<Value> nv,
                             wScale[i + j * N] = std::sqrt(v.elemAsDouble(i + j * N));
                         }
                 }
-                hasWeights = true;
                 break;
             }
             default: break;
             }
         });
-    const keel::i64 maxIter = keel::as<keel::i64>(maxIterD);
 
-    // Trivial case: a 1×1 unit-diagonal input is already valid.
     if (N == 1)
-        return wantSingle ? Value::scalar(keel::as<keel::f32>(1.0))
-                          : Value::scalar(1.0);
+        return wantSingle ? Value::scalar(keel::as<keel::f32>(1.0)) : Value::scalar(1.0);
 
-    // ── alternating projections with Dykstra's correction ───────────────
-    keel::Array<keel::f64> Yold(N * N), Xold;
-    for (keel::usize k = 0; k < N * N; ++k) Yold[k] = A.elemAsDouble(k);
-    Xold = Yold.clone();
-    keel::Array<keel::f64> dS(N * N, 0.0), Y = Yold.clone();
+    keel::Array<keel::f64> av(N * N, 0.0, scratch.allocator());
+    for (keel::usize k = 0; k < N * N; ++k) av[k] = A.elemAsDouble(k);
 
-    for (keel::i64 it = 0; it <= maxIter; ++it) {
-        // R = Yold - dS; X = proj_PSD_W(R); dS = X - R; Y = X, unit diag.
-        keel::Array<keel::f64> R(N * N);
-        for (keel::usize k = 0; k < N * N; ++k) R[k] = Yold[k] - dS[k];
-        keel::Array<keel::f64> X;
-        if (hasWeights) {
-            keel::Array<keel::f64> Rw(N * N);
-            for (keel::usize k = 0; k < N * N; ++k) Rw[k] = R[k] * wScale[k];
-            keel::Array<keel::f64> Xw = projPSD(Rw, N, mr);
-            X.resize(N * N);
-            for (keel::usize k = 0; k < N * N; ++k) X[k] = Xw[k] / wScale[k];
-        } else {
-            X = projPSD(R, N, mr);
-        }
-        for (keel::usize k = 0; k < N * N; ++k) dS[k] = X[k] - R[k];
-        Y.assign(X.as_ref());
-        for (keel::usize i = 0; i < N; ++i) Y[i + i * N] = 1.0;
+    keel::Array<keel::f64> res(N * N, 0.0, scratch.allocator());
+    (void)keel::stats::nearcorr(av.as_ref(), N, wScale.as_ref(), tol,
+                                keel::as<keel::i64>(maxIterD), res.as_mut_ref(),
+                                scratch.allocator());
 
-        // Exit conditions (the reference checks all three).
-        const keel::f64 normY = frobNorm(Y);
-        keel::Array<keel::f64> d1(N * N), d2(N * N), d3(N * N);
-        for (keel::usize k = 0; k < N * N; ++k) {
-            d1[k] = Y[k] - Yold[k];
-            d2[k] = X[k] - Xold[k];
-            d3[k] = Y[k] - X[k];
-        }
-        const keel::f64 cond1 = frobNorm(d1) / normY;
-        const keel::f64 cond2 = frobNorm(d2) / frobNorm(X);
-        const keel::f64 cond3 = frobNorm(d3) / normY;
-        if (std::max(cond1, std::max(cond2, cond3)) <= tol) {
-            Xold = std::move(X);
-            break;
-        }
-        Yold.assign(Y.as_ref());
-        Xold = std::move(X);
-    }
-
-    // Restore the unit diagonal: Y = X ./ sqrt(diag(X) * diag(X)'), then
-    // symmetrise (small numerical drift is possible).
-    keel::Array<keel::f64> dd(N);
-    for (keel::usize i = 0; i < N; ++i) dd[i] = Xold[i + i * N];
     Value out = wantSingle ? Value::matrix(N, N, ValueType::SINGLE, mr)
                            : Value::matrix(N, N, ValueType::DOUBLE, mr);
-    auto putElem = [&](keel::usize lin, keel::f64 v) {
-        if (wantSingle)
-            out.singleDataMut()[lin] = keel::as<keel::f32>(v);
-        else
-            out.doubleDataMut()[lin] = v;
-    };
-    for (keel::usize j = 0; j < N; ++j)
-        for (keel::usize i = 0; i < N; ++i) {
-            const keel::f64 v = Xold[i + j * N] / std::sqrt(dd[i] * dd[j]);
-            putElem(i + j * N, 0.5 * (v + Xold[j + i * N] / std::sqrt(dd[i] * dd[j])));
-        }
+    if (wantSingle) {
+        keel::f32 *od = out.singleDataMut();
+        for (keel::usize k = 0; k < N * N; ++k) od[k] = keel::as<keel::f32>(res[k]);
+    } else {
+        std::memcpy(out.doubleDataMut(), res.data(), N * N * sizeof(keel::f64));
+    }
     return out;
 }
 

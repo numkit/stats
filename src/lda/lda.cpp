@@ -1,62 +1,28 @@
 // toolboxes/stats/src/lda/lda.cpp
+//
+// Discriminant analysis (classify), delegating numerical kernels to keel::stats.
 
+#include <keel/arena.h>
 #include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <keel/ref.h>
+#include <keel/stats.h>
 #include <keel/string.h>
 #include <keel/utf8.h>
+
 #include <numkit/stats/lda/lda.hpp>
-
-#include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
+#include <numkit/value/value.hpp>
 
-#include <algorithm>
-#include <cmath>
-#include <limits>
-
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
+#include <cstring>
 
 namespace numkit::stats {
 
 namespace {
 
-constexpr keel::f64 kLog2Pi = 1.8378770664093454835606594728112352;
-
-bool cholesky(const keel::f64 *M, keel::f64 *L, keel::usize d)
-{
-    for (keel::usize i = 0; i < d * d; ++i) L[i] = 0.0;
-    for (keel::usize j = 0; j < d; ++j) {
-        keel::f64 s = M[j + j * d];
-        for (keel::usize k = 0; k < j; ++k) s -= L[j + k * d] * L[j + k * d];
-        if (s <= 0.0) return false;
-        const keel::f64 Ljj = std::sqrt(s);
-        L[j + j * d] = Ljj;
-        for (keel::usize i = j + 1; i < d; ++i) {
-            keel::f64 t = M[i + j * d];
-            for (keel::usize k = 0; k < j; ++k) t -= L[i + k * d] * L[j + k * d];
-            L[i + j * d] = t / Ljj;
-        }
-    }
-    return true;
-}
-
-void fwd_solve(const keel::f64 *L, keel::f64 *z, const keel::f64 *b, keel::usize d)
-{
-    for (keel::usize i = 0; i < d; ++i) {
-        keel::f64 s = b[i];
-        for (keel::usize k = 0; k < i; ++k) s -= L[i + k * d] * z[k];
-        z[i] = s / L[i + i * d];
-    }
-}
-
-} // anonymous
-
-namespace {
-void classify_argcheck(const Value &sample, const Value &training, const Value &group,
-                       keel::StringRef type_in, keel::String &type, bool &quadratic, bool &diagonal)
+keel::stats::DiscrimType classify_argcheck(const Value &sample, const Value &training,
+                                           const Value &group, keel::StringRef type_in)
 {
     const keel::usize d   = training.dims().cols();
     const keel::usize Ntr = training.dims().rows();
@@ -67,175 +33,52 @@ void classify_argcheck(const Value &sample, const Value &training, const Value &
         throw Error("classify: group must have one entry per training row",
                     0, 0, "classify", "", "numkit:classify:group");
 
-    type = keel::String::from(type_in);
-    for (auto &c : type) c = keel::to_ascii_lower(c);
-    if (type.empty()) type = keel::String::from("linear");
-    quadratic = (type == "quadratic" || type == "diagquadratic");
-    diagonal  = (type == "diaglinear" || type == "diagquadratic");
-    if (type != "linear" && type != "diaglinear"
-        && type != "quadratic" && type != "diagquadratic")
-        throw Error("classify: unsupported type (linear|diaglinear|quadratic|diagquadratic)",
-                    0, 0, "classify", "", "numkit:classify:type");
+    keel::String type = keel::String::from(type_in);
+    for (char &c : type) c = keel::to_ascii_lower(c);
+    if (type.empty() || type == "linear") return keel::stats::DiscrimType::kLinear;
+    if (type == "diaglinear")             return keel::stats::DiscrimType::kDiagLinear;
+    if (type == "quadratic")              return keel::stats::DiscrimType::kQuadratic;
+    if (type == "diagquadratic")          return keel::stats::DiscrimType::kDiagQuadratic;
+    throw Error("classify: unsupported type (linear|diaglinear|quadratic|diagquadratic)",
+                0, 0, "classify", "", "numkit:classify:type");
 }
+
 } // namespace
 
 std::tuple<Value, Value, Value, Value>
-classify(const Value &sample, const Value &training, const Value &group, keel::StringRef type_in, keel::Allocator *mr)
+classify(const Value &sample, const Value &training, const Value &group,
+         keel::StringRef type_in, keel::Allocator *mr)
 {
+    const auto dtype = classify_argcheck(sample, training, group, type_in);
     const keel::usize d     = training.dims().cols();
     const keel::usize Ntr   = training.dims().rows();
     const keel::usize Nsamp = sample.dims().rows();
-    keel::String type;
-    bool quadratic = false, diagonal = false;
-    classify_argcheck(sample, training, group, type_in, type, quadratic, diagonal);
 
-    // Identify unique group labels (sorted ascending).
-    keel::Array<keel::f64> labels;
-    labels.reserve(Ntr);
-    for (keel::usize i = 0; i < Ntr; ++i) labels.push_back(group.elemAsDouble(i));
-    keel::Array<keel::f64> uniq = labels.clone();
-    std::sort(uniq.begin(), uniq.end());
-    uniq.resize(std::unique(uniq.begin(), uniq.end()) - uniq.begin());
-    const keel::usize K = uniq.size();
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    keel::Array<keel::f64> sv(Nsamp * d, 0.0, scratch.allocator());
+    for (keel::usize i = 0; i < Nsamp * d; ++i) sv[i] = sample.elemAsDouble(i);
+    keel::Array<keel::f64> tv(Ntr * d, 0.0, scratch.allocator());
+    for (keel::usize i = 0; i < Ntr * d; ++i) tv[i] = training.elemAsDouble(i);
+    keel::Array<keel::f64> gv(Ntr, 0.0, scratch.allocator());
+    for (keel::usize i = 0; i < Ntr; ++i) gv[i] = group.elemAsDouble(i);
 
-    // Class counts and means.
-    keel::Array<keel::usize> n_k(K, 0);
-    keel::Array<keel::f64> mu(K * d, 0.0);
-    for (keel::usize i = 0; i < Ntr; ++i) {
-        const auto it = std::find(uniq.begin(), uniq.end(), labels[i]);
-        const keel::usize k = keel::as<keel::usize>(it - uniq.begin());
-        ++n_k[k];
-        for (keel::usize j = 0; j < d; ++j)
-            mu[j + k * d] += training.elemAsDouble(i + j * Ntr);
-    }
-    for (keel::usize k = 0; k < K; ++k)
-        for (keel::usize j = 0; j < d; ++j)
-            mu[j + k * d] /= keel::f64(n_k[k]);
+    keel::stats::LdaResult res(scratch.allocator());
+    const auto st = keel::stats::lda_classify(
+        sv.as_ref(), Nsamp, tv.as_ref(), Ntr, d, gv.as_ref(), dtype, res, scratch.allocator());
+    if (st == keel::stats::StatsStatus::kSingularMatrix)
+        throw Error("classify: covariance is not positive definite",
+                    0, 0, "classify", "", "numkit:classify:psd");
 
-    // Covariance matrix/matrices (pooled or per-class).
-    keel::Array<keel::f64> Sigma((quadratic ? K : 1) * d * d, 0.0);
-
-    auto sigBlock = [&](keel::usize k) -> keel::f64 * {
-        return Sigma.data() + (quadratic ? k * d * d : 0);
-    };
-
-    for (keel::usize i = 0; i < Ntr; ++i) {
-        const auto it = std::find(uniq.begin(), uniq.end(), labels[i]);
-        const keel::usize k = keel::as<keel::usize>(it - uniq.begin());
-        keel::Array<keel::f64> diff(d);
-        for (keel::usize j = 0; j < d; ++j)
-            diff[j] = training.elemAsDouble(i + j * Ntr) - mu[j + k * d];
-        keel::f64 *S = sigBlock(k);
-        for (keel::usize a = 0; a < d; ++a)
-            for (keel::usize b = 0; b < d; ++b)
-                S[a + b * d] += diff[a] * diff[b];
-    }
-    if (quadratic) {
-        for (keel::usize k = 0; k < K; ++k) {
-            keel::f64 *S = sigBlock(k);
-            const keel::f64 denom = (n_k[k] > 1) ? keel::f64(n_k[k] - 1) : 1.0;
-            for (keel::usize i = 0; i < d * d; ++i) S[i] /= denom;
-        }
-    } else {
-        // Pool across classes.
-        const keel::f64 denom = (Ntr > K) ? keel::f64(Ntr - K) : 1.0;
-        keel::f64 *S = Sigma.data();
-        for (keel::usize i = 0; i < d * d; ++i) S[i] /= denom;
-    }
-
-    // For diagonal variants, zero off-diagonals.
-    if (diagonal) {
-        const keel::usize blocks = quadratic ? K : 1;
-        for (keel::usize k = 0; k < blocks; ++k) {
-            keel::f64 *S = sigBlock(k);
-            for (keel::usize a = 0; a < d; ++a)
-                for (keel::usize b = 0; b < d; ++b)
-                    if (a != b) S[a + b * d] = 0.0;
-        }
-    }
-
-    // Pre-factor each covariance block.
-    const keel::usize blocks = quadratic ? K : 1;
-    keel::Array<keel::f64> Lblocks(blocks * d * d, 0.0);
-    keel::Array<keel::f64> sumLogDiag(blocks, 0.0);
-    for (keel::usize k = 0; k < blocks; ++k) {
-        keel::f64 *L = Lblocks.data() + k * d * d;
-        if (!cholesky(sigBlock(k), L, d))
-            throw Error("classify: covariance is not positive definite",
-                        0, 0, "classify", "", "numkit:classify:psd");
-        keel::f64 s = 0.0;
-        for (keel::usize i = 0; i < d; ++i) s += std::log(L[i + i * d]);
-        sumLogDiag[k] = s;
-    }
-
-    // Prior: empirical n_k / Ntr.
-    keel::Array<keel::f64> logPrior(K);
-    for (keel::usize k = 0; k < K; ++k) logPrior[k] = std::log(keel::f64(n_k[k]) / keel::f64(Ntr));
-
-    // Iterate over sample rows; compute class log-likelihood, pick argmax.
     Value cV    = Value::matrix(Nsamp, 1, ValueType::DOUBLE, mr);
-    Value postV = Value::matrix(Nsamp, K, ValueType::DOUBLE, mr);
+    Value postV = Value::matrix(Nsamp, res.num_classes, ValueType::DOUBLE, mr);
     Value logpV = Value::matrix(Nsamp, 1, ValueType::DOUBLE, mr);
-    keel::f64 *cd = cV.doubleDataMut();
-    keel::f64 *pd = postV.doubleDataMut();
-    keel::f64 *lpd = logpV.doubleDataMut();
-
-    keel::Array<keel::f64> lp(K), z(d), x(d);
-    for (keel::usize r = 0; r < Nsamp; ++r) {
-        for (keel::usize j = 0; j < d; ++j) x[j] = sample.elemAsDouble(r + j * Nsamp);
-        keel::f64 maxLp = -std::numeric_limits<keel::f64>::infinity();
-        keel::usize kBest = 0;
-        for (keel::usize k = 0; k < K; ++k) {
-            const keel::f64 *L = Lblocks.data() + (quadratic ? k * d * d : 0);
-            const keel::f64 sld = quadratic ? sumLogDiag[k] : sumLogDiag[0];
-            keel::Array<keel::f64> diff(d);
-            for (keel::usize j = 0; j < d; ++j) diff[j] = x[j] - mu[j + k * d];
-            fwd_solve(L, z.data(), diff.data(), d);
-            keel::f64 q = 0.0;
-            for (keel::usize j = 0; j < d; ++j) q += z[j] * z[j];
-            // log f_k(x) = -0.5·d·log(2π) − sumLogDiag − 0.5·q
-            // log discrim_k = log f_k(x) + log π_k
-            const keel::f64 logFk = -0.5 * keel::f64(d) * kLog2Pi - sld - 0.5 * q;
-            lp[k] = logFk + logPrior[k];
-            if (lp[k] > maxLp) { maxLp = lp[k]; kBest = k; }
-        }
-        cd[r] = uniq[kBest];
-
-        // posterior + logp via log-sum-exp
-        keel::f64 sumExp = 0.0;
-        for (keel::usize k = 0; k < K; ++k) sumExp += std::exp(lp[k] - maxLp);
-        const keel::f64 logSum = maxLp + std::log(sumExp);
-        for (keel::usize k = 0; k < K; ++k)
-            pd[r + k * Nsamp] = std::exp(lp[k] - logSum);
-        lpd[r] = logSum;
+    if (Nsamp > 0) {
+        std::memcpy(cV.doubleDataMut(), res.pred.data(), Nsamp * sizeof(keel::f64));
+        std::memcpy(postV.doubleDataMut(), res.posterior.data(),
+                    Nsamp * res.num_classes * sizeof(keel::f64));
+        std::memcpy(logpV.doubleDataMut(), res.logp.data(), Nsamp * sizeof(keel::f64));
     }
-
-    // Apparent training error rate.
-    keel::f64 mis = 0.0;
-    {
-        keel::Array<keel::f64> z2(d), x2(d);
-        for (keel::usize i = 0; i < Ntr; ++i) {
-            for (keel::usize j = 0; j < d; ++j) x2[j] = training.elemAsDouble(i + j * Ntr);
-            keel::f64 maxLp = -std::numeric_limits<keel::f64>::infinity();
-            keel::usize kBest = 0;
-            for (keel::usize k = 0; k < K; ++k) {
-                const keel::f64 *L = Lblocks.data() + (quadratic ? k * d * d : 0);
-                const keel::f64 sld = quadratic ? sumLogDiag[k] : sumLogDiag[0];
-                keel::Array<keel::f64> diff(d);
-                for (keel::usize j = 0; j < d; ++j) diff[j] = x2[j] - mu[j + k * d];
-                fwd_solve(L, z2.data(), diff.data(), d);
-                keel::f64 q = 0.0;
-                for (keel::usize j = 0; j < d; ++j) q += z2[j] * z2[j];
-                const keel::f64 logFk = -0.5 * keel::f64(d) * kLog2Pi - sld - 0.5 * q;
-                const keel::f64 l = logFk + logPrior[k];
-                if (l > maxLp) { maxLp = l; kBest = k; }
-            }
-            if (uniq[kBest] != labels[i]) mis += 1.0;
-        }
-    }
-    Value errV = Value::scalar(mis / keel::f64(Ntr), mr);
-
-    return {std::move(cV), std::move(errV), std::move(postV), std::move(logpV)};
+    return {std::move(cV), Value::scalar(res.train_error, mr), std::move(postV), std::move(logpV)};
 }
 
 } // namespace numkit::stats

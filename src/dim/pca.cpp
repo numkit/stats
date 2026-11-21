@@ -1,20 +1,17 @@
 // toolboxes/stats/src/dim/pca.cpp
 //
-// PCA via classical Jacobi eigenvalue iteration on the sample
-// covariance matrix. Self-contained — no dependence on a linalg
-// SVD/eig infrastructure (which is still deferred at the runtime level).
+// Principal Component Analysis (pca / pcacov / pcares),
+// delegating numerical kernels to keel::stats.
 
+#include <keel/arena.h>
 #include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
+#include <keel/stats.h>
+
 #include <numkit/stats/dim/pca.hpp>
-
-#include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
-
-#include <algorithm>
-#include <cmath>
-#include <numeric>
+#include <numkit/value/value.hpp>
 
 #include "pca_detail.hpp"
 
@@ -22,81 +19,6 @@ namespace numkit::stats {
 
 namespace {
 
-// Read X (N×D, column-major) into a flat row-major buffer.
-keel::Array<keel::f64> read_rows(const Value &X) {
-    const keel::usize N = X.dims().rows();
-    const keel::usize D = X.dims().cols();
-    keel::Array<keel::f64> out(N * D);
-    for (keel::usize r = 0; r < N; ++r)
-        for (keel::usize c = 0; c < D; ++c)
-            out[r * D + c] = X.elemAsDouble(c * N + r);
-    return out;
-}
-
-// Jacobi eigendecomposition of D×D symmetric matrix A. On exit:
-//   A holds the eigenvalues on its diagonal (off-diagonals near zero)
-//   V is D×D orthogonal whose columns are the eigenvectors.
-// Both stored row-major.
-void jacobi(keel::Array<keel::f64> &A, keel::Array<keel::f64> &V, keel::usize D) {
-    V.assign(D * D, 0.0);
-    for (keel::usize i = 0; i < D; ++i) V[i * D + i] = 1.0;
-
-    const keel::i32 max_sweeps = 50;
-    const keel::f64 tol = 1e-12;
-
-    for (keel::i32 sweep = 0; sweep < max_sweeps; ++sweep) {
-        // Sum of squared off-diagonals.
-        keel::f64 off = 0.0;
-        for (keel::usize p = 0; p < D; ++p)
-            for (keel::usize q = p + 1; q < D; ++q)
-                off += A[p * D + q] * A[p * D + q];
-        if (off < tol) break;
-
-        for (keel::usize p = 0; p < D - 1; ++p) {
-            for (keel::usize q = p + 1; q < D; ++q) {
-                const keel::f64 app = A[p * D + p];
-                const keel::f64 aqq = A[q * D + q];
-                const keel::f64 apq = A[p * D + q];
-                if (std::fabs(apq) < 1e-15) continue;
-
-                // Compute rotation angle.
-                const keel::f64 theta = (aqq - app) / (2.0 * apq);
-                keel::f64 t;
-                if (theta == 0.0) t = 1.0;
-                else {
-                    const keel::f64 sgn = (theta > 0) ? 1.0 : -1.0;
-                    t = sgn / (std::fabs(theta) + std::sqrt(theta * theta + 1.0));
-                }
-                const keel::f64 c = 1.0 / std::sqrt(t * t + 1.0);
-                const keel::f64 s = t * c;
-
-                // Apply rotation to A.
-                A[p * D + p] = app - t * apq;
-                A[q * D + q] = aqq + t * apq;
-                A[p * D + q] = 0.0;
-                A[q * D + p] = 0.0;
-                for (keel::usize r = 0; r < D; ++r) {
-                    if (r == p || r == q) continue;
-                    const keel::f64 arp = A[r * D + p], arq = A[r * D + q];
-                    A[r * D + p] = c * arp - s * arq;
-                    A[p * D + r] = A[r * D + p];
-                    A[r * D + q] = c * arq + s * arp;
-                    A[q * D + r] = A[r * D + q];
-                }
-                // Accumulate rotation into V.
-                for (keel::usize r = 0; r < D; ++r) {
-                    const keel::f64 vrp = V[r * D + p], vrq = V[r * D + q];
-                    V[r * D + p] = c * vrp - s * vrq;
-                    V[r * D + q] = c * vrq + s * vrp;
-                }
-            }
-        }
-    }
-}
-
-} // anonymous
-
-namespace {
 void pca_argcheck(const Value &X)
 {
     const keel::usize N = X.dims().rows();
@@ -105,6 +27,7 @@ void pca_argcheck(const Value &X)
         throw Error("pca: need at least 2 rows and 1 column",
                     0, 0, "pca", "", "numkit:pca:size");
 }
+
 } // namespace
 
 std::tuple<Value, Value, Value, Value, Value, Value>
@@ -114,93 +37,26 @@ pca(const Value &X, keel::Allocator *mr)
     const keel::usize N = X.dims().rows();
     const keel::usize D = X.dims().cols();
 
-    keel::Array<keel::f64> Xv = read_rows(X);
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    keel::Array<keel::f64> xv(N * D, 0.0, scratch.allocator());
+    for (keel::usize i = 0; i < N * D; ++i) xv[i] = X.elemAsDouble(i);
 
-    // Mean of each column.
-    keel::Array<keel::f64> mu(D, 0.0);
-    for (keel::usize r = 0; r < N; ++r)
-        for (keel::usize c = 0; c < D; ++c) mu[c] += Xv[r * D + c];
-    for (auto &m : mu) m /= keel::f64(N);
-
-    // Centred X.
-    keel::Array<keel::f64> Xc(N * D);
-    for (keel::usize r = 0; r < N; ++r)
-        for (keel::usize c = 0; c < D; ++c) Xc[r * D + c] = Xv[r * D + c] - mu[c];
-
-    // Sample covariance (D×D, divisor n-1).
-    keel::Array<keel::f64> C(D * D, 0.0);
-    for (keel::usize r = 0; r < N; ++r) {
-        for (keel::usize a = 0; a < D; ++a)
-            for (keel::usize b = 0; b < D; ++b)
-                C[a * D + b] += Xc[r * D + a] * Xc[r * D + b];
-    }
-    const keel::f64 inv_n = 1.0 / keel::f64(N - 1);
-    for (auto &c : C) c *= inv_n;
-
-    // Jacobi eigendecomposition: A·V = V·Λ.
-    keel::Array<keel::f64> Vmat;
-    jacobi(C, Vmat, D);
-
-    // Extract eigenvalues from C diagonal; sort descending.
-    keel::Array<keel::f64> latent(D);
-    keel::Array<keel::i32> order(D);
-    for (keel::usize i = 0; i < D; ++i) { latent[i] = C[i * D + i]; order[i] = (keel::i32)i; }
-    std::sort(order.begin(), order.end(),
-              [&](keel::i32 a, keel::i32 b) { return latent[a] > latent[b]; });
-
-    // Reorder eigenvalues + eigenvectors.
-    keel::Array<keel::f64> latent_s(D);
-    keel::Array<keel::f64> coeff(D * D, 0.0);  // D×D row-major; cols = eigenvectors
-    for (keel::usize i = 0; i < D; ++i) {
-        const keel::i32 src = order[i];
-        latent_s[i] = latent[src];
-        for (keel::usize r = 0; r < D; ++r) coeff[r * D + i] = Vmat[r * D + src];
-    }
-
-    // score = Xc · coeff (N×D × D×D = N×D)
-    keel::Array<keel::f64> score(N * D, 0.0);
-    for (keel::usize r = 0; r < N; ++r)
-        for (keel::usize k = 0; k < D; ++k) {
-            keel::f64 s = 0.0;
-            for (keel::usize j = 0; j < D; ++j) s += Xc[r * D + j] * coeff[j * D + k];
-            score[r * D + k] = s;
-        }
-
-    // explained: percent of variance.
-    keel::f64 total = 0.0; for (keel::f64 v : latent_s) total += v;
-    keel::Array<keel::f64> explained(D, 0.0);
-    if (total > 0.0)
-        for (keel::usize i = 0; i < D; ++i) explained[i] = 100.0 * latent_s[i] / total;
-
-    // tsquared: Hotelling's T² = Σ_k (score_ik² / latent_k) per row.
-    keel::Array<keel::f64> tsq(N, 0.0);
-    for (keel::usize r = 0; r < N; ++r) {
-        keel::f64 s = 0.0;
-        for (keel::usize k = 0; k < D; ++k)
-            if (latent_s[k] > 1e-15)
-                s += score[r * D + k] * score[r * D + k] / latent_s[k];
-        tsq[r] = s;
-    }
-
-    // Pack outputs (column-major).
-    auto pack_NxM = [&](const keel::Array<keel::f64> &src, keel::usize rows, keel::usize cols) {
-        Value v = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
-        keel::f64 *p = v.doubleDataMut();
-        for (keel::usize r = 0; r < rows; ++r)
-            for (keel::usize c = 0; c < cols; ++c) p[c * rows + r] = src[r * cols + c];
-        return v;
-    };
-
-    Value coeff_v = pack_NxM(coeff, D, D);
-    Value score_v = pack_NxM(score, N, D);
-    Value latent_v = Value::matrix(D, 1, ValueType::DOUBLE, mr);
-    for (keel::usize i = 0; i < D; ++i) latent_v.doubleDataMut()[i] = latent_s[i];
-    Value tsq_v = Value::matrix(N, 1, ValueType::DOUBLE, mr);
-    for (keel::usize i = 0; i < N; ++i) tsq_v.doubleDataMut()[i] = tsq[i];
+    Value coeff_v     = Value::matrix(D, D, ValueType::DOUBLE, mr);
+    Value score_v     = Value::matrix(N, D, ValueType::DOUBLE, mr);
+    Value latent_v    = Value::matrix(D, 1, ValueType::DOUBLE, mr);
+    Value tsq_v       = Value::matrix(N, 1, ValueType::DOUBLE, mr);
     Value explained_v = Value::matrix(D, 1, ValueType::DOUBLE, mr);
-    for (keel::usize i = 0; i < D; ++i) explained_v.doubleDataMut()[i] = explained[i];
-    Value mu_v = Value::matrix(1, D, ValueType::DOUBLE, mr);
-    for (keel::usize i = 0; i < D; ++i) mu_v.doubleDataMut()[i] = mu[i];
+    Value mu_v        = Value::matrix(1, D, ValueType::DOUBLE, mr);
+
+    (void)keel::stats::pca(
+        xv.as_ref(), N, D,
+        keel::MutArrayRef<keel::f64>(coeff_v.doubleDataMut(), D * D),
+        keel::MutArrayRef<keel::f64>(score_v.doubleDataMut(), N * D),
+        keel::MutArrayRef<keel::f64>(latent_v.doubleDataMut(), D),
+        keel::MutArrayRef<keel::f64>(tsq_v.doubleDataMut(), N),
+        keel::MutArrayRef<keel::f64>(explained_v.doubleDataMut(), D),
+        keel::MutArrayRef<keel::f64>(mu_v.doubleDataMut(), D),
+        scratch.allocator());
 
     return std::make_tuple(std::move(coeff_v), std::move(score_v),
                            std::move(latent_v), std::move(tsq_v),
@@ -208,82 +64,58 @@ pca(const Value &X, keel::Allocator *mr)
 }
 
 std::tuple<Value, Value, Value>
-pcacov(const Value &C, keel::Allocator *mr) {
+pcacov(const Value &C, keel::Allocator *mr)
+{
     const keel::usize D = C.dims().rows();
     if (C.dims().cols() != D)
         throw Error("pcacov: C must be square", 0, 0, "pcacov", "",
                     "numkit:pcacov:size");
 
-    keel::Array<keel::f64> A(D * D);
-    for (keel::usize r = 0; r < D; ++r)
-        for (keel::usize c = 0; c < D; ++c) A[r * D + c] = C.elemAsDouble(c * D + r);
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    keel::Array<keel::f64> cv(D * D, 0.0, scratch.allocator());
+    for (keel::usize i = 0; i < D * D; ++i) cv[i] = C.elemAsDouble(i);
 
-    keel::Array<keel::f64> V;
-    jacobi(A, V, D);
-
-    keel::Array<keel::f64> latent(D);
-    keel::Array<keel::i32> order(D);
-    for (keel::usize i = 0; i < D; ++i) { latent[i] = A[i * D + i]; order[i] = (keel::i32)i; }
-    std::sort(order.begin(), order.end(),
-              [&](keel::i32 a, keel::i32 b) { return latent[a] > latent[b]; });
-
-    keel::Array<keel::f64> latent_s(D);
-    keel::Array<keel::f64> coeff(D * D, 0.0);
-    for (keel::usize i = 0; i < D; ++i) {
-        const keel::i32 src = order[i];
-        latent_s[i] = latent[src];
-        for (keel::usize r = 0; r < D; ++r) coeff[r * D + i] = V[r * D + src];
-    }
-
-    keel::f64 total = 0.0; for (keel::f64 v : latent_s) total += v;
-    keel::Array<keel::f64> explained(D, 0.0);
-    if (total > 0.0)
-        for (keel::usize i = 0; i < D; ++i) explained[i] = 100.0 * latent_s[i] / total;
-
-    Value coeff_v = Value::matrix(D, D, ValueType::DOUBLE, mr);
-    for (keel::usize r = 0; r < D; ++r)
-        for (keel::usize c = 0; c < D; ++c)
-            coeff_v.doubleDataMut()[c * D + r] = coeff[r * D + c];
-
-    Value latent_v = Value::matrix(D, 1, ValueType::DOUBLE, mr);
-    for (keel::usize i = 0; i < D; ++i) latent_v.doubleDataMut()[i] = latent_s[i];
-
+    Value coeff_v     = Value::matrix(D, D, ValueType::DOUBLE, mr);
+    Value latent_v    = Value::matrix(D, 1, ValueType::DOUBLE, mr);
     Value explained_v = Value::matrix(D, 1, ValueType::DOUBLE, mr);
-    for (keel::usize i = 0; i < D; ++i) explained_v.doubleDataMut()[i] = explained[i];
+
+    (void)keel::stats::pcacov(
+        cv.as_ref(), D,
+        keel::MutArrayRef<keel::f64>(coeff_v.doubleDataMut(), D * D),
+        keel::MutArrayRef<keel::f64>(latent_v.doubleDataMut(), D),
+        keel::MutArrayRef<keel::f64>(explained_v.doubleDataMut(), D),
+        scratch.allocator());
 
     return std::make_tuple(std::move(coeff_v), std::move(latent_v),
                            std::move(explained_v));
 }
 
-// Internal: returns both residuals and reconstruction (MATLAB form).
 std::tuple<Value, Value>
-pcares_full(const Value &X, keel::i32 ndim, keel::Allocator *mr) {
-    auto [coeff, score, latent, tsq, explained, mu] = pca(X, mr);
+pcares_full(const Value &X, keel::i32 ndim, keel::Allocator *mr)
+{
+    pca_argcheck(X);
     const keel::usize N = X.dims().rows();
     const keel::usize D = X.dims().cols();
-    if (ndim < 0 || (keel::usize)ndim > D)
+    if (ndim < 0 || keel::as<keel::usize>(ndim) > D)
         throw Error("pcares: ndim must be in 0..D", 0, 0, "pcares", "",
                     "numkit:pcares:badndim");
 
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    keel::Array<keel::f64> xv(N * D, 0.0, scratch.allocator());
+    for (keel::usize i = 0; i < N * D; ++i) xv[i] = X.elemAsDouble(i);
+
     Value res   = Value::matrix(N, D, ValueType::DOUBLE, mr);
     Value recon = Value::matrix(N, D, ValueType::DOUBLE, mr);
-    keel::f64 *rd = res.doubleDataMut();
-    keel::f64 *cd = recon.doubleDataMut();
-
-    for (keel::usize i = 0; i < N; ++i)
-        for (keel::usize j = 0; j < D; ++j) {
-            keel::f64 r = mu.elemAsDouble(j);
-            for (keel::i32 k = 0; k < ndim; ++k) {
-                r += score.elemAsDouble((keel::usize)k * N + i)
-                   * coeff.elemAsDouble((keel::usize)k * D + j);
-            }
-            cd[j * N + i] = r;
-            rd[j * N + i] = X.elemAsDouble(j * N + i) - r;
-        }
+    (void)keel::stats::pcares(
+        xv.as_ref(), N, D, keel::as<keel::usize>(ndim),
+        keel::MutArrayRef<keel::f64>(res.doubleDataMut(), N * D),
+        keel::MutArrayRef<keel::f64>(recon.doubleDataMut(), N * D),
+        scratch.allocator());
     return {std::move(res), std::move(recon)};
 }
 
-Value pcares(const Value &X, keel::i32 ndim, keel::Allocator *mr) {
+Value pcares(const Value &X, keel::i32 ndim, keel::Allocator *mr)
+{
     auto [res, recon] = pcares_full(X, ndim, mr);
     (void)recon;
     return res;
