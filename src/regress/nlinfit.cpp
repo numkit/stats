@@ -18,7 +18,7 @@
 #include <numkit/value/fn_handle.hpp>
 
 #include <algorithm>
-#include <array>
+#include <keel/static_array.h>
 #include <cmath>
 #include <cstring>
 #include <limits>
@@ -51,7 +51,7 @@ keel::Array<double> evalModel(FnHandle model, keel::ArrayRef<double> beta,
                                keel::Allocator *mr)
 {
     auto betaVal = flatToMatrix(beta.data(), p, 1, mr);
-    std::array<Value, 2> argv{ betaVal, X };
+    keel::StaticArray<Value, 2> argv{ betaVal, X };
     Value yhat;
     model(keel::ArrayRef<Value>(argv.data(), 2), keel::MutArrayRef<Value>(&yhat, 1), mr);
     return toFlatDouble(yhat);
