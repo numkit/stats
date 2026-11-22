@@ -1,35 +1,52 @@
-// toolboxes/stats/src/test/hypothesis.cpp
+// toolboxes/stats/src/test/hypothesis.cpp — delegated to keel::stats
 
-#include <keel/core.h>
-#include <keel/memory.h>
 #include <keel/arena.h>
 #include <keel/array.h>
+#include <keel/core.h>
+#include <keel/memory.h>
 #include <keel/ref.h>
+#include <keel/stats.h>
 #include <keel/string.h>
 #include <keel/utf8.h>
 #include <numkit/stats/test/hypothesis.hpp>
 
-#include <numkit/stats/distributions/students_t.hpp>
-#include <numkit/stats/distributions/normal.hpp>
+#include <numkit/stats/distributions/binomial.hpp>
 #include <numkit/stats/distributions/chi2.hpp>
 #include <numkit/stats/distributions/fisher_f.hpp>
-#include <numkit/stats/distributions/binomial.hpp>
+#include <numkit/stats/distributions/normal.hpp>
+#include <numkit/stats/distributions/students_t.hpp>
 
-#include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
+#include <numkit/value/value.hpp>
 
-#include <algorithm>
-#include <cmath>
-#include <cstdint>
 #include <limits>
-#include <numeric>
+#include <tuple>
+#include <utility>
 
 #include "hypothesis_detail.hpp"
 
 namespace numkit::stats {
 
-
 namespace {
+
+keel::stats::TestTail to_keel_tail(TestTail tail) noexcept
+{
+    switch (tail) {
+        case TestTail::Both:  return keel::stats::TestTail::kBoth;
+        case TestTail::Right: return keel::stats::TestTail::kRight;
+        case TestTail::Left:  return keel::stats::TestTail::kLeft;
+    }
+    return keel::stats::TestTail::kBoth;
+}
+
+keel::Array<keel::f64> to_flat(const Value &x, keel::Allocator *alloc)
+{
+    const keel::usize n = x.numel();
+    keel::Array<keel::f64> out(n, alloc);
+    for (keel::usize i = 0; i < n; ++i)
+        out[i] = x.elemAsDouble(i);
+    return out;
+}
 
 void ttest_argcheck(const Value &x)
 {
@@ -98,178 +115,113 @@ std::tuple<Value, Value, Value, Value>
 ttest_1d(const Value &x, keel::f64 m, keel::f64 alpha, TestTail tail, keel::Allocator *mr)
 {
     ttest_argcheck(x);
-    if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
-
-    keel::f64 mu_hat, var_hat; keel::usize n;
-    mean_var(x, mu_hat, var_hat, n);
-    if (n < 2)
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    auto xv = to_flat(x, scratch.allocator());
+    keel::stats::TTestResult res{};
+    if (keel::stats::ttest_1sample(xv.as_ref(), m, alpha, to_keel_tail(tail), res) !=
+        keel::stats::StatsStatus::kOk)
         throw Error("ttest: need at least 2 samples", 0, 0, "ttest", "",
                     "numkit:ttest:nsamples");
 
-    const keel::f64 sd  = std::sqrt(var_hat);
-    const keel::f64 se  = sd / std::sqrt(keel::f64(n));
-    const keel::f64 t   = (mu_hat - m) / se;
-    const keel::f64 df  = keel::f64(n - 1);
-    const keel::f64 p   = tpvalue(t, df, tail, mr);
-    const keel::i32    h   = (p < alpha) ? 1 : 0;
-
-    // Confidence interval for the mean.
-    keel::f64 clo, chi;
-    Value half = Value::scalar(1.0 - 0.5 * alpha, mr);
-    Value tcrit_v = tinv(half, df, mr);
-    const keel::f64 tcrit = tcrit_v.toScalar();
-    switch (tail) {
-        case TestTail::Both:
-            clo = mu_hat - tcrit * se; chi = mu_hat + tcrit * se; break;
-        case TestTail::Right: {
-            Value full = Value::scalar(1.0 - alpha, mr);
-            const keel::f64 tc = tinv(full, df, mr).toScalar();
-            clo = mu_hat - tc * se; chi = std::numeric_limits<keel::f64>::infinity();
-            break;
-        }
-        case TestTail::Left: {
-            Value full = Value::scalar(1.0 - alpha, mr);
-            const keel::f64 tc = tinv(full, df, mr).toScalar();
-            clo = -std::numeric_limits<keel::f64>::infinity(); chi = mu_hat + tc * se;
-            break;
-        }
-    }
     Value ci = Value::matrix(1, 2, ValueType::DOUBLE, mr);
-    ci.doubleDataMut()[0] = clo; ci.doubleDataMut()[1] = chi;
+    ci.doubleDataMut()[0] = res.ci_lo;
+    ci.doubleDataMut()[1] = res.ci_hi;
 
     Value stats = Value::structure(mr);
-    stats.field("tstat") = Value::scalar(t, mr);
-    stats.field("df")    = Value::scalar(df, mr);
-    stats.field("sd")    = Value::scalar(sd, mr);
+    stats.field("tstat") = Value::scalar(res.tstat, mr);
+    stats.field("df")    = Value::scalar(res.df, mr);
+    stats.field("sd")    = Value::scalar(res.sd, mr);
 
-    return std::make_tuple(Value::scalar(keel::f64(h), mr),
-                           Value::scalar(p, mr),
+    return std::make_tuple(Value::scalar(keel::f64(res.h), mr),
+                           Value::scalar(res.p, mr),
                            std::move(ci),
                            std::move(stats));
 }
 
 std::tuple<Value, Value, Value, Value>
-ttest2_1d(const Value &x, const Value &y, keel::f64 alpha, TestTail tail, keel::StringRef vartype, keel::Allocator *mr)
+ttest2_1d(const Value &x, const Value &y, keel::f64 alpha, TestTail tail, keel::StringRef vartype,
+          keel::Allocator *mr)
 {
     ttest2_argcheck(x, y);
-    if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
-
-    keel::f64 mx, vx, my, vy; keel::usize nx, ny;
-    mean_var(x, mx, vx, nx);
-    mean_var(y, my, vy, ny);
-    if (nx < 2 || ny < 2)
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    auto xv = to_flat(x, scratch.allocator());
+    auto yv = to_flat(y, scratch.allocator());
+    const bool equal_var = (vartype == "equal");
+    keel::stats::TTest2Result res{};
+    if (keel::stats::ttest_2sample(xv.as_ref(), yv.as_ref(), alpha, to_keel_tail(tail),
+                                   equal_var, res) != keel::stats::StatsStatus::kOk)
         throw Error("ttest2: need at least 2 samples per group",
                     0, 0, "ttest2", "", "numkit:ttest2:nsamples");
 
-    keel::f64 t, df, se;
-    Value sdVal;
-    if (vartype == "equal") {
-        const keel::f64 sp2 = ((nx - 1) * vx + (ny - 1) * vy) / keel::f64(nx + ny - 2);
-        se = std::sqrt(sp2 * (1.0 / keel::f64(nx) + 1.0 / keel::f64(ny)));
-        df = keel::f64(nx + ny - 2);
-        sdVal = Value::scalar(std::sqrt(sp2), mr);
-    } else {
-        // Welch (unequal variances).
-        se = std::sqrt(vx / keel::f64(nx) + vy / keel::f64(ny));
-        const keel::f64 num = (vx / nx + vy / ny) * (vx / nx + vy / ny);
-        const keel::f64 den = (vx / nx) * (vx / nx) / keel::f64(nx - 1)
-                         + (vy / ny) * (vy / ny) / keel::f64(ny - 1);
-        df = (den > 0.0) ? num / den : keel::f64(nx + ny - 2);
-        sdVal = Value::matrix(1, 2, ValueType::DOUBLE, mr);
-        sdVal.doubleDataMut()[0] = std::sqrt(vx);
-        sdVal.doubleDataMut()[1] = std::sqrt(vy);
-    }
-    t = (mx - my) / se;
-    const keel::f64 p = tpvalue(t, df, tail, mr);
-    const keel::i32    h = (p < alpha) ? 1 : 0;
-
-    Value half = Value::scalar(1.0 - 0.5 * alpha, mr);
-    const keel::f64 tcrit = tinv(half, df, mr).toScalar();
     Value ci = Value::matrix(1, 2, ValueType::DOUBLE, mr);
-    ci.doubleDataMut()[0] = (mx - my) - tcrit * se;
-    ci.doubleDataMut()[1] = (mx - my) + tcrit * se;
+    ci.doubleDataMut()[0] = res.ci_lo;
+    ci.doubleDataMut()[1] = res.ci_hi;
+
+    Value sdVal;
+    if (equal_var) {
+        sdVal = Value::scalar(res.sd_pooled, mr);
+    } else {
+        sdVal = Value::matrix(1, 2, ValueType::DOUBLE, mr);
+        sdVal.doubleDataMut()[0] = res.sd_x;
+        sdVal.doubleDataMut()[1] = res.sd_y;
+    }
 
     Value stats = Value::structure(mr);
-    stats.field("tstat") = Value::scalar(t, mr);
-    stats.field("df")    = Value::scalar(df, mr);
+    stats.field("tstat") = Value::scalar(res.tstat, mr);
+    stats.field("df")    = Value::scalar(res.df, mr);
     stats.field("sd")    = std::move(sdVal);
 
-    return std::make_tuple(Value::scalar(keel::f64(h), mr),
-                           Value::scalar(p, mr),
+    return std::make_tuple(Value::scalar(keel::f64(res.h), mr),
+                           Value::scalar(res.p, mr),
                            std::move(ci),
                            std::move(stats));
 }
 
 std::tuple<Value, Value, Value, Value>
-ztest_1d(const Value &x, keel::f64 m, keel::f64 sigma, keel::f64 alpha, TestTail tail, keel::Allocator *mr)
+ztest_1d(const Value &x, keel::f64 m, keel::f64 sigma, keel::f64 alpha, TestTail tail,
+         keel::Allocator *mr)
 {
     ztest_argcheck(sigma);
-    if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
-
-    keel::f64 mu_hat, var_hat; keel::usize n;
-    mean_var(x, mu_hat, var_hat, n);
-    if (n < 1)
+    if (x.numel() < 1)
         throw Error("ztest: need at least 1 sample", 0, 0, "ztest", "",
                     "numkit:ztest:nsamples");
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    auto xv = to_flat(x, scratch.allocator());
+    keel::stats::ZTestResult res{};
+    (void)keel::stats::ztest_1sample(xv.as_ref(), m, sigma, alpha, to_keel_tail(tail), res);
 
-    const keel::f64 se = sigma / std::sqrt(keel::f64(n));
-    const keel::f64 z  = (mu_hat - m) / se;
-    const keel::f64 p  = zpvalue(z, tail, mr);
-    const keel::i32    h  = (p < alpha) ? 1 : 0;
-
-    Value half = Value::scalar(1.0 - 0.5 * alpha, mr);
-    const keel::f64 zcrit = norminv(half, 0.0, 1.0, mr).toScalar();
     Value ci = Value::matrix(1, 2, ValueType::DOUBLE, mr);
-    ci.doubleDataMut()[0] = mu_hat - zcrit * se;
-    ci.doubleDataMut()[1] = mu_hat + zcrit * se;
+    ci.doubleDataMut()[0] = res.ci_lo;
+    ci.doubleDataMut()[1] = res.ci_hi;
 
-    return std::make_tuple(Value::scalar(keel::f64(h), mr),
-                           Value::scalar(p, mr),
+    return std::make_tuple(Value::scalar(keel::f64(res.h), mr),
+                           Value::scalar(res.p, mr),
                            std::move(ci),
-                           Value::scalar(z, mr));
+                           Value::scalar(res.zval, mr));
 }
 
 std::tuple<Value, Value, Value, Value>
 vartest_1d(const Value &x, keel::f64 v, keel::f64 alpha, TestTail tail, keel::Allocator *mr)
 {
     vartest_argcheck(v);
-    if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
-
-    keel::f64 mu_hat, var_hat; keel::usize n;
-    mean_var(x, mu_hat, var_hat, n);
-    if (n < 2)
+    if (x.numel() < 2)
         throw Error("vartest: need at least 2 samples", 0, 0, "vartest", "",
                     "numkit:vartest:nsamples");
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    auto xv = to_flat(x, scratch.allocator());
+    keel::stats::VarTestResult res{};
+    (void)keel::stats::vartest_1sample(xv.as_ref(), v, alpha, to_keel_tail(tail), res);
 
-    const keel::f64 df = keel::f64(n - 1);
-    const keel::f64 T  = df * var_hat / v;
-    Value Tv = Value::scalar(T, mr);
-    const keel::f64 cdf = chi2cdf(Tv, df, mr).toScalar();
-
-    keel::f64 p;
-    switch (tail) {
-        case TestTail::Both:  p = 2.0 * std::min(cdf, 1.0 - cdf); break;
-        case TestTail::Right: p = 1.0 - cdf;                      break;
-        case TestTail::Left:  p = cdf;                            break;
-        default:              p = 1.0;
-    }
-    const keel::i32 h = (p < alpha) ? 1 : 0;
-
-    Value lo_v = Value::scalar(0.5 * alpha, mr);
-    Value hi_v = Value::scalar(1.0 - 0.5 * alpha, mr);
-    const keel::f64 chi_lo = chi2inv(lo_v, df, mr).toScalar();
-    const keel::f64 chi_hi = chi2inv(hi_v, df, mr).toScalar();
     Value ci = Value::matrix(1, 2, ValueType::DOUBLE, mr);
-    ci.doubleDataMut()[0] = (chi_hi > 0.0) ? df * var_hat / chi_hi : 0.0;
-    ci.doubleDataMut()[1] = (chi_lo > 0.0) ? df * var_hat / chi_lo
-                                            : std::numeric_limits<keel::f64>::infinity();
+    ci.doubleDataMut()[0] = res.ci_lo;
+    ci.doubleDataMut()[1] = res.ci_hi;
 
     Value stats = Value::structure(mr);
-    stats.field("chisqstat") = Value::scalar(T, mr);
-    stats.field("df")        = Value::scalar(df, mr);
+    stats.field("chisqstat") = Value::scalar(res.chisqstat, mr);
+    stats.field("df")        = Value::scalar(res.df, mr);
 
-    return std::make_tuple(Value::scalar(keel::f64(h), mr),
-                           Value::scalar(p, mr),
+    return std::make_tuple(Value::scalar(keel::f64(res.h), mr),
+                           Value::scalar(res.p, mr),
                            std::move(ci),
                            std::move(stats));
 }
@@ -278,46 +230,26 @@ std::tuple<Value, Value, Value, Value>
 vartest2_1d(const Value &x, const Value &y, keel::f64 alpha, TestTail tail, keel::Allocator *mr)
 {
     vartest2_argcheck(x, y);
-    if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
-
-    keel::f64 mx, vx, my, vy; keel::usize nx, ny;
-    mean_var(x, mx, vx, nx);
-    mean_var(y, my, vy, ny);
-    if (nx < 2 || ny < 2 || vy == 0.0)
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    auto xv = to_flat(x, scratch.allocator());
+    auto yv = to_flat(y, scratch.allocator());
+    keel::stats::VarTest2Result res{};
+    if (keel::stats::vartest_2sample(xv.as_ref(), yv.as_ref(), alpha, to_keel_tail(tail), res) !=
+        keel::stats::StatsStatus::kOk)
         throw Error("vartest2: need >= 2 samples per group and var(y) > 0",
                     0, 0, "vartest2", "", "numkit:vartest2:nsamples");
 
-    const keel::f64 F  = vx / vy;
-    const keel::f64 v1 = keel::f64(nx - 1);
-    const keel::f64 v2 = keel::f64(ny - 1);
-    Value Fv = Value::scalar(F, mr);
-    const keel::f64 cdf = fcdf(Fv, v1, v2, mr).toScalar();
-
-    keel::f64 p;
-    switch (tail) {
-        case TestTail::Both:  p = 2.0 * std::min(cdf, 1.0 - cdf); break;
-        case TestTail::Right: p = 1.0 - cdf;                      break;
-        case TestTail::Left:  p = cdf;                            break;
-        default:              p = 1.0;
-    }
-    const keel::i32 h = (p < alpha) ? 1 : 0;
-
-    Value lo_v = Value::scalar(0.5 * alpha, mr);
-    Value hi_v = Value::scalar(1.0 - 0.5 * alpha, mr);
-    const keel::f64 f_lo = finv(lo_v, v1, v2, mr).toScalar();
-    const keel::f64 f_hi = finv(hi_v, v1, v2, mr).toScalar();
     Value ci = Value::matrix(1, 2, ValueType::DOUBLE, mr);
-    ci.doubleDataMut()[0] = (f_hi > 0.0) ? F / f_hi : 0.0;
-    ci.doubleDataMut()[1] = (f_lo > 0.0) ? F / f_lo
-                                          : std::numeric_limits<keel::f64>::infinity();
+    ci.doubleDataMut()[0] = res.ci_lo;
+    ci.doubleDataMut()[1] = res.ci_hi;
 
     Value stats = Value::structure(mr);
-    stats.field("fstat") = Value::scalar(F, mr);
-    stats.field("df1")   = Value::scalar(v1, mr);
-    stats.field("df2")   = Value::scalar(v2, mr);
+    stats.field("fstat") = Value::scalar(res.fstat, mr);
+    stats.field("df1")   = Value::scalar(res.df1, mr);
+    stats.field("df2")   = Value::scalar(res.df2, mr);
 
-    return std::make_tuple(Value::scalar(keel::f64(h), mr),
-                           Value::scalar(p, mr),
+    return std::make_tuple(Value::scalar(keel::f64(res.h), mr),
+                           Value::scalar(res.p, mr),
                            std::move(ci),
                            std::move(stats));
 }
@@ -329,7 +261,8 @@ vartest2_1d(const Value &x, const Value &y, keel::f64 alpha, TestTail tail, keel
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value, Value>
-ttest_dim(const Value &x, keel::f64 m, keel::f64 alpha, TestTail tail, keel::i32 dim, keel::Allocator *mr)
+ttest_dim(const Value &x, keel::f64 m, keel::f64 alpha, TestTail tail, keel::i32 dim,
+          keel::Allocator *mr)
 {
     ttest_argcheck(x);
     const keel::usize R = x.dims().rows();
@@ -350,19 +283,20 @@ ttest_dim(const Value &x, keel::f64 m, keel::f64 alpha, TestTail tail, keel::i32
         Value sdOut    = Value::matrix(1, C, ValueType::DOUBLE, mr);
         for (keel::usize c = 0; c < C; ++c) {
             auto [hc, pc, cic, stc] = ttest_1d(extractCol(x, c, mr), m, alpha, tail, mr);
-            hOut.doubleDataMut()[c]         = hc.toScalar();
-            pOut.doubleDataMut()[c]         = pc.toScalar();
-            ciOut.doubleDataMut()[0 + 2*c]  = cic.elemAsDouble(0);
-            ciOut.doubleDataMut()[1 + 2*c]  = cic.elemAsDouble(1);
-            tstatOut.doubleDataMut()[c]     = stc.field("tstat").toScalar();
-            dfOut.doubleDataMut()[c]        = stc.field("df").toScalar();
-            sdOut.doubleDataMut()[c]        = stc.field("sd").toScalar();
+            hOut.doubleDataMut()[c]        = hc.toScalar();
+            pOut.doubleDataMut()[c]        = pc.toScalar();
+            ciOut.doubleDataMut()[0 + 2*c] = cic.elemAsDouble(0);
+            ciOut.doubleDataMut()[1 + 2*c] = cic.elemAsDouble(1);
+            tstatOut.doubleDataMut()[c]    = stc.field("tstat").toScalar();
+            dfOut.doubleDataMut()[c]       = stc.field("df").toScalar();
+            sdOut.doubleDataMut()[c]       = stc.field("sd").toScalar();
         }
         Value stats = Value::structure(mr);
         stats.field("tstat") = std::move(tstatOut);
         stats.field("df")    = std::move(dfOut);
         stats.field("sd")    = std::move(sdOut);
-        return std::make_tuple(std::move(hOut), std::move(pOut), std::move(ciOut), std::move(stats));
+        return std::make_tuple(std::move(hOut), std::move(pOut), std::move(ciOut),
+                               std::move(stats));
     }
     if (effDim == 2) {
         Value hOut     = Value::matrix(R, 1, ValueType::DOUBLE, mr);
@@ -373,19 +307,20 @@ ttest_dim(const Value &x, keel::f64 m, keel::f64 alpha, TestTail tail, keel::i32
         Value sdOut    = Value::matrix(R, 1, ValueType::DOUBLE, mr);
         for (keel::usize r = 0; r < R; ++r) {
             auto [hr, pr, cir, str] = ttest_1d(extractRow(x, r, mr), m, alpha, tail, mr);
-            hOut.doubleDataMut()[r]         = hr.toScalar();
-            pOut.doubleDataMut()[r]         = pr.toScalar();
-            ciOut.doubleDataMut()[r]        = cir.elemAsDouble(0);
-            ciOut.doubleDataMut()[r + R]    = cir.elemAsDouble(1);
-            tstatOut.doubleDataMut()[r]     = str.field("tstat").toScalar();
-            dfOut.doubleDataMut()[r]        = str.field("df").toScalar();
-            sdOut.doubleDataMut()[r]        = str.field("sd").toScalar();
+            hOut.doubleDataMut()[r]     = hr.toScalar();
+            pOut.doubleDataMut()[r]     = pr.toScalar();
+            ciOut.doubleDataMut()[r]    = cir.elemAsDouble(0);
+            ciOut.doubleDataMut()[r+R]  = cir.elemAsDouble(1);
+            tstatOut.doubleDataMut()[r] = str.field("tstat").toScalar();
+            dfOut.doubleDataMut()[r]    = str.field("df").toScalar();
+            sdOut.doubleDataMut()[r]    = str.field("sd").toScalar();
         }
         Value stats = Value::structure(mr);
         stats.field("tstat") = std::move(tstatOut);
         stats.field("df")    = std::move(dfOut);
         stats.field("sd")    = std::move(sdOut);
-        return std::make_tuple(std::move(hOut), std::move(pOut), std::move(ciOut), std::move(stats));
+        return std::make_tuple(std::move(hOut), std::move(pOut), std::move(ciOut),
+                               std::move(stats));
     }
     throw Error("ttest: need at least 2 samples along operating dimension",
                 0, 0, "ttest", "", "numkit:ttest:nsamples");
@@ -403,7 +338,8 @@ ttest(const Value &x, keel::f64 m, keel::f64 alpha, TestTail tail, keel::Allocat
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value, Value>
-ttest2_dim(const Value &x, const Value &y, keel::f64 alpha, TestTail tail, keel::StringRef vartype, keel::i32 dim, keel::Allocator *mr)
+ttest2_dim(const Value &x, const Value &y, keel::f64 alpha, TestTail tail,
+           keel::StringRef vartype, keel::i32 dim, keel::Allocator *mr)
 {
     ttest2_argcheck(x, y);
     const keel::usize Rx = x.dims().rows(), Cx = x.dims().cols();
@@ -427,7 +363,8 @@ ttest2_dim(const Value &x, const Value &y, keel::f64 alpha, TestTail tail, keel:
         Value dfOut    = Value::matrix(1, Cx, ValueType::DOUBLE, mr);
         Value sdOut    = Value::matrix(equalVar ? 1 : 2, Cx, ValueType::DOUBLE, mr);
         for (keel::usize c = 0; c < Cx; ++c) {
-            auto [hc, pc, cic, stc] = ttest2_1d(extractCol(x, c, mr), extractCol(y, c, mr), alpha, tail, vartype, mr);
+            auto [hc, pc, cic, stc] =
+                ttest2_1d(extractCol(x, c, mr), extractCol(y, c, mr), alpha, tail, vartype, mr);
             hOut.doubleDataMut()[c]        = hc.toScalar();
             pOut.doubleDataMut()[c]        = pc.toScalar();
             ciOut.doubleDataMut()[0 + 2*c] = cic.elemAsDouble(0);
@@ -446,7 +383,8 @@ ttest2_dim(const Value &x, const Value &y, keel::f64 alpha, TestTail tail, keel:
         stats.field("tstat") = std::move(tstatOut);
         stats.field("df")    = std::move(dfOut);
         stats.field("sd")    = std::move(sdOut);
-        return std::make_tuple(std::move(hOut), std::move(pOut), std::move(ciOut), std::move(stats));
+        return std::make_tuple(std::move(hOut), std::move(pOut), std::move(ciOut),
+                               std::move(stats));
     }
     if (effDim == 2) {
         if (Rx != Ry)
@@ -459,7 +397,8 @@ ttest2_dim(const Value &x, const Value &y, keel::f64 alpha, TestTail tail, keel:
         Value dfOut    = Value::matrix(Rx, 1, ValueType::DOUBLE, mr);
         Value sdOut    = Value::matrix(Rx, equalVar ? 1 : 2, ValueType::DOUBLE, mr);
         for (keel::usize r = 0; r < Rx; ++r) {
-            auto [hr, pr, cir, str] = ttest2_1d(extractRow(x, r, mr), extractRow(y, r, mr), alpha, tail, vartype, mr);
+            auto [hr, pr, cir, str] =
+                ttest2_1d(extractRow(x, r, mr), extractRow(y, r, mr), alpha, tail, vartype, mr);
             hOut.doubleDataMut()[r]       = hr.toScalar();
             pOut.doubleDataMut()[r]       = pr.toScalar();
             ciOut.doubleDataMut()[r]      = cir.elemAsDouble(0);
@@ -478,14 +417,16 @@ ttest2_dim(const Value &x, const Value &y, keel::f64 alpha, TestTail tail, keel:
         stats.field("tstat") = std::move(tstatOut);
         stats.field("df")    = std::move(dfOut);
         stats.field("sd")    = std::move(sdOut);
-        return std::make_tuple(std::move(hOut), std::move(pOut), std::move(ciOut), std::move(stats));
+        return std::make_tuple(std::move(hOut), std::move(pOut), std::move(ciOut),
+                               std::move(stats));
     }
     throw Error("ttest2: need at least 2 samples per group",
                 0, 0, "ttest2", "", "numkit:ttest2:nsamples");
 }
 
 std::tuple<Value, Value, Value, Value>
-ttest2(const Value &x, const Value &y, keel::f64 alpha, TestTail tail, keel::StringRef vartype, keel::Allocator *mr)
+ttest2(const Value &x, const Value &y, keel::f64 alpha, TestTail tail,
+       keel::StringRef vartype, keel::Allocator *mr)
 {
     ttest2_argcheck(x, y);
     return ttest2_dim(x, y, alpha, tail, vartype, 0, mr);
@@ -496,7 +437,8 @@ ttest2(const Value &x, const Value &y, keel::f64 alpha, TestTail tail, keel::Str
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value, Value>
-ztest_dim(const Value &x, keel::f64 m, keel::f64 sigma, keel::f64 alpha, TestTail tail, keel::i32 dim, keel::Allocator *mr)
+ztest_dim(const Value &x, keel::f64 m, keel::f64 sigma, keel::f64 alpha, TestTail tail,
+          keel::i32 dim, keel::Allocator *mr)
 {
     ztest_argcheck(sigma);
     const keel::usize R = x.dims().rows();
@@ -521,7 +463,8 @@ ztest_dim(const Value &x, keel::f64 m, keel::f64 sigma, keel::f64 alpha, TestTai
             ciOut.doubleDataMut()[1 + 2*c] = cic.elemAsDouble(1);
             zOut.doubleDataMut()[c]        = zc.toScalar();
         }
-        return std::make_tuple(std::move(hOut), std::move(pOut), std::move(ciOut), std::move(zOut));
+        return std::make_tuple(std::move(hOut), std::move(pOut), std::move(ciOut),
+                               std::move(zOut));
     }
     if (effDim == 2) {
         Value hOut  = Value::matrix(R, 1, ValueType::DOUBLE, mr);
@@ -530,20 +473,21 @@ ztest_dim(const Value &x, keel::f64 m, keel::f64 sigma, keel::f64 alpha, TestTai
         Value zOut  = Value::matrix(R, 1, ValueType::DOUBLE, mr);
         for (keel::usize r = 0; r < R; ++r) {
             auto [hr, pr, cir, zr] = ztest_1d(extractRow(x, r, mr), m, sigma, alpha, tail, mr);
-            hOut.doubleDataMut()[r]       = hr.toScalar();
-            pOut.doubleDataMut()[r]       = pr.toScalar();
-            ciOut.doubleDataMut()[r]      = cir.elemAsDouble(0);
-            ciOut.doubleDataMut()[r + R]  = cir.elemAsDouble(1);
-            zOut.doubleDataMut()[r]       = zr.toScalar();
+            hOut.doubleDataMut()[r]      = hr.toScalar();
+            pOut.doubleDataMut()[r]      = pr.toScalar();
+            ciOut.doubleDataMut()[r]     = cir.elemAsDouble(0);
+            ciOut.doubleDataMut()[r + R] = cir.elemAsDouble(1);
+            zOut.doubleDataMut()[r]      = zr.toScalar();
         }
-        return std::make_tuple(std::move(hOut), std::move(pOut), std::move(ciOut), std::move(zOut));
+        return std::make_tuple(std::move(hOut), std::move(pOut), std::move(ciOut),
+                               std::move(zOut));
     }
-    throw Error("ztest: unsupported dimension",
-                0, 0, "ztest", "", "numkit:ztest:dim");
+    throw Error("ztest: unsupported dimension", 0, 0, "ztest", "", "numkit:ztest:dim");
 }
 
 std::tuple<Value, Value, Value, Value>
-ztest(const Value &x, keel::f64 m, keel::f64 sigma, keel::f64 alpha, TestTail tail, keel::Allocator *mr)
+ztest(const Value &x, keel::f64 m, keel::f64 sigma, keel::f64 alpha, TestTail tail,
+      keel::Allocator *mr)
 {
     ztest_argcheck(sigma);
     return ztest_dim(x, m, sigma, alpha, tail, 0, mr);
@@ -554,7 +498,8 @@ ztest(const Value &x, keel::f64 m, keel::f64 sigma, keel::f64 alpha, TestTail ta
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value, Value>
-vartest_dim(const Value &x, keel::f64 v, keel::f64 alpha, TestTail tail, keel::i32 dim, keel::Allocator *mr)
+vartest_dim(const Value &x, keel::f64 v, keel::f64 alpha, TestTail tail, keel::i32 dim,
+            keel::Allocator *mr)
 {
     vartest_argcheck(v);
     const keel::usize R = x.dims().rows();
@@ -584,7 +529,8 @@ vartest_dim(const Value &x, keel::f64 v, keel::f64 alpha, TestTail tail, keel::i
         Value stats = Value::structure(mr);
         stats.field("chisqstat") = std::move(chisqOut);
         stats.field("df")        = std::move(dfOut);
-        return std::make_tuple(std::move(hOut), std::move(pOut), std::move(ciOut), std::move(stats));
+        return std::make_tuple(std::move(hOut), std::move(pOut), std::move(ciOut),
+                               std::move(stats));
     }
     if (effDim == 2) {
         Value hOut     = Value::matrix(R, 1, ValueType::DOUBLE, mr);
@@ -594,20 +540,21 @@ vartest_dim(const Value &x, keel::f64 v, keel::f64 alpha, TestTail tail, keel::i
         Value dfOut    = Value::matrix(R, 1, ValueType::DOUBLE, mr);
         for (keel::usize r = 0; r < R; ++r) {
             auto [hr, pr, cir, str] = vartest_1d(extractRow(x, r, mr), v, alpha, tail, mr);
-            hOut.doubleDataMut()[r]       = hr.toScalar();
-            pOut.doubleDataMut()[r]       = pr.toScalar();
-            ciOut.doubleDataMut()[r]      = cir.elemAsDouble(0);
-            ciOut.doubleDataMut()[r + R]  = cir.elemAsDouble(1);
-            chisqOut.doubleDataMut()[r]   = str.field("chisqstat").toScalar();
-            dfOut.doubleDataMut()[r]      = str.field("df").toScalar();
+            hOut.doubleDataMut()[r]      = hr.toScalar();
+            pOut.doubleDataMut()[r]      = pr.toScalar();
+            ciOut.doubleDataMut()[r]     = cir.elemAsDouble(0);
+            ciOut.doubleDataMut()[r + R] = cir.elemAsDouble(1);
+            chisqOut.doubleDataMut()[r]  = str.field("chisqstat").toScalar();
+            dfOut.doubleDataMut()[r]     = str.field("df").toScalar();
         }
         Value stats = Value::structure(mr);
         stats.field("chisqstat") = std::move(chisqOut);
         stats.field("df")        = std::move(dfOut);
-        return std::make_tuple(std::move(hOut), std::move(pOut), std::move(ciOut), std::move(stats));
+        return std::make_tuple(std::move(hOut), std::move(pOut), std::move(ciOut),
+                               std::move(stats));
     }
-    throw Error("vartest: need at least 2 samples",
-                0, 0, "vartest", "", "numkit:vartest:nsamples");
+    throw Error("vartest: need at least 2 samples", 0, 0, "vartest", "",
+                "numkit:vartest:nsamples");
 }
 
 std::tuple<Value, Value, Value, Value>
@@ -622,7 +569,8 @@ vartest(const Value &x, keel::f64 v, keel::f64 alpha, TestTail tail, keel::Alloc
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value, Value>
-vartest2_dim(const Value &x, const Value &y, keel::f64 alpha, TestTail tail, keel::i32 dim, keel::Allocator *mr)
+vartest2_dim(const Value &x, const Value &y, keel::f64 alpha, TestTail tail, keel::i32 dim,
+             keel::Allocator *mr)
 {
     vartest2_argcheck(x, y);
     const keel::usize Rx = x.dims().rows(), Cx = x.dims().cols();
@@ -645,7 +593,8 @@ vartest2_dim(const Value &x, const Value &y, keel::f64 alpha, TestTail tail, kee
         Value df1Out = Value::matrix(1, Cx, ValueType::DOUBLE, mr);
         Value df2Out = Value::matrix(1, Cx, ValueType::DOUBLE, mr);
         for (keel::usize c = 0; c < Cx; ++c) {
-            auto [hc, pc, cic, stc] = vartest2_1d(extractCol(x, c, mr), extractCol(y, c, mr), alpha, tail, mr);
+            auto [hc, pc, cic, stc] =
+                vartest2_1d(extractCol(x, c, mr), extractCol(y, c, mr), alpha, tail, mr);
             hOut.doubleDataMut()[c]        = hc.toScalar();
             pOut.doubleDataMut()[c]        = pc.toScalar();
             ciOut.doubleDataMut()[0 + 2*c] = cic.elemAsDouble(0);
@@ -658,7 +607,8 @@ vartest2_dim(const Value &x, const Value &y, keel::f64 alpha, TestTail tail, kee
         stats.field("fstat") = std::move(fOut);
         stats.field("df1")   = std::move(df1Out);
         stats.field("df2")   = std::move(df2Out);
-        return std::make_tuple(std::move(hOut), std::move(pOut), std::move(ciOut), std::move(stats));
+        return std::make_tuple(std::move(hOut), std::move(pOut), std::move(ciOut),
+                               std::move(stats));
     }
     if (effDim == 2) {
         if (Rx != Ry)
@@ -671,7 +621,8 @@ vartest2_dim(const Value &x, const Value &y, keel::f64 alpha, TestTail tail, kee
         Value df1Out = Value::matrix(Rx, 1, ValueType::DOUBLE, mr);
         Value df2Out = Value::matrix(Rx, 1, ValueType::DOUBLE, mr);
         for (keel::usize r = 0; r < Rx; ++r) {
-            auto [hr, pr, cir, str] = vartest2_1d(extractRow(x, r, mr), extractRow(y, r, mr), alpha, tail, mr);
+            auto [hr, pr, cir, str] =
+                vartest2_1d(extractRow(x, r, mr), extractRow(y, r, mr), alpha, tail, mr);
             hOut.doubleDataMut()[r]       = hr.toScalar();
             pOut.doubleDataMut()[r]       = pr.toScalar();
             ciOut.doubleDataMut()[r]      = cir.elemAsDouble(0);
@@ -684,7 +635,8 @@ vartest2_dim(const Value &x, const Value &y, keel::f64 alpha, TestTail tail, kee
         stats.field("fstat") = std::move(fOut);
         stats.field("df1")   = std::move(df1Out);
         stats.field("df2")   = std::move(df2Out);
-        return std::make_tuple(std::move(hOut), std::move(pOut), std::move(ciOut), std::move(stats));
+        return std::make_tuple(std::move(hOut), std::move(pOut), std::move(ciOut),
+                               std::move(stats));
     }
     throw Error("vartest2: need >= 2 samples per group and var(y) > 0",
                 0, 0, "vartest2", "", "numkit:vartest2:nsamples");
@@ -698,176 +650,78 @@ vartest2(const Value &x, const Value &y, keel::f64 alpha, TestTail tail, keel::A
 }
 
 // ════════════════════════════════════════════════════════════════════
-// kstest — one-sample Kolmogorov-Smirnov
+// kstest / kstest2 — Kolmogorov-Smirnov
 // ════════════════════════════════════════════════════════════════════
-
 
 std::tuple<Value, Value, Value, Value>
 kstest(const Value &x, const Value &cdf, keel::f64 alpha, TestTail tail, keel::Allocator *mr)
 {
     kstest_argcheck(x);
-    if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
-    const keel::usize N = x.numel();
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    auto xv = to_flat(x, scratch.allocator());
 
-    keel::Array<keel::f64> xs(N);
-    for (keel::usize i = 0; i < N; ++i) xs[i] = x.elemAsDouble(i);
-    std::sort(xs.begin(), xs.end());
-
-    // Reference CDF.
-    auto refF = [&](keel::f64 v) {
-        if (cdf.numel() >= 2) {
-            const keel::usize rows = cdf.dims().rows();
-            keel::Array<keel::f64> xg(rows), Fg(rows);
-            for (keel::usize i = 0; i < rows; ++i) {
-                xg[i] = cdf.elemAsDouble(0 * rows + i);
-                Fg[i] = cdf.elemAsDouble(1 * rows + i);
-            }
-            // xg should already be sorted; if not, do a quick sort.
-            if (!std::is_sorted(xg.begin(), xg.end())) {
-                keel::Array<keel::usize> ord(rows);
-                std::iota(ord.begin(), ord.end(), (keel::usize)0);
-                std::sort(ord.begin(), ord.end(),
-                          [&](keel::usize a, keel::usize b){ return xg[a] < xg[b]; });
-                keel::Array<keel::f64> xs2(rows), Fs2(rows);
-                for (keel::usize i = 0; i < rows; ++i) { xs2[i] = xg[ord[i]]; Fs2[i] = Fg[ord[i]]; }
-                xg = keel::move(xs2); Fg = keel::move(Fs2);
-            }
-            return interp_cdf(xg.as_ref(), Fg.as_ref(), v);
+    keel::Array<keel::f64> xg(scratch.allocator());
+    keel::Array<keel::f64> fg(scratch.allocator());
+    if (cdf.numel() >= 2) {
+        const keel::usize rows = cdf.dims().rows();
+        xg.resize(rows);
+        fg.resize(rows);
+        for (keel::usize i = 0; i < rows; ++i) {
+            xg[i] = cdf.elemAsDouble(0 * rows + i);
+            fg[i] = cdf.elemAsDouble(1 * rows + i);
         }
-        // Default: standard normal.
-        Value s = Value::scalar(v, mr);
-        return normcdf(s, 0.0, 1.0, mr).toScalar();
-    };
+    }
 
-    // Compute D⁺ and D⁻ relative to reference; combine per tail.
-    keel::f64 Dplus = 0.0, Dminus = 0.0;
-    for (keel::usize i = 0; i < N; ++i) {
-        const keel::f64 F = refF(xs[i]);
-        const keel::f64 up = keel::f64(i + 1) / keel::f64(N) - F;
-        const keel::f64 dn = F - keel::f64(i) / keel::f64(N);
-        if (up > Dplus)  Dplus = up;
-        if (dn > Dminus) Dminus = dn;
-    }
-    keel::f64 D;
-    switch (tail) {
-        case TestTail::Right: D = Dplus;             break;
-        case TestTail::Left:  D = Dminus;            break;
-        default:              D = std::max(Dplus, Dminus);
-    }
-    // Exact finite-n KS distribution (MATLAB default): two-sided Marsaglia,
-    // one-sided Birnbaum-Tingey; critical value by inverting the same p(D).
-    const keel::i32 ni = keel::as<keel::i32>(N);
-    keel::f64 p, cv;
-    if (tail == TestTail::Both) {
-        p  = ksOneSampleTwoSidedP(ni, D);
-        cv = ksCriticalValue([ni](keel::f64 dd){ return ksOneSampleTwoSidedP(ni, dd); }, alpha);
-    } else {
-        p  = ksOneSampleOneSidedP(ni, D);
-        cv = ksCriticalValue([ni](keel::f64 dd){ return ksOneSampleOneSidedP(ni, dd); }, alpha);
-    }
-    const keel::i32 h = (p < alpha) ? 1 : 0;
+    keel::stats::KsTestResult res{};
+    (void)keel::stats::kstest_1sample(xv.as_ref(), xg.as_ref(), fg.as_ref(), alpha,
+                                      to_keel_tail(tail), res, scratch.allocator());
 
-    return std::make_tuple(Value::scalar(keel::f64(h), mr),
-                           Value::scalar(p, mr),
-                           Value::scalar(D, mr),
-                           Value::scalar(cv, mr));
+    return std::make_tuple(Value::scalar(keel::f64(res.h), mr),
+                           Value::scalar(res.p, mr),
+                           Value::scalar(res.ksstat, mr),
+                           Value::scalar(res.cv, mr));
 }
 
 std::tuple<Value, Value, Value, Value>
 kstest2(const Value &x, const Value &y, keel::f64 alpha, TestTail tail, keel::Allocator *mr)
 {
-    if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
-    const keel::usize Nx = x.numel(), Ny = y.numel();
-    if (Nx < 1 || Ny < 1)
+    if (x.numel() < 1 || y.numel() < 1)
         throw Error("kstest2: empty sample", 0, 0, "kstest2", "",
                     "numkit:kstest2:nsamples");
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    auto xv = to_flat(x, scratch.allocator());
+    auto yv = to_flat(y, scratch.allocator());
+    keel::stats::KsTestResult res{};
+    (void)keel::stats::kstest_2sample(xv.as_ref(), yv.as_ref(), alpha, to_keel_tail(tail),
+                                      res, scratch.allocator());
 
-    keel::Array<keel::f64> xs(Nx), ys(Ny);
-    for (keel::usize i = 0; i < Nx; ++i) xs[i] = x.elemAsDouble(i);
-    for (keel::usize i = 0; i < Ny; ++i) ys[i] = y.elemAsDouble(i);
-    std::sort(xs.begin(), xs.end());
-    std::sort(ys.begin(), ys.end());
-
-    // Walk the merged sorted axis to compute D⁺ and D⁻.
-    keel::f64 Dplus = 0.0, Dminus = 0.0;
-    keel::usize i = 0, j = 0;
-    while (i < Nx && j < Ny) {
-        const keel::f64 a = xs[i], b = ys[j];
-        if (a <= b) ++i;
-        if (b <= a) ++j;
-        const keel::f64 Fx = keel::f64(i) / keel::f64(Nx);
-        const keel::f64 Fy = keel::f64(j) / keel::f64(Ny);
-        if (Fx - Fy > Dplus) Dplus = Fx - Fy;
-        if (Fy - Fx > Dminus) Dminus = Fy - Fx;
-    }
-    keel::f64 D;
-    switch (tail) {
-        case TestTail::Right: D = Dplus;            break;
-        case TestTail::Left:  D = Dminus;           break;
-        default:              D = std::max(Dplus, Dminus);
-    }
-    const keel::f64 n_eff = keel::f64(Nx) * keel::f64(Ny) / keel::f64(Nx + Ny);
-    // MATLAB kstest2: Stephens' corrected asymptotic (no exact small-sample
-    // path). Two-sided = alternating series, one-sided = single leading term.
-    const bool twoSided = (tail == TestTail::Both);
-    const keel::f64 p  = ksTwoSampleP(n_eff, D, twoSided);
-    const keel::i32    h  = (p < alpha) ? 1 : 0;
-    const keel::f64 cv = ksCriticalValue([n_eff, twoSided](keel::f64 dd){
-                          return ksTwoSampleP(n_eff, dd, twoSided); }, alpha);
-
-    return std::make_tuple(Value::scalar(keel::f64(h), mr),
-                           Value::scalar(p, mr),
-                           Value::scalar(D, mr),
-                           Value::scalar(cv, mr));
+    return std::make_tuple(Value::scalar(keel::f64(res.h), mr),
+                           Value::scalar(res.p, mr),
+                           Value::scalar(res.ksstat, mr),
+                           Value::scalar(res.cv, mr));
 }
 
 // ════════════════════════════════════════════════════════════════════
 // jbtest — Jarque-Bera normality
 // ════════════════════════════════════════════════════════════════════
 
-
 std::tuple<Value, Value, Value, Value>
 jbtest(const Value &x, keel::f64 alpha, keel::f64 mctol, keel::Allocator *mr)
 {
-    if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
-    const keel::usize N = x.numel();
-    if (N < 4)
+    if (x.numel() < 4)
         throw Error("jbtest: need at least 4 samples", 0, 0, "jbtest", "",
                     "numkit:jbtest:nsamples");
-
-    // Read sample into a flat scratch buffer.
     keel::ArenaTemp scratch = keel::get_scratch(mr);
-    keel::Array<keel::f64> xv(N, scratch.allocator());
-    for (keel::usize i = 0; i < N; ++i) xv[i] = x.elemAsDouble(i);
+    auto xv = to_flat(x, scratch.allocator());
+    keel::stats::JbTestResult res{};
+    (void)keel::stats::jbtest(xv.as_ref(), alpha, mctol, res, scratch.allocator());
 
-    const keel::f64 JB = jb_stat(xv.data(), N);
-
-    // Path selection: use Monte Carlo for small samples by default
-    // (matching MATLAB's tabulated-p behavior); use χ²(2) asymptotic
-    // for large n. mctol overrides — when supplied, always use MC.
-    keel::f64 p, cv;
-    const bool use_mc = std::isfinite(mctol) || N < 2000;
-    const keel::f64 mctol_eff = std::isfinite(mctol) ? mctol : 1e-3;
-    if (use_mc) {
-        auto R = jb_montecarlo(N, JB, alpha, mctol_eff);
-        p  = R.p;
-        cv = R.cv;
-    } else {
-        Value JBv = Value::scalar(JB, mr);
-        const keel::f64 cdf = chi2cdf(JBv, 2.0, mr).toScalar();
-        p = 1.0 - cdf;
-        Value oneMinusAlpha = Value::scalar(1.0 - alpha, mr);
-        cv = chi2inv(oneMinusAlpha, 2.0, mr).toScalar();
-    }
-    const keel::i32 h = (p < alpha) ? 1 : 0;
-
-    return std::make_tuple(Value::scalar(keel::f64(h), mr),
-                           Value::scalar(p, mr),
-                           Value::scalar(JB, mr),
-                           Value::scalar(cv, mr));
+    return std::make_tuple(Value::scalar(keel::f64(res.h), mr),
+                           Value::scalar(res.p, mr),
+                           Value::scalar(res.jbstat, mr),
+                           Value::scalar(res.cv, mr));
 }
 
-// Backward-compat 2-arg form — uses MC for small N (n < 2000).
 std::tuple<Value, Value, Value, Value>
 jbtest(const Value &x, keel::f64 alpha, keel::Allocator *mr)
 {
@@ -888,41 +742,17 @@ signtest(const Value &x, const Value &y_or_m, keel::f64 alpha, TestTail tail, ke
                     0, 0, "signtest", "", "numkit:signtest:size");
     const keel::f64 m0 = (paired || y_or_m.isEmpty()) ? 0.0 : y_or_m.toScalar();
 
-    // Count positive and non-zero diffs.
-    keel::i64 n_pos = 0;
-    keel::i64 n_eff = 0;
-    for (keel::usize i = 0; i < Nx; ++i) {
-        const keel::f64 xi = x.elemAsDouble(i);
-        const keel::f64 yi = paired ? y_or_m.elemAsDouble(i) : m0;
-        if (std::isnan(xi) || std::isnan(yi)) continue;
-        const keel::f64 d = xi - yi;
-        if (d == 0.0) continue;
-        ++n_eff;
-        if (d > 0.0) ++n_pos;
-    }
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    auto xv = to_flat(x, scratch.allocator());
+    keel::Array<keel::f64> yv(scratch.allocator());
+    if (paired) yv = to_flat(y_or_m, scratch.allocator());
 
-    keel::f64 p = 1.0;
-    if (n_eff > 0) {
-        // Binomial(n_eff, 0.5) tail probabilities via existing binocdf.
-        Value kPos = Value::scalar(keel::f64(n_pos), mr);
-        Value kPosM1 = Value::scalar(keel::f64(n_pos - 1), mr);
-        const keel::f64 cdfLE = binocdf(kPos, keel::f64(n_eff), 0.5, mr).toScalar();
-        const keel::f64 cdfLT = (n_pos > 0)
-                           ? binocdf(kPosM1, keel::f64(n_eff), 0.5, mr).toScalar()
-                           : 0.0;
-        const keel::f64 pLeft  = cdfLE;            // P(X ≤ n_pos)
-        const keel::f64 pRight = 1.0 - cdfLT;      // P(X ≥ n_pos)
-        switch (tail) {
-            case TestTail::Both:  p = std::min(1.0, 2.0 * std::min(pLeft, pRight)); break;
-            case TestTail::Right: p = pRight; break;
-            case TestTail::Left:  p = pLeft;  break;
-        }
-    }
+    keel::stats::SignTestResult res{};
+    (void)keel::stats::signtest(xv.as_ref(), yv.as_ref(), m0, alpha, to_keel_tail(tail), res);
 
-    const keel::i32 h = (p < alpha) ? 1 : 0;
-    return std::make_tuple(Value::scalar(p, mr),
-                           Value::scalar(keel::f64(h), mr),
-                           Value::scalar(keel::f64(n_pos), mr));
+    return std::make_tuple(Value::scalar(res.p, mr),
+                           Value::scalar(keel::f64(res.h), mr),
+                           Value::scalar(keel::f64(res.sign), mr));
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -939,67 +769,16 @@ fishertest(const Value &T, keel::f64 alpha, TestTail tail, keel::Allocator *mr)
     const keel::f64 c = T.elemAsDouble(1);  // (2,1)
     const keel::f64 b = T.elemAsDouble(2);  // (1,2)
     const keel::f64 d = T.elemAsDouble(3);  // (2,2)
-    const keel::f64 row1 = a + b;
-    const keel::f64 col1 = a + c;
-    const keel::f64 Ntot = a + b + c + d;
 
-    auto lb = [](keel::f64 n, keel::f64 k) {
-        if (k < 0.0 || k > n) return -std::numeric_limits<keel::f64>::infinity();
-        return std::lgamma(n + 1.0) - std::lgamma(k + 1.0) - std::lgamma(n - k + 1.0);
-    };
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    keel::stats::FisherTestResult res{};
+    (void)keel::stats::fishertest(a, b, c, d, alpha, to_keel_tail(tail), res, scratch.allocator());
 
-    const keel::i64 kmin = keel::as<keel::i64>(std::max(0.0, row1 + col1 - Ntot));
-    const keel::i64 kmax = keel::as<keel::i64>(std::min(row1, col1));
-    const keel::i64 kobs = keel::as<keel::i64>(a);
-    const keel::f64 logC_den = lb(Ntot, col1);
-    const keel::i64 K = kmax - kmin + 1;
-    keel::Array<keel::f64> pmf(K);
-    for (keel::i64 k = kmin; k <= kmax; ++k) {
-        const keel::f64 lp = lb(row1, keel::f64(k))
-                        + lb(Ntot - row1, col1 - keel::f64(k))
-                        - logC_den;
-        pmf[keel::as<keel::usize>(k - kmin)] = std::exp(lp);
-    }
-    const keel::f64 pObs = pmf[keel::as<keel::usize>(kobs - kmin)];
-
-    keel::f64 p = 0.0;
-    switch (tail) {
-        case TestTail::Both: {
-            const keel::f64 tol = pObs * (1.0 + 1e-9);
-            for (keel::usize i = 0; i < pmf.size(); ++i)
-                if (pmf[i] <= tol) p += pmf[i];
-            break;
-        }
-        case TestTail::Right:
-            for (keel::i64 k = kobs; k <= kmax; ++k)
-                p += pmf[keel::as<keel::usize>(k - kmin)];
-            break;
-        case TestTail::Left:
-            for (keel::i64 k = kmin; k <= kobs; ++k)
-                p += pmf[keel::as<keel::usize>(k - kmin)];
-            break;
-    }
-    if (p > 1.0) p = 1.0;
-    const keel::i32 h = (p < alpha) ? 1 : 0;
-
-    const keel::f64 OR = (b * c == 0.0)
-                       ? std::numeric_limits<keel::f64>::infinity()
-                       : (a * d) / (b * c);
-    keel::f64 ci_lo = 0.0;
-    keel::f64 ci_hi = std::numeric_limits<keel::f64>::infinity();
-    if (a > 0 && b > 0 && c > 0 && d > 0) {
-        const keel::f64 logOR = std::log(OR);
-        const keel::f64 se = std::sqrt(1.0 / a + 1.0 / b + 1.0 / c + 1.0 / d);
-        Value pcrit = Value::scalar(1.0 - alpha / 2.0, mr);
-        const keel::f64 zcrit = norminv(pcrit, 0.0, 1.0, mr).toScalar();
-        ci_lo = std::exp(logOR - zcrit * se);
-        ci_hi = std::exp(logOR + zcrit * se);
-    }
-    return std::make_tuple(Value::scalar(keel::f64(h), mr),
-                           Value::scalar(p,        mr),
-                           Value::scalar(OR,       mr),
-                           Value::scalar(ci_lo,    mr),
-                           Value::scalar(ci_hi,    mr));
+    return std::make_tuple(Value::scalar(keel::f64(res.h), mr),
+                           Value::scalar(res.p, mr),
+                           Value::scalar(res.odds_ratio, mr),
+                           Value::scalar(res.ci_lo, mr),
+                           Value::scalar(res.ci_hi, mr));
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -1007,157 +786,55 @@ fishertest(const Value &T, keel::f64 alpha, TestTail tail, keel::Allocator *mr)
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value, Value>
-chi2gof(const Value &observed, const Value &expected, keel::i32 nparams, keel::f64 alpha, keel::Allocator *mr)
+chi2gof(const Value &observed, const Value &expected, keel::i32 nparams, keel::f64 alpha,
+        keel::Allocator *mr)
 {
-    const keel::usize K = observed.numel();
-    if (expected.numel() != K)
+    if (expected.numel() != observed.numel())
         throw Error("chi2gof: observed and expected must have same length",
                     0, 0, "chi2gof", "", "numkit:chi2gof:size");
-    const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
-    if (K < 2)
-        return std::make_tuple(Value::scalar(nan, mr),
-                               Value::scalar(0.0, mr),
-                               Value::scalar(nan, mr),
-                               Value::scalar(0.0, mr));
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    auto ov = to_flat(observed, scratch.allocator());
+    auto ev = to_flat(expected, scratch.allocator());
+    keel::stats::Chi2GofResult res{};
+    (void)keel::stats::chi2gof_freq(ov.as_ref(), ev.as_ref(), nparams, alpha, res);
 
-    keel::f64 chi2 = 0.0;
-    for (keel::usize i = 0; i < K; ++i) {
-        const keel::f64 O = observed.elemAsDouble(i);
-        const keel::f64 E = expected.elemAsDouble(i);
-        if (E <= 0.0) continue;
-        const keel::f64 d = O - E;
-        chi2 += d * d / E;
-    }
-    const keel::f64 df = keel::f64(K) - 1.0 - keel::f64(nparams);
-    if (df <= 0.0)
-        return std::make_tuple(Value::scalar(nan, mr),
-                               Value::scalar(0.0, mr),
-                               Value::scalar(chi2, mr),
-                               Value::scalar(df, mr));
-
-    Value xv = Value::scalar(chi2, mr);
-    const keel::f64 cdf = chi2cdf(xv, df, mr).toScalar();
-    const keel::f64 p = std::max(0.0, 1.0 - cdf);
-    const keel::i32 h = (p < alpha) ? 1 : 0;
-    return std::make_tuple(Value::scalar(p, mr),
-                           Value::scalar(keel::f64(h), mr),
-                           Value::scalar(chi2, mr),
-                           Value::scalar(df, mr));
+    return std::make_tuple(Value::scalar(res.p, mr),
+                           Value::scalar(keel::f64(res.h), mr),
+                           Value::scalar(res.chi2stat, mr),
+                           Value::scalar(res.df, mr));
 }
 
 // ════════════════════════════════════════════════════════════════════
 // vartestn — k-sample variance equality test (5 variants)
 // ════════════════════════════════════════════════════════════════════
 
-
-// Public API. test = 0 Bartlett, 1 LeveneQuadratic, 2 LeveneAbsolute,
-// 3 BrownForsythe, 4 OBrien.
 std::tuple<Value, Value, Value, Value>
 vartestn_full(const Value &x, const Value &group, keel::i32 test, keel::Allocator *mr)
 {
     const keel::usize Nx = x.numel();
-    const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
     if (Nx == 0 || group.numel() != Nx)
         throw Error("vartestn: x and group must be same length",
                     0, 0, "vartestn", "", "numkit:vartestn:size");
 
+    keel::stats::VarTestNMethod method = keel::stats::VarTestNMethod::kBartlett;
+    switch (test) {
+        case 1: method = keel::stats::VarTestNMethod::kLeveneQuadratic; break;
+        case 2: method = keel::stats::VarTestNMethod::kLeveneAbsolute;  break;
+        case 3: method = keel::stats::VarTestNMethod::kBrownForsythe;   break;
+        case 4: method = keel::stats::VarTestNMethod::kOBrien;          break;
+        default: method = keel::stats::VarTestNMethod::kBartlett;       break;
+    }
+
     keel::ArenaTemp scratch = keel::get_scratch(mr);
-    Groups G = bucket_by_group(x, group, scratch.allocator());
-    // Drop groups with <2 observations (no sample variance / can't ANOVA).
-    keel::Array<keel::usize> ns(scratch.allocator());   ns.reserve(G.ns.size());
-    keel::Array<keel::usize> offsets(scratch.allocator()); offsets.push_back(0);
-    keel::Array<keel::f64> data(scratch.allocator()); data.reserve(G.data.size());
-    for (keel::usize g = 0; g < G.ns.size(); ++g) {
-        if (G.ns[g] < 2) continue;
-        ns.push_back(G.ns[g]);
-        for (keel::usize j = G.offsets[g]; j < G.offsets[g + 1]; ++j)
-            data.push_back(G.data[j]);
-        offsets.push_back(data.size());
-    }
-    const keel::usize k = ns.size();
-    if (k < 2) {
-        return std::make_tuple(Value::scalar(nan, mr),
-                               Value::scalar(0.0, mr),
-                               Value::scalar(keel::f64(k > 0 ? k - 1 : 0), mr),
-                               Value::scalar(nan, mr));
-    }
-    keel::usize N = 0;
-    for (auto n_i : ns) N += n_i;
+    auto xv = to_flat(x, scratch.allocator());
+    auto gv = to_flat(group, scratch.allocator());
+    keel::stats::VarTestNResult res{};
+    (void)keel::stats::vartestn(xv.as_ref(), gv.as_ref(), method, res, scratch.allocator());
 
-    // Per-group mean / median / variance.
-    keel::Array<keel::f64> means(k, 0.0, scratch.allocator());
-    keel::Array<keel::f64> meds(k,  0.0, scratch.allocator());
-    keel::Array<keel::f64> vars(k,  0.0, scratch.allocator());
-    for (keel::usize g = 0; g < k; ++g) {
-        const keel::usize lo = offsets[g], hi = offsets[g + 1];
-        keel::f64 s = 0.0;
-        for (keel::usize j = lo; j < hi; ++j) s += data[j];
-        means[g] = s / keel::f64(ns[g]);
-        keel::f64 s2 = 0.0;
-        for (keel::usize j = lo; j < hi; ++j) {
-            const keel::f64 d = data[j] - means[g]; s2 += d * d;
-        }
-        vars[g] = s2 / keel::f64(ns[g] - 1);
-        // Median: copy + nth_element. Use scratch sort.
-        keel::Array<keel::f64> tmp(data.slice(lo, hi - lo), scratch.allocator());
-        meds[g] = median_sorted(tmp.data(), tmp.size());
-    }
-
-    if (test == 0) {
-        // Bartlett.
-        keel::f64 Sp2_num = 0.0;
-        for (keel::usize i = 0; i < k; ++i) Sp2_num += keel::f64(ns[i] - 1) * vars[i];
-        const keel::f64 Sp2 = Sp2_num / keel::f64(N - k);
-        keel::f64 Q = keel::f64(N - k) * std::log(Sp2);
-        for (keel::usize i = 0; i < k; ++i) Q -= keel::f64(ns[i] - 1) * std::log(vars[i]);
-        keel::f64 inv_sum = 0.0;
-        for (keel::usize i = 0; i < k; ++i) inv_sum += 1.0 / keel::f64(ns[i] - 1);
-        inv_sum -= 1.0 / keel::f64(N - k);
-        const keel::f64 C = 1.0 + inv_sum / (3.0 * keel::f64(k - 1));
-        const keel::f64 chisq = Q / C;
-        const keel::f64 df = keel::f64(k - 1);
-        Value xv = Value::scalar(chisq, mr);
-        const keel::f64 cdf = chi2cdf(xv, df, mr).toScalar();
-        const keel::f64 p = std::max(0.0, 1.0 - cdf);
-        return std::make_tuple(Value::scalar(p, mr),
-                               Value::scalar(chisq, mr),
-                               Value::scalar(df, mr),
-                               Value::scalar(nan, mr));
-    }
-
-    // F-based tests: build Z values per observation.
-    keel::Array<keel::f64> Z(data.size(), scratch.allocator());
-    for (keel::usize g = 0; g < k; ++g) {
-        const keel::usize lo = offsets[g], hi = offsets[g + 1];
-        for (keel::usize j = lo; j < hi; ++j) {
-            const keel::f64 v = data[j];
-            switch (test) {
-                case 1: { // LeveneQuadratic
-                    const keel::f64 d = v - means[g]; Z[j] = d * d; break;
-                }
-                case 2: { // LeveneAbsolute
-                    Z[j] = std::fabs(v - means[g]); break;
-                }
-                case 3: { // BrownForsythe
-                    Z[j] = std::fabs(v - meds[g]); break;
-                }
-                case 4: { // OBrien
-                    const keel::f64 n = keel::f64(ns[g]);
-                    const keel::f64 dev = (v - means[g]) * (v - means[g]);
-                    Z[j] = ((n - 1.5) * n * dev - 0.5 * vars[g] * (n - 1.0))
-                           / ((n - 1.0) * (n - 2.0));
-                    break;
-                }
-                default:
-                    Z[j] = 0.0;
-            }
-        }
-    }
-    auto A = anova1_on_groups(Z, offsets, ns, mr);
-    return std::make_tuple(Value::scalar(A.p, mr),
-                           Value::scalar(A.F, mr),
-                           Value::scalar(A.df1, mr),
-                           Value::scalar(A.df2, mr));
+    return std::make_tuple(Value::scalar(res.p, mr),
+                           Value::scalar(res.stat, mr),
+                           Value::scalar(res.df1, mr),
+                           Value::scalar(res.df2, mr));
 }
 
 std::tuple<Value, Value, Value>
@@ -1172,102 +849,26 @@ vartestn(const Value &x, const Value &group, keel::f64 /*alpha*/, keel::Allocato
 // runstest — Wald-Wolfowitz runs test for randomness
 // ════════════════════════════════════════════════════════════════════
 
-
 std::tuple<Value, Value, Value, Value, Value, Value>
-runstest(const Value &x, keel::f64 v_in, keel::f64 alpha, TestTail tail, keel::StringRef method_in, keel::Allocator *mr)
+runstest(const Value &x, keel::f64 v_in, keel::f64 alpha, TestTail tail,
+         keel::StringRef method_in, keel::Allocator *mr)
 {
-    const keel::usize Nx = x.numel();
-
-    // Default v = median(x).
-    keel::f64 v = v_in;
-    if (std::isnan(v_in)) {
-        keel::Array<keel::f64> sorted;
-        sorted.reserve(Nx);
-        for (keel::usize i = 0; i < Nx; ++i) {
-            const keel::f64 xi = x.elemAsDouble(i);
-            if (!std::isnan(xi)) sorted.push_back(xi);
-        }
-        std::sort(sorted.begin(), sorted.end());
-        const keel::usize M = sorted.size();
-        if (M == 0) v = 0.0;
-        else if (M % 2 == 1) v = sorted[M / 2];
-        else                 v = 0.5 * (sorted[M / 2 - 1] + sorted[M / 2]);
-    }
-
-    // Build binary sequence; drop values equal to v.
-    keel::Array<keel::i32> bin;
-    bin.reserve(Nx);
-    for (keel::usize i = 0; i < Nx; ++i) {
-        const keel::f64 xi = x.elemAsDouble(i);
-        if (std::isnan(xi)) continue;
-        if (xi > v)      bin.push_back(1);
-        else if (xi < v) bin.push_back(0);
-        // == v → drop
-    }
-    keel::i32 n1 = 0, n0 = 0;
-    for (keel::i32 b : bin) (b ? n1 : n0) += 1;
-    keel::i32 R = 0;
-    keel::i32 prev = -1;
-    for (keel::i32 b : bin) { if (b != prev) { ++R; prev = b; } }
-
-    const auto retNan = [&]() {
-        return std::make_tuple(Value::scalar(std::numeric_limits<keel::f64>::quiet_NaN(), mr),
-                               Value::scalar(0.0, mr),
-                               Value::scalar(keel::f64(R),  mr),
-                               Value::scalar(keel::f64(n1), mr),
-                               Value::scalar(keel::f64(n0), mr),
-                               Value::scalar(std::numeric_limits<keel::f64>::quiet_NaN(), mr));
-    };
-    if (n1 == 0 || n0 == 0) return retNan();
-
     keel::String method = keel::String::from(method_in);
     for (auto &c : method) c = keel::to_ascii_lower(c);
-    bool exact;
-    if      (method == "approximate") exact = false;
-    else                              exact = true;  // MATLAB default
+    const bool exact = (method != "approximate");
 
-    keel::f64 p = 1.0;
-    keel::f64 zval = std::numeric_limits<keel::f64>::quiet_NaN();
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    auto xv = to_flat(x, scratch.allocator());
+    keel::stats::RunsTestResult res{};
+    (void)keel::stats::runstest(xv.as_ref(), v_in, alpha, to_keel_tail(tail), exact, res,
+                                scratch.allocator());
 
-    if (exact) {
-        // P(R ≤ R_obs) and P(R ≥ R_obs) by enumeration.
-        const keel::i32 N = n1 + n0;
-        keel::f64 cdfLE = 0.0, cdfGE = 0.0;
-        for (keel::i32 r = 2; r <= N; ++r) {
-            const keel::f64 pr = exact_runs_pmf(r, n1, n0);
-            if (r <= R) cdfLE += pr;
-            if (r >= R) cdfGE += pr;
-        }
-        switch (tail) {
-            case TestTail::Both:  p = std::min(1.0, 2.0 * std::min(cdfLE, cdfGE)); break;
-            case TestTail::Right: p = cdfGE; break;
-            case TestTail::Left:  p = cdfLE; break;
-        }
-    } else {
-        const keel::f64 Nd = keel::f64(n1 + n0);
-        const keel::f64 mean = 2.0 * n1 * n0 / Nd + 1.0;
-        const keel::f64 var  = 2.0 * n1 * n0 * (2.0 * n1 * n0 - Nd) / (Nd * Nd * (Nd - 1.0));
-        const keel::f64 sd = std::sqrt(std::max(var, 0.0));
-        keel::f64 cc = 0.0;
-        if      (R > mean) cc = +0.5;
-        else if (R < mean) cc = -0.5;
-        zval = (sd > 0.0) ? (R - mean - cc) / sd : 0.0;
-        Value zV = Value::scalar(zval, mr);
-        const keel::f64 cdf = normcdf(zV, 0.0, 1.0, mr).toScalar();
-        switch (tail) {
-            case TestTail::Both:  p = 2.0 * std::min(cdf, 1.0 - cdf); break;
-            case TestTail::Right: p = 1.0 - cdf; break;
-            case TestTail::Left:  p = cdf; break;
-        }
-    }
-
-    const keel::i32 h = (p < alpha) ? 1 : 0;
-    return std::make_tuple(Value::scalar(p, mr),
-                           Value::scalar(keel::f64(h), mr),
-                           Value::scalar(keel::f64(R),  mr),
-                           Value::scalar(keel::f64(n1), mr),
-                           Value::scalar(keel::f64(n0), mr),
-                           Value::scalar(zval, mr));
+    return std::make_tuple(Value::scalar(res.p, mr),
+                           Value::scalar(keel::f64(res.h), mr),
+                           Value::scalar(keel::f64(res.nruns), mr),
+                           Value::scalar(keel::f64(res.n1), mr),
+                           Value::scalar(keel::f64(res.n0), mr),
+                           Value::scalar(res.zval, mr));
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -1275,143 +876,26 @@ runstest(const Value &x, keel::f64 v_in, keel::f64 alpha, TestTail tail, keel::S
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value, Value>
-ranksum(const Value &x, const Value &y, keel::f64 alpha, TestTail tail, keel::StringRef method_in, keel::Allocator *mr)
+ranksum(const Value &x, const Value &y, keel::f64 alpha, TestTail tail,
+        keel::StringRef method_in, keel::Allocator *mr)
 {
-    const keel::usize nx = x.numel();
-    const keel::usize ny = y.numel();
-    const keel::usize N = nx + ny;
-    if (N == 0) {
-        return std::make_tuple(Value::scalar(1.0, mr),
-                               Value::scalar(0.0, mr),
-                               Value::scalar(0.0, mr),
-                               Value::scalar(std::numeric_limits<keel::f64>::quiet_NaN(), mr));
-    }
-
-    // Combine: store (value, is_x). NaN values are dropped.
-    struct Item { keel::f64 v; bool is_x; };
-    keel::Array<Item> items;
-    items.reserve(N);
-    for (keel::usize i = 0; i < nx; ++i) {
-        const keel::f64 v = x.elemAsDouble(i);
-        if (!std::isnan(v)) items.push_back({v, true});
-    }
-    for (keel::usize i = 0; i < ny; ++i) {
-        const keel::f64 v = y.elemAsDouble(i);
-        if (!std::isnan(v)) items.push_back({v, false});
-    }
-    const keel::usize Neff = items.size();
-    keel::usize nx_eff = 0, ny_eff = 0;
-    for (auto &it : items) (it.is_x ? nx_eff : ny_eff) += 1;
-    if (Neff == 0 || nx_eff == 0 || ny_eff == 0) {
-        // Degenerate: no comparison possible.
-        return std::make_tuple(Value::scalar(1.0, mr),
-                               Value::scalar(0.0, mr),
-                               Value::scalar(0.0, mr),
-                               Value::scalar(std::numeric_limits<keel::f64>::quiet_NaN(), mr));
-    }
-
-    // Sort + assign mid-ranks.
-    keel::Array<keel::usize> ord(Neff);
-    for (keel::usize i = 0; i < Neff; ++i) ord[i] = i;
-    std::sort(ord.begin(), ord.end(),
-              [&](keel::usize a, keel::usize b) { return items[a].v < items[b].v; });
-
-    keel::Array<keel::f64> ranks(Neff);
-    keel::Array<keel::usize> tieGroupSizes;
-    keel::usize i = 0;
-    while (i < Neff) {
-        keel::usize j = i + 1;
-        while (j < Neff && items[ord[j]].v == items[ord[i]].v) ++j;
-        const keel::f64 avg = keel::as<keel::f64>(i + j + 1) / 2.0;  // mean of (i+1)..j
-        for (keel::usize k = i; k < j; ++k) ranks[ord[k]] = avg;
-        if (j - i > 1) tieGroupSizes.push_back(j - i);
-        i = j;
-    }
-
-    // W_x = sum of x's ranks.
-    keel::f64 Wx = 0.0;
-    for (keel::usize k = 0; k < Neff; ++k)
-        if (items[k].is_x) Wx += ranks[k];
-
-    // Choose method.
     keel::String method = keel::String::from(method_in);
     for (auto &c : method) c = keel::to_ascii_lower(c);
-    bool exact;
-    if      (method == "exact")       exact = true;
-    else if (method == "approximate") exact = false;
-    else                              exact = (nx_eff < 10 && ny_eff < 10);  // MATLAB default
+    keel::i32 method_mode = 0;
+    if (method == "exact")            method_mode = 1;
+    else if (method == "approximate") method_mode = 2;
 
-    keel::f64 p = 1.0;
-    keel::f64 zval = std::numeric_limits<keel::f64>::quiet_NaN();
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    auto xv = to_flat(x, scratch.allocator());
+    auto yv = to_flat(y, scratch.allocator());
+    keel::stats::RankTestResult res{};
+    (void)keel::stats::ranksum(xv.as_ref(), yv.as_ref(), alpha, to_keel_tail(tail),
+                               method_mode, res, scratch.allocator());
 
-    if (exact) {
-        // 2D DP: dp[k][s] = # size-k subsets of (2·ranks) summing to s.
-        keel::Array<keel::i64> rk2(Neff);
-        keel::i64 total2 = 0;
-        for (keel::usize k = 0; k < Neff; ++k) {
-            rk2[k] = keel::as<keel::i64>(std::llround(ranks[k] * 2.0));
-            total2 += rk2[k];
-        }
-        const keel::usize S = keel::as<keel::usize>(total2 + 1);
-        keel::Array<keel::f64> dp((nx_eff + 1) * S, 0.0);
-        dp[0] = 1.0;
-        for (keel::usize k = 0; k < Neff; ++k) {
-            const keel::i64 r = rk2[k];
-            for (keel::i64 kk = keel::as<keel::i64>(nx_eff) - 1; kk >= 0; --kk) {
-                for (keel::i64 s = keel::as<keel::i64>(S) - 1; s >= r; --s)
-                    dp[keel::as<keel::usize>(kk + 1) * S + keel::as<keel::usize>(s)] +=
-                        dp[keel::as<keel::usize>(kk) * S + keel::as<keel::usize>(s - r)];
-            }
-        }
-        const keel::i64 Wx2 = keel::as<keel::i64>(std::llround(Wx * 2.0));
-        keel::f64 total = 0.0;
-        for (keel::usize s = 0; s < S; ++s) total += dp[nx_eff * S + s];
-        keel::f64 cdfLE = 0.0, cdfGE = 0.0;
-        for (keel::i64 s = 0; s <= Wx2 && s < keel::as<keel::i64>(S); ++s)
-            cdfLE += dp[nx_eff * S + keel::as<keel::usize>(s)];
-        for (keel::i64 s = Wx2; s < keel::as<keel::i64>(S); ++s)
-            cdfGE += dp[nx_eff * S + keel::as<keel::usize>(s)];
-        cdfLE /= total;
-        cdfGE /= total;
-        switch (tail) {
-            case TestTail::Both:  p = std::min(1.0, 2.0 * std::min(cdfLE, cdfGE)); break;
-            case TestTail::Right: p = cdfGE; break;
-            case TestTail::Left:  p = cdfLE; break;
-        }
-    } else {
-        const keel::f64 Nd = keel::as<keel::f64>(Neff);
-        const keel::f64 mean = keel::as<keel::f64>(nx_eff) * (Nd + 1) / 2.0;
-        keel::f64 var = keel::as<keel::f64>(nx_eff) * keel::as<keel::f64>(ny_eff)
-                     * (Nd + 1) / 12.0;
-        if (Nd > 1.0) {
-            keel::f64 tieSum = 0.0;
-            for (keel::usize t : tieGroupSizes) {
-                const keel::f64 td = keel::as<keel::f64>(t);
-                tieSum += td * td * td - td;
-            }
-            var -= keel::as<keel::f64>(nx_eff) * keel::as<keel::f64>(ny_eff)
-                   / (12.0 * Nd * (Nd - 1.0)) * tieSum;
-        }
-        const keel::f64 sd = std::sqrt(std::max(var, 0.0));
-        // Continuity correction: shift W toward mean by 0.5.
-        keel::f64 cc = 0.0;
-        if      (Wx > mean) cc = +0.5;
-        else if (Wx < mean) cc = -0.5;
-        zval = (sd > 0.0) ? (Wx - mean - cc) / sd : 0.0;
-        Value zV = Value::scalar(zval, mr);
-        const keel::f64 cdf = normcdf(zV, 0.0, 1.0, mr).toScalar();
-        switch (tail) {
-            case TestTail::Both:  p = 2.0 * std::min(cdf, 1.0 - cdf); break;
-            case TestTail::Right: p = 1.0 - cdf; break;
-            case TestTail::Left:  p = cdf; break;
-        }
-    }
-
-    const keel::i32 h = (p < alpha) ? 1 : 0;
-    return std::make_tuple(Value::scalar(p, mr),
-                           Value::scalar(keel::f64(h), mr),
-                           Value::scalar(Wx, mr),
-                           Value::scalar(zval, mr));
+    return std::make_tuple(Value::scalar(res.p, mr),
+                           Value::scalar(keel::f64(res.h), mr),
+                           Value::scalar(res.stat, mr),
+                           Value::scalar(res.zval, mr));
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -1419,7 +903,8 @@ ranksum(const Value &x, const Value &y, keel::f64 alpha, TestTail tail, keel::St
 // ════════════════════════════════════════════════════════════════════
 
 std::tuple<Value, Value, Value, Value>
-signrank(const Value &x, const Value &y_or_m, keel::f64 alpha, TestTail tail, keel::StringRef method_in, keel::Allocator *mr)
+signrank(const Value &x, const Value &y_or_m, keel::f64 alpha, TestTail tail,
+         keel::StringRef method_in, keel::Allocator *mr)
 {
     const keel::usize Nx = x.numel();
     const bool paired = (!y_or_m.isEmpty() && !y_or_m.isScalar());
@@ -1428,115 +913,25 @@ signrank(const Value &x, const Value &y_or_m, keel::f64 alpha, TestTail tail, ke
                     0, 0, "signrank", "", "numkit:signrank:size");
     const keel::f64 m0 = (paired || y_or_m.isEmpty()) ? 0.0 : y_or_m.toScalar();
 
-    // Collect (|d|, sign) for non-zero diffs.
-    struct DSign { keel::f64 absd; keel::i32 sign; };
-    keel::Array<DSign> ds;
-    ds.reserve(Nx);
-    for (keel::usize i = 0; i < Nx; ++i) {
-        const keel::f64 xi = x.elemAsDouble(i);
-        const keel::f64 yi = paired ? y_or_m.elemAsDouble(i) : m0;
-        if (std::isnan(xi) || std::isnan(yi)) continue;
-        const keel::f64 d = xi - yi;
-        if (d == 0.0) continue;
-        ds.push_back({std::fabs(d), d > 0 ? +1 : -1});
-    }
-    const keel::usize n = ds.size();
-
-    // Edge case: nothing to rank.
-    if (n == 0) {
-        return std::make_tuple(Value::scalar(1.0, mr),
-                               Value::scalar(0.0, mr),
-                               Value::scalar(0.0, mr),
-                               Value::scalar(std::numeric_limits<keel::f64>::quiet_NaN(), mr));
-    }
-
-    // Sort by |d| ascending; assign mid-ranks for ties.
-    keel::Array<keel::usize> ord(n);
-    for (keel::usize i = 0; i < n; ++i) ord[i] = i;
-    std::sort(ord.begin(), ord.end(),
-              [&](keel::usize a, keel::usize b) { return ds[a].absd < ds[b].absd; });
-
-    keel::Array<keel::f64> ranks(n);
-    keel::Array<keel::usize> tieGroupSizes;
-    keel::usize i = 0;
-    while (i < n) {
-        keel::usize j = i + 1;
-        while (j < n && ds[ord[j]].absd == ds[ord[i]].absd) ++j;
-        const keel::f64 avg = (keel::as<keel::f64>(i + j + 1)) / 2.0;  // mean of (i+1)..j
-        for (keel::usize k = i; k < j; ++k) ranks[ord[k]] = avg;
-        if (j - i > 1) tieGroupSizes.push_back(j - i);
-        i = j;
-    }
-
-    // W+ = sum of ranks where d > 0.
-    keel::f64 Wplus = 0.0;
-    for (keel::usize k = 0; k < n; ++k)
-        if (ds[k].sign > 0) Wplus += ranks[k];
-
-    // Choose method.
     keel::String method = keel::String::from(method_in);
     for (auto &c : method) c = keel::to_ascii_lower(c);
-    bool exact;
-    if      (method == "exact")       exact = true;
-    else if (method == "approximate") exact = false;
-    else                              exact = (n <= 15);  // MATLAB default
+    keel::i32 method_mode = 0;
+    if (method == "exact")            method_mode = 1;
+    else if (method == "approximate") method_mode = 2;
 
-    keel::f64 p = 1.0;
-    keel::f64 zval = std::numeric_limits<keel::f64>::quiet_NaN();
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    auto xv = to_flat(x, scratch.allocator());
+    keel::Array<keel::f64> yv(scratch.allocator());
+    if (paired) yv = to_flat(y_or_m, scratch.allocator());
 
-    if (exact) {
-        // Convolve subset-sum count polynomial. Scale ranks by 2 so all
-        // (mid-rank averaged) values are integers.
-        keel::Array<keel::i64> rk2(n);
-        keel::i64 total2 = 0;
-        for (keel::usize k = 0; k < n; ++k) {
-            rk2[k] = keel::as<keel::i64>(std::llround(ranks[k] * 2.0));
-            total2 += rk2[k];
-        }
-        keel::Array<keel::f64> P(total2 + 1, 0.0);
-        P[0] = 1.0;
-        keel::i64 cur = 0;
-        for (keel::usize k = 0; k < n; ++k) {
-            const keel::i64 r = rk2[k];
-            for (keel::i64 s = cur + r; s >= r; --s) P[s] += P[s - r];
-            cur += r;
-        }
-        const keel::i64 W2 = keel::as<keel::i64>(std::llround(Wplus * 2.0));
-        const keel::f64 total = std::pow(2.0, keel::as<keel::f64>(n));
-        // P(W ≤ W+) and P(W ≥ W+).
-        keel::f64 cdfLE = 0.0;
-        for (keel::i64 s = 0; s <= W2; ++s) cdfLE += P[s];
-        cdfLE /= total;
-        keel::f64 cdfGE = 0.0;
-        for (keel::i64 s = W2; s <= total2; ++s) cdfGE += P[s];
-        cdfGE /= total;
-        switch (tail) {
-            case TestTail::Both:  p = std::min(1.0, 2.0 * std::min(cdfLE, cdfGE)); break;
-            case TestTail::Right: p = cdfGE; break;
-            case TestTail::Left:  p = cdfLE; break;
-        }
-    } else {
-        // Normal approximation with tie correction.
-        const keel::f64 mean = keel::as<keel::f64>(n) * (n + 1) / 4.0;
-        keel::f64 var = keel::as<keel::f64>(n) * (n + 1) * (2 * n + 1) / 24.0;
-        for (keel::usize t : tieGroupSizes)
-            var -= keel::as<keel::f64>(t * t * t - t) / 48.0;
-        const keel::f64 sd = std::sqrt(var);
-        zval = (sd > 0.0) ? (Wplus - mean) / sd : 0.0;
-        Value zV = Value::scalar(zval, mr);
-        const keel::f64 cdf = normcdf(zV, 0.0, 1.0, mr).toScalar();
-        switch (tail) {
-            case TestTail::Both:  p = 2.0 * std::min(cdf, 1.0 - cdf); break;
-            case TestTail::Right: p = 1.0 - cdf; break;
-            case TestTail::Left:  p = cdf; break;
-        }
-    }
+    keel::stats::RankTestResult res{};
+    (void)keel::stats::signrank(xv.as_ref(), yv.as_ref(), m0, alpha, to_keel_tail(tail),
+                                method_mode, res, scratch.allocator());
 
-    const keel::i32 h = (p < alpha) ? 1 : 0;
-    return std::make_tuple(Value::scalar(p, mr),
-                           Value::scalar(keel::f64(h), mr),
-                           Value::scalar(Wplus, mr),
-                           Value::scalar(zval, mr));
+    return std::make_tuple(Value::scalar(res.p, mr),
+                           Value::scalar(keel::f64(res.h), mr),
+                           Value::scalar(res.stat, mr),
+                           Value::scalar(res.zval, mr));
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -1547,287 +942,45 @@ std::tuple<Value, Value, Value, Value>
 ansaribradley(const Value &x, const Value &y, keel::f64 alpha, TestTail tail,
               keel::Allocator *mr)
 {
-    const keel::usize nx = x.numel();
-    const keel::usize ny = y.numel();
-    if (nx == 0 || ny == 0) {
-        return std::make_tuple(
-            Value::scalar(0.0, mr),
-            Value::scalar(1.0, mr),
-            Value::scalar(0.0, mr),
-            Value::scalar(std::numeric_limits<keel::f64>::quiet_NaN(), mr));
-    }
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    auto xv = to_flat(x, scratch.allocator());
+    auto yv = to_flat(y, scratch.allocator());
+    keel::stats::RankTestResult res{};
+    (void)keel::stats::ansaribradley(xv.as_ref(), yv.as_ref(), alpha, to_keel_tail(tail),
+                                     res, scratch.allocator());
 
-    // Pool: store (value, is_x). Drop NaN.
-    struct Item { keel::f64 v; bool is_x; };
-    keel::Array<Item> items;
-    items.reserve(nx + ny);
-    for (keel::usize i = 0; i < nx; ++i) {
-        const keel::f64 v = x.elemAsDouble(i);
-        if (!std::isnan(v)) items.push_back({v, true});
-    }
-    for (keel::usize i = 0; i < ny; ++i) {
-        const keel::f64 v = y.elemAsDouble(i);
-        if (!std::isnan(v)) items.push_back({v, false});
-    }
-    const keel::usize N = items.size();
-    keel::usize m = 0, n = 0;
-    for (auto &it : items) (it.is_x ? m : n) += 1;
-    if (m == 0 || n == 0) {
-        return std::make_tuple(
-            Value::scalar(0.0, mr),
-            Value::scalar(1.0, mr),
-            Value::scalar(0.0, mr),
-            Value::scalar(std::numeric_limits<keel::f64>::quiet_NaN(), mr));
-    }
-
-    // Sort pooled by value (ascending).
-    keel::Array<keel::usize> ord(N);
-    for (keel::usize i = 0; i < N; ++i) ord[i] = i;
-    std::sort(ord.begin(), ord.end(),
-              [&](keel::usize a, keel::usize b) { return items[a].v < items[b].v; });
-
-    // Assign V-shaped Ansari rank to each sorted POSITION, then average
-    // (mid-rank) across tied groups.
-    // Raw position-rank: pos i (1..N) → min(i, N+1-i).
-    keel::Array<keel::f64> rraw(N);
-    for (keel::usize i = 0; i < N; ++i) {
-        const keel::usize pos = i + 1;             // 1-based
-        const keel::usize alt = N + 1 - pos;
-        rraw[i] = keel::as<keel::f64>(std::min(pos, alt));
-    }
-    // Walk in sorted order, distribute mean rank within each tie group.
-    keel::Array<keel::f64> rsorted(N);
-    {
-        keel::usize i = 0;
-        while (i < N) {
-            keel::usize j = i + 1;
-            while (j < N && items[ord[j]].v == items[ord[i]].v) ++j;
-            // Group [i, j). Mean of raw V-ranks in this group.
-            keel::f64 s = 0.0;
-            for (keel::usize k = i; k < j; ++k) s += rraw[k];
-            const keel::f64 mr_avg = s / keel::as<keel::f64>(j - i);
-            for (keel::usize k = i; k < j; ++k) rsorted[k] = mr_avg;
-            i = j;
-        }
-    }
-
-    // W = sum of ranks for x (in original-pool order via ord^-1).
-    keel::Array<keel::f64> ranks(N);
-    for (keel::usize k = 0; k < N; ++k) ranks[ord[k]] = rsorted[k];
-    keel::f64 W = 0.0;
-    for (keel::usize k = 0; k < N; ++k)
-        if (items[k].is_x) W += ranks[k];
-
-    // ── Choose exact vs asymptotic ─────────────────────────────────
-    // Exact path mirrors MATLAB's small-sample threshold (uses exact
-    // permutation distribution conditional on observed ranks). Use
-    // exact when min(m, n) ≤ 10. Compute scale = LCM of tie-group
-    // sizes so scaled ranks are exact integers (mid-rank in a tie
-    // group of size k has denominator k).
-    const bool exact_path = (std::min(m, n) <= 10);
-    keel::i64 scale = 1;
-    if (exact_path) {
-        // Build set of unique tie-group sizes by walking sorted order.
-        keel::Array<keel::i64> grp_sizes;
-        keel::usize ii = 0;
-        while (ii < N) {
-            keel::usize jj = ii + 1;
-            while (jj < N && items[ord[jj]].v == items[ord[ii]].v) ++jj;
-            grp_sizes.push_back(keel::as<keel::i64>(jj - ii));
-            ii = jj;
-        }
-        auto lcm = [](keel::i64 a, keel::i64 b) -> keel::i64 {
-            if (a == 0 || b == 0) return 0;
-            keel::i64 g = a, h = b;
-            while (h != 0) { keel::i64 t = g % h; g = h; h = t; }
-            return a / g * b;
-        };
-        for (keel::i64 s : grp_sizes) scale = lcm(scale, s);
-        if (scale > 10000) scale = 10000;   // safety bound
-    }
-
-    // Asymptotic moments (conditional-permutation form — handles ties
-    // automatically). E[W] = m·mean(r); V[W] = m·n / (N − 1) · σ²(r),
-    // with σ² = (1/N) Σ(rᵢ − r̄)².
-    keel::f64 sum_r = 0.0;
-    for (keel::f64 r : rsorted) sum_r += r;
-    const keel::f64 Nd = keel::as<keel::f64>(N);
-    const keel::f64 mean_r = sum_r / Nd;
-    keel::f64 ss = 0.0;
-    for (keel::f64 r : rsorted) {
-        const keel::f64 d = r - mean_r;
-        ss += d * d;
-    }
-    const keel::f64 sigma2_r = ss / Nd;
-    const keel::f64 EW = keel::as<keel::f64>(m) * mean_r;
-    const keel::f64 VW = keel::as<keel::f64>(m) * keel::as<keel::f64>(n)
-                    / (Nd - 1.0) * sigma2_r;
-    const keel::f64 sd = std::sqrt(std::max(VW, 0.0));
-    const keel::f64 Wstar = (sd > 0.0) ? (W - EW) / sd : 0.0;
-
-    // ── Tail convention for ansaribradley ──────────────────────────
-    // MATLAB inverts the natural rank-tail mapping: larger W means
-    // x clustered toward the centre of the pool → x is LESS dispersed
-    // than y. So:
-    //   alt 'right' (var x > var y)  ⇒  W small  ⇒  p = P(W ≤ obs)
-    //   alt 'left'  (var x < var y)  ⇒  W large  ⇒  p = P(W ≥ obs)
-    keel::f64 p_val;
-    if (exact_path) {
-        // Scale ranks by `scale` (LCM of tie-group sizes) for exact
-        // integer DP.
-        keel::Array<keel::i64> rk2(N);
-        keel::i64 total2 = 0;
-        for (keel::usize k = 0; k < N; ++k) {
-            rk2[k] = keel::as<keel::i64>(
-                std::llround(rsorted[k] * keel::as<keel::f64>(scale)));
-            total2 += rk2[k];
-        }
-        const keel::usize S = keel::as<keel::usize>(total2 + 1);
-        keel::Array<keel::f64> dp((m + 1) * S, 0.0);
-        dp[0] = 1.0;
-        for (keel::usize k = 0; k < N; ++k) {
-            const keel::i64 r = rk2[k];
-            for (keel::i64 kk = keel::as<keel::i64>(m) - 1; kk >= 0; --kk) {
-                for (keel::i64 s = keel::as<keel::i64>(S) - 1; s >= r; --s)
-                    dp[keel::as<keel::usize>(kk + 1) * S + keel::as<keel::usize>(s)] +=
-                        dp[keel::as<keel::usize>(kk) * S + keel::as<keel::usize>(s - r)];
-            }
-        }
-        const keel::i64 W_scaled = keel::as<keel::i64>(
-            std::llround(W * keel::as<keel::f64>(scale)));
-        keel::f64 total = 0.0;
-        for (keel::usize s = 0; s < S; ++s) total += dp[m * S + s];
-        keel::f64 cdfLE = 0.0, cdfGE = 0.0;
-        for (keel::i64 s = 0; s <= W_scaled && s < keel::as<keel::i64>(S); ++s)
-            cdfLE += dp[m * S + keel::as<keel::usize>(s)];
-        for (keel::i64 s = W_scaled; s < keel::as<keel::i64>(S); ++s)
-            cdfGE += dp[m * S + keel::as<keel::usize>(s)];
-        cdfLE /= total;
-        cdfGE /= total;
-        switch (tail) {
-            case TestTail::Both:
-                p_val = std::min(1.0, 2.0 * std::min(cdfLE, cdfGE));
-                break;
-            case TestTail::Right: p_val = cdfLE; break;  // var x > var y → W ↓
-            case TestTail::Left:  p_val = cdfGE; break;  // var x < var y → W ↑
-        }
-    } else {
-        Value zV = Value::scalar(Wstar, mr);
-        const keel::f64 Phi = normcdf(zV, 0.0, 1.0, mr).toScalar();
-        switch (tail) {
-            case TestTail::Both:  p_val = 2.0 * std::min(Phi, 1.0 - Phi); break;
-            case TestTail::Right: p_val = Phi;       break;  // P(W ≤ obs)
-            case TestTail::Left:  p_val = 1.0 - Phi; break;  // P(W ≥ obs)
-        }
-    }
-    p_val = std::min(1.0, std::max(0.0, p_val));
-
-    const keel::i32 h = (p_val < alpha) ? 1 : 0;
-    return std::make_tuple(
-        Value::scalar(keel::as<keel::f64>(h), mr),
-        Value::scalar(p_val, mr),
-        Value::scalar(W, mr),
-        Value::scalar(Wstar, mr));
+    return std::make_tuple(Value::scalar(keel::as<keel::f64>(res.h), mr),
+                           Value::scalar(res.p, mr),
+                           Value::scalar(res.stat, mr),
+                           Value::scalar(res.zval, mr));
 }
 
-// ── lillietest ───────────────────────────────────────────────────────
-// [h, p, kstat, critval] = lillietest(x, alpha). Lilliefors normality
-// test: KS statistic vs a fitted normal + Stephens (1974) modified
-// statistic / critical-value table. See test/hypothesis.hpp.
+// ════════════════════════════════════════════════════════════════════
+// lillietest — Lilliefors normality test
+// ════════════════════════════════════════════════════════════════════
+
 std::tuple<Value, Value, Value, Value>
 lillietest(const Value &X, keel::f64 alpha, keel::Allocator *mr)
 {
-    const keel::usize N = X.numel();
-    if (N < 4)
+    if (X.numel() < 4)
         throw Error("lillietest: sample size must be >= 4",
                     0, 0, "lillietest", "", "numkit:lillietest:nsamples");
     if (alpha <= 0.0 || alpha >= 1.0)
         throw Error("lillietest: alpha must be in (0, 1)",
                     0, 0, "lillietest", "", "numkit:lillietest:alpha");
 
-    // Sort sample. PMR HARD RULE: scratch via per-call ScratchArena.
     keel::ArenaTemp scratch = keel::get_scratch(mr);
-    keel::Array<keel::f64> xs(N, scratch.allocator());
-    for (keel::usize i = 0; i < N; ++i) xs[i] = X.elemAsDouble(i);
-    std::sort(xs.begin(), xs.end());
-
-    keel::f64 sum = 0.0;
-    for (keel::f64 v : xs) sum += v;
-    const keel::f64 mean = sum / keel::as<keel::f64>(N);
-    keel::f64 ss = 0.0;
-    for (keel::f64 v : xs) { const keel::f64 d = v - mean; ss += d * d; }
-    const keel::f64 sd = std::sqrt(ss / keel::as<keel::f64>(N - 1));
-    if (sd == 0.0)
+    auto xv = to_flat(X, scratch.allocator());
+    keel::stats::LillieTestResult res{};
+    const auto st = keel::stats::lillietest(xv.as_ref(), alpha, res, scratch.allocator());
+    if (st == keel::stats::StatsStatus::kSingularMatrix)
         throw Error("lillietest: sample has zero variance",
                     0, 0, "lillietest", "", "numkit:lillietest:zeroVar");
 
-    // KS statistic against the fitted normal CDF.
-    keel::f64 D = 0.0;
-    const keel::f64 inv_sqrt2 = 0.7071067811865476;
-    for (keel::usize i = 0; i < N; ++i) {
-        const keel::f64 z = (xs[i] - mean) / sd;
-        const keel::f64 F = 0.5 * (1.0 + std::erf(z * inv_sqrt2));
-        const keel::f64 F_emp_lo = keel::as<keel::f64>(i)     / keel::as<keel::f64>(N);
-        const keel::f64 F_emp_hi = keel::as<keel::f64>(i + 1) / keel::as<keel::f64>(N);
-        D = std::max(D, std::max(std::fabs(F - F_emp_lo),
-                                  std::fabs(F - F_emp_hi)));
-    }
-
-    // Stephens (1974) modified statistic: D* = D*(sqrt(n) - 0.01 + 0.85/sqrt(n)).
-    const keel::f64 sqn = std::sqrt(keel::as<keel::f64>(N));
-    const keel::f64 D_star = D * (sqn - 0.01 + 0.85 / sqn);
-
-    auto stephensP = [](keel::f64 Ds) {
-        if (Ds < 0.474) return 0.50;     // very high p
-        struct Pt { keel::f64 Ds, p; };
-        static const Pt tbl[] = {
-            {0.474, 0.50},
-            {0.741, 0.20},
-            {0.775, 0.15},
-            {0.819, 0.10},
-            {0.895, 0.05},
-            {1.035, 0.01},
-            {1.50,  1e-4},
-            {2.00,  1e-7}
-        };
-        for (keel::usize k = 1; k < sizeof(tbl)/sizeof(tbl[0]); ++k) {
-            if (Ds <= tbl[k].Ds) {
-                const keel::f64 frac = (Ds - tbl[k-1].Ds) / (tbl[k].Ds - tbl[k-1].Ds);
-                const keel::f64 lp = std::log(tbl[k-1].p)
-                                + frac * (std::log(tbl[k].p) - std::log(tbl[k-1].p));
-                return std::exp(lp);
-            }
-        }
-        return 1e-10;
-    };
-    auto stephensCV = [](keel::f64 a) {
-        struct Pt { keel::f64 a, Ds; };
-        static const Pt tbl[] = {
-            {0.20, 0.741},
-            {0.15, 0.775},
-            {0.10, 0.819},
-            {0.05, 0.895},
-            {0.01, 1.035}
-        };
-        for (keel::usize k = 1; k < sizeof(tbl)/sizeof(tbl[0]); ++k) {
-            if (a >= tbl[k].a) {
-                const keel::f64 frac = (a - tbl[k-1].a) / (tbl[k].a - tbl[k-1].a);
-                return tbl[k-1].Ds + frac * (tbl[k].Ds - tbl[k-1].Ds);
-            }
-        }
-        return tbl[sizeof(tbl)/sizeof(tbl[0]) - 1].Ds;
-    };
-
-    const keel::f64 p_val = std::min(0.5, std::max(1e-10, stephensP(D_star)));
-    const keel::f64 D_critstar = stephensCV(alpha);
-    // Convert critical D* back to plain D (MATLAB convention).
-    const keel::f64 D_crit = D_critstar / (sqn - 0.01 + 0.85 / sqn);
-    const keel::i32 h = (D > D_crit) ? 1 : 0;
-
-    return std::make_tuple(Value::scalar(keel::as<keel::f64>(h), mr),
-                           Value::scalar(p_val, mr),
-                           Value::scalar(D, mr),
-                           Value::scalar(D_crit, mr));
+    return std::make_tuple(Value::scalar(keel::as<keel::f64>(res.h), mr),
+                           Value::scalar(res.p, mr),
+                           Value::scalar(res.kstat, mr),
+                           Value::scalar(res.cv, mr));
 }
 
 } // namespace numkit::stats
