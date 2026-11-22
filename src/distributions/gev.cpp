@@ -1,6 +1,7 @@
 // toolboxes/stats/src/distributions/gev.cpp
 
 #include <keel/core.h>
+#include <keel/math.h>
 #include <keel/memory.h>
 #include <keel/stats.h>
 #include <numkit/stats/distributions/gev.hpp>
@@ -12,8 +13,6 @@
 
 #include "dist_helpers.hpp"
 
-#include <cmath>
-#include <limits>
 #include <mutex>
 
 #include "gev_detail.hpp"
@@ -54,7 +53,7 @@ Value gevrnd(::numkit::ops::RngContext &rng, keel::f64 k, keel::f64 sigma, keel:
         // genRes53 -- MATLAB-canonical 53-bit uniform; bypasses
         // std::uniform_real_distribution to preserve bit-parity.
         keel::f64 u = gen.genRes53();
-        if (u <= 0.0) u = std::numeric_limits<keel::f64>::min();
+        if (u <= 0.0) u = keel::Limits<keel::f64>::kMin;
         od[i] = gev_inv_one(u, k, sigma, mu);
     }
     return out;
@@ -62,17 +61,17 @@ Value gevrnd(::numkit::ops::RngContext &rng, keel::f64 k, keel::f64 sigma, keel:
 
 std::tuple<keel::f64, keel::f64> gevstat(keel::f64 k, keel::f64 sigma, keel::f64 mu)
 {
-    const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
+    const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
     if (sigma <= 0.0) return std::make_tuple(nan, nan);
     if (k == 0.0)
         return std::make_tuple(mu + sigma * kEulerGamma, sigma * sigma * kPi2Over6);
     if (!(k < 1.0))
-        return std::make_tuple(std::numeric_limits<keel::f64>::infinity(), nan);
-    const keel::f64 g1 = std::tgamma(1.0 - k);
+        return std::make_tuple(keel::Limits<keel::f64>::infinity(), nan);
+    const keel::f64 g1 = keel::tgamma(1.0 - k);
     const keel::f64 mean = mu + sigma * (g1 - 1.0) / k;
     if (!(k < 0.5))
-        return std::make_tuple(mean, std::numeric_limits<keel::f64>::infinity());
-    const keel::f64 g2 = std::tgamma(1.0 - 2.0 * k);
+        return std::make_tuple(mean, keel::Limits<keel::f64>::infinity());
+    const keel::f64 g2 = keel::tgamma(1.0 - 2.0 * k);
     const keel::f64 var = (sigma * sigma / (k * k)) * (g2 - g1 * g1);
     return std::make_tuple(mean, var);
 }

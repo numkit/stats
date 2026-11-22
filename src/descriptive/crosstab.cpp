@@ -21,6 +21,7 @@
 // total N.
 
 #include <keel/array.h>
+#include <keel/math.h>
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <numkit/stats/descriptive/descriptive.hpp>
@@ -30,7 +31,6 @@
 #include <numkit/stats/distributions/chi2.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstdio>
 #include <utility>
 
@@ -64,7 +64,7 @@ crosstab(const Value &x, const Value &y_opt, keel::Allocator *mr)
         keel::Array<keel::usize> count(R, 0);
         for (keel::usize k = 0; k < Nx; ++k) {
             const keel::f64 xk = x.elemAsDouble(k);
-            if (std::isnan(xk)) continue;
+            if (keel::is_nan(xk)) continue;
             count[indexOf(u_x, xk)]++;
         }
         Value T = Value::matrix(R, 1, ValueType::DOUBLE, mr);
@@ -85,7 +85,7 @@ crosstab(const Value &x, const Value &y_opt, keel::Allocator *mr)
     for (keel::usize k = 0; k < Nx; ++k) {
         const keel::f64 xk = x.elemAsDouble(k);
         const keel::f64 yk = y_opt.elemAsDouble(k);
-        if (std::isnan(xk) || std::isnan(yk)) continue;
+        if (keel::is_nan(xk) || keel::is_nan(yk)) continue;
         const keel::usize i = indexOf(u_x, xk);
         const keel::usize j = indexOf(u_y, yk);
         o[i + j * R] += 1.0;

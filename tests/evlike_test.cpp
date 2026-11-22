@@ -2,6 +2,7 @@
 // evlike.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -49,8 +50,8 @@ TEST_F(EvlikeTest, InvalidSigma)
 {
     eval(kSetup);
     // fix #5: σ <= 0 -> NaN (was +Inf).
-    EXPECT_TRUE(std::isnan(evalScalar("evlike([0, 0], data)")));
-    EXPECT_TRUE(std::isnan(evalScalar("evlike([0, -1], data)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("evlike([0, 0], data)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("evlike([0, -1], data)")));
 }
 
 TEST_F(EvlikeTest, EmptyData)

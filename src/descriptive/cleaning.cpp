@@ -40,6 +40,7 @@
 //     single.
 
 #include <keel/core.h>
+#include <keel/math.h>
 #include <keel/memory.h>
 #include <keel/ref.h>
 #include <keel/arena.h>
@@ -62,8 +63,6 @@
 #include <algorithm>
 #include <cstdio>
 
-#include <cmath>
-#include <limits>
 
 #include "descriptive_extras_detail.hpp"
 #include "descriptive_detail.hpp"   // narrowToSingle
@@ -118,7 +117,7 @@ void parseWindowHalfSpans(const Value &wl, const char *fn, keel::i64 &hb, keel::
     if (!(numeric || wl.isLogical())) bad();
     if (wl.numel() == 1) {
         const keel::f64 k = wl.elemAsDouble(0);
-        if (!(k > 0.0) || !std::isfinite(k)) bad();
+        if (!(k > 0.0) || !keel::is_finite(k)) bad();
         const keel::i64 ki = keel::as<keel::i64>(k);
         if (ki % 2 == 1) { hb = hf = (ki - 1) / 2; }
         else             { hb = ki / 2; hf = ki / 2 - 1; }
@@ -127,7 +126,7 @@ void parseWindowHalfSpans(const Value &wl, const char *fn, keel::i64 &hb, keel::
         if (twoElem) *twoElem = false;
     } else if (wl.numel() == 2) {
         const keel::f64 b = wl.elemAsDouble(0), f = wl.elemAsDouble(1);
-        if (b < 0.0 || f < 0.0 || !std::isfinite(b) || !std::isfinite(f)) bad();
+        if (b < 0.0 || f < 0.0 || !keel::is_finite(b) || !keel::is_finite(f)) bad();
         hb = keel::as<keel::i64>(b);
         hf = keel::as<keel::i64>(f);
         if (hbSpan) *hbSpan = b;
@@ -171,7 +170,7 @@ keel::Array<keel::f64> validateSamplePoints(const Value &sp, keel::usize expecte
     keel::Array<keel::f64> out(expectedLen);
     for (keel::usize j = 0; j < expectedLen; ++j) {
         const keel::f64 v = sp.elemAsDouble(j);
-        if (!std::isfinite(v))
+        if (!keel::is_finite(v))
             throw Error(keel::format("{}: 'SamplePoints' must contain finite values", fn),
                         0, 0, fn, "",
                         keel::format("numkit:{}:samplePointsNonFinite", fn));
@@ -194,9 +193,9 @@ keel::Array<keel::f64> validateSamplePoints(const Value &sp, keel::usize expecte
 
 struct ColStats {
     keel::Array<keel::u8> mask;
-    keel::f64 center = std::numeric_limits<keel::f64>::quiet_NaN();
-    keel::f64 lo = -std::numeric_limits<keel::f64>::infinity();
-    keel::f64 hi = std::numeric_limits<keel::f64>::infinity();
+    keel::f64 center = keel::Limits<keel::f64>::quiet_nan();
+    keel::f64 lo = -keel::Limits<keel::f64>::infinity();
+    keel::f64 hi = keel::Limits<keel::f64>::infinity();
 };
 
 // Iterative Grubbs test; tf is the significance level alpha. The final
@@ -211,7 +210,7 @@ ColStats grubbsColumn(const keel::f64 *x, keel::usize n, keel::f64 alpha,
     keel::Array<keel::f64> v;
     idx.reserve(n); v.reserve(n);
     for (keel::usize i = 0; i < n; ++i)
-        if (!std::isnan(x[i])) { v.push_back(x[i]); idx.push_back(i); }
+        if (!keel::is_nan(x[i])) { v.push_back(x[i]); idx.push_back(i); }
     if (v.empty()) return r;
     keel::f64 astd = 0.0, thr = 0.0, cen = 0.0;
     while (v.size() >= 3) {
@@ -221,18 +220,18 @@ ColStats grubbsColumn(const keel::f64 *x, keel::usize n, keel::f64 alpha,
         cen = s / keel::f64(m);
         keel::f64 ss = 0.0;
         for (keel::f64 e : v) ss += (e - cen) * (e - cen);
-        astd = std::sqrt(ss / keel::f64(m - 1));
+        astd = keel::sqrt(ss / keel::f64(m - 1));
         if (!(astd > 0.0)) break;
         keel::usize jmax = 0; keel::f64 amax = -1.0;
         for (keel::usize j = 0; j < m; ++j) {
-            const keel::f64 ad = std::fabs(v[j] - cen);
+            const keel::f64 ad = keel::abs(v[j] - cen);
             if (ad > amax) { amax = ad; jmax = j; }
         }
         const keel::f64 dof = keel::f64(m) - 2.0;
         const keel::f64 t = tinv(Value::scalar(alpha / (2.0 * keel::f64(m)), mr),
                               dof, mr).toScalar();
-        thr = ((keel::f64(m) - 1.0) / std::sqrt(keel::f64(m))) *
-              std::fabs(t) / std::sqrt(dof + t * t);
+        thr = ((keel::f64(m) - 1.0) / keel::sqrt(keel::f64(m))) *
+              keel::abs(t) / keel::sqrt(dof + t * t);
         if (amax / astd > thr) {
             v.remove_at(jmax);
             idx.remove_at(jmax);
@@ -244,7 +243,7 @@ ColStats grubbsColumn(const keel::f64 *x, keel::usize n, keel::f64 alpha,
     r.lo = cen - astd * thr;
     r.hi = cen + astd * thr;
     for (keel::usize i = 0; i < n; ++i)
-        r.mask[i] = (std::isnan(x[i]) ? 0
+        r.mask[i] = (keel::is_nan(x[i]) ? 0
                     : ((x[i] > r.hi || x[i] < r.lo) ? 1 : 0));
     return r;
 }
@@ -260,12 +259,12 @@ ColStats gesdColumn(const keel::f64 *x, keel::usize n, keel::f64 alpha,
     keel::Array<keel::f64> v;
     v.reserve(n);
     for (keel::usize i = 0; i < n; ++i)
-        if (!std::isnan(x[i])) v.push_back(x[i]);
+        if (!keel::is_nan(x[i])) v.push_back(x[i]);
     const keel::usize N = v.size();
     if (N < 2) return r;
     const keel::usize maxo = (maxOutArg >= 0)
         ? keel::as<keel::usize>(maxOutArg)
-        : keel::as<keel::usize>(std::ceil(0.1 * keel::f64(N)));
+        : keel::as<keel::usize>(keel::ceil(0.1 * keel::f64(N)));
     const keel::usize rounds = std::min(N, maxo);
     keel::Array<keel::f64> amean(rounds, 0.0), astd(rounds, 0.0),
                         lam(rounds, 0.0), R(rounds, 0.0);
@@ -277,19 +276,19 @@ ColStats gesdColumn(const keel::f64 *x, keel::usize n, keel::f64 alpha,
         amean[it] = s / keel::f64(m);
         keel::f64 ss = 0.0;
         for (keel::f64 e : v) ss += (e - amean[it]) * (e - amean[it]);
-        astd[it] = (m >= 2) ? std::sqrt(ss / keel::f64(m - 1)) : 0.0;
+        astd[it] = (m >= 2) ? keel::sqrt(ss / keel::f64(m - 1)) : 0.0;
         keel::usize jmax = 0; keel::f64 amax = -1.0;
         for (keel::usize j = 0; j < m; ++j) {
-            const keel::f64 ad = std::fabs(v[j] - amean[it]);
+            const keel::f64 ad = keel::abs(v[j] - amean[it]);
             if (ad > amax) { amax = ad; jmax = j; }
         }
         R[it] = (astd[it] > 0.0) ? amax / astd[it]
-                                : std::numeric_limits<keel::f64>::infinity();
+                                : keel::Limits<keel::f64>::infinity();
         v.remove_at(jmax);
         const keel::f64 dof = keel::f64(N) - keel::f64(it) - 1.0;   // n-i-1
         const keel::f64 pp = 1.0 - alpha / (2.0 * keel::f64(nm1));
         const keel::f64 t = tinv(Value::scalar(pp, mr), dof, mr).toScalar();
-        lam[it] = (keel::f64(nm1) - 1.0) * t / std::sqrt((dof + t * t) * keel::f64(nm1));
+        lam[it] = (keel::f64(nm1) - 1.0) * t / keel::sqrt((dof + t * t) * keel::f64(nm1));
     }
     keel::i64 last = -1;
     for (keel::i64 it = 0; it < keel::as<keel::i64>(rounds); ++it)
@@ -302,7 +301,7 @@ ColStats gesdColumn(const keel::f64 *x, keel::usize n, keel::f64 alpha,
     r.lo = amean[tindex] - astd[tindex] * lam[tindex];
     r.hi = amean[tindex] + astd[tindex] * lam[tindex];
     for (keel::usize i = 0; i < n; ++i)
-        r.mask[i] = (std::isnan(x[i]) ? 0
+        r.mask[i] = (keel::is_nan(x[i]) ? 0
                     : ((x[i] > r.hi || x[i] < r.lo) ? 1 : 0));
     return r;
 }
@@ -330,7 +329,7 @@ ColStats detectRun(keel::ArrayRef<keel::f64> x, keel::StringRef method,
     }
     if (method == "movmedian" || method == "movmean") {
         const bool isMed = (method == "movmedian");
-        const keel::f64 nanv = std::numeric_limits<keel::f64>::quiet_NaN();
+        const keel::f64 nanv = keel::Limits<keel::f64>::quiet_nan();
         if (movCenter) {
             movCenter->assign(n, nanv);
             movLo->assign(n, nanv);
@@ -350,14 +349,14 @@ ColStats detectRun(keel::ArrayRef<keel::f64> x, keel::StringRef method,
                     const bool inWin = winTwoElem
                                            ? (sp[j] >= loS && sp[j] <= hiS)
                                            : (sp[j] >= loS && sp[j] < hiS);
-                    if (inWin && !std::isnan(x[j])) win.push_back(x[j]);
+                    if (inWin && !keel::is_nan(x[j])) win.push_back(x[j]);
                 }
             } else {
                 keel::i64 lo = keel::as<keel::i64>(i) - hb; if (lo < 0) lo = 0;
                 keel::i64 hi = keel::as<keel::i64>(i) + hf;
                 if (hi > keel::as<keel::i64>(n) - 1) hi = keel::as<keel::i64>(n) - 1;
                 for (keel::i64 j = lo; j <= hi; ++j)
-                    if (!std::isnan(x[keel::as<keel::usize>(j)]))
+                    if (!keel::is_nan(x[keel::as<keel::usize>(j)]))
                         win.push_back(x[keel::as<keel::usize>(j)]);
             }
             if (win.empty()) continue;
@@ -367,7 +366,7 @@ ColStats detectRun(keel::ArrayRef<keel::f64> x, keel::StringRef method,
                 std::sort(sorted.begin(), sorted.end());
                 center = medOf(sorted);
                 dev.clear();
-                for (keel::f64 vv : win) dev.push_back(std::fabs(vv - center));
+                for (keel::f64 vv : win) dev.push_back(keel::abs(vv - center));
                 std::sort(dev.begin(), dev.end());
                 scale = 1.4826022185056 * medOf(dev);
             } else {
@@ -377,7 +376,7 @@ ColStats detectRun(keel::ArrayRef<keel::f64> x, keel::StringRef method,
                 keel::f64 ss = 0.0;
                 for (keel::f64 vv : win) ss += (vv - center) * (vv - center);
                 scale = (win.size() >= 2)
-                            ? std::sqrt(ss / keel::f64(win.size() - 1)) : 0.0;
+                            ? keel::sqrt(ss / keel::f64(win.size() - 1)) : 0.0;
             }
             const keel::f64 loB = center - tf * scale, hiB = center + tf * scale;
             if (movCenter) {
@@ -385,12 +384,12 @@ ColStats detectRun(keel::ArrayRef<keel::f64> x, keel::StringRef method,
                 (*movLo)[i] = loB;
                 (*movHi)[i] = hiB;
             }
-            if (!std::isnan(x[i]))
+            if (!keel::is_nan(x[i]))
                 r.mask[i] = (x[i] > hiB || x[i] < loB) ? 1 : 0;
         }
-        r.center = std::numeric_limits<keel::f64>::quiet_NaN();
-        r.lo = -std::numeric_limits<keel::f64>::infinity();
-        r.hi = std::numeric_limits<keel::f64>::infinity();
+        r.center = keel::Limits<keel::f64>::quiet_nan();
+        r.lo = -keel::Limits<keel::f64>::infinity();
+        r.hi = keel::Limits<keel::f64>::infinity();
         return r;
     }
     // median / mean / quartiles — static detectors.
@@ -454,8 +453,8 @@ void isoutlierParse(const Value &A, keel::ArrayRef<Value> in, bool forRmoutliers
             const bool row2 = lu.isNumeric() && !lu.isComplex() &&
                               lu.dims().ndim() <= 2 && lu.dims().dim(0) == 1 &&
                               lu.dims().dim(1) == 2;
-            if (!row2 || std::isnan(lu.elemAsDouble(0)) ||
-                std::isnan(lu.elemAsDouble(1)) ||
+            if (!row2 || keel::is_nan(lu.elemAsDouble(0)) ||
+                keel::is_nan(lu.elemAsDouble(1)) ||
                 lu.elemAsDouble(0) < 0.0 || lu.elemAsDouble(0) > 100.0 ||
                 lu.elemAsDouble(1) < 0.0 || lu.elemAsDouble(1) > 100.0 ||
                 lu.elemAsDouble(0) > lu.elemAsDouble(1))
@@ -481,7 +480,7 @@ void isoutlierParse(const Value &A, keel::ArrayRef<Value> in, bool forRmoutliers
         const Value &dv = in[i];
         const keel::f64 dd = (dv.isNumeric() && !dv.isComplex() && dv.numel() == 1)
                               ? dv.elemAsDouble(0) : -1.0;
-        if (!(dd >= 1.0) || std::floor(dd) != dd)
+        if (!(dd >= 1.0) || keel::floor(dd) != dd)
             throw Error("isoutlier: dim must be a positive integer scalar",
                         0, 0, "isoutlier", "", "numkit:isoutlier:badDim");
         p.dim = keel::as<keel::i32>(dd);
@@ -520,7 +519,7 @@ void isoutlierParse(const Value &A, keel::ArrayRef<Value> in, bool forRmoutliers
                 throw Error("isoutlier: ThresholdFactor must be a real "
                             "numeric scalar",
                             0, 0, "isoutlier", "", "numkit:isoutlier:tfScalar");
-            if (std::isnan(v.elemAsDouble(0)))
+            if (keel::is_nan(v.elemAsDouble(0)))
                 throw Error("isoutlier: ThresholdFactor must not be NaN",
                             0, 0, "isoutlier", "", "numkit:isoutlier:tfNaN");
             if (v.elemAsDouble(0) < 0.0)
@@ -532,7 +531,7 @@ void isoutlierParse(const Value &A, keel::ArrayRef<Value> in, bool forRmoutliers
         } else if (name == "maxnumoutliers") {
             const keel::f64 mo = (v.isNumeric() && !v.isComplex() && v.numel() == 1)
                                   ? v.elemAsDouble(0) : -1.0;
-            if (!(mo >= 1.0) || std::floor(mo) != mo)
+            if (!(mo >= 1.0) || keel::floor(mo) != mo)
                 throw Error("isoutlier: MaxNumOutliers must be a positive "
                             "integer scalar",
                             0, 0, "isoutlier", "", "numkit:isoutlier:badMaxNum");
@@ -540,7 +539,7 @@ void isoutlierParse(const Value &A, keel::ArrayRef<Value> in, bool forRmoutliers
         } else if (name == "minnumoutliers") {
             const keel::f64 mo = (v.isNumeric() && !v.isComplex() && v.numel() == 1)
                                   ? v.elemAsDouble(0) : -1.0;
-            if (!(mo >= 0.0) || std::floor(mo) != mo)
+            if (!(mo >= 0.0) || keel::floor(mo) != mo)
                 throw Error("rmoutliers: MinNumOutliers must be a nonnegative "
                             "integer scalar",
                             0, 0, "rmoutliers", "", "numkit:rmoutliers:badMinNum");
@@ -758,7 +757,7 @@ RmOutliersOut rmoutliers_full(const Value &A, keel::ArrayRef<Value> in,
             ValueType::DOUBLE, mr);
         keel::f64 *nd = nanRow.doubleDataMut();
         std::fill_n(nd, nanRow.numel(),
-                    std::numeric_limits<keel::f64>::quiet_NaN());
+                    keel::Limits<keel::f64>::quiet_nan());
         iso.lo = iso.hi = iso.center = nanRow;
     } else {
         // Detection sees the SAME tail minus the rmoutliers-only NV
@@ -896,7 +895,7 @@ RmMissingOut rmmissing_full(const Value &A, keel::ArrayRef<Value> in,
         const Value &dv = in[0];
         const keel::f64 dd = (dv.isNumeric() && !dv.isComplex() && dv.numel() == 1)
                               ? dv.elemAsDouble(0) : 0.0;
-        if (std::floor(dd) != dd || dd < 1.0 || dd > 2.0)
+        if (keel::floor(dd) != dd || dd < 1.0 || dd > 2.0)
             throw Error("rmmissing: dimension must be 1 or 2",
                         0, 0, "rmmissing", "", "numkit:rmmissing:badDim");
         dim = keel::as<keel::i32>(dd);
@@ -913,7 +912,7 @@ RmMissingOut rmmissing_full(const Value &A, keel::ArrayRef<Value> in,
             const Value &v = in[i + 1];
             const keel::f64 mo = (v.isNumeric() && !v.isComplex() && v.numel() == 1)
                                   ? v.elemAsDouble(0) : -1.0;
-            if (!(mo >= 0.0) || std::floor(mo) != mo)
+            if (!(mo >= 0.0) || keel::floor(mo) != mo)
                 throw Error("rmmissing: MinNumMissing must be a nonnegative "
                             "integer scalar",
                             0, 0, "rmmissing", "", "numkit:rmmissing:badMinNum");
@@ -959,15 +958,15 @@ RmMissingOut rmmissing_full(const Value &A, keel::ArrayRef<Value> in,
     if (t == ValueType::COMPLEX) {
         const keel::c64 *z = A.complexData();
         for (keel::usize i = 0; i < A.numel(); ++i)
-            miss[i] = (std::isnan(z[i].real()) || std::isnan(z[i].imag())) ? 1 : 0;
+            miss[i] = (keel::is_nan(z[i].real()) || keel::is_nan(z[i].imag())) ? 1 : 0;
     } else if (single) {
         const keel::f32 *xd = A.singleData();
         for (keel::usize i = 0; i < A.numel(); ++i)
-            miss[i] = std::isnan(xd[i]) ? 1 : 0;
+            miss[i] = keel::is_nan(xd[i]) ? 1 : 0;
     } else {
         const keel::f64 *xd = A.doubleData();
         for (keel::usize i = 0; i < A.numel(); ++i)
-            miss[i] = std::isnan(xd[i]) ? 1 : 0;
+            miss[i] = keel::is_nan(xd[i]) ? 1 : 0;
     }
 
     auto copyIn = [&](keel::usize lin, Value &B, keel::usize lout) {
@@ -1156,7 +1155,7 @@ FillMissingOut fillmissing_full(
             bool anyPos = false;
             for (keel::usize q = 0; q < wl.numel(); ++q) {
                 const keel::f64 wv = wl.elemAsDouble(q);
-                if (!std::isfinite(wv) || wv < 0.0) okVal = false;
+                if (!keel::is_finite(wv) || wv < 0.0) okVal = false;
                 if (wv > 0.0) anyPos = true;
             }
             if (!anyPos) okVal = false;
@@ -1205,7 +1204,7 @@ FillMissingOut fillmissing_full(
                 const Value &kv = in[1];
                 const keel::f64 kd = (kv.numel() == 1 && !kv.isComplex())
                                       ? kv.elemAsDouble(0) : -1.0;
-                if (!(kd >= 1.0) || std::floor(kd) != kd || !std::isfinite(kd))
+                if (!(kd >= 1.0) || keel::floor(kd) != kd || !keel::is_finite(kd))
                     throw Error(keel::format("{}: number of nearest neighbors k "
                                              "must be a positive integer scalar", fn),
                                 0, 0, fn, "", keel::format("numkit:{}:invalidK", fn));
@@ -1225,7 +1224,7 @@ FillMissingOut fillmissing_full(
         const Value &dv = in[i];
         const keel::f64 dd = (dv.numel() == 1 && !dv.isComplex())
                               ? dv.elemAsDouble(0) : 0.0;
-        if (std::floor(dd) != dd || !(dd >= 1.0) || !std::isfinite(dd))
+        if (keel::floor(dd) != dd || !(dd >= 1.0) || !keel::is_finite(dd))
             throw Error(keel::format("{}: dimension must be a positive "
                                      "integer scalar", fn),
                         0, 0, fn, "",
@@ -1247,7 +1246,7 @@ FillMissingOut fillmissing_full(
     keel::f64 endConst = 0.0;
     const Value *missingLocations = nullptr;
     const Value *samplePointsRaw = nullptr;
-    keel::f64 maxGap = std::numeric_limits<keel::f64>::infinity();
+    keel::f64 maxGap = keel::Limits<keel::f64>::infinity();
     bool hasMaxGap = false;
     keel::String knnDist = keel::String::from("euclidean");
     const Value *distFnVal = nullptr;
@@ -1315,7 +1314,7 @@ FillMissingOut fillmissing_full(
                             0, 0, fn, "",
                             keel::format("numkit:{}:unsupportedNVPair", fn));
             if (!v.isNumeric() || v.isComplex() || v.numel() != 1 ||
-                std::isnan(v.elemAsDouble(0)) || !(v.elemAsDouble(0) > 0.0))
+                keel::is_nan(v.elemAsDouble(0)) || !(v.elemAsDouble(0) > 0.0))
                 throw Error(keel::format("{}: 'MaxGap' must be a positive "
                                          "real scalar", fn),
                             0, 0, fn, "",
@@ -1436,11 +1435,11 @@ FillMissingOut fillmissing_full(
     } else if (complex) {
         const keel::c64 *z = A.complexData();
         for (keel::usize j = 0; j < A.numel(); ++j)
-            missMap[j] = (std::isnan(z[j].real()) ||
-                          std::isnan(z[j].imag())) ? 1 : 0;
+            missMap[j] = (keel::is_nan(z[j].real()) ||
+                          keel::is_nan(z[j].imag())) ? 1 : 0;
     } else {
         for (keel::usize j = 0; j < A.numel(); ++j)
-            missMap[j] = std::isnan(A.elemAsDouble(j)) ? 1 : 0;
+            missMap[j] = keel::is_nan(A.elemAsDouble(j)) ? 1 : 0;
     }
 
     // ── knn fill path ─────────────────────────────────────────────────
@@ -1503,12 +1502,12 @@ FillMissingOut fillmissing_full(
                             ss += dr * dr + di * di;
                         }
                     }
-                    scale[col] = std::sqrt(ss / keel::f64(cnt - 1));
+                    scale[col] = keel::sqrt(ss / keel::f64(cnt - 1));
                 }
             }
         }
 
-        const keel::f64 nanv = std::numeric_limits<keel::f64>::quiet_NaN();
+        const keel::f64 nanv = keel::Limits<keel::f64>::quiet_nan();
         keel::Array<keel::f64> dists(M, nanv);
         keel::Array<keel::usize> ord(M);
         for (keel::usize ii = 0; ii < M; ++ii) {
@@ -1572,13 +1571,13 @@ FillMissingOut fillmissing_full(
                             sumSq += d2;
                         }
                     }
-                    dists[jj] = std::sqrt(sumSq);
+                    dists[jj] = keel::sqrt(sumSq);
                 }
             }
 
             ord.clear();
             for (keel::usize jj = 0; jj < M; ++jj)
-                if (!std::isnan(dists[jj])) ord.push_back(jj);
+                if (!keel::is_nan(dists[jj])) ord.push_back(jj);
             std::stable_sort(ord.begin(), ord.end(),
                              [&](keel::usize a, keel::usize b) {
                                  return dists[a] < dists[b];
@@ -1617,7 +1616,7 @@ FillMissingOut fillmissing_full(
     }
 
     // ── standard 1-D slice fill path ──────────────────────────────────
-    const keel::f64 nanv = std::numeric_limits<keel::f64>::quiet_NaN();
+    const keel::f64 nanv = keel::Limits<keel::f64>::quiet_nan();
     const bool useSp = !samplePoints.empty();
     keel::Array<keel::f64> sVec(runLen);
     for (keel::usize j = 0; j < runLen; ++j)
@@ -1628,7 +1627,7 @@ FillMissingOut fillmissing_full(
     keel::Array<keel::u8> ma(runLen), maBeforeInterp(runLen), origMiss(runLen);
 
     auto removeLargeGapsSlice = [&](keel::Array<keel::u8> &mask) {
-        if (!std::isfinite(maxGap) || runLen == 0) return;
+        if (!keel::is_finite(maxGap) || runLen == 0) return;
         keel::usize j = 0;
         while (j < runLen) {
             if (!mask[j]) { ++j; continue; }
@@ -1677,7 +1676,7 @@ FillMissingOut fillmissing_full(
 
         // All-missing column special case (matches fillArrayColumn lines 413-434).
         if (numNonMissing == 0) {
-            if (!std::isfinite(maxGap)) {
+            if (!keel::is_finite(maxGap)) {
                 if (isFnHandle && endMode == 0 && callFn) {
                     Value xs = Value::matrix(0, 1, ValueType::DOUBLE, mr);
                     Value ts = Value::matrix(0, 1, ValueType::DOUBLE, mr);
@@ -1724,8 +1723,8 @@ FillMissingOut fillmissing_full(
                     B.doubleDataMut()[lin] = re[j];
                 }
                 if (fmd) {
-                    const bool stillNaN = std::isnan(re[j]) ||
-                                          (outComplex && std::isnan(im[j]));
+                    const bool stillNaN = keel::is_nan(re[j]) ||
+                                          (outComplex && keel::is_nan(im[j]));
                     fmd[lin] = (ma[j] && !stillNaN) ? 1 : 0;
                 }
             }
@@ -1757,8 +1756,8 @@ FillMissingOut fillmissing_full(
                 for (keel::usize j = 0; j < indBeg; ++j) ma[j] = 0;
                 for (keel::usize j = indEnd + 1; j < runLen; ++j) ma[j] = 0;
             }
-            const keel::f64 aSpan = fhTwoElem ? fhA : (useSp ? 0.5 * fhA : std::floor(0.5 * fhA));
-            const keel::f64 bSpan = fhTwoElem ? fhB : (useSp ? 0.5 * fhB : std::floor(0.5 * fhB));
+            const keel::f64 aSpan = fhTwoElem ? fhA : (useSp ? 0.5 * fhA : keel::floor(0.5 * fhA));
+            const keel::f64 bSpan = fhTwoElem ? fhB : (useSp ? 0.5 * fhB : keel::floor(0.5 * fhB));
             keel::usize j0 = 0;
             while (j0 < runLen) {
                 if (!ma[j0]) { ++j0; continue; }
@@ -1775,8 +1774,8 @@ FillMissingOut fillmissing_full(
                         const keel::f64 q1 = keel::as<keel::f64>(q + 1);
                         const keel::f64 g0 = keel::as<keel::f64>(j0 + 1);
                         const keel::f64 g1 = keel::as<keel::f64>(j1 + 1);
-                        inW = (q1 >= std::ceil(g0 - aSpan) && q1 <= g0 - 1.0) ||
-                              (q1 >= g1 + 1.0 && q1 <= std::floor(g1 + bSpan));
+                        inW = (q1 >= keel::ceil(g0 - aSpan) && q1 <= g0 - 1.0) ||
+                              (q1 >= g1 + 1.0 && q1 <= keel::floor(g1 + bSpan));
                     }
                     if (inW) ind.push_back(q);
                 }
@@ -1947,8 +1946,8 @@ FillMissingOut fillmissing_full(
                 B.doubleDataMut()[lin] = re[j];
             }
             if (fmd) {
-                const bool stillNaN = std::isnan(re[j]) ||
-                                      (outComplex && std::isnan(im[j]));
+                const bool stillNaN = keel::is_nan(re[j]) ||
+                                      (outComplex && keel::is_nan(im[j]));
                 fmd[lin] = (ma[j] && !stillNaN) ? 1 : 0;
             }
         }
@@ -1987,9 +1986,9 @@ void detrendDesignFit(const keel::f64 *W, keel::usize n, keel::usize k,
     keel::Array<char> freeVar(k, 0, sc.allocator());
     for (keel::usize col = 0; col < k; ++col) {
         keel::usize piv = col;
-        keel::f64 best = std::fabs(G[col * k + col]);
+        keel::f64 best = keel::abs(G[col * k + col]);
         for (keel::usize r2 = col + 1; r2 < k; ++r2) {
-            const keel::f64 v = std::fabs(G[r2 * k + col]);
+            const keel::f64 v = keel::abs(G[r2 * k + col]);
             if (v > best) { best = v; piv = r2; }
         }
         if (best <= 0.0) { freeVar[col] = 1; continue; }
@@ -2055,7 +2054,7 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
             if (a0.isComplex() || a0.numel() != 1 ||
                 (!a0.isLogical() &&
                  (a0.elemAsDouble(0) < 0.0 ||
-                  std::floor(a0.elemAsDouble(0)) != a0.elemAsDouble(0))))
+                  keel::floor(a0.elemAsDouble(0)) != a0.elemAsDouble(0))))
                 throw Error("detrend: polynomial degree must be a "
                             "non-negative integer scalar, 'constant', or "
                             "'linear'",
@@ -2148,7 +2147,7 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
     }
 
     auto detrendRun = [&](const keel::f64 *src, keel::f64 *dst, keel::usize n) {
-        const keel::f64 nanv = std::numeric_limits<keel::f64>::quiet_NaN();
+        const keel::f64 nanv = keel::Limits<keel::f64>::quiet_nan();
         if (n == 0) return;
         // Knots on the centered abscissa sVec (0..sVec.back()).
         keel::Array<keel::f64> knots;
@@ -2174,10 +2173,10 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
         for (keel::usize j = 0; j < n; ++j) dst[j] = nanv;
         {
             bool anyNaN = false;
-            for (keel::usize j = 0; j < n; ++j) anyNaN = anyNaN || std::isnan(src[j]);
+            for (keel::usize j = 0; j < n; ++j) anyNaN = anyNaN || keel::is_nan(src[j]);
             if (anyNaN && !omitNan) return;   // includenan poisons the run
             for (keel::usize j = 0; j < n; ++j) {
-                if (omitNan && std::isnan(src[j])) continue;
+                if (omitNan && keel::is_nan(src[j])) continue;
                 xs.push_back(sVec[j]);
                 ys.push_back(src[j]);
                 orig.push_back(j);
@@ -2205,7 +2204,7 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
                 const keel::f64 a = xs[j] / scale;
                 for (keel::i32 pw = polyDeg; pw >= 1; --pw)
                     V[keel::as<keel::usize>(polyDeg - pw) * m + j] =
-                        std::pow(a, keel::f64(pw));
+                        keel::pow(a, keel::f64(pw));
                 V[keel::as<keel::usize>(polyDeg) * m + j] = 1.0;
             }
             keel::Array<keel::f64> fitted(m, sc.allocator());
@@ -2237,7 +2236,7 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
                 ms /= keel::f64(seg.size());
                 keel::f64 ss = 0.0;
                 for (keel::usize j : seg) ss += (xs[j] - ms) * (xs[j] - ms);
-                const keel::f64 sd = std::sqrt(ss / keel::f64(seg.size() - 1));
+                const keel::f64 sd = keel::sqrt(ss / keel::f64(seg.size() - 1));
                 const keel::usize nb = keel::as<keel::usize>(polyDeg) + 1;
                 keel::ArenaTemp sc = keel::get_scratch(mr);
                 keel::Array<keel::f64> V(seg.size() * nb, 0.0, sc.allocator());
@@ -2246,7 +2245,7 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
                     const keel::f64 a = (sd > 0.0) ? (xs[seg[q]] - ms) / sd : 0.0;
                     for (keel::i32 pw = polyDeg; pw >= 1; --pw)
                         V[keel::as<keel::usize>(polyDeg - pw) * seg.size() + q] =
-                            std::pow(a, keel::f64(pw));
+                            keel::pow(a, keel::f64(pw));
                     V[keel::as<keel::usize>(polyDeg) * seg.size() + q] = 1.0;
                     yseg[q] = ys[seg[q]];
                 }
@@ -2266,8 +2265,8 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
             if (knots.size() >= 2) {
                 keel::f64 bestE = 1e300;
                 for (keel::usize j = 0; j < m; ++j) {
-                    if (std::fabs(xs[j] - knots[1]) < bestE) {
-                        bestE = std::fabs(xs[j] - knots[1]);
+                    if (keel::abs(xs[j] - knots[1]) < bestE) {
+                        bestE = keel::abs(xs[j] - knots[1]);
                         e = j;
                     }
                 }
@@ -2293,7 +2292,7 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
                      keel::as<keel::usize>(polyDeg - pw)) * m;
                 for (keel::usize j = 0; j < m; ++j) {
                     const keel::f64 bb = xs[j] / scaleS - bk;
-                    col[j] = (bb > 0.0) ? std::pow(bb, keel::f64(pw)) : 0.0;
+                    col[j] = (bb > 0.0) ? keel::pow(bb, keel::f64(pw)) : 0.0;
                 }
             }
         }

@@ -17,8 +17,6 @@
 
 #include "dist_helpers.hpp"            // stripUpperFlag / applyUpperInPlace
 
-#include <cmath>
-#include <cstring>
 #include <mutex>
 
 
@@ -61,7 +59,7 @@ Value normrnd(::numkit::ops::RngContext &rng, keel::f64 mu, keel::f64 sigma, kee
 std::tuple<keel::f64, keel::f64> normstat(keel::f64 mu, keel::f64 sigma)
 {
     if (!norm_argcheck(sigma)) {
-        const keel::f64 NaN = std::numeric_limits<keel::f64>::quiet_NaN();
+        const keel::f64 NaN = keel::Limits<keel::f64>::quiet_nan();
         return std::make_tuple(NaN, NaN);
     }
     return std::make_tuple(mu, sigma * sigma);

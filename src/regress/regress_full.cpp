@@ -7,6 +7,7 @@
 // glmval's inverse link) live in their existing TUs and are reused.
 
 #include <keel/array.h>
+#include <keel/math.h>
 #include <keel/core.h>
 #include <keel/format.h>
 #include <keel/memory.h>
@@ -24,8 +25,6 @@
 #include <numkit/value/value.hpp>
 
 #include <algorithm>
-#include <cmath>
-#include <limits>
 
 namespace numkit::stats {
 
@@ -94,10 +93,10 @@ Value ridge_full(const Value &y, const Value &X, const Value &kVec,
     keel::Array<keel::usize> keep;
     keep.reserve(n);
     for (keel::usize i = 0; i < n; ++i) {
-        if (std::isnan(y.elemAsDouble(i))) continue;
+        if (keel::is_nan(y.elemAsDouble(i))) continue;
         bool ok = true;
         for (keel::usize j = 0; j < p && ok; ++j)
-            if (std::isnan(X.elemAsDouble(i + j * n))) ok = false;
+            if (keel::is_nan(X.elemAsDouble(i + j * n))) ok = false;
         if (ok) keep.push_back(i);
     }
     const keel::usize m = keep.size();
@@ -156,7 +155,7 @@ Value nlparci_full(const Value &beta, const Value &resid,
         throw Error("nlparci: cannot compute confidence intervals for "
                     "complex parameters.",
                     0, 0, "nlparci", "", "numkit:nlparci:complexParams");
-    if (!std::isnan(alpha) && !(alpha > 0.0 && alpha < 1.0))
+    if (!keel::is_nan(alpha) && !(alpha > 0.0 && alpha < 1.0))
         throw Error(keel::format("nlparci: ALPHA must be a scalar between 0 and 1 (got {}).", alpha),
                     0, 0, "nlparci", "", "numkit:nlparci:badAlpha");
 
@@ -165,7 +164,7 @@ Value nlparci_full(const Value &beta, const Value &resid,
     keel::Array<keel::usize> keep;
     keep.reserve(nAll);
     for (keel::usize i = 0; i < nAll; ++i)
-        if (!std::isnan(resid.elemAsDouble(i))) keep.push_back(i);
+        if (!keel::is_nan(resid.elemAsDouble(i))) keep.push_back(i);
     const keel::usize n = keep.size();
     const keel::usize pp = keel::as<keel::usize>(beta.numel());
     if (n <= pp)
@@ -177,7 +176,7 @@ Value nlparci_full(const Value &beta, const Value &resid,
     if (!Sigma.isEmpty()) {
         // se = sqrt(diag(Sigma)) (probe76 N03).
         for (keel::usize j = 0; j < pp; ++j)
-            se[j] = std::sqrt(Sigma.elemAsDouble(j + j * pp));
+            se[j] = keel::sqrt(Sigma.elemAsDouble(j + j * pp));
     } else {
         if (keel::as<keel::usize>(J.dims().dim(0)) != nAll
             || keel::as<keel::usize>(J.dims().dim(1)) != pp)
@@ -372,10 +371,10 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
         }
         switch (lk) {
         case GlmLink::Identity:   return eta;
-        case GlmLink::Logit:      return 1.0 / (1.0 + std::exp(-eta));
-        case GlmLink::Log:        return std::exp(eta);
+        case GlmLink::Logit:      return 1.0 / (1.0 + keel::exp(-eta));
+        case GlmLink::Log:        return keel::exp(eta);
         case GlmLink::Reciprocal: return 1.0 / eta;
-        case GlmLink::Probit:     return 0.5 * std::erfc(-eta / std::sqrt(2.0));
+        case GlmLink::Probit:     return 0.5 * keel::erfc(-eta / keel::sqrt(2.0));
         }
         return eta;
     };
@@ -452,21 +451,21 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
 
     const keel::f64 dfe = statsVal.hasField("dfe")
         ? statsVal.field("dfe").elemAsDouble(0)
-        : std::numeric_limits<keel::f64>::infinity();
+        : keel::Limits<keel::f64>::infinity();
     const bool estdisp = statsVal.hasField("estdisp")
         ? (statsVal.field("estdisp").elemAsDouble(0) != 0.0)
-        : std::isfinite(dfe);
+        : keel::is_finite(dfe);
     const keel::f64 alpha = 1.0 - clev;
     const keel::f64 p_df = keel::as<keel::f64>(wantCoef);
     keel::f64 crit = 0.0;
     if (!simultaneous) {
-        crit = (estdisp && std::isfinite(dfe))
+        crit = (estdisp && keel::is_finite(dfe))
             ? tinv(Value::scalar(1.0 - alpha / 2.0, mr), dfe, mr).toScalar()
             : norminv(Value::scalar(1.0 - alpha / 2.0, mr), 0.0, 1.0, mr).toScalar();
     } else {
-        crit = (estdisp && std::isfinite(dfe))
-            ? std::sqrt(p_df * finv(Value::scalar(1.0 - alpha, mr), p_df, dfe, mr).toScalar())
-            : std::sqrt(chi2inv(Value::scalar(1.0 - alpha, mr), p_df, mr).toScalar());
+        crit = (estdisp && keel::is_finite(dfe))
+            ? keel::sqrt(p_df * finv(Value::scalar(1.0 - alpha, mr), p_df, dfe, mr).toScalar())
+            : keel::sqrt(chi2inv(Value::scalar(1.0 - alpha, mr), p_df, mr).toScalar());
     }
 
     Value dylo = Value::matrix(rows, 1, ValueType::DOUBLE, mr);
@@ -485,7 +484,7 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
         for (keel::usize j = 0; j < wantCoef; ++j)
             for (keel::usize k = 0; k < wantCoef; ++k)
                 varEta += xr[j] * covMat[j + k * wantCoef] * xr[k];
-        const keel::f64 seEta = std::sqrt(std::max(0.0, varEta));
+        const keel::f64 seEta = keel::sqrt(std::max(0.0, varEta));
         const keel::f64 nr = Nv.isScalar() ? Nv.elemAsDouble(0) : Nv.elemAsDouble(r);
         const keel::f64 y1 = nr * invLink(etaVec[r] - crit * seEta);
         const keel::f64 y2 = nr * invLink(etaVec[r] + crit * seEta);

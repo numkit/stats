@@ -21,11 +21,8 @@
 #include <numkit/builtin/polyfun.hpp>       // spline / pchip / makima
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
-#include <limits>
 #include <numeric>
 #include <tuple>
 #include <utility>
@@ -138,7 +135,7 @@ Value detrendBP_of(const Value &x, keel::ArrayRef<keel::f64> bpUser, keel::Alloc
 Value filloutliers_of(const Value &x, const Value &fillArg, keel::StringRef detect, keel::f64 thresholdFactor, keel::f64 loP, keel::f64 hiP, keel::Allocator *mr);
 Value trimmean_of(const Value &x, keel::f64 pct, keel::i32 dim, bool useFloor, keel::Allocator *mr);
 EcdfFull ecdf_full(const Value &y, const Value *freq, keel::StringRef function_mode, keel::f64 alpha, bool want_bounds, keel::Allocator *mr);
-KsdensityFull ksdensity_full(const Value &x, const Value &pts, keel::f64 bw_user, keel::StringRef kernel_name, keel::StringRef function_mode, keel::usize numpoints, const Value *weights, keel::Allocator *mr, keel::f64 supportLo = -std::numeric_limits<keel::f64>::infinity(), keel::f64 supportHi = std::numeric_limits<keel::f64>::infinity(), keel::StringRef boundary_correction = "log");
+KsdensityFull ksdensity_full(const Value &x, const Value &pts, keel::f64 bw_user, keel::StringRef kernel_name, keel::StringRef function_mode, keel::usize numpoints, const Value *weights, keel::Allocator *mr, keel::f64 supportLo = -keel::Limits<keel::f64>::infinity(), keel::f64 supportHi = keel::Limits<keel::f64>::infinity(), keel::StringRef boundary_correction = "log");
 
 namespace {
 
@@ -150,19 +147,19 @@ using ::numkit::ops::resolveDim;   // 0 -> first non-singleton, else validate
 
 [[maybe_unused]] keel::f64 sliceMin(const keel::f64 *s, keel::usize n)
 {
-    if (n == 0) return std::numeric_limits<keel::f64>::quiet_NaN();
+    if (n == 0) return keel::Limits<keel::f64>::quiet_nan();
     keel::f64 m = s[0];
     for (keel::usize i = 1; i < n; ++i)
-        if (s[i] < m || std::isnan(m)) m = s[i];
+        if (s[i] < m || keel::is_nan(m)) m = s[i];
     return m;
 }
 
 [[maybe_unused]] keel::f64 sliceMax(const keel::f64 *s, keel::usize n)
 {
-    if (n == 0) return std::numeric_limits<keel::f64>::quiet_NaN();
+    if (n == 0) return keel::Limits<keel::f64>::quiet_nan();
     keel::f64 m = s[0];
     for (keel::usize i = 1; i < n; ++i)
-        if (s[i] > m || std::isnan(m)) m = s[i];
+        if (s[i] > m || keel::is_nan(m)) m = s[i];
     return m;
 }
 
@@ -199,10 +196,10 @@ namespace {
         for (keel::usize i = 0; i < n; ++i) { vals[i] = x.elemAsDouble(i); ord[i] = i; }
         std::stable_sort(ord.begin(), ord.end(),
                   [&](keel::usize ia, keel::usize ib) {
-                      const keel::f64 a = byAbs ? std::fabs(vals[ia]) : vals[ia];
-                      const keel::f64 b = byAbs ? std::fabs(vals[ib]) : vals[ib];
-                      if (std::isnan(a)) return false;
-                      if (std::isnan(b)) return true;
+                      const keel::f64 a = byAbs ? keel::abs(vals[ia]) : vals[ia];
+                      const keel::f64 b = byAbs ? keel::abs(vals[ib]) : vals[ib];
+                      if (keel::is_nan(a)) return false;
+                      if (keel::is_nan(b)) return true;
                       return ascending ? (a < b) : (a > b);
                   });
         // Output orientation matches input row/col-vector orientation.
@@ -258,10 +255,10 @@ namespace {
         for (keel::usize i = 0; i < sliceLen; ++i) ord[i] = i;
         std::stable_sort(ord.begin(), ord.end(),
             [&](keel::usize ia, keel::usize ib) {
-                const keel::f64 a = byAbs ? std::fabs(buf[ia]) : buf[ia];
-                const keel::f64 b = byAbs ? std::fabs(buf[ib]) : buf[ib];
-                if (std::isnan(a)) return false;
-                if (std::isnan(b)) return true;
+                const keel::f64 a = byAbs ? keel::abs(buf[ia]) : buf[ia];
+                const keel::f64 b = byAbs ? keel::abs(buf[ib]) : buf[ib];
+                if (keel::is_nan(a)) return false;
+                if (keel::is_nan(b)) return true;
                 return ascending ? (a < b) : (a > b);
             });
     };
@@ -330,9 +327,9 @@ namespace {
     bool singular = false;
     for (keel::usize kc = 0; kc < pC && !singular; ++kc) {
         keel::usize piv = kc;
-        keel::f64 pmax = std::fabs(Mc[kc + kc * pC]);
+        keel::f64 pmax = keel::abs(Mc[kc + kc * pC]);
         for (keel::usize r = kc + 1; r < pC; ++r) {
-            const keel::f64 v = std::fabs(Mc[r + kc * pC]);
+            const keel::f64 v = keel::abs(Mc[r + kc * pC]);
             if (v > pmax) { pmax = v; piv = r; }
         }
         if (pmax == 0.0) { singular = true; break; }
@@ -383,8 +380,8 @@ namespace {
         saa += da * da;
         sbb += db * db;
     }
-    if (saa <= 0.0 || sbb <= 0.0) return std::nan("");
-    return sab / std::sqrt(saa * sbb);
+    if (saa <= 0.0 || sbb <= 0.0) return keel::kNaN;
+    return sab / keel::sqrt(saa * sbb);
 }
 
 } // namespace
@@ -423,13 +420,13 @@ keel::Array<keel::f64> fitPolyLS(const keel::f64 *xidx, keel::usize n, const kee
     // Gaussian elimination with partial pivot.
     for (keel::usize kc = 0; kc < k; ++kc) {
         keel::usize piv = kc;
-        keel::f64 pmax = std::fabs(M[kc + kc * k]);
+        keel::f64 pmax = keel::abs(M[kc + kc * k]);
         for (keel::usize r = kc + 1; r < k; ++r) {
-            const keel::f64 v = std::fabs(M[r + kc * k]);
+            const keel::f64 v = keel::abs(M[r + kc * k]);
             if (v > pmax) { pmax = v; piv = r; }
         }
         if (pmax == 0.0) {
-            keel::Array<keel::f64> nanVec(k, std::numeric_limits<keel::f64>::quiet_NaN(),
+            keel::Array<keel::f64> nanVec(k, keel::Limits<keel::f64>::quiet_nan(),
                                        scratch_mr);
             return nanVec;
         }
@@ -481,9 +478,9 @@ bool solveSmallDense(keel::f64 *G, keel::f64 *rhs, keel::usize k)
 {
     for (keel::usize col = 0; col < k; ++col) {
         keel::usize piv = col;
-        keel::f64 best = std::fabs(G[col * k + col]);
+        keel::f64 best = keel::abs(G[col * k + col]);
         for (keel::usize r = col + 1; r < k; ++r) {
-            const keel::f64 v = std::fabs(G[r * k + col]);
+            const keel::f64 v = keel::abs(G[r * k + col]);
             if (v > best) { best = v; piv = r; }
         }
         if (best == 0.0) return false;
@@ -558,36 +555,36 @@ struct FoDetect {
 {
     FoDetect r;
     r.mask.assign(n, 0);
-    r.center = std::numeric_limits<keel::f64>::quiet_NaN();
-    r.lo = -std::numeric_limits<keel::f64>::infinity();
-    r.hi =  std::numeric_limits<keel::f64>::infinity();
+    r.center = keel::Limits<keel::f64>::quiet_nan();
+    r.lo = -keel::Limits<keel::f64>::infinity();
+    r.hi =  keel::Limits<keel::f64>::infinity();
     if (n == 0) return r;
 
     if (method == "mean") {
         keel::f64 s = 0.0, ss = 0.0;
         keel::usize k = 0;
         for (keel::usize i = 0; i < n; ++i) {
-            if (std::isnan(x[i])) continue;
+            if (keel::is_nan(x[i])) continue;
             s += x[i]; ss += x[i]*x[i]; ++k;
         }
         if (k < 2) return r;
         const keel::f64 m = s / keel::f64(k);
         const keel::f64 v = (ss - keel::f64(k) * m * m) / keel::f64(k - 1);
-        const keel::f64 sd = std::sqrt(std::max(0.0, v));
+        const keel::f64 sd = keel::sqrt(std::max(0.0, v));
         const keel::f64 t = tf * sd;
         r.center = m; r.lo = m - t; r.hi = m + t;
     } else if (method == "quartiles") {
         keel::Array<keel::f64> buf;
         buf.reserve(n);
         for (keel::usize i = 0; i < n; ++i)
-            if (!std::isnan(x[i])) buf.push_back(x[i]);
+            if (!keel::is_nan(x[i])) buf.push_back(x[i]);
         if (buf.size() < 4) return r;
         std::sort(buf.begin(), buf.end());
         // The reference engine uses the linear-interpolation 'lower'
         // definition for quartiles by default (R-default '7' percentile rule).
         auto quant = [&](keel::f64 p) {
             const keel::f64 h = (keel::f64(buf.size()) - 1.0) * p;
-            const keel::usize f = keel::as<keel::usize>(std::floor(h));
+            const keel::usize f = keel::as<keel::usize>(keel::floor(h));
             const keel::f64 frac = h - keel::f64(f);
             const keel::usize g = std::min(f + 1, buf.size() - 1);
             return buf[f] + frac * (buf[g] - buf[f]);
@@ -602,7 +599,7 @@ struct FoDetect {
         keel::Array<keel::f64> buf;
         buf.reserve(n);
         for (keel::usize i = 0; i < n; ++i)
-            if (!std::isnan(x[i])) buf.push_back(x[i]);
+            if (!keel::is_nan(x[i])) buf.push_back(x[i]);
         if (buf.empty()) return r;
         std::sort(buf.begin(), buf.end());
         auto medOf = [](const keel::Array<keel::f64> &v) {
@@ -613,7 +610,7 @@ struct FoDetect {
         const keel::f64 med = medOf(buf);
         keel::Array<keel::f64> dev;
         dev.reserve(buf.size());
-        for (keel::f64 v : buf) dev.push_back(std::fabs(v - med));
+        for (keel::f64 v : buf) dev.push_back(keel::abs(v - med));
         std::sort(dev.begin(), dev.end());
         const keel::f64 mad = medOf(dev);
         // Normal-consistency constant: 1/norminv(0.75)
@@ -624,7 +621,7 @@ struct FoDetect {
         r.center = med; r.lo = med - t; r.hi = med + t;
     }
     for (keel::usize i = 0; i < n; ++i)
-        r.mask[i] = (std::isnan(x[i]) ? 0
+        r.mask[i] = (keel::is_nan(x[i]) ? 0
                   : ((x[i] < r.lo || x[i] > r.hi) ? 1 : 0));
     return r;
 }
@@ -649,13 +646,13 @@ struct FoDetect {
     keel::Array<keel::f64> win;
     win.reserve(hb + hf + 1);
     for (keel::usize i = 0; i < n; ++i) {
-        if (std::isnan(x[i])) continue;
+        if (keel::is_nan(x[i])) continue;
         keel::i64 lo = keel::as<keel::i64>(i) - hb; if (lo < 0) lo = 0;
         keel::i64 hi = keel::as<keel::i64>(i) + hf;
         if (hi > keel::as<keel::i64>(n) - 1) hi = keel::as<keel::i64>(n) - 1;
         win.clear();
         for (keel::i64 j = lo; j <= hi; ++j)
-            if (!std::isnan(x[keel::as<keel::usize>(j)]))
+            if (!keel::is_nan(x[keel::as<keel::usize>(j)]))
                 win.push_back(x[keel::as<keel::usize>(j)]);
         if (win.empty()) continue;
         keel::f64 center, scale;
@@ -665,7 +662,7 @@ struct FoDetect {
             center = medOf(w);
             keel::Array<keel::f64> dev;
             dev.reserve(win.size());
-            for (keel::f64 v : win) dev.push_back(std::fabs(v - center));
+            for (keel::f64 v : win) dev.push_back(keel::abs(v - center));
             std::sort(dev.begin(), dev.end());
             scale = 1.4826022185056 * medOf(dev);
         } else {
@@ -676,9 +673,9 @@ struct FoDetect {
             for (keel::f64 v : win) ss += (v - m) * (v - m);
             center = m;
             scale = (win.size() >= 2)
-                        ? std::sqrt(ss / keel::f64(win.size() - 1)) : 0.0;
+                        ? keel::sqrt(ss / keel::f64(win.size() - 1)) : 0.0;
         }
-        mask[i] = (std::fabs(x[i] - center) > tf * scale) ? 1 : 0;
+        mask[i] = (keel::abs(x[i] - center) > tf * scale) ? 1 : 0;
     }
     return mask;
 }
@@ -693,21 +690,21 @@ struct FoDetect {
 {
     FoDetect r;
     r.mask.assign(n, 0);
-    r.center = std::numeric_limits<keel::f64>::quiet_NaN();
-    r.lo = -std::numeric_limits<keel::f64>::infinity();
-    r.hi =  std::numeric_limits<keel::f64>::infinity();
+    r.center = keel::Limits<keel::f64>::quiet_nan();
+    r.lo = -keel::Limits<keel::f64>::infinity();
+    r.hi =  keel::Limits<keel::f64>::infinity();
     if (n == 0) return r;
     keel::Array<keel::f64> buf;
     buf.reserve(n);
     for (keel::usize i = 0; i < n; ++i)
-        if (!std::isnan(x[i])) buf.push_back(x[i]);
+        if (!keel::is_nan(x[i])) buf.push_back(x[i]);
     if (buf.empty()) return r;
     std::sort(buf.begin(), buf.end());
     auto prc = [&](keel::f64 p) {
         const keel::f64 q = p / 100.0 * keel::f64(buf.size()) - 0.5;
         if (q <= 0.0) return buf.front();
         if (q >= keel::f64(buf.size() - 1)) return buf.back();
-        const keel::usize f = keel::as<keel::usize>(std::floor(q));
+        const keel::usize f = keel::as<keel::usize>(keel::floor(q));
         const keel::f64 fr = q - keel::f64(f);
         return buf[f] + fr * (buf[f + 1] - buf[f]);
     };
@@ -715,7 +712,7 @@ struct FoDetect {
     r.hi = prc(hiP);
     r.center = 0.5 * (r.lo + r.hi);
     for (keel::usize i = 0; i < n; ++i)
-        r.mask[i] = (std::isnan(x[i]) ? 0
+        r.mask[i] = (keel::is_nan(x[i]) ? 0
                   : ((x[i] < r.lo || x[i] > r.hi) ? 1 : 0));
     return r;
 }
@@ -747,7 +744,7 @@ struct FoDetect {
     // the fillmissing per-column path, then restore non-outlier
     // values unchanged.
     keel::Array<keel::f64> work(keel::ArrayRef<keel::f64>(p, n));
-    for (keel::usize i = 0; i < n; ++i) if (mask[i]) work[i] = std::numeric_limits<keel::f64>::quiet_NaN();
+    for (keel::usize i = 0; i < n; ++i) if (mask[i]) work[i] = keel::Limits<keel::f64>::quiet_nan();
     fill_one_column(work.data(), n, fill, 0.0);  // constVal unused
     for (keel::usize i = 0; i < n; ++i)
         if (mask[i]) p[i] = work[i];
@@ -763,7 +760,7 @@ void fill_one_column(keel::f64 *p, keel::usize len, keel::StringRef method,
                      keel::Allocator *mr)
 {
     if (len == 0) return;
-    auto is_nan = [&](keel::usize i) { return std::isnan(p[i]); };
+    auto is_nan = [&](keel::usize i) { return keel::is_nan(p[i]); };
     auto s_at = [&](keel::usize i) {
         return s ? s[i] : keel::as<keel::f64>(i + 1);
     };
@@ -774,7 +771,7 @@ void fill_one_column(keel::f64 *p, keel::usize len, keel::StringRef method,
         return;
     }
     if (method == "previous") {
-        keel::f64 last_good = std::numeric_limits<keel::f64>::quiet_NaN();
+        keel::f64 last_good = keel::Limits<keel::f64>::quiet_nan();
         bool have = false;
         for (keel::usize i = 0; i < len; ++i) {
             if (!is_nan(i)) { last_good = p[i]; have = true; }
@@ -783,7 +780,7 @@ void fill_one_column(keel::f64 *p, keel::usize len, keel::StringRef method,
         return;
     }
     if (method == "next") {
-        keel::f64 next_good = std::numeric_limits<keel::f64>::quiet_NaN();
+        keel::f64 next_good = keel::Limits<keel::f64>::quiet_nan();
         bool have = false;
         for (keel::usize ii = len; ii-- > 0;) {
             if (!is_nan(ii)) { next_good = p[ii]; have = true; }
@@ -906,7 +903,7 @@ enum class FmEndMode { Extrap, None, Const, Nearest, PrevEnd, NextEnd };
     keel::usize first = 0, last = 0;
     bool any = false;
     for (keel::usize i = 0; i < len; ++i) {
-        if (!std::isnan(orig[i])) {
+        if (!keel::is_nan(orig[i])) {
             if (!any) { first = i; any = true; }
             last = i;
         }
@@ -914,26 +911,26 @@ enum class FmEndMode { Extrap, None, Const, Nearest, PrevEnd, NextEnd };
     auto set_end = [&](keel::usize i, bool leading) {
         switch (mode) {
         case FmEndMode::None:
-            out[i] = std::numeric_limits<keel::f64>::quiet_NaN();
+            out[i] = keel::Limits<keel::f64>::quiet_nan();
             break;
         case FmEndMode::Const:
             out[i] = endVal;
             break;
         case FmEndMode::Nearest:
             out[i] = any ? ((i < first) ? orig[first] : orig[last])
-                         : std::numeric_limits<keel::f64>::quiet_NaN();
+                         : keel::Limits<keel::f64>::quiet_nan();
             break;
         case FmEndMode::PrevEnd:
             // 'previous' can only supply the trailing edge.
-            out[i] = leading ? std::numeric_limits<keel::f64>::quiet_NaN()
+            out[i] = leading ? keel::Limits<keel::f64>::quiet_nan()
                              : (any ? orig[last]
-                                    : std::numeric_limits<keel::f64>::quiet_NaN());
+                                    : keel::Limits<keel::f64>::quiet_nan());
             break;
         case FmEndMode::NextEnd:
             // 'next' can only supply the leading edge.
             out[i] = leading ? (any ? orig[first]
-                                    : std::numeric_limits<keel::f64>::quiet_NaN())
-                             : std::numeric_limits<keel::f64>::quiet_NaN();
+                                    : keel::Limits<keel::f64>::quiet_nan())
+                             : keel::Limits<keel::f64>::quiet_nan();
             break;
         default:
             break;
@@ -967,13 +964,13 @@ enum class KsKernel { Normal, Box, Triangle, Epanechnikov };
 inline keel::f64 ks_pdf(keel::f64 u, KsKernel k) {
     switch (k) {
         case KsKernel::Normal:
-            return keel::kInvSqrt2Pi * std::exp(-0.5 * u * u);
+            return keel::kInvSqrt2Pi * keel::exp(-0.5 * u * u);
         case KsKernel::Box:
-            return (std::fabs(u) <= 1.0) ? 0.5 : 0.0;
+            return (keel::abs(u) <= 1.0) ? 0.5 : 0.0;
         case KsKernel::Triangle:
-            return (std::fabs(u) <= 1.0) ? (1.0 - std::fabs(u)) : 0.0;
+            return (keel::abs(u) <= 1.0) ? (1.0 - keel::abs(u)) : 0.0;
         case KsKernel::Epanechnikov:
-            return (std::fabs(u) <= 1.0) ? (0.75 * (1.0 - u * u)) : 0.0;
+            return (keel::abs(u) <= 1.0) ? (0.75 * (1.0 - u * u)) : 0.0;
     }
     return 0.0;
 }
@@ -989,16 +986,16 @@ inline keel::f64 ks_pdf(keel::f64 u, KsKernel k) {
 inline keel::f64 ks_h_factor(KsKernel k) {
     switch (k) {
         case KsKernel::Normal:       return 1.0;
-        case KsKernel::Box:          return std::sqrt(3.0);
-        case KsKernel::Triangle:     return std::sqrt(6.0);
-        case KsKernel::Epanechnikov: return std::sqrt(5.0);
+        case KsKernel::Box:          return keel::sqrt(3.0);
+        case KsKernel::Triangle:     return keel::sqrt(6.0);
+        case KsKernel::Epanechnikov: return keel::sqrt(5.0);
     }
     return 1.0;
 }
 inline keel::f64 ks_cdf(keel::f64 u, KsKernel k) {
     switch (k) {
         case KsKernel::Normal:
-            return 0.5 * (1.0 + std::erf(u / std::sqrt(2.0)));
+            return 0.5 * (1.0 + keel::erf(u / keel::sqrt(2.0)));
         case KsKernel::Box:
             if (u <= -1.0) return 0.0;
             if (u >=  1.0) return 1.0;
@@ -1019,7 +1016,7 @@ inline keel::f64 ks_cdf(keel::f64 u, KsKernel k) {
 namespace {
 
 inline bool finite_double(keel::f64 v) {
-    return !std::isnan(v) && !std::isinf(v);
+    return !keel::is_nan(v) && !keel::is_inf(v);
 }
 
 // Flatten + filter helper. `srcs` give pointer/numel pairs (already

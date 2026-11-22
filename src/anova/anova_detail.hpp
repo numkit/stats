@@ -4,17 +4,15 @@
 #pragma once
 
 #include <keel/array.h>
+#include <keel/math.h>
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
-#include <limits>
 #include <numeric>
 #include <tuple>
 #include <utility>
@@ -42,7 +40,7 @@ keel::Array<Group> bucket(const Value &y, const Value &group)
     for (keel::usize i = 0; i < N; ++i) {
         const keel::f64 yi = y.elemAsDouble(i);
         const keel::f64 li = group.elemAsDouble(i);
-        if (std::isnan(yi) || std::isnan(li)) continue;
+        if (keel::is_nan(yi) || keel::is_nan(li)) continue;
         bool found = false;
         for (auto &gg : g) if (gg.label == li) { gg.values.push_back(yi); found = true; break; }
         if (!found) {

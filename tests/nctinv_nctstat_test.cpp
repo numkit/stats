@@ -3,6 +3,7 @@
 // Regression guard for nctinv + nctstat.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <gtest/gtest.h>
 
 #include <cmath>
@@ -38,14 +39,14 @@ TEST_F(NctInvStatTest, NctstatNuEqualsTwoVarianceIsNaN)
 {
     eval("[m, v] = nctstat(2, 1.0);");
     // For ν = 2 the variance is undefined.
-    EXPECT_TRUE(std::isnan(evalScalar("v")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("v")));
 }
 
 TEST_F(NctInvStatTest, NctstatNuLessThanOneIsNaN)
 {
     eval("[m, v] = nctstat(0.5, 1.0);");
-    EXPECT_TRUE(std::isnan(evalScalar("m")));
-    EXPECT_TRUE(std::isnan(evalScalar("v")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("m")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("v")));
 }
 
 // ── nctinv ──────────────────────────────────────────────────────────
@@ -71,13 +72,13 @@ TEST_F(NctInvStatTest, NctinvRoundTrip)
 
 TEST_F(NctInvStatTest, NctinvBoundaryP0)
 {
-    EXPECT_TRUE(std::isinf(evalScalar("nctinv(0, 10, 2)")));
+    EXPECT_TRUE(keel::is_inf(evalScalar("nctinv(0, 10, 2)")));
     EXPECT_LT(evalScalar("nctinv(0, 10, 2)"), 0.0);
 }
 
 TEST_F(NctInvStatTest, NctinvBoundaryP1)
 {
-    EXPECT_TRUE(std::isinf(evalScalar("nctinv(1, 10, 2)")));
+    EXPECT_TRUE(keel::is_inf(evalScalar("nctinv(1, 10, 2)")));
     EXPECT_GT(evalScalar("nctinv(1, 10, 2)"), 0.0);
 }
 

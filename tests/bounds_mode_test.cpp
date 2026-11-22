@@ -2,6 +2,7 @@
 // — 'all' / vecdim dispatch.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 #include <cmath>
@@ -56,15 +57,15 @@ TEST_F(BoundsModeTest, ModeAllMatrix)
 // F=[0 0 0]; mode(zeros(3,0))=1x0. DEEP-PROBE 2026-05-29.
 TEST_F(BoundsModeTest, ModeEmptyIsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("mode([])")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("mode([])")));
     EXPECT_DOUBLE_EQ(evalScalar("numel(mode([]))"), 1.0);
     eval("c = mode(zeros(0,3));");
     EXPECT_DOUBLE_EQ(evalScalar("numel(c)"), 3.0);
-    EXPECT_TRUE(std::isnan(evalScalar("c(1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("c(1)")));
     // 2nd output (count F) is 0-shaped, not NaN.
     eval("function [m,f] = md2(v)\n  [m,f] = mode(v);\nend");
     eval("[me, fe] = md2([]);");
-    EXPECT_TRUE(std::isnan(evalScalar("me")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("me")));
     EXPECT_DOUBLE_EQ(evalScalar("fe"), 0.0);
     eval("[mc, fc] = md2(zeros(0,3));");
     EXPECT_DOUBLE_EQ(evalScalar("fc(2)"), 0.0);

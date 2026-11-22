@@ -3,6 +3,7 @@
 // Regression guard for partialcorr.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <gtest/gtest.h>
 
 #include <cmath>
@@ -56,8 +57,8 @@ TEST_F(PartialCorrTest, PartialcorrControlsForConfounder)
     // partial should be smaller than naive (residuals after regressing
     // out z still have some structure since hand-picked noise isn't
     // truly random, but the trend is removed).
-    EXPECT_LT(std::fabs(evalScalar("p_part")),
-              std::fabs(evalScalar("p_naive(1, 2)")));
+    EXPECT_LT(keel::abs(evalScalar("p_part")),
+              keel::abs(evalScalar("p_naive(1, 2)")));
 }
 
 // ── partialcorr(X) — 1-arg form (cycle 85) ──────────────────────────
@@ -159,7 +160,7 @@ TEST_F(PartialCorrTest, RowsCompleteListwise)
     EXPECT_NEAR(evalScalar("Rc(1,3)"),  0.040291148201269, 1e-9);
     EXPECT_NEAR(evalScalar("Rc(2,3)"), -0.046205274725598, 1e-9);
     // 'all' (default) still NaN-poisons.
-    EXPECT_TRUE(std::isnan(evalScalar("Ra = partialcorr(Xn); Ra(1,2)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("Ra = partialcorr(Xn); Ra(1,2)")));
     // 'pairwise' in the combinedXZ form (single positional matrix) equals
     // 'complete': every column is a control for every pair, so row removal
     // is necessarily listwise (reference behavior, probe71b P15).

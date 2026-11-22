@@ -14,6 +14,7 @@
 // NaN, matching MATLAB R2025b.
 
 #include <keel/array.h>
+#include <keel/math.h>
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <numkit/stats/descriptive/descriptive.hpp>
@@ -21,8 +22,6 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
-#include <cmath>
-#include <limits>
 
 namespace numkit::stats {
 
@@ -54,7 +53,7 @@ corrcov(const Value &C, keel::Allocator *mr)
             throw Error("corrcov: negative variance on diagonal",
                         0, 0, "corrcov", "",
                         "numkit:corrcov:NegativeVar");
-        sigma[i] = std::sqrt(v);
+        sigma[i] = keel::sqrt(v);
     }
 
     Value Rv = Value::matrix(R, R, ValueType::DOUBLE, mr);
@@ -64,7 +63,7 @@ corrcov(const Value &C, keel::Allocator *mr)
             const keel::f64 cij = C.elemAsDouble(i + j * R);
             const keel::f64 denom = sigma[i] * sigma[j];
             o[i + j * R] = (denom == 0.0)
-                               ? std::numeric_limits<keel::f64>::quiet_NaN()
+                               ? keel::Limits<keel::f64>::quiet_nan()
                                : cij / denom;
         }
     }

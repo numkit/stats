@@ -12,11 +12,8 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
-#include <limits>
 #include <numeric>
 #include <tuple>
 #include <utility>
@@ -45,7 +42,7 @@ inline keel::f64 sq_dist(const keel::f64 *a, const keel::f64 *b, keel::usize D) 
     const keel::usize i0 = keel::random::uniform_usize(gen, 0, N - 1);
     std::copy(X.begin() + i0 * D, X.begin() + (i0 + 1) * D, C.begin());
 
-    keel::Array<keel::f64> dist(N, std::numeric_limits<keel::f64>::infinity(),
+    keel::Array<keel::f64> dist(N, keel::Limits<keel::f64>::infinity(),
                             scratch_mr);
     for (keel::i32 k = 1; k < K; ++k) {
         // Update each point's nearest-centroid distance against the new
@@ -115,7 +112,7 @@ struct LloydResult {
         for (keel::usize i = 0; i < N; ++i) {
             const keel::f64 *xi = &X[i * D];
             keel::i32 best = 0;
-            keel::f64 bd = std::numeric_limits<keel::f64>::infinity();
+            keel::f64 bd = keel::Limits<keel::f64>::infinity();
             for (keel::i32 k = 0; k < K; ++k) {
                 const keel::f64 d = sq_dist(xi, &res.C[(keel::usize)k * D], D);
                 if (d < bd) { bd = d; best = k; }

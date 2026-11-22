@@ -2,6 +2,7 @@
 // mahal.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -61,8 +62,8 @@ TEST_F(MahalTest, ThreeDimensional)
 TEST_F(MahalTest, RankDeficientNoThrow)
 {
     EXPECT_NO_THROW(eval("m1 = mahal([1 1; 2 2], [0 0; 1 1; 2 2; 3 3]);"));
-    EXPECT_TRUE(std::isfinite(evalScalar("m1(1)")));
-    EXPECT_TRUE(std::isfinite(evalScalar("m1(2)")));
+    EXPECT_TRUE(keel::is_finite(evalScalar("m1(1)")));
+    EXPECT_TRUE(keel::is_finite(evalScalar("m1(2)")));
     eval("m2 = mahal([1 1; 2 2], [0 0; 1 0; 0 1; 2 2; 1 3]);");
     EXPECT_NEAR(evalScalar("m2(1)"), 0.157746, 1e-6);
     EXPECT_NEAR(evalScalar("m2(2)"), 2.073239, 1e-6);

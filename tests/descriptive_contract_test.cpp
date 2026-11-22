@@ -6,6 +6,7 @@
 // corrcoef name-value strictness, nan* 'all' flag and single contagion.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <gtest/gtest.h>
 
 using namespace numkit;
@@ -60,7 +61,7 @@ TEST_F(DescriptiveContractTest, MedianClassAndFlags)
     EXPECT_NEAR(evalScalar("median([1 NaN 3], 'omitnan')"), 2.0, 1e-12);
     // unknown option rejects with the reference's unknownOption class
     EXPECT_TRUE(throwsWith("median([1 2 3], 'type')", "numkit:median:unknownOption"));
-    EXPECT_TRUE(std::isnan(evalScalar("median([])")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("median([])")));
     EXPECT_NEAR(evalScalar("median('ab')"), 97.5, 1e-12);
 }
 

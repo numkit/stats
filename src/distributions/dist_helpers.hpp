@@ -10,6 +10,7 @@
 #pragma once
 
 #include <keel/array.h>
+#include <keel/math.h>
 #include <keel/core.h>
 #include <keel/format.h>
 #include <keel/memory.h>
@@ -22,7 +23,6 @@
 #include <numkit/value/value.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <tuple>
 #include <utility>
 
@@ -56,7 +56,7 @@ inline void applyUpperInPlace(Value &y)
     const keel::usize n = y.numel();
     for (keel::usize i = 0; i < n; ++i) {
         const keel::f64 v = d[i];
-        if (!std::isnan(v)) d[i] = 1.0 - v;
+        if (!keel::is_nan(v)) d[i] = 1.0 - v;
     }
 }
 

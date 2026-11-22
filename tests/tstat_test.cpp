@@ -2,6 +2,7 @@
 // tstat.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -37,17 +38,17 @@ TEST_F(TstatTest, Nu2_VarianceUndefined)
 {
     eval("[m, v] = tstat(2);");
     EXPECT_DOUBLE_EQ(evalScalar("m"), 0.0);              // mean defined for nu>1
-    EXPECT_TRUE(std::isnan(evalScalar("v")));            // variance needs nu>2
+    EXPECT_TRUE(keel::is_nan(evalScalar("v")));            // variance needs nu>2
 }
 
 TEST_F(TstatTest, Nu1_MeanAlsoNaN)
 {
     // Cauchy distribution (t with nu=1) has no defined mean.
-    EXPECT_TRUE(std::isnan(evalScalar("tstat(1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("tstat(1)")));
 }
 
 TEST_F(TstatTest, InvalidNuReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("tstat(0)")));
-    EXPECT_TRUE(std::isnan(evalScalar("tstat(-1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("tstat(0)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("tstat(-1)")));
 }

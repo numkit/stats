@@ -6,6 +6,7 @@
 // Reference values from MATLAB R2025b probes.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -58,12 +59,12 @@ TEST_F(CdfUpperTest, BetacdfUpper)
 TEST_F(CdfUpperTest, GamcdfUpper)
 {
     // gamcdf(2, 1, 1) = 1 - exp(-2) ≈ 0.8647; upper = exp(-2) ≈ 0.1353
-    EXPECT_NEAR(evalScalar("gamcdf(2, 1, 1, 'upper')"), std::exp(-2.0), 1e-9);
+    EXPECT_NEAR(evalScalar("gamcdf(2, 1, 1, 'upper')"), keel::exp(-2.0), 1e-9);
 }
 
 TEST_F(CdfUpperTest, ExpcdfUpper)
 {
-    EXPECT_NEAR(evalScalar("expcdf(1, 1, 'upper')"), std::exp(-1.0), 1e-12);
+    EXPECT_NEAR(evalScalar("expcdf(1, 1, 'upper')"), keel::exp(-1.0), 1e-12);
 }
 
 // R2025b rejects the trailing 'upper' flag for raylcdf (2-arg signature,
@@ -81,7 +82,7 @@ TEST_F(CdfUpperTest, LogncdfUpper)
 
 TEST_F(CdfUpperTest, WblcdfUpper)
 {
-    EXPECT_NEAR(evalScalar("wblcdf(1, 1, 1, 'upper')"), std::exp(-1.0), 1e-12);
+    EXPECT_NEAR(evalScalar("wblcdf(1, 1, 1, 'upper')"), keel::exp(-1.0), 1e-12);
 }
 
 // R2025b rejects the trailing 'upper' flag for unifcdf (3-arg signature,

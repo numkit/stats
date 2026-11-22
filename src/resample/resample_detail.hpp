@@ -4,6 +4,7 @@
 #pragma once
 
 #include <keel/array.h>
+#include <keel/math.h>
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <keel/random.h>
@@ -15,11 +16,8 @@
 #include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
-#include <limits>
 #include <numeric>
 #include <tuple>
 #include <utility>
@@ -41,7 +39,7 @@ namespace {
         if (with_replacement) {
             for (keel::i32 i = 0; i < K; ++i) {
                 const keel::f64 u = rng.nextUniform();
-                keel::i32 idx = keel::as<keel::i32>(std::floor(u * keel::as<keel::f64>(N)));
+                keel::i32 idx = keel::as<keel::i32>(keel::floor(u * keel::as<keel::f64>(N)));
                 if (idx >= N) idx = N - 1;
                 out.push_back(idx);
             }

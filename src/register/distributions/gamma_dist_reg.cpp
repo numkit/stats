@@ -17,7 +17,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <tuple>
 #include <utility>
@@ -56,7 +55,7 @@ void gamcdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
         // (b<=0 → NaN), then gammainc broadcasts (xs, a) and gives NaN where
         // a<=0 — matching the scalar path's a<=0||b<=0 → NaN.
         Value xs = broadcast_dist2(a0[0], b, mr, "gamcdf", [](keel::f64 xi, keel::f64 bi) {
-            if (!(bi > 0.0)) return std::numeric_limits<keel::f64>::quiet_NaN();
+            if (!(bi > 0.0)) return keel::Limits<keel::f64>::quiet_nan();
             return (xi <= 0.0) ? 0.0 : xi / bi;
         });
         v = ::numkit::builtin::gammainc(xs, a, mr);
@@ -90,7 +89,7 @@ void gaminv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
     const Value &ref = (np == N) ? p : (na == N ? a : b);
     Value out = dist_empty_like(ref, mr);
     keel::f64 *od = out.doubleDataMut();
-    const keel::f64 NaN = std::numeric_limits<keel::f64>::quiet_NaN();
+    const keel::f64 NaN = keel::Limits<keel::f64>::quiet_nan();
     for (keel::usize i = 0; i < N; ++i) {
         const keel::f64 pi = p.elemAsDouble(np == 1 ? 0 : i);
         const keel::f64 ai = a.elemAsDouble(na == 1 ? 0 : i);

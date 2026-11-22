@@ -2,6 +2,7 @@
 // nbinstat.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -48,8 +49,8 @@ TEST_F(NbinstatTest, NonIntegerRIsValid)
 
 TEST_F(NbinstatTest, InvalidParamsReturnNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("nbinstat(5,  0)")));
-    EXPECT_TRUE(std::isnan(evalScalar("nbinstat(0,  0.5)")));
-    EXPECT_TRUE(std::isnan(evalScalar("nbinstat(-1, 0.5)")));
-    EXPECT_TRUE(std::isnan(evalScalar("nbinstat(5,  1.5)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("nbinstat(5,  0)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("nbinstat(0,  0.5)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("nbinstat(-1, 0.5)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("nbinstat(5,  1.5)")));
 }

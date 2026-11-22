@@ -2,6 +2,7 @@
 // poisstat.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -32,6 +33,6 @@ TEST_F(PoisstatTest, VectorInputs)
 
 TEST_F(PoisstatTest, InvalidLambdaReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("poisstat(0)")));   // degenerate
-    EXPECT_TRUE(std::isnan(evalScalar("poisstat(-1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("poisstat(0)")));   // degenerate
+    EXPECT_TRUE(keel::is_nan(evalScalar("poisstat(-1)")));
 }

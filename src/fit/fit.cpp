@@ -16,8 +16,6 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
-#include <limits>
 
 #include "fit_detail.hpp"
 
@@ -28,7 +26,7 @@ std::tuple<Value, Value, Value, Value>
 normfit(const Value &x, keel::f64 alpha, const Value &cens, const Value &freq, keel::Allocator *mr)
 {
     const keel::usize N = x.numel();
-    const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
+    const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
 
     // CI Values are MATLAB-style 2x1 column vectors (rowCI is misnamed
     // — preserved for compat with existing callers).
@@ -79,7 +77,7 @@ std::tuple<Value, Value>
 poissfit(const Value &x, keel::f64 alpha, keel::Allocator *mr)
 {
     const keel::usize N = x.numel();
-    const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
+    const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
     if (N == 0) return {Value::scalar(nan, mr), rowCI(nan, nan, mr)};
     keel::f64 S = 0.0;
     for (keel::usize i = 0; i < N; ++i) S += x.elemAsDouble(i);
@@ -95,7 +93,7 @@ std::tuple<Value, Value>
 expfit(const Value &x, keel::f64 alpha, const Value &cens, const Value &freq, keel::Allocator *mr)
 {
     const keel::usize N = x.numel();
-    const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
+    const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
     if (N == 0) return {Value::scalar(nan, mr), rowCI(nan, nan, mr)};
     // Validate optional vector lengths.
     if (!cens.isEmpty() && cens.numel() != N)
@@ -129,7 +127,7 @@ std::tuple<Value, Value, Value, Value>
 unifit(const Value &x, keel::f64 alpha, keel::Allocator *mr)
 {
     const keel::usize N = x.numel();
-    const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
+    const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
     if (N == 0) {
         return {Value::scalar(nan, mr), Value::scalar(nan, mr),
                 rowCI(nan, nan, mr), rowCI(nan, nan, mr)};
@@ -141,7 +139,7 @@ unifit(const Value &x, keel::f64 alpha, keel::Allocator *mr)
         if (v > mx) mx = v;
     }
     const keel::f64 range = mx - mn;
-    const keel::f64 delta = range * (std::pow(alpha, -1.0 / keel::f64(N)) - 1.0);
+    const keel::f64 delta = range * (keel::pow(alpha, -1.0 / keel::f64(N)) - 1.0);
     return {Value::scalar(mn, mr),
             Value::scalar(mx, mr),
             rowCI(mn - delta, mn, mr),
@@ -154,7 +152,7 @@ std::tuple<Value, Value>
 lognfit(const Value &x, keel::f64 alpha, const Value &cens, const Value &freq, keel::Allocator *mr)
 {
     const keel::usize N = x.numel();
-    const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
+    const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
     Value parm = Value::matrix(1, 2, ValueType::DOUBLE, mr);
     Value pci  = Value::matrix(2, 2, ValueType::DOUBLE, mr);
     keel::f64 *pd = parm.doubleDataMut();
@@ -178,7 +176,7 @@ lognfit(const Value &x, keel::f64 alpha, const Value &cens, const Value &freq, k
     for (keel::usize i = 0; i < N; ++i) {
         const keel::f64 xi = x.elemAsDouble(i);
         if (!(xi > 0.0)) return fail();
-        y[i] = std::log(xi);
+        y[i] = keel::log(xi);
         if (has_freq) fr[i] = freq.elemAsDouble(i);
         if (has_cens) cn[i] = cens.elemAsDouble(i) > 0.5 ? 1 : 0;
     }
@@ -226,7 +224,7 @@ binofit(const Value &x, const Value &n, keel::f64 alpha, keel::Allocator *mr)
         const keel::f64 k = x.elemAsDouble(i);
         const keel::f64 N = scalarN ? n.elemAsDouble(0) : n.elemAsDouble(i);
         if (!(N > 0.0)) {
-            const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
+            const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
             pd[i] = nan;
             cd[i]      = nan;
             cd[i + Nx] = nan;
@@ -256,7 +254,7 @@ std::tuple<Value, Value>
 raylfit(const Value &x, keel::f64 alpha, keel::Allocator *mr)
 {
     const keel::usize N = x.numel();
-    const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
+    const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
     if (N == 0)
         return {Value::scalar(nan, mr), rowCI(nan, nan, mr)};
     keel::f64 s2 = 0.0;
@@ -264,11 +262,11 @@ raylfit(const Value &x, keel::f64 alpha, keel::Allocator *mr)
         const keel::f64 xi = x.elemAsDouble(i);
         s2 += xi * xi;
     }
-    const keel::f64 sigma = std::sqrt(s2 / (2.0 * keel::f64(N)));
+    const keel::f64 sigma = keel::sqrt(s2 / (2.0 * keel::f64(N)));
     const keel::f64 chiU = chi2inv_scalar(1.0 - alpha / 2.0, 2.0 * keel::f64(N), mr);
     const keel::f64 chiL = chi2inv_scalar(alpha / 2.0, 2.0 * keel::f64(N), mr);
-    const keel::f64 lo = sigma * std::sqrt(2.0 * keel::f64(N) / chiU);
-    const keel::f64 hi = sigma * std::sqrt(2.0 * keel::f64(N) / chiL);
+    const keel::f64 lo = sigma * keel::sqrt(2.0 * keel::f64(N) / chiU);
+    const keel::f64 hi = sigma * keel::sqrt(2.0 * keel::f64(N) / chiL);
     return {Value::scalar(sigma, mr), rowCI(lo, hi, mr)};
 }
 
@@ -279,7 +277,7 @@ keel::f64 normlike(keel::f64 mu, keel::f64 sigma, const Value &x, const Value &c
 {
     const keel::usize N = x.numel();
     if (N == 0) return 0.0;
-    if (!(sigma > 0.0)) return std::numeric_limits<keel::f64>::quiet_NaN();
+    if (!(sigma > 0.0)) return keel::Limits<keel::f64>::quiet_nan();
     const bool useC = cens.numel() > 0;
     const bool useF = freq.numel() > 0;
     if (useC && cens.numel() != N)
@@ -291,22 +289,22 @@ keel::f64 normlike(keel::f64 mu, keel::f64 sigma, const Value &x, const Value &c
 
     const keel::f64 inv_s   = 1.0 / sigma;
     const keel::f64 inv_2s2 = 0.5 * inv_s * inv_s;
-    const keel::f64 logS    = std::log(sigma);
+    const keel::f64 logS    = keel::log(sigma);
     const keel::f64 halfLog2pi = 0.5 * kLog2Pi;
-    const keel::f64 sqrt2_inv  = 1.0 / std::sqrt(2.0);
+    const keel::f64 sqrt2_inv  = 1.0 / keel::sqrt(2.0);
     keel::f64 nL = 0.0;
     for (keel::usize i = 0; i < N; ++i) {
         const keel::f64 w = useF ? freq.elemAsDouble(i) : 1.0;
         if (w == 0.0) continue;                                  // MATLAB drops zero-freq rows
         const keel::f64 xi = x.elemAsDouble(i);
-        if (std::isnan(xi)) return std::numeric_limits<keel::f64>::quiet_NaN();
+        if (keel::is_nan(xi)) return keel::Limits<keel::f64>::quiet_nan();
         const keel::f64 d = xi - mu;
         const keel::f64 z = d * inv_s;
         const bool censored = useC && (cens.elemAsDouble(i) != 0.0);
         if (censored) {
             // -log(S(z)) = -log(0.5·erfc(z/sqrt(2)))
-            const keel::f64 s = 0.5 * std::erfc(z * sqrt2_inv);
-            nL += w * (-std::log(s));
+            const keel::f64 s = 0.5 * keel::erfc(z * sqrt2_inv);
+            nL += w * (-keel::log(s));
         } else {
             // -log(f(z)) = log(σ) + 0.5·log(2π) + 0.5·z²
             nL += w * (logS + halfLog2pi + d * d * inv_2s2);
@@ -321,10 +319,10 @@ keel::f64 explike(keel::f64 mu, const Value &x, keel::Allocator * /*mr*/)
     //               mu <= 0   ⇒ NaN.
     const keel::usize N = x.numel();
     if (N == 0) return 0.0;
-    if (mu <= 0.0) return std::numeric_limits<keel::f64>::quiet_NaN();
+    if (mu <= 0.0) return keel::Limits<keel::f64>::quiet_nan();
     keel::f64 sx = 0.0;
     for (keel::usize i = 0; i < N; ++i) sx += x.elemAsDouble(i);
-    return keel::f64(N) * std::log(mu) + sx / mu;
+    return keel::f64(N) * keel::log(mu) + sx / mu;
 }
 
 // Extended form for the adapter: cens + freq + scalar avar.
@@ -341,12 +339,12 @@ keel::f64 explike_full(keel::f64 mu, const Value &x,
 {
     const keel::usize N = x.numel();
     if (N == 0) {
-        if (avarOut) *avarOut = std::numeric_limits<keel::f64>::quiet_NaN();
+        if (avarOut) *avarOut = keel::Limits<keel::f64>::quiet_nan();
         return 0.0;
     }
     if (mu <= 0.0) {
-        if (avarOut) *avarOut = std::numeric_limits<keel::f64>::quiet_NaN();
-        return std::numeric_limits<keel::f64>::quiet_NaN();
+        if (avarOut) *avarOut = keel::Limits<keel::f64>::quiet_nan();
+        return keel::Limits<keel::f64>::quiet_nan();
     }
     const bool useC = cens.numel() > 0;
     const bool useF = freq.numel() > 0;
@@ -360,7 +358,7 @@ keel::f64 explike_full(keel::f64 mu, const Value &x,
     const keel::f64 inv_mu  = 1.0 / mu;
     const keel::f64 inv_mu2 = inv_mu * inv_mu;
     const keel::f64 inv_mu3 = inv_mu2 * inv_mu;
-    const keel::f64 logMu   = std::log(mu);
+    const keel::f64 logMu   = keel::log(mu);
 
     keel::f64 nL = 0.0, I = 0.0;
     bool any = false;
@@ -379,8 +377,8 @@ keel::f64 explike_full(keel::f64 mu, const Value &x,
         }
     }
     if (avarOut) {
-        if (!any || I == 0.0 || !std::isfinite(I))
-            *avarOut = std::numeric_limits<keel::f64>::quiet_NaN();
+        if (!any || I == 0.0 || !keel::is_finite(I))
+            *avarOut = keel::Limits<keel::f64>::quiet_nan();
         else
             *avarOut = 1.0 / I;
     }
@@ -393,17 +391,17 @@ keel::f64 lognlike(keel::f64 mu, keel::f64 sigma, const Value &x, keel::Allocato
     //   empty data ⇒ 0;  sigma <= 0 ⇒ NaN;  any x[i] <= 0 ⇒ NaN.
     const keel::usize N = x.numel();
     if (N == 0) return 0.0;
-    if (sigma <= 0.0) return std::numeric_limits<keel::f64>::quiet_NaN();
+    if (sigma <= 0.0) return keel::Limits<keel::f64>::quiet_nan();
     keel::f64 sumLogX = 0.0, ss = 0.0;
     for (keel::usize i = 0; i < N; ++i) {
         const keel::f64 xi = x.elemAsDouble(i);
-        if (xi <= 0.0) return std::numeric_limits<keel::f64>::quiet_NaN();
-        const keel::f64 lx = std::log(xi);
+        if (xi <= 0.0) return keel::Limits<keel::f64>::quiet_nan();
+        const keel::f64 lx = keel::log(xi);
         sumLogX += lx;
         const keel::f64 d = lx - mu;
         ss += d * d;
     }
-    return sumLogX + keel::f64(N) * std::log(sigma)
+    return sumLogX + keel::f64(N) * keel::log(sigma)
          + 0.5 * keel::f64(N) * kLog2Pi + ss / (2.0 * sigma * sigma);
 }
 
@@ -416,7 +414,7 @@ keel::f64 lognlike_full(keel::f64 mu, keel::f64 sigma, const Value &x,
                             const Value &cens, const Value &freq,
                             keel::f64 *avarOut)
 {
-    const keel::f64 NaNd = std::numeric_limits<keel::f64>::quiet_NaN();
+    const keel::f64 NaNd = keel::Limits<keel::f64>::quiet_nan();
     auto setAvarNaN = [&]() {
         if (avarOut) { for (keel::i32 i = 0; i < 4; ++i) avarOut[i] = NaNd; }
     };
@@ -437,9 +435,9 @@ keel::f64 lognlike_full(keel::f64 mu, keel::f64 sigma, const Value &x,
     const keel::f64 inv_s3  = inv_s2 * inv_s;
     const keel::f64 inv_s4  = inv_s2 * inv_s2;
     const keel::f64 inv_2s2 = 0.5 * inv_s2;
-    const keel::f64 logS    = std::log(sigma);
+    const keel::f64 logS    = keel::log(sigma);
     const keel::f64 halfL2pi = 0.5 * kLog2Pi;
-    const keel::f64 sqrt2_inv  = 1.0 / std::sqrt(2.0);
+    const keel::f64 sqrt2_inv  = 1.0 / keel::sqrt(2.0);
     const keel::f64 sqrt2pi_inv = keel::kInvSqrt2Pi;
 
     keel::f64 nL = 0.0;
@@ -451,7 +449,7 @@ keel::f64 lognlike_full(keel::f64 mu, keel::f64 sigma, const Value &x,
         const keel::f64 xi = x.elemAsDouble(i);
         if (xi <= 0.0) { setAvarNaN(); return NaNd; }
         any = true;
-        const keel::f64 lx = std::log(xi);
+        const keel::f64 lx = keel::log(xi);
         const keel::f64 d  = lx - mu;
         const keel::f64 z  = d * inv_s;
         const bool censored = useC && (cens.elemAsDouble(i) != 0.0);
@@ -468,9 +466,9 @@ keel::f64 lognlike_full(keel::f64 mu, keel::f64 sigma, const Value &x,
             //   I_σσ += w · (2 z h + z² h')/σ²
             //   I_μσ += w · (z h' + h)/σ²
             //   h = φ(z)/S(z), h' = h(h - z)
-            const keel::f64 S = 0.5 * std::erfc(z * sqrt2_inv);
-            nL += w * (-std::log(S));
-            const keel::f64 phi = sqrt2pi_inv * std::exp(-0.5 * z * z);
+            const keel::f64 S = 0.5 * keel::erfc(z * sqrt2_inv);
+            nL += w * (-keel::log(S));
+            const keel::f64 phi = sqrt2pi_inv * keel::exp(-0.5 * z * z);
             const keel::f64 h   = phi / S;
             const keel::f64 hp  = h * (h - z);
             I00 += w * hp * inv_s2;
@@ -483,7 +481,7 @@ keel::f64 lognlike_full(keel::f64 mu, keel::f64 sigma, const Value &x,
             setAvarNaN();
         } else {
             const keel::f64 det = I00 * I11 - I01 * I01;
-            if (det == 0.0 || !std::isfinite(det)) {
+            if (det == 0.0 || !keel::is_finite(det)) {
                 setAvarNaN();
             } else {
                 const keel::f64 inv = 1.0 / det;
@@ -500,35 +498,35 @@ keel::f64 lognlike_full(keel::f64 mu, keel::f64 sigma, const Value &x,
 keel::f64 gamlike(keel::f64 a, keel::f64 b, const Value &x, keel::Allocator * /*mr*/)
 {
     const keel::usize N = x.numel();
-    if (N == 0) return std::numeric_limits<keel::f64>::infinity();
+    if (N == 0) return keel::Limits<keel::f64>::infinity();
     if (a <= 0.0 || b <= 0.0)
-        return std::numeric_limits<keel::f64>::quiet_NaN();
+        return keel::Limits<keel::f64>::quiet_nan();
     keel::f64 sumLogX = 0.0, sx = 0.0;
     for (keel::usize i = 0; i < N; ++i) {
         const keel::f64 xi = x.elemAsDouble(i);
-        if (xi <= 0.0) return std::numeric_limits<keel::f64>::infinity();
-        sumLogX += std::log(xi);
+        if (xi <= 0.0) return keel::Limits<keel::f64>::infinity();
+        sumLogX += keel::log(xi);
         sx += xi;
     }
     return -(a - 1.0) * sumLogX + sx / b
-         + keel::f64(N) * a * std::log(b) + keel::f64(N) * std::lgamma(a);
+         + keel::f64(N) * a * keel::log(b) + keel::f64(N) * keel::lgamma(a);
 }
 
 keel::f64 betalike(keel::f64 a, keel::f64 b, const Value &x, keel::Allocator * /*mr*/)
 {
     const keel::usize N = x.numel();
-    if (N == 0) return std::numeric_limits<keel::f64>::infinity();
+    if (N == 0) return keel::Limits<keel::f64>::infinity();
     if (a <= 0.0 || b <= 0.0)
-        return std::numeric_limits<keel::f64>::quiet_NaN();
+        return keel::Limits<keel::f64>::quiet_nan();
     keel::f64 sumLog = 0.0, sumLog1m = 0.0;
     for (keel::usize i = 0; i < N; ++i) {
         const keel::f64 xi = x.elemAsDouble(i);
         if (xi <= 0.0 || xi >= 1.0)
-            return std::numeric_limits<keel::f64>::quiet_NaN();
-        sumLog   += std::log(xi);
-        sumLog1m += std::log1p(-xi);
+            return keel::Limits<keel::f64>::quiet_nan();
+        sumLog   += keel::log(xi);
+        sumLog1m += keel::log1p(-xi);
     }
-    const keel::f64 logBeta = std::lgamma(a) + std::lgamma(b) - std::lgamma(a + b);
+    const keel::f64 logBeta = keel::lgamma(a) + keel::lgamma(b) - keel::lgamma(a + b);
     return -(a - 1.0) * sumLog - (b - 1.0) * sumLog1m + keel::f64(N) * logBeta;
 }
 
@@ -537,15 +535,15 @@ keel::f64 wbllike(keel::f64 scale, keel::f64 shape, const Value &x, keel::Alloca
     const keel::usize N = x.numel();
     if (N == 0) return 0.0;
     if (!(scale > 0.0) || !(shape > 0.0))
-        return std::numeric_limits<keel::f64>::quiet_NaN();
+        return keel::Limits<keel::f64>::quiet_nan();
     keel::f64 sumLogX = 0.0, sumPow = 0.0;
     for (keel::usize i = 0; i < N; ++i) {
         const keel::f64 xi = x.elemAsDouble(i);
-        if (xi <= 0.0) return std::numeric_limits<keel::f64>::quiet_NaN();
-        sumLogX += std::log(xi);
-        sumPow  += std::pow(xi / scale, shape);
+        if (xi <= 0.0) return keel::Limits<keel::f64>::quiet_nan();
+        sumLogX += keel::log(xi);
+        sumPow  += keel::pow(xi / scale, shape);
     }
-    return -keel::f64(N) * std::log(shape) + keel::f64(N) * shape * std::log(scale)
+    return -keel::f64(N) * keel::log(shape) + keel::f64(N) * shape * keel::log(scale)
          - (shape - 1.0) * sumLogX + sumPow;
 }
 
@@ -559,7 +557,7 @@ keel::f64 wbllike_full(keel::f64 scale, keel::f64 shape, const Value &x, const V
     const keel::usize N = x.numel();
     if (N == 0) return 0.0;
     if (!(scale > 0.0) || !(shape > 0.0))
-        return std::numeric_limits<keel::f64>::quiet_NaN();
+        return keel::Limits<keel::f64>::quiet_nan();
     const bool useC = cens.numel() > 0;
     const bool useF = freq.numel() > 0;
     if (useC && cens.numel() != N)
@@ -568,18 +566,18 @@ keel::f64 wbllike_full(keel::f64 scale, keel::f64 shape, const Value &x, const V
     if (useF && freq.numel() != N)
         throw Error("wbllike: freq must match the data length",
                     0, 0, "wbllike", "", "numkit:wbllike:freq");
-    const keel::f64 logA = std::log(scale);
-    const keel::f64 logK = std::log(shape);
+    const keel::f64 logA = keel::log(scale);
+    const keel::f64 logK = keel::log(shape);
     keel::f64 nL = 0.0;
     for (keel::usize i = 0; i < N; ++i) {
         const keel::f64 w = useF ? freq.elemAsDouble(i) : 1.0;
         if (w == 0.0) continue;
         const keel::f64 xi = x.elemAsDouble(i);
-        if (!(xi > 0.0)) return std::numeric_limits<keel::f64>::quiet_NaN();
-        const keel::f64 pow_term = std::pow(xi / scale, shape);
+        if (!(xi > 0.0)) return keel::Limits<keel::f64>::quiet_nan();
+        const keel::f64 pow_term = keel::pow(xi / scale, shape);
         const bool censored = useC && (cens.elemAsDouble(i) != 0.0);
         if (censored) nL += w * pow_term;
-        else          nL += w * (-logK + shape * logA - (shape - 1.0) * std::log(xi) + pow_term);
+        else          nL += w * (-logK + shape * logA - (shape - 1.0) * keel::log(xi) + pow_term);
     }
     return nL;
 }
@@ -588,14 +586,14 @@ keel::f64 evlike(keel::f64 mu, keel::f64 sigma, const Value &x, keel::Allocator 
 {
     const keel::usize N = x.numel();
     if (N == 0) return 0.0;                                  // matches MATLAB convention
-    if (!(sigma > 0.0)) return std::numeric_limits<keel::f64>::quiet_NaN();
+    if (!(sigma > 0.0)) return keel::Limits<keel::f64>::quiet_nan();
     keel::f64 sLin = 0.0, sExp = 0.0;
     for (keel::usize i = 0; i < N; ++i) {
         const keel::f64 t = (x.elemAsDouble(i) - mu) / sigma;
         sLin += t;
-        sExp += std::exp(t);
+        sExp += keel::exp(t);
     }
-    return keel::f64(N) * std::log(sigma) - sLin + sExp;
+    return keel::f64(N) * keel::log(sigma) - sLin + sExp;
 }
 
 // Extended form: cens + freq.
@@ -606,7 +604,7 @@ keel::f64 evlike_full(keel::f64 mu, keel::f64 sigma, const Value &x, const Value
 {
     const keel::usize N = x.numel();
     if (N == 0) return 0.0;
-    if (!(sigma > 0.0)) return std::numeric_limits<keel::f64>::quiet_NaN();
+    if (!(sigma > 0.0)) return keel::Limits<keel::f64>::quiet_nan();
     const bool useC = cens.numel() > 0;
     const bool useF = freq.numel() > 0;
     if (useC && cens.numel() != N)
@@ -616,15 +614,15 @@ keel::f64 evlike_full(keel::f64 mu, keel::f64 sigma, const Value &x, const Value
         throw Error("evlike: freq must match the data length",
                     0, 0, "evlike", "", "numkit:evlike:freq");
     const keel::f64 inv_s = 1.0 / sigma;
-    const keel::f64 logS  = std::log(sigma);
+    const keel::f64 logS  = keel::log(sigma);
     keel::f64 nL = 0.0;
     for (keel::usize i = 0; i < N; ++i) {
         const keel::f64 w = useF ? freq.elemAsDouble(i) : 1.0;
         if (w == 0.0) continue;
         const keel::f64 xi = x.elemAsDouble(i);
-        if (std::isnan(xi)) return std::numeric_limits<keel::f64>::quiet_NaN();
+        if (keel::is_nan(xi)) return keel::Limits<keel::f64>::quiet_nan();
         const keel::f64 z  = (xi - mu) * inv_s;
-        const keel::f64 ez = std::exp(z);
+        const keel::f64 ez = keel::exp(z);
         const bool censored = useC && (cens.elemAsDouble(i) != 0.0);
         if (censored)  nL += w * ez;                           // -log S(z)
         else           nL += w * (logS - z + ez);              // -log f(z)
@@ -635,26 +633,26 @@ keel::f64 evlike_full(keel::f64 mu, keel::f64 sigma, const Value &x, const Value
 keel::f64 gevlike(keel::f64 k, keel::f64 sigma, keel::f64 mu, const Value &x, keel::Allocator * /*mr*/)
 {
     const keel::usize N = x.numel();
-    if (N == 0) return std::numeric_limits<keel::f64>::infinity();
-    if (sigma <= 0.0) return std::numeric_limits<keel::f64>::quiet_NaN();
+    if (N == 0) return keel::Limits<keel::f64>::infinity();
+    if (sigma <= 0.0) return keel::Limits<keel::f64>::quiet_nan();
     if (k == 0.0) {
         keel::f64 sZ = 0.0, sExp = 0.0;
         for (keel::usize i = 0; i < N; ++i) {
             const keel::f64 z = (x.elemAsDouble(i) - mu) / sigma;
             sZ += z;
-            sExp += std::exp(-z);
+            sExp += keel::exp(-z);
         }
-        return keel::f64(N) * std::log(sigma) + sZ + sExp;
+        return keel::f64(N) * keel::log(sigma) + sZ + sExp;
     }
     keel::f64 sLogT = 0.0, sTinvk = 0.0;
     for (keel::usize i = 0; i < N; ++i) {
         const keel::f64 z = (x.elemAsDouble(i) - mu) / sigma;
         const keel::f64 t = 1.0 + k * z;
-        if (t <= 0.0) return std::numeric_limits<keel::f64>::quiet_NaN();
-        sLogT  += std::log(t);
-        sTinvk += std::pow(t, -1.0 / k);
+        if (t <= 0.0) return keel::Limits<keel::f64>::quiet_nan();
+        sLogT  += keel::log(t);
+        sTinvk += keel::pow(t, -1.0 / k);
     }
-    return keel::f64(N) * std::log(sigma) + (1.0 / k + 1.0) * sLogT + sTinvk;
+    return keel::f64(N) * keel::log(sigma) + (1.0 / k + 1.0) * sLogT + sTinvk;
 }
 
 keel::f64 gplike(keel::f64 k, keel::f64 sigma, const Value &x, keel::Allocator * /*mr*/)
@@ -668,22 +666,22 @@ keel::f64 gplike(keel::f64 k, keel::f64 sigma, const Value &x, keel::Allocator *
     //   sigma  < 0 → -Inf
     //   per-point support violation → +Inf (not NaN)
     const keel::usize N = x.numel();
-    if (N == 0) return std::numeric_limits<keel::f64>::infinity();
-    if (sigma == 0.0) return std::numeric_limits<keel::f64>::quiet_NaN();
-    if (sigma  < 0.0) return -std::numeric_limits<keel::f64>::infinity();
+    if (N == 0) return keel::Limits<keel::f64>::infinity();
+    if (sigma == 0.0) return keel::Limits<keel::f64>::quiet_nan();
+    if (sigma  < 0.0) return -keel::Limits<keel::f64>::infinity();
     if (k == 0.0) {
         keel::f64 sX = 0.0;
         for (keel::usize i = 0; i < N; ++i) sX += x.elemAsDouble(i);
-        return keel::f64(N) * std::log(sigma) + sX / sigma;
+        return keel::f64(N) * keel::log(sigma) + sX / sigma;
     }
     keel::f64 sLogT = 0.0;
     for (keel::usize i = 0; i < N; ++i) {
         const keel::f64 xi = x.elemAsDouble(i);
         const keel::f64 t = 1.0 + k * xi / sigma;
-        if (t <= 0.0) return std::numeric_limits<keel::f64>::infinity();
-        sLogT += std::log(t);
+        if (t <= 0.0) return keel::Limits<keel::f64>::infinity();
+        sLogT += keel::log(t);
     }
-    return keel::f64(N) * std::log(sigma) + (1.0 / k + 1.0) * sLogT;
+    return keel::f64(N) * keel::log(sigma) + (1.0 / k + 1.0) * sLogT;
 }
 
 } // namespace numkit::stats

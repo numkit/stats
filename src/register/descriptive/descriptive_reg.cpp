@@ -4,6 +4,7 @@
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
 #include <keel/core.h>
+#include <keel/math.h>
 #include <keel/memory.h>
 #include <keel/ref.h>
 #include <keel/arena.h>
@@ -28,7 +29,6 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <tuple>
 #include <utility>
@@ -47,55 +47,55 @@ namespace detail {
 keel::f64 weightedVarFlat(const keel::f64 *x, const keel::f64 *w, keel::usize n,
                        bool sqrtIt, bool omitNan)
 {
-    if (n == 0) return std::numeric_limits<keel::f64>::quiet_NaN();
+    if (n == 0) return keel::Limits<keel::f64>::quiet_nan();
     keel::f64 sw = 0.0, sxw = 0.0;
     for (keel::usize i = 0; i < n; ++i) {
         const keel::f64 xi = x[i], wi = w[i];
-        if (omitNan && std::isnan(xi)) continue;
+        if (omitNan && keel::is_nan(xi)) continue;
         if (wi < 0.0)
             throw Error("var/std: weights must be non-negative",
                         0, 0, "var/std", "", "numkit:varstd:negWeight");
         sw  += wi;
         sxw += wi * xi;
     }
-    if (sw == 0.0) return std::numeric_limits<keel::f64>::quiet_NaN();
+    if (sw == 0.0) return keel::Limits<keel::f64>::quiet_nan();
     const keel::f64 mean = sxw / sw;
     keel::f64 ss = 0.0;
     for (keel::usize i = 0; i < n; ++i) {
         const keel::f64 xi = x[i], wi = w[i];
-        if (omitNan && std::isnan(xi)) continue;
+        if (omitNan && keel::is_nan(xi)) continue;
         const keel::f64 d = xi - mean;
         ss += wi * d * d;
     }
     const keel::f64 v = ss / sw;
-    return sqrtIt ? std::sqrt(v) : v;
+    return sqrtIt ? keel::sqrt(v) : v;
 }
 
 // Helper: scalar-normFlag variance/std on a flat 1-D array.
 keel::f64 scalarVarFlat(const keel::f64 *x, keel::usize n, keel::i32 normFlag,
                      bool sqrtIt, bool omitNan)
 {
-    if (n == 0) return std::numeric_limits<keel::f64>::quiet_NaN();
+    if (n == 0) return keel::Limits<keel::f64>::quiet_nan();
     keel::f64 s = 0.0;
     keel::usize cnt = 0;
     for (keel::usize i = 0; i < n; ++i) {
-        if (omitNan && std::isnan(x[i])) continue;
+        if (omitNan && keel::is_nan(x[i])) continue;
         s += x[i]; ++cnt;
     }
-    if (cnt == 0) return std::numeric_limits<keel::f64>::quiet_NaN();
+    if (cnt == 0) return keel::Limits<keel::f64>::quiet_nan();
     if (cnt == 1) return (normFlag == 1) ? 0.0
-                                         : std::numeric_limits<keel::f64>::quiet_NaN();
+                                         : keel::Limits<keel::f64>::quiet_nan();
     const keel::f64 mean = s / keel::as<keel::f64>(cnt);
     keel::f64 ss = 0.0;
     for (keel::usize i = 0; i < n; ++i) {
-        if (omitNan && std::isnan(x[i])) continue;
+        if (omitNan && keel::is_nan(x[i])) continue;
         const keel::f64 d = x[i] - mean;
         ss += d * d;
     }
     const keel::f64 denom = (normFlag == 1) ? keel::as<keel::f64>(cnt)
                                          : keel::as<keel::f64>(cnt - 1);
     const keel::f64 v = ss / denom;
-    return sqrtIt ? std::sqrt(v) : v;
+    return sqrtIt ? keel::sqrt(v) : v;
 }
 
 // Convert a Value to a flat row (used for 'all' / vecdim full-flatten /
@@ -581,7 +581,7 @@ Value computeModeCell(const Value &x, keel::i32 dim, bool flatten,
         v.reserve(n);
         for (keel::usize k = 0; k < n; ++k) {
             const keel::f64 d = s[k * stride];
-            if (!std::isnan(d)) v.push_back(d);
+            if (!keel::is_nan(d)) v.push_back(d);
         }
         std::sort(v.begin(), v.end());
         const keel::usize N = v.size();
@@ -844,7 +844,7 @@ void corrcoef_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArra
         if (isVec) {
             const keel::usize nValid = countCompleteRows(M);
             Value rMat = Value::matrix(1, 1, ValueType::DOUBLE, mr);
-            rMat.doubleDataMut()[0] = (nValid <= 1) ? std::nan("") : 1.0;
+            rMat.doubleDataMut()[0] = (nValid <= 1) ? keel::kNaN : 1.0;
             outs[0] = rMat;
             if (nargout >= 2) outs[1] = rMat;
             if (nargout >= 3) {
@@ -873,7 +873,7 @@ void corrcoef_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArra
     if (isVec) {
         const keel::usize nValid = countCompleteRows(M);
         Value rMat = Value::matrix(1, 1, ValueType::DOUBLE, mr);
-        rMat.doubleDataMut()[0] = (nValid <= 1) ? std::nan("") : 1.0;
+        rMat.doubleDataMut()[0] = (nValid <= 1) ? keel::kNaN : 1.0;
         outs[0] = rMat;
         if (nargout >= 2) outs[1] = rMat;
         if (nargout >= 3) {

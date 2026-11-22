@@ -2,6 +2,7 @@
 // ksdensity.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 #include <cmath>
@@ -108,10 +109,10 @@ TEST_F(KsdensityTest, IcdfRoundTrip)
 TEST_F(KsdensityTest, IcdfBoundaries)
 {
     eval("e = ksdensity(x, [0 1 -0.1 1.1], 'Function', 'icdf');");
-    EXPECT_TRUE(std::isinf(evalScalar("e(1)")) && evalScalar("e(1)") < 0.0); // p=0  -> -Inf
-    EXPECT_TRUE(std::isinf(evalScalar("e(2)")) && evalScalar("e(2)") > 0.0); // p=1  -> +Inf
-    EXPECT_TRUE(std::isnan(evalScalar("e(3)")));                             // p<0  -> NaN
-    EXPECT_TRUE(std::isnan(evalScalar("e(4)")));                             // p>1  -> NaN
+    EXPECT_TRUE(keel::is_inf(evalScalar("e(1)")) && evalScalar("e(1)") < 0.0); // p=0  -> -Inf
+    EXPECT_TRUE(keel::is_inf(evalScalar("e(2)")) && evalScalar("e(2)") > 0.0); // p=1  -> +Inf
+    EXPECT_TRUE(keel::is_nan(evalScalar("e(3)")));                             // p<0  -> NaN
+    EXPECT_TRUE(keel::is_nan(evalScalar("e(4)")));                             // p>1  -> NaN
 }
 
 // gap closure: Censoring rejected with clear error.

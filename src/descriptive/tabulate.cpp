@@ -21,6 +21,7 @@
 // Empty input -> 0-by-1 matrix (matches MATLAB).
 
 #include <keel/array.h>
+#include <keel/math.h>
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <keel/string.h>
@@ -30,7 +31,6 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
 
 namespace numkit::stats {
 
@@ -120,8 +120,8 @@ Value tabulate(const Value &x, keel::Allocator *mr)
     keel::f64 max_val = 0.0;
     for (keel::usize i = 0; i < N0; ++i) {
         const keel::f64 xi = x.elemAsDouble(i);
-        if (std::isnan(xi)) continue;
-        if (xi <= 0.0 || std::floor(xi) != xi)
+        if (keel::is_nan(xi)) continue;
+        if (xi <= 0.0 || keel::floor(xi) != xi)
             all_pos_int = false;
         else if (xi > max_val)
             max_val = xi;

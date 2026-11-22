@@ -2,6 +2,7 @@
 // raylstat.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -33,6 +34,6 @@ TEST_F(RaylstatTest, VectorInputs)
 
 TEST_F(RaylstatTest, InvalidBReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("raylstat(0)")));
-    EXPECT_TRUE(std::isnan(evalScalar("raylstat(-1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("raylstat(0)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("raylstat(-1)")));
 }

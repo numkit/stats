@@ -4,6 +4,7 @@
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
 #include <keel/core.h>
+#include <keel/math.h>
 #include <keel/ref.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/builtin/datafun.hpp>
@@ -17,7 +18,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <tuple>
 #include <utility>
@@ -59,22 +59,22 @@ void tcdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArra
         } else {
             const keel::usize N = dist_match_numel({nx, nnu}, "tcdf");
             Value z = broadcast_dist2(x, nu, mr, "tcdf", [](keel::f64 xi, keel::f64 nui) -> keel::f64 {
-                if (!(nui > 0.0)) return std::numeric_limits<keel::f64>::quiet_NaN();
-                if (std::isinf(nui)) return 1.0;   // placeholder (overridden below)
+                if (!(nui > 0.0)) return keel::Limits<keel::f64>::quiet_nan();
+                if (keel::is_inf(nui)) return 1.0;   // placeholder (overridden below)
                 return nui / (nui + xi * xi);
             });
-            Value hnu = elementwise(nu, [](keel::f64 ni) { return std::isinf(ni) ? 1.0 : 0.5 * ni; }, mr);
+            Value hnu = elementwise(nu, [](keel::f64 ni) { return keel::is_inf(ni) ? 1.0 : 0.5 * ni; }, mr);
             Value Iz = ::numkit::builtin::betainc(z, hnu, Value::scalar(0.5, mr), mr);
             const Value &ref = (nnu == N) ? nu : x;
             v = dist_empty_like(ref, mr);
             keel::f64 *od = v.doubleDataMut();
             const keel::usize nIz = Iz.numel();
-            const keel::f64 NaN = std::numeric_limits<keel::f64>::quiet_NaN();
+            const keel::f64 NaN = keel::Limits<keel::f64>::quiet_nan();
             for (keel::usize i = 0; i < N; ++i) {
                 const keel::f64 nui = nu.elemAsDouble(nnu == 1 ? 0 : i);
                 const keel::f64 xi = x.elemAsDouble(nx == 1 ? 0 : i);
                 if (!(nui > 0.0)) { od[i] = NaN; continue; }
-                if (std::isinf(nui)) { od[i] = tNormCdf(xi); continue; }
+                if (keel::is_inf(nui)) { od[i] = tNormCdf(xi); continue; }
                 const keel::f64 Ii = Iz.elemAsDouble(nIz == 1 ? 0 : i);
                 od[i] = (xi >= 0.0) ? 1.0 - 0.5 * Ii : 0.5 * Ii;
             }
@@ -103,27 +103,27 @@ void tinv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArra
     }
     const keel::usize N = dist_match_numel({np, nnu}, "tinv");
     Value qv = elementwise(p, [](keel::f64 pi) {
-        if (std::isnan(pi) || pi < 0.0 || pi > 1.0) return 0.5;
+        if (keel::is_nan(pi) || pi < 0.0 || pi > 1.0) return 0.5;
         return (pi >= 0.5) ? 2.0 * (1.0 - pi) : 2.0 * pi;
     }, mr);
-    Value hnu = elementwise(nu, [](keel::f64 ni) { return std::isinf(ni) ? 1.0 : 0.5 * ni; }, mr);
+    Value hnu = elementwise(nu, [](keel::f64 ni) { return keel::is_inf(ni) ? 1.0 : 0.5 * ni; }, mr);
     Value zv = ::numkit::builtin::betaincinv(qv, hnu, Value::scalar(0.5, mr), mr);
     const Value &ref = (nnu == N) ? nu : p;
     Value out = dist_empty_like(ref, mr);
     keel::f64 *od = out.doubleDataMut();
     const keel::usize nzv = zv.numel();
-    const keel::f64 NaN = std::numeric_limits<keel::f64>::quiet_NaN();
-    const keel::f64 PINF = std::numeric_limits<keel::f64>::infinity();
+    const keel::f64 NaN = keel::Limits<keel::f64>::quiet_nan();
+    const keel::f64 PINF = keel::Limits<keel::f64>::infinity();
     for (keel::usize i = 0; i < N; ++i) {
         const keel::f64 pi = p.elemAsDouble(np == 1 ? 0 : i);
         const keel::f64 nui = nu.elemAsDouble(nnu == 1 ? 0 : i);
-        if (!(nui > 0.0) || std::isnan(pi) || pi < 0.0 || pi > 1.0) { od[i] = NaN; continue; }
+        if (!(nui > 0.0) || keel::is_nan(pi) || pi < 0.0 || pi > 1.0) { od[i] = NaN; continue; }
         if (pi == 0.0) { od[i] = -PINF; continue; }
         if (pi == 1.0) { od[i] = PINF; continue; }
-        if (std::isinf(nui)) { od[i] = tNormInv(pi); continue; }
+        if (keel::is_inf(nui)) { od[i] = tNormInv(pi); continue; }
         const keel::f64 zi = zv.elemAsDouble(nzv == 1 ? 0 : i);
         if (zi <= 0.0) { od[i] = (pi >= 0.5) ? PINF : -PINF; continue; }
-        const keel::f64 mag = std::sqrt(nui * (1.0 / zi - 1.0));
+        const keel::f64 mag = keel::sqrt(nui * (1.0 / zi - 1.0));
         od[i] = (pi >= 0.5) ? mag : -mag;
     }
     outs[0] = std::move(out);

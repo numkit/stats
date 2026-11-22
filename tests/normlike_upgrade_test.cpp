@@ -4,6 +4,7 @@
 // in commit bb17c91. Reference values from MATLAB R2025b probe.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -50,17 +51,17 @@ TEST_F(NormlikeUpgradeTest, EmptyDataReturnsZero)
 
 TEST_F(NormlikeUpgradeTest, SigmaZeroReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("normlike([3, 0], x)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("normlike([3, 0], x)")));
 }
 
 TEST_F(NormlikeUpgradeTest, NegativeSigmaReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("normlike([3, -1], x)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("normlike([3, -1], x)")));
 }
 
 TEST_F(NormlikeUpgradeTest, NaNInDataReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("normlike([3, 1.5], [1 2 NaN 4]')")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("normlike([3, 1.5], [1 2 NaN 4]')")));
 }
 
 TEST_F(NormlikeUpgradeTest, ZeroFreqDropsElement)

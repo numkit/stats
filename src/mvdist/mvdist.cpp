@@ -15,8 +15,6 @@
 #include <numkit/value/value.hpp>
 
 #include <algorithm>
-#include <cmath>
-#include <limits>
 
 namespace numkit::stats {
 
@@ -314,7 +312,7 @@ Value mnpdf(const Value &X, const Value &P, keel::Allocator *mr)
 {
     Value x = X, p = P;
     const bool single = (X.type() == ValueType::SINGLE) || (P.type() == ValueType::SINGLE);
-    const keel::f64 epsD = std::numeric_limits<keel::f64>::epsilon();
+    const keel::f64 epsD = keel::Limits<keel::f64>::kEpsilon;
 
     if (p.dims().dim(1) == 1 && p.dims().dim(0) > 1) {
         keel::f64 s = 0.0;

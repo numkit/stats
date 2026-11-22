@@ -17,7 +17,6 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <tuple>
 #include <utility>
@@ -57,8 +56,8 @@ void rescale_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
 {
     argcheck::checkNargin(args.size(), 1, "rescale");  // no max: name-value tail in the reference
     keel::f64 lo = 0.0, hi = 1.0;
-    keel::f64 inputMin = std::numeric_limits<keel::f64>::quiet_NaN();
-    keel::f64 inputMax = std::numeric_limits<keel::f64>::quiet_NaN();
+    keel::f64 inputMin = keel::Limits<keel::f64>::quiet_nan();
+    keel::f64 inputMax = keel::Limits<keel::f64>::quiet_nan();
 
     // Positional lo/hi come first (only when arg[1] is not a NV-name).
     keel::usize i = 1;

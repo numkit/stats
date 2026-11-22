@@ -1,6 +1,7 @@
 // toolboxes/stats/tests/cummax_cummin_test.cpp
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -39,16 +40,16 @@ TEST_F(CummaxCumminTest, CummaxIncludenan)
 {
     eval("y = cummax(A, 'includenan');");
     EXPECT_DOUBLE_EQ(evalScalar("y(6)"),  6);
-    EXPECT_TRUE(std::isnan(evalScalar("y(7)")));
-    EXPECT_TRUE(std::isnan(evalScalar("y(8)")));
-    EXPECT_TRUE(std::isnan(evalScalar("y(10)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("y(7)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("y(8)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("y(10)")));
 }
 
 TEST_F(CummaxCumminTest, CummaxReverseIncludenan)
 {
     eval("y = cummax(A, 'reverse', 'includenan');");
-    EXPECT_TRUE(std::isnan(evalScalar("y(1)")));
-    EXPECT_TRUE(std::isnan(evalScalar("y(7)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("y(1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("y(7)")));
     EXPECT_DOUBLE_EQ(evalScalar("y(8)"),  10);
     EXPECT_DOUBLE_EQ(evalScalar("y(10)"), 10);
 }
@@ -71,7 +72,7 @@ TEST_F(CummaxCumminTest, CumminDefault)
 TEST_F(CummaxCumminTest, CumminReverseIncludenan)
 {
     eval("y = cummin(A, 'reverse', 'includenan');");
-    EXPECT_TRUE(std::isnan(evalScalar("y(1)")));
-    EXPECT_TRUE(std::isnan(evalScalar("y(7)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("y(1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("y(7)")));
     EXPECT_DOUBLE_EQ(evalScalar("y(8)"),  7);
 }

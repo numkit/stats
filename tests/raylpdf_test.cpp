@@ -2,6 +2,7 @@
 // raylpdf.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -32,6 +33,6 @@ TEST_F(RaylpdfTest, VectorX)
 TEST_F(RaylpdfTest, EdgeCases)
 {
     EXPECT_DOUBLE_EQ(evalScalar("raylpdf(-1, 1)"), 0.0);
-    EXPECT_TRUE(std::isnan(evalScalar("raylpdf(2,  0)")));
-    EXPECT_TRUE(std::isnan(evalScalar("raylpdf(2, -1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("raylpdf(2,  0)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("raylpdf(2, -1)")));
 }

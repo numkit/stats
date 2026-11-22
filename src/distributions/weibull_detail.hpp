@@ -10,15 +10,13 @@
 #pragma once
 
 #include <keel/core.h>
+#include <keel/math.h>
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
-#include <cstring>
-#include <limits>
 #include <tuple>
 #include <utility>
 
@@ -47,33 +45,33 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
 // bit-identically, including the x∈{0} boundary and NaN propagation.
 inline keel::f64 wblpdfK(keel::f64 x, keel::f64 a, keel::f64 b)
 {
-    const keel::f64 NaN = std::numeric_limits<keel::f64>::quiet_NaN();
+    const keel::f64 NaN = keel::Limits<keel::f64>::quiet_nan();
     if (!(a > 0.0) || !(b > 0.0)) return NaN;   // also catches NaN params
-    if (std::isnan(x)) return NaN;
+    if (keel::is_nan(x)) return NaN;
     if (x < 0.0) return 0.0;
     if (x == 0.0) {
-        if (b < 1.0) return std::numeric_limits<keel::f64>::infinity();
+        if (b < 1.0) return keel::Limits<keel::f64>::infinity();
         if (b > 1.0) return 0.0;
         return 1.0 / a;   // b == 1 (exponential)
     }
     const keel::f64 r = x / a;
-    return (b / a) * std::pow(r, b - 1.0) * std::exp(-std::pow(r, b));
+    return (b / a) * keel::pow(r, b - 1.0) * keel::exp(-keel::pow(r, b));
 }
 
 inline keel::f64 wblcdfK(keel::f64 x, keel::f64 a, keel::f64 b)
 {
-    if (a <= 0.0 || b <= 0.0) return std::numeric_limits<keel::f64>::quiet_NaN();
+    if (a <= 0.0 || b <= 0.0) return keel::Limits<keel::f64>::quiet_nan();
     if (x <= 0.0) return 0.0;
-    return -std::expm1(-std::pow(x / a, b));
+    return -keel::expm1(-keel::pow(x / a, b));
 }
 
 inline keel::f64 wblinvK(keel::f64 p, keel::f64 a, keel::f64 b)
 {
-    if (a <= 0.0 || b <= 0.0) return std::numeric_limits<keel::f64>::quiet_NaN();
-    if (p < 0.0 || p > 1.0) return std::numeric_limits<keel::f64>::quiet_NaN();
+    if (a <= 0.0 || b <= 0.0) return keel::Limits<keel::f64>::quiet_nan();
+    if (p < 0.0 || p > 1.0) return keel::Limits<keel::f64>::quiet_nan();
     if (p == 0.0) return 0.0;
-    if (p >= 1.0) return std::numeric_limits<keel::f64>::infinity();
-    return a * std::pow(-std::log1p(-p), 1.0 / b);
+    if (p >= 1.0) return keel::Limits<keel::f64>::infinity();
+    return a * keel::pow(-keel::log1p(-p), 1.0 / b);
 }
 
 } // anonymous

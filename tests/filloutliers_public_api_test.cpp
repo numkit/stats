@@ -5,6 +5,7 @@
 // over filloutliers_of covering median/mean/quartiles find-methods).
 
 #include <numkit/stats/descriptive/descriptive.hpp>
+#include <keel/core.h>
 #include <numkit/core/standard_engine.hpp>
 
 #include <limits>
@@ -32,7 +33,7 @@ TEST(FilloutliersPublicApi, Basic)
     EXPECT_DOUBLE_EQ(B.doubleData()[4], 0.0); // outlier 100 -> 0
     // quartiles find-method (k = 1.5 default); 100 still flagged
     Value Bq = stats::filloutliers(A, fv(e, "0", "f0b"), "quartiles",
-                                   std::numeric_limits<double>::quiet_NaN(),
+                                   keel::Limits<double>::quiet_nan(),
                                    e.allocator());
     EXPECT_DOUBLE_EQ(Bq.doubleData()[4], 0.0);
     EXPECT_DOUBLE_EQ(Bq.doubleData()[0], 1.0);

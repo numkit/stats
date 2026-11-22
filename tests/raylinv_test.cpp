@@ -2,6 +2,7 @@
 // raylinv.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -31,13 +32,13 @@ TEST_F(RaylinvTest, VectorQ)
 TEST_F(RaylinvTest, BoundaryQuantiles)
 {
     EXPECT_DOUBLE_EQ(evalScalar("raylinv(0, 1)"), 0.0);
-    EXPECT_TRUE(std::isinf(evalScalar("raylinv(1, 1)")));
+    EXPECT_TRUE(keel::is_inf(evalScalar("raylinv(1, 1)")));
 }
 
 TEST_F(RaylinvTest, EdgeCases)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("raylinv(-0.1, 1)")));
-    EXPECT_TRUE(std::isnan(evalScalar("raylinv( 1.5, 1)")));
-    EXPECT_TRUE(std::isnan(evalScalar("raylinv( 0.5, 0)")));
-    EXPECT_TRUE(std::isnan(evalScalar("raylinv( 0.5, -1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("raylinv(-0.1, 1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("raylinv( 1.5, 1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("raylinv( 0.5, 0)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("raylinv( 0.5, -1)")));
 }

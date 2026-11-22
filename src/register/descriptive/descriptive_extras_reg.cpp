@@ -22,11 +22,8 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
-#include <limits>
 #include <tuple>
 #include <utility>
 
@@ -67,8 +64,8 @@ void ksdensity_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     keel::String kernel = keel::String::from("normal");
     keel::String function_mode = keel::String::from("pdf");
     keel::String boundary_correction = keel::String::from("log");
-    keel::f64 supportLo = -std::numeric_limits<keel::f64>::infinity();
-    keel::f64 supportHi =  std::numeric_limits<keel::f64>::infinity();
+    keel::f64 supportLo = -keel::Limits<keel::f64>::infinity();
+    keel::f64 supportHi =  keel::Limits<keel::f64>::infinity();
     keel::usize numpoints = 100;
     const Value *weights = nullptr;
     auto lower = [](keel::StringRef sv) {
@@ -110,11 +107,11 @@ void ksdensity_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                 const keel::String sStr = lower(v.toString().as_ref());
                 const keel::StringRef s = sStr.as_ref();
                 if (s == "unbounded") {
-                    supportLo = -std::numeric_limits<keel::f64>::infinity();
-                    supportHi =  std::numeric_limits<keel::f64>::infinity();
+                    supportLo = -keel::Limits<keel::f64>::infinity();
+                    supportHi =  keel::Limits<keel::f64>::infinity();
                 } else if (s == "positive") {
                     supportLo = 0.0;
-                    supportHi = std::numeric_limits<keel::f64>::infinity();
+                    supportHi = keel::Limits<keel::f64>::infinity();
                 } else {
                     throw Error(keel::format("ksdensity: unknown Support '{}'", s),
                                 0, 0, "ksdensity", "", "numkit:ksdensity:support");

@@ -1,6 +1,7 @@
 // toolboxes/stats/src/distributions/binomial.cpp
 
 #include <keel/core.h>
+#include <keel/math.h>
 #include <keel/memory.h>
 #include <keel/stats.h>
 #include <numkit/stats/distributions/binomial.hpp>
@@ -13,8 +14,6 @@
 
 #include "dist_helpers.hpp"
 
-#include <cmath>
-#include <limits>
 #include <mutex>
 #include <keel/random.h>
 
@@ -25,7 +24,7 @@ namespace numkit::stats {
 namespace {
 inline bool bino_argcheck(keel::f64 n, keel::f64 p) noexcept
 {
-    return n >= 0.0 && std::floor(n) == n && p >= 0.0 && p <= 1.0;
+    return n >= 0.0 && keel::floor(n) == n && p >= 0.0 && p <= 1.0;
 }
 } // namespace
 
@@ -49,7 +48,7 @@ Value binornd(::numkit::ops::RngContext &rng, keel::f64 n, keel::f64 p, keel::us
 {
     auto &gen = rng;
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
-    if (n < 0.0 || std::floor(n) != n || p < 0.0 || p > 1.0 || rows * cols == 0) return out;
+    if (n < 0.0 || keel::floor(n) != n || p < 0.0 || p > 1.0 || rows * cols == 0) return out;
     keel::f64 *od = out.doubleDataMut();
     const keel::usize cnt = rows * cols;
     const keel::i32 ntrials = keel::as<keel::i32>(n);
@@ -70,8 +69,8 @@ Value binornd(::numkit::ops::RngContext &rng, keel::f64 n, keel::f64 p, keel::us
 
 std::tuple<keel::f64, keel::f64> binostat(keel::f64 n, keel::f64 p)
 {
-    if (n < 0.0 || std::floor(n) != n || p < 0.0 || p > 1.0) {
-        const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
+    if (n < 0.0 || keel::floor(n) != n || p < 0.0 || p > 1.0) {
+        const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
         return std::make_tuple(nan, nan);
     }
     return std::make_tuple(n * p, n * p * (1.0 - p));

@@ -12,11 +12,8 @@
 #include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
-#include <limits>
 #include <numeric>
 #include <tuple>
 #include <utility>
@@ -65,8 +62,8 @@ constexpr keel::f64 kPi = keel::kPi;
 
 // Inverse-Mills ratio λ(α) = φ(α)/Φ(-α). For right-censored normal MLE.
 inline keel::f64 inv_mills(keel::f64 a) {
-    const keel::f64 pdf  = std::exp(-0.5 * a * a) / std::sqrt(2.0 * kPi);
-    const keel::f64 surv = 0.5 * std::erfc(a / std::sqrt(2.0));  // Φ(-a)
+    const keel::f64 pdf  = keel::exp(-0.5 * a * a) / keel::sqrt(2.0 * kPi);
+    const keel::f64 surv = 0.5 * keel::erfc(a / keel::sqrt(2.0));  // Φ(-a)
     return (surv > 1e-300) ? pdf / surv : 0.0;
 }
 
@@ -75,13 +72,13 @@ keel::f64 zNorm(keel::f64 alpha) {
     const keel::f64 y_target = 1.0 - alpha;
     keel::f64 e = y_target;
     for (keel::i32 it = 0; it < 50; ++it) {
-        const keel::f64 f  = std::erf(e) - y_target;
-        const keel::f64 fp = (2.0 / std::sqrt(kPi)) * std::exp(-e * e);
+        const keel::f64 f  = keel::erf(e) - y_target;
+        const keel::f64 fp = (2.0 / keel::sqrt(kPi)) * keel::exp(-e * e);
         const keel::f64 step = f / fp;
         e -= step;
-        if (std::fabs(step) < 1e-15) break;
+        if (keel::abs(step) < 1e-15) break;
     }
-    return std::sqrt(2.0) * e;
+    return keel::sqrt(2.0) * e;
 }
 
 // Result of a normal-MLE fit on observations `y` with optional right-
@@ -97,7 +94,7 @@ struct NormalFitOut {
 [[maybe_unused]] NormalFitOut
 normal_fit_mle(const keel::Array<keel::f64> &y, const keel::Array<keel::f64> &fr, const keel::Array<keel::u8> &cn, keel::f64 alpha, keel::Allocator *mr)
 {
-    const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
+    const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
     NormalFitOut R{nan, nan, nan, nan, nan, nan, false};
     const keel::usize N = y.size();
     if (N < 2) return R;
@@ -122,16 +119,16 @@ normal_fit_mle(const keel::Array<keel::f64> &y, const keel::Array<keel::f64> &fr
             const keel::f64 d = y[i] - mu;
             sq += fr[i] * d * d;
         }
-        const keel::f64 sd  = std::sqrt(sq / (sumf - 1.0));
+        const keel::f64 sd  = keel::sqrt(sq / (sumf - 1.0));
         const keel::f64 dof = sumf - 1.0;
         const keel::f64 t   = tinv_scalar(1.0 - alpha / 2.0, dof, mr);
-        const keel::f64 sem = sd / std::sqrt(sumf);
+        const keel::f64 sem = sd / keel::sqrt(sumf);
         const keel::f64 chiU = chi2inv_scalar(1.0 - alpha / 2.0, dof, mr);
         const keel::f64 chiL = chi2inv_scalar(alpha / 2.0, dof, mr);
         R.mu = mu; R.sd = sd;
         R.mu_lo = mu - t * sem; R.mu_hi = mu + t * sem;
-        R.sd_lo = std::sqrt(dof * sd * sd / chiU);
-        R.sd_hi = std::sqrt(dof * sd * sd / chiL);
+        R.sd_lo = keel::sqrt(dof * sd * sd / chiU);
+        R.sd_hi = keel::sqrt(dof * sd * sd / chiL);
         R.ok = true;
         return R;
     }
@@ -149,7 +146,7 @@ normal_fit_mle(const keel::Array<keel::f64> &y, const keel::Array<keel::f64> &fr
         for (keel::usize i = 0; i < N; ++i) if (!cn[i]) {
             const keel::f64 d = y[i] - mu; sq += fr[i] * d * d;
         }
-        sd = std::sqrt(std::max(sq / std::max(w_un - 1.0, 1.0), 1e-12));
+        sd = keel::sqrt(std::max(sq / std::max(w_un - 1.0, 1.0), 1e-12));
     }
     const keel::i32    maxIter = 200;
     const keel::f64 tolFun  = 1e-10;
@@ -172,8 +169,8 @@ normal_fit_mle(const keel::Array<keel::f64> &y, const keel::Array<keel::f64> &fr
         }
         const keel::f64 mu_new  = sumfy / sumf;
         const keel::f64 var_new = std::max(sumfy2 / sumf - mu_new * mu_new, 1e-300);
-        const keel::f64 sd_new  = std::sqrt(var_new);
-        const keel::f64 delta   = std::fabs(mu_new - mu) + std::fabs(sd_new - sd);
+        const keel::f64 sd_new  = keel::sqrt(var_new);
+        const keel::f64 delta   = keel::abs(mu_new - mu) + keel::abs(sd_new - sd);
         mu = mu_new; sd = sd_new;
         if (delta < tolFun) break;
     }
@@ -198,8 +195,8 @@ normal_fit_mle(const keel::Array<keel::f64> &y, const keel::Array<keel::f64> &fr
     const keel::f64 det = Imm * Iss - Ims * Ims;
     keel::f64 SEmu = nan, SEsigma = nan;
     if (det > 0.0) {
-        SEmu    = std::sqrt(Iss / det);
-        SEsigma = std::sqrt(Imm / det);
+        SEmu    = keel::sqrt(Iss / det);
+        SEsigma = keel::sqrt(Imm / det);
     }
     const keel::f64 z = zNorm(alpha);
 
@@ -207,8 +204,8 @@ normal_fit_mle(const keel::Array<keel::f64> &y, const keel::Array<keel::f64> &fr
     R.mu_lo = mu - z * SEmu;
     R.mu_hi = mu + z * SEmu;
     const keel::f64 SElogS = (sd > 0.0) ? SEsigma / sd : nan;
-    R.sd_lo = sd * std::exp(-z * SElogS);
-    R.sd_hi = sd * std::exp( z * SElogS);
+    R.sd_lo = sd * keel::exp(-z * SElogS);
+    R.sd_hi = sd * keel::exp( z * SElogS);
     R.ok = true;
     return R;
 }
@@ -217,7 +214,7 @@ normal_fit_mle(const keel::Array<keel::f64> &y, const keel::Array<keel::f64> &fr
 namespace {
 [[maybe_unused]] keel::f64 betainv_scalar2(keel::f64 p, keel::f64 a, keel::f64 b, keel::Allocator *mr)
 {
-    if (a <= 0.0 || b <= 0.0) return std::numeric_limits<keel::f64>::quiet_NaN();
+    if (a <= 0.0 || b <= 0.0) return keel::Limits<keel::f64>::quiet_nan();
     if (p <= 0.0) return 0.0;
     if (p >= 1.0) return 1.0;
     return betainv(Value::scalar(p, mr), a, b, mr).toScalar();

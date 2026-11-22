@@ -2,6 +2,7 @@
 // tpdf.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -49,7 +50,7 @@ TEST_F(TpdfTest, LargeNuApproachesGaussian)
 
 TEST_F(TpdfTest, EdgeCases)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("tpdf(0,    0)")));
-    EXPECT_TRUE(std::isnan(evalScalar("tpdf(0,   -1)")));
-    EXPECT_TRUE(std::isnan(evalScalar("tpdf(NaN,  5)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("tpdf(0,    0)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("tpdf(0,   -1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("tpdf(NaN,  5)")));
 }

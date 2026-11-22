@@ -5,6 +5,7 @@
 // captured from MATLAB R2025b probe runs.
 
 #include <keel/core.h>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
@@ -31,9 +32,9 @@ TEST_F(MovExtrasTest, MovmeanDefaultPoisonsNaN)
 {
     eval("y = movmean(A, 3);");
     EXPECT_NEAR(evalScalar("y(5)"), 5.0, 1e-12);
-    EXPECT_TRUE(std::isnan(evalScalar("y(6)")));
-    EXPECT_TRUE(std::isnan(evalScalar("y(7)")));
-    EXPECT_TRUE(std::isnan(evalScalar("y(8)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("y(6)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("y(7)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("y(8)")));
     EXPECT_NEAR(evalScalar("y(9)"), 25.0/3.0, 1e-12);
 }
 
@@ -73,9 +74,9 @@ TEST_F(MovExtrasTest, EndpointsDiscardShortensOutput)
 TEST_F(MovExtrasTest, EndpointsFillPadsWithNaN)
 {
     eval("y = movmean(A2, 3, 'Endpoints', 'fill');");
-    EXPECT_TRUE(std::isnan(evalScalar("y(1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("y(1)")));
     EXPECT_NEAR(evalScalar("y(2)"), 2.0, 1e-12);
-    EXPECT_TRUE(std::isnan(evalScalar("y(9)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("y(9)")));
 }
 
 TEST_F(MovExtrasTest, EndpointsScalarPadsWithValue)
@@ -163,9 +164,9 @@ TEST_F(MovExtrasTest, MovstdOmitnan)
 {
     eval("y = movstd(A, 3, 'omitnan');");
     // std([4, 6])=sqrt(2), std([6, 8])=sqrt(2), std([7, 8])=sqrt(0.5)
-    EXPECT_NEAR(evalScalar("y(6)"), std::sqrt(2.0), 1e-12);
-    EXPECT_NEAR(evalScalar("y(7)"), std::sqrt(2.0), 1e-12);
-    EXPECT_NEAR(evalScalar("y(8)"), std::sqrt(0.5), 1e-12);
+    EXPECT_NEAR(evalScalar("y(6)"), keel::sqrt(2.0), 1e-12);
+    EXPECT_NEAR(evalScalar("y(7)"), keel::sqrt(2.0), 1e-12);
+    EXPECT_NEAR(evalScalar("y(8)"), keel::sqrt(0.5), 1e-12);
 }
 
 TEST_F(MovExtrasTest, MovvarNormFlag1Omitnan)
@@ -214,8 +215,8 @@ TEST_F(MovExtrasTest, MovprodOmitnan)
 TEST_F(MovExtrasTest, AllNanWindowReturnsNaN)
 {
     eval("A3 = [NaN NaN NaN 4 5 6]'; y = movmean(A3, 3, 'omitnan');");
-    EXPECT_TRUE(std::isnan(evalScalar("y(1)")));
-    EXPECT_TRUE(std::isnan(evalScalar("y(2)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("y(1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("y(2)")));
     EXPECT_NEAR(evalScalar("y(3)"), 4.0, 1e-12);    // omit gives [4]
 }
 
@@ -237,5 +238,5 @@ TEST_F(MovExtrasTest, MovstdMovvarSingleElementWindowIsZero)
     eval("vo = movvar([1 2 NaN 4 5],2,'omitnan');");
     EXPECT_NEAR(evalScalar("vo(3)"), 0.0, 1e-12);
     // An all-NaN window under omitnan still yields NaN (0 valid elements).
-    EXPECT_TRUE(std::isnan(evalScalar("w = movvar([NaN NaN NaN 4],3,'omitnan'); w(1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("w = movvar([NaN NaN NaN 4],3,'omitnan'); w(1)")));
 }

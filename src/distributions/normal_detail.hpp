@@ -17,10 +17,7 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
-#include <cstring>
-#include <limits>
 #include <tuple>
 #include <utility>
 
@@ -54,26 +51,26 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
 
 [[maybe_unused]] keel::f64 erfinvScalar(keel::f64 y)
 {
-    if (y >= 1.0) return std::numeric_limits<keel::f64>::infinity();
-    if (y <= -1.0) return -std::numeric_limits<keel::f64>::infinity();
+    if (y >= 1.0) return keel::Limits<keel::f64>::infinity();
+    if (y <= -1.0) return -keel::Limits<keel::f64>::infinity();
     if (y == 0.0) return 0.0;
     const keel::f64 ay = keel::abs(y);
     const keel::f64 q = 1.0 - ay; // tail probability erfc(|x|) = q
     const keel::f64 a = 0.147;
-    const keel::f64 ln1m = std::log((1.0 + ay) * q);
+    const keel::f64 ln1m = keel::log((1.0 + ay) * q);
     const keel::f64 term = 2.0 / (keel::kPi * a) + 0.5 * ln1m;
-    keel::f64 x = std::copysign(std::sqrt(std::sqrt(term * term - ln1m / a) - term), y);
-    const keel::f64 invSqrtPi2 = 2.0 / std::sqrt(keel::kPi);
+    keel::f64 x = keel::copysign(keel::sqrt(keel::sqrt(term * term - ln1m / a) - term), y);
+    const keel::f64 invSqrtPi2 = 2.0 / keel::sqrt(keel::kPi);
     // 4 Halley iterations for full 53-bit precision across central and tail regions.
     for (keel::i32 i = 0; i < 4; ++i) {
         keel::f64 err;
         if (ay <= 0.5) {
-            err = std::erf(x) - y;
+            err = keel::erf(x) - y;
         } else {
-            const keel::f64 tailErr = (q - std::erfc(keel::abs(x)));
+            const keel::f64 tailErr = (q - keel::erfc(keel::abs(x)));
             err = (y > 0.0) ? tailErr : -tailErr;
         }
-        const keel::f64 de = invSqrtPi2 * std::exp(-x * x);
+        const keel::f64 de = invSqrtPi2 * keel::exp(-x * x);
         if (de == 0.0) break;
         const keel::f64 u = err / de;
         x -= u / (1.0 + x * u);

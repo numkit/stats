@@ -5,6 +5,8 @@
 //   robustcov — concentration-step (FAST-MCD-lite) robust covariance
 
 #include <keel/array.h>
+#include <keel/algo.h>
+#include <keel/math.h>
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <numkit/stats/regress/regress.hpp>
@@ -15,9 +17,6 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
-#include <cstring>
-#include <limits>
 
 #include "robust_detail.hpp"
 
@@ -44,7 +43,7 @@ RobustfitResult robustfit(const Value &X, const Value &y,
     const keel::usize p = X.dims().cols();
     robustfit_argcheck(X, y, n, p);
 
-    if (std::isnan(tune)) tune = defaultTune(weight);
+    if (keel::is_nan(tune)) tune = defaultTune(weight);
 
     keel::Array<keel::f64> Xv(n * p);
     for (keel::usize i = 0; i < n * p; ++i) Xv[i] = X.elemAsDouble(i);
@@ -56,7 +55,7 @@ RobustfitResult robustfit(const Value &X, const Value &y,
     const keel::Array<keel::f64> h = leverage(Xv.data(), n, p);
     keel::Array<keel::f64> adj(n);
     for (keel::usize i = 0; i < n; ++i)
-        adj[i] = 1.0 / std::sqrt(1.0 - h[i]);
+        adj[i] = 1.0 / keel::sqrt(1.0 - h[i]);
 
     // Floor on the scale estimate so a (near-)perfect fit can't drive s to 0.
     keel::f64 tiny_s = 1e-6 * sampleStd(yv.as_ref());
@@ -92,15 +91,15 @@ RobustfitResult robustfit(const Value &X, const Value &y,
         // MATLAB: stop when no |b-b0| exceeds D*max(|b|,|b0|).
         bool changed = false;
         for (keel::usize j = 0; j < p; ++j)
-            if (std::fabs(beta[j] - beta_prev[j])
-                > D * std::max(std::fabs(beta[j]), std::fabs(beta_prev[j])))
+            if (keel::abs(beta[j] - beta_prev[j])
+                > D * std::max(keel::abs(beta[j]), keel::abs(beta_prev[j])))
                 changed = true;
         if (!changed) break;
     }
 
     // Pack outputs.
     auto bv = Value::matrix(p, 1, ValueType::DOUBLE, mr);
-    std::memcpy(bv.doubleDataMut(), beta.data(), p * sizeof(keel::f64));
+    keel::copy_n(bv.doubleDataMut(), beta.data(), p);
     return { std::move(bv), Value::scalar(s, mr) };
 }
 
@@ -123,7 +122,7 @@ RobustcovResult robustcov(const Value &X, keel::Allocator *mr)
     meanCovSubset(Xv.data(), n, d, keep.as_ref(), mu, C);
 
     const keel::usize h = keel::as<keel::usize>(
-        std::ceil(0.75 * keel::as<keel::f64>(n)));
+        keel::ceil(0.75 * keel::as<keel::f64>(n)));
 
     keel::Array<keel::usize> prevKeep;
     for (keel::i32 it = 0; it < 30; ++it) {
@@ -165,7 +164,7 @@ RobustcovResult robustcov(const Value &X, keel::Allocator *mr)
         for (keel::usize j = 0; j < d; ++j)
             sd[j * d + i] = C[i * d + j];
     auto muV = Value::matrix(1, d, ValueType::DOUBLE, mr);
-    std::memcpy(muV.doubleDataMut(), mu.data(), d * sizeof(keel::f64));
+    keel::copy_n(muV.doubleDataMut(), mu.data(), d);
     return { std::move(sigma), std::move(muV) };
 }
 

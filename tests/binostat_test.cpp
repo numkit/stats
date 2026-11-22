@@ -2,6 +2,7 @@
 // binostat.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -52,8 +53,8 @@ TEST_F(BinostatTest, ZeroNIsValidMomentsZero)
 
 TEST_F(BinostatTest, InvalidParamsReturnNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("binostat(-1,  0.5)")));
-    EXPECT_TRUE(std::isnan(evalScalar("binostat(10, -0.1)")));
-    EXPECT_TRUE(std::isnan(evalScalar("binostat(10,  1.5)")));
-    EXPECT_TRUE(std::isnan(evalScalar("binostat(2.5, 0.5)")));  // non-integer n
+    EXPECT_TRUE(keel::is_nan(evalScalar("binostat(-1,  0.5)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("binostat(10, -0.1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("binostat(10,  1.5)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("binostat(2.5, 0.5)")));  // non-integer n
 }

@@ -4,6 +4,7 @@
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
 #include <keel/core.h>
+#include <keel/math.h>
 #include <keel/format.h>
 #include <keel/ref.h>
 #include <numkit/sys/plugin.hpp>
@@ -18,7 +19,6 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <tuple>
 #include <utility>
@@ -46,7 +46,7 @@ void mvnrnd_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     Value cases;
     if (args.size() >= 3 && !args[2].isEmpty()) {
         const keel::f64 n = argcheck::expectedReal(args[2], 3, "n", "mvnrnd");
-        if (std::isnan(n) || n != std::floor(n))
+        if (keel::is_nan(n) || n != keel::floor(n))
             throw Error(keel::format("mvnrnd: n must be a real integer scalar (got {}).", n),
                         0, 0, "mvnrnd", "", "numkit:mvnrnd:badCases");
         cases = Value::scalar(n, ctx.engine->allocator());
@@ -64,7 +64,7 @@ void mvtrnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     Value cases;
     if (args.size() >= 3 && !args[2].isEmpty()) {
         const keel::f64 n = argcheck::expectedReal(args[2], 3, "cases", "mvtrnd");
-        if (std::isnan(n) || n != std::floor(n))
+        if (keel::is_nan(n) || n != keel::floor(n))
             throw Error(keel::format("mvtrnd: cases must be a real integer scalar (got {}).", n),
                         0, 0, "mvtrnd", "", "numkit:mvtrnd:badCases");
         cases = Value::scalar(n, ctx.engine->allocator());

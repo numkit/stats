@@ -5,6 +5,7 @@
 // TEST_F per probed contract branch.
 
 #include <keel/core.h>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <numkit/stats/mvdist/mvdist.hpp>
@@ -256,8 +257,8 @@ TEST_F(MvContractTest, MnpdfValuesAndSemantics)
                 0.13499999999999993, 1e-12);
     // Negative x → 0; fractional x or bad p → NaN (M03-M05).
     EXPECT_NEAR(num("mnpdf([2 -1 0], [0.3 0.5 0.2])"), 0.0, 0.0);
-    EXPECT_TRUE(std::isnan(num("mnpdf([2 1 0.5], [0.3 0.5 0.2])")));
-    EXPECT_TRUE(std::isnan(num("mnpdf([2 1 0], [0.3 0.5 0.4])")));
+    EXPECT_TRUE(keel::is_nan(num("mnpdf([2 1 0.5], [0.3 0.5 0.2])")));
+    EXPECT_TRUE(keel::is_nan(num("mnpdf([2 1 0], [0.3 0.5 0.4])")));
     // Row replication both ways (M06/M07).
     engine.eval("M6 = mnpdf([2 1 0; 1 0 2], [0.3 0.5 0.2]);");
     EXPECT_NEAR(at("M6", 0), 0.13499999999999993, 1e-12);

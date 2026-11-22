@@ -4,6 +4,7 @@
 #pragma once
 
 #include <keel/array.h>
+#include <keel/math.h>
 #include <keel/core.h>
 #include <keel/ref.h>
 #include <numkit/value/value.hpp>
@@ -11,11 +12,8 @@
 #include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
-#include <limits>
 #include <numeric>
 #include <tuple>
 #include <utility>
@@ -49,7 +47,7 @@ keel::f64 softThreshold(keel::f64 z, keel::f64 g)
             const keel::f64 d = X[j * n + i] - mu[j];
             s2 += d * d;
         }
-        sd[j] = std::sqrt(s2 / keel::as<keel::f64>(n));
+        sd[j] = keel::sqrt(s2 / keel::as<keel::f64>(n));
         if (sd[j] < 1e-12) sd[j] = 1.0;   // constant column → keep as 0-coef
         for (keel::usize i = 0; i < n; ++i)
             X[j * n + i] = (X[j * n + i] - mu[j]) / sd[j];
@@ -80,7 +78,7 @@ keel::f64 softThreshold(keel::f64 z, keel::f64 g)
         if (delta != 0.0) {
             for (keel::usize i = 0; i < n; ++i)
                 r[i] -= delta * Xs[j * n + i];
-            maxChange = std::max(maxChange, std::fabs(delta));
+            maxChange = std::max(maxChange, keel::abs(delta));
         }
     }
     return maxChange < tol;
@@ -94,14 +92,14 @@ namespace {
 keel::f64 invIdentity_g(keel::f64 e) { return e; }
 keel::f64 dEtaIdentity_g(keel::f64) { return 1.0; }
 keel::f64 invLogit_g(keel::f64 e) {
-    if (e > 0) return 1.0 / (1.0 + std::exp(-e));
-    const keel::f64 ex = std::exp(e); return ex / (1.0 + ex);
+    if (e > 0) return 1.0 / (1.0 + keel::exp(-e));
+    const keel::f64 ex = keel::exp(e); return ex / (1.0 + ex);
 }
 keel::f64 dEtaLogit_g(keel::f64 mu) {
     const keel::f64 m = std::min(std::max(mu, 1e-12), 1.0 - 1e-12);
     return 1.0 / (m * (1.0 - m));
 }
-keel::f64 invLog_g(keel::f64 e) { return std::exp(e); }
+keel::f64 invLog_g(keel::f64 e) { return keel::exp(e); }
 keel::f64 dEtaLog_g(keel::f64 mu) { return 1.0 / std::max(mu, 1e-12); }
 
 struct LinkPair { keel::f64 (*inv)(keel::f64); keel::f64 (*dEta)(keel::f64); };

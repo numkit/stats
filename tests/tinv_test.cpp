@@ -2,6 +2,7 @@
 // tinv.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -44,16 +45,16 @@ TEST_F(TinvTest, GaussianLimit)
 
 TEST_F(TinvTest, BoundaryProb)
 {
-    EXPECT_TRUE(std::isinf(evalScalar("tinv(0, 5)")));
+    EXPECT_TRUE(keel::is_inf(evalScalar("tinv(0, 5)")));
     EXPECT_LT(evalScalar("tinv(0, 5)"), 0.0);
-    EXPECT_TRUE(std::isinf(evalScalar("tinv(1, 5)")));
+    EXPECT_TRUE(keel::is_inf(evalScalar("tinv(1, 5)")));
     EXPECT_GT(evalScalar("tinv(1, 5)"), 0.0);
 }
 
 TEST_F(TinvTest, EdgeCases)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("tinv(-0.1, 5)")));
-    EXPECT_TRUE(std::isnan(evalScalar("tinv( 1.5, 5)")));
-    EXPECT_TRUE(std::isnan(evalScalar("tinv( 0.5, 0)")));
-    EXPECT_TRUE(std::isnan(evalScalar("tinv( 0.5, -1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("tinv(-0.1, 5)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("tinv( 1.5, 5)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("tinv( 0.5, 0)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("tinv( 0.5, -1)")));
 }

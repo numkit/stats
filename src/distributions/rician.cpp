@@ -12,8 +12,6 @@
 
 #include "dist_helpers.hpp"
 
-#include <cmath>
-#include <limits>
 #include <mutex>
 #include <keel/random.h>
 #include <keel/math.h>
@@ -33,7 +31,7 @@ inline bool rice_argcheck(keel::f64 s, keel::f64 sigma) noexcept
 Value ricepdf(const Value &x, keel::f64 s, keel::f64 sigma, keel::Allocator *mr)
 {
     if (!rice_argcheck(s, sigma))
-        return elementwise(x, [](keel::f64){ return std::numeric_limits<keel::f64>::quiet_NaN(); }, mr);
+        return elementwise(x, [](keel::f64){ return keel::Limits<keel::f64>::quiet_nan(); }, mr);
     const keel::f64 s2 = s * s;
     const keel::f64 sg2 = sigma * sigma;
     return elementwise(x, [&](keel::f64 xi) {
@@ -44,14 +42,14 @@ Value ricepdf(const Value &x, keel::f64 s, keel::f64 sigma, keel::Allocator *mr)
         }
         const keel::f64 arg = xi * s / sg2;
         const keel::f64 i0  = besseli_scalar(0.0, arg, mr);
-        return (xi / sg2) * std::exp(-(xi * xi + s2) / (2.0 * sg2)) * i0;
+        return (xi / sg2) * keel::exp(-(xi * xi + s2) / (2.0 * sg2)) * i0;
     }, mr);
 }
 
 Value ricecdf(const Value &x, keel::f64 s, keel::f64 sigma, keel::Allocator *mr)
 {
     if (sigma <= 0.0 || s < 0.0)
-        return elementwise(x, [](keel::f64){ return std::numeric_limits<keel::f64>::quiet_NaN(); }, mr);
+        return elementwise(x, [](keel::f64){ return keel::Limits<keel::f64>::quiet_nan(); }, mr);
     return elementwise(x, [&](keel::f64 xi) {
         if (xi <= 0.0) return 0.0;
         return 1.0 - marcumq_scalar(s / sigma, xi / sigma, mr);
@@ -61,11 +59,11 @@ Value ricecdf(const Value &x, keel::f64 s, keel::f64 sigma, keel::Allocator *mr)
 Value riceinv(const Value &p, keel::f64 s, keel::f64 sigma, keel::Allocator *mr)
 {
     if (sigma <= 0.0 || s < 0.0)
-        return elementwise(p, [](keel::f64){ return std::numeric_limits<keel::f64>::quiet_NaN(); }, mr);
+        return elementwise(p, [](keel::f64){ return keel::Limits<keel::f64>::quiet_nan(); }, mr);
     return elementwise(p, [&](keel::f64 pi) {
-        if (!(pi >= 0.0 && pi <= 1.0)) return std::numeric_limits<keel::f64>::quiet_NaN();
+        if (!(pi >= 0.0 && pi <= 1.0)) return keel::Limits<keel::f64>::quiet_nan();
         if (pi == 0.0) return 0.0;
-        if (pi >= 1.0) return std::numeric_limits<keel::f64>::infinity();
+        if (pi >= 1.0) return keel::Limits<keel::f64>::infinity();
         // Bracket then bisect: F(0) = 0, F(s + 8σ) ≈ 1 (Gaussian-tail bound).
         keel::f64 lo = 0.0;
         keel::f64 hi = s + 8.0 * sigma;
@@ -96,7 +94,7 @@ Value ricernd(::numkit::ops::RngContext &rng, keel::f64 s, keel::f64 sigma, keel
     for (keel::usize i = 0; i < n; ++i) {
         const keel::f64 a = keel::random::normal_f64(gen, s, sigma);
         const keel::f64 b = keel::random::normal_f64(gen, 0.0, sigma);
-        od[i] = std::sqrt(a * a + b * b);
+        od[i] = keel::sqrt(a * a + b * b);
     }
     return out;
 }
@@ -104,11 +102,11 @@ Value ricernd(::numkit::ops::RngContext &rng, keel::f64 s, keel::f64 sigma, keel
 std::tuple<keel::f64, keel::f64> ricestat(keel::f64 s, keel::f64 sigma, keel::Allocator *mr)
 {
     if (sigma <= 0.0 || s < 0.0) {
-        const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
+        const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
         return std::make_tuple(nan, nan);
     }
     if (s == 0.0) {
-        return std::make_tuple(sigma * std::sqrt(keel::kPi / 2.0),
+        return std::make_tuple(sigma * keel::sqrt(keel::kPi / 2.0),
                                sigma * sigma * (2.0 - keel::kPi / 2.0));
     }
     const keel::f64 s2 = s * s;
@@ -117,8 +115,8 @@ std::tuple<keel::f64, keel::f64> ricestat(keel::f64 s, keel::f64 sigma, keel::Al
     const keel::f64 half = s2 / (4.0 * sg2);
     const keel::f64 i0 = besseli_scalar(0.0, half, mr);
     const keel::f64 i1 = besseli_scalar(1.0, half, mr);
-    const keel::f64 L = std::exp(z / 2.0) * ((1.0 - z) * i0 - z * i1);
-    const keel::f64 mean = sigma * std::sqrt(keel::kPi / 2.0) * L;
+    const keel::f64 L = keel::exp(z / 2.0) * ((1.0 - z) * i0 - z * i1);
+    const keel::f64 mean = sigma * keel::sqrt(keel::kPi / 2.0) * L;
     const keel::f64 var  = 2.0 * sg2 + s2 - mean * mean;
     return std::make_tuple(mean, var);
 }

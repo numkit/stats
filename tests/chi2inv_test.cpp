@@ -2,6 +2,7 @@
 // chi2inv. Reference values from MATLAB R2025b.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -44,13 +45,13 @@ TEST_F(Chi2invTest, K30Quantiles)
 TEST_F(Chi2invTest, BoundaryProbabilities)
 {
     EXPECT_DOUBLE_EQ(evalScalar("chi2inv(0.0, 5)"), 0.0);
-    EXPECT_TRUE(std::isinf(evalScalar("chi2inv(1.0, 5)")));
+    EXPECT_TRUE(keel::is_inf(evalScalar("chi2inv(1.0, 5)")));
 }
 
 TEST_F(Chi2invTest, OutOfRangeProbReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("chi2inv(-0.1, 5)")));
-    EXPECT_TRUE(std::isnan(evalScalar("chi2inv( 1.5, 5)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("chi2inv(-0.1, 5)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("chi2inv( 1.5, 5)")));
 }
 
 TEST_F(Chi2invTest, KEqualsZeroDegenerateGivesZero)
@@ -60,10 +61,10 @@ TEST_F(Chi2invTest, KEqualsZeroDegenerateGivesZero)
     EXPECT_DOUBLE_EQ(evalScalar("chi2inv(0.0, 0)"), 0.0);
     EXPECT_DOUBLE_EQ(evalScalar("chi2inv(1.0, 0)"), 0.0);
     // Out-of-range p still NaN.
-    EXPECT_TRUE(std::isnan(evalScalar("chi2inv(-0.1, 0)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("chi2inv(-0.1, 0)")));
 }
 
 TEST_F(Chi2invTest, NegativeKReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("chi2inv(0.5, -1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("chi2inv(0.5, -1)")));
 }

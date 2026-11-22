@@ -19,6 +19,7 @@
 // (categorical input and column-aligned char matrices are not yet handled.)
 
 #include <keel/array.h>
+#include <keel/math.h>
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <keel/string.h>
@@ -28,9 +29,7 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstdio>
-#include <limits>
 
 namespace numkit::stats {
 
@@ -41,7 +40,7 @@ namespace {
 keel::String fmtGroupNum(keel::f64 v)
 {
     char buf[64];
-    if (std::isfinite(v) && std::floor(v) == v && std::fabs(v) < 1e15)
+    if (keel::is_finite(v) && keel::floor(v) == v && keel::abs(v) < 1e15)
         std::snprintf(buf, sizeof(buf), "%.0f", v);
     else
         std::snprintf(buf, sizeof(buf), "%.5g", v);
@@ -89,7 +88,7 @@ Grp2idxResult grp2idx(const Value &s, keel::Allocator *mr)
         uniq.reserve(n);
         for (keel::usize i = 0; i < n; ++i) {
             const keel::f64 xi = s.elemAsDouble(i);
-            if (!std::isnan(xi)) uniq.push_back(xi);
+            if (!keel::is_nan(xi)) uniq.push_back(xi);
         }
         std::sort(uniq.begin(), uniq.end());
         uniq.resize(std::unique(uniq.begin(), uniq.end()) - uniq.begin());
@@ -98,8 +97,8 @@ Grp2idxResult grp2idx(const Value &s, keel::Allocator *mr)
         g.reserve(n);
         for (keel::usize i = 0; i < n; ++i) {
             const keel::f64 xi = s.elemAsDouble(i);
-            if (std::isnan(xi)) {
-                g.push_back(std::numeric_limits<keel::f64>::quiet_NaN());
+            if (keel::is_nan(xi)) {
+                g.push_back(keel::Limits<keel::f64>::quiet_nan());
                 continue;
             }
             const auto it = std::lower_bound(uniq.begin(), uniq.end(), xi);

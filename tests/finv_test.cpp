@@ -2,6 +2,7 @@
 // finv. Reference values from MATLAB R2025b.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -44,18 +45,18 @@ TEST_F(FinvTest, F10_30Quantiles)
 TEST_F(FinvTest, BoundaryProbabilities)
 {
     EXPECT_DOUBLE_EQ(evalScalar("finv(0.0, 5, 10)"), 0.0);
-    EXPECT_TRUE(std::isinf(evalScalar("finv(1.0, 5, 10)")));
+    EXPECT_TRUE(keel::is_inf(evalScalar("finv(1.0, 5, 10)")));
 }
 
 TEST_F(FinvTest, OutOfRangeProbReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("finv(-0.1, 5, 10)")));
-    EXPECT_TRUE(std::isnan(evalScalar("finv( 1.5, 5, 10)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("finv(-0.1, 5, 10)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("finv( 1.5, 5, 10)")));
 }
 
 TEST_F(FinvTest, InvalidDofReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("finv(0.5,  0, 10)")));
-    EXPECT_TRUE(std::isnan(evalScalar("finv(0.5,  5,  0)")));
-    EXPECT_TRUE(std::isnan(evalScalar("finv(0.5, -1, 10)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("finv(0.5,  0, 10)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("finv(0.5,  5,  0)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("finv(0.5, -1, 10)")));
 }

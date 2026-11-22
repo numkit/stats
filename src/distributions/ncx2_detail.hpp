@@ -10,15 +10,13 @@
 #pragma once
 
 #include <keel/core.h>
+#include <keel/math.h>
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
-#include <cstring>
-#include <limits>
 #include <tuple>
 #include <utility>
 
@@ -62,7 +60,7 @@ inline keel::f64 gammainc_scalar(keel::f64 xx, keel::f64 a, keel::Allocator *mr)
     if (lambda == 0.0) return gammainc_scalar(x / 2.0, k / 2.0, mr);
     const keel::f64 halfL = lambda / 2.0;
     const keel::f64 halfX = x / 2.0;
-    keel::f64 Pj = std::exp(-halfL);
+    keel::f64 Pj = keel::exp(-halfL);
     keel::f64 sum = 0.0;
     const keel::i32 maxIter = 2000;
     for (keel::i32 j = 0; j < maxIter; ++j) {

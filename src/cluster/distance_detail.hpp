@@ -4,6 +4,7 @@
 #pragma once
 
 #include <keel/core.h>
+#include <keel/math.h>
 #include <keel/format.h>
 #include <keel/memory.h>
 #include <keel/array.h>
@@ -15,11 +16,8 @@
 #include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
-#include <limits>
 #include <numeric>
 #include <tuple>
 #include <utility>
@@ -71,9 +69,9 @@ inline void invert_small(keel::f64 *A, keel::usize D,
     for (keel::usize k = 0; k < D; ++k) {
         // Partial pivot.
         keel::usize piv = k;
-        keel::f64 pmax = std::fabs(aug[k * 2 * D + k]);
+        keel::f64 pmax = keel::abs(aug[k * 2 * D + k]);
         for (keel::usize r = k + 1; r < D; ++r) {
-            const keel::f64 v = std::fabs(aug[r * 2 * D + k]);
+            const keel::f64 v = keel::abs(aug[r * 2 * D + k]);
             if (v > pmax) { pmax = v; piv = r; }
         }
         if (pmax < 1e-14)
@@ -137,7 +135,7 @@ inline keel::f64 mahal_distance(const keel::f64 *u, const keel::f64 *v, keel::us
         for (keel::usize b = 0; b < D; ++b) row += Cinv[a * D + b] * diff[b];
         s += diff[a] * row;
     }
-    return std::sqrt(std::max(0.0, s));
+    return keel::sqrt(std::max(0.0, s));
 }
 
 // Standardized-euclidean distance: √Σ((xₖ−yₖ)·inv_scaleₖ)². `inv_scale[k]`
@@ -150,7 +148,7 @@ inline keel::f64 seuclidean_distance(const keel::f64 *x, const keel::f64 *y,
         const keel::f64 d = (x[k] - y[k]) * inv_scale[k];
         s += d * d;
     }
-    return std::sqrt(s);
+    return keel::sqrt(s);
 }
 
 // Correlation distance 1 − corr(x, y). NaN when either vector is constant
@@ -167,9 +165,9 @@ inline keel::f64 correlation_distance(const keel::f64 *x, const keel::f64 *y, ke
         const keel::f64 dx = x[k] - mx, dy = y[k] - my;
         xy += dx * dy; xx += dx * dx; yy += dy * dy;
     }
-    const keel::f64 denom = std::sqrt(xx) * std::sqrt(yy);
+    const keel::f64 denom = keel::sqrt(xx) * keel::sqrt(yy);
     return (denom > 0.0) ? (1.0 - xy / denom)
-                         : std::numeric_limits<keel::f64>::quiet_NaN();
+                         : keel::Limits<keel::f64>::quiet_nan();
 }
 
 inline keel::f64 row_distance(const keel::f64 *x, const keel::f64 *y, keel::usize D,
@@ -179,7 +177,7 @@ inline keel::f64 row_distance(const keel::f64 *x, const keel::f64 *y, keel::usiz
         case Metric::Euclidean: {
             keel::f64 s = 0.0;
             for (keel::usize k = 0; k < D; ++k) { keel::f64 d = x[k] - y[k]; s += d * d; }
-            return std::sqrt(s);
+            return keel::sqrt(s);
         }
         case Metric::SqEuclidean: {
             keel::f64 s = 0.0;
@@ -188,13 +186,13 @@ inline keel::f64 row_distance(const keel::f64 *x, const keel::f64 *y, keel::usiz
         }
         case Metric::Cityblock: {
             keel::f64 s = 0.0;
-            for (keel::usize k = 0; k < D; ++k) s += std::fabs(x[k] - y[k]);
+            for (keel::usize k = 0; k < D; ++k) s += keel::abs(x[k] - y[k]);
             return s;
         }
         case Metric::Chebychev: {
             keel::f64 m_ = 0.0;
             for (keel::usize k = 0; k < D; ++k) {
-                keel::f64 d = std::fabs(x[k] - y[k]);
+                keel::f64 d = keel::abs(x[k] - y[k]);
                 if (d > m_) m_ = d;
             }
             return m_;
@@ -202,10 +200,10 @@ inline keel::f64 row_distance(const keel::f64 *x, const keel::f64 *y, keel::usiz
         case Metric::Minkowski: {
             keel::f64 s = 0.0;
             for (keel::usize k = 0; k < D; ++k) {
-                keel::f64 d = std::fabs(x[k] - y[k]);
-                s += std::pow(d, p);
+                keel::f64 d = keel::abs(x[k] - y[k]);
+                s += keel::pow(d, p);
             }
-            return std::pow(s, 1.0 / p);
+            return keel::pow(s, 1.0 / p);
         }
         case Metric::Cosine: {
             keel::f64 xy = 0, xx = 0, yy = 0;
@@ -214,10 +212,10 @@ inline keel::f64 row_distance(const keel::f64 *x, const keel::f64 *y, keel::usiz
                 xx += x[k] * x[k];
                 yy += y[k] * y[k];
             }
-            const keel::f64 denom = std::sqrt(xx) * std::sqrt(yy);
+            const keel::f64 denom = keel::sqrt(xx) * keel::sqrt(yy);
             // Zero-norm row → cosine undefined; MATLAB returns NaN (not 1).
             return (denom > 0.0) ? (1.0 - xy / denom)
-                                 : std::numeric_limits<keel::f64>::quiet_NaN();
+                                 : keel::Limits<keel::f64>::quiet_nan();
         }
         case Metric::Correlation:
             return correlation_distance(x, y, D);
@@ -271,7 +269,7 @@ inline void col_std(const Value &X, keel::f64 *scale_out,
             const keel::f64 d = X.elemAsDouble(c * M + r) - mean;
             ss += d * d;
         }
-        scale_out[c] = (M > 1) ? std::sqrt(ss / keel::as<keel::f64>(M - 1)) : 0.0;
+        scale_out[c] = (M > 1) ? keel::sqrt(ss / keel::as<keel::f64>(M - 1)) : 0.0;
     }
 }
 

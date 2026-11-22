@@ -10,11 +10,8 @@
 #include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
-#include <limits>
 #include <numeric>
 #include <tuple>
 #include <utility>
@@ -29,9 +26,9 @@ namespace {
 {
     for (keel::usize k = 0; k < p; ++k) {
         keel::usize piv = k;
-        keel::f64 pmax = std::fabs(M[k * p + k]);
+        keel::f64 pmax = keel::abs(M[k * p + k]);
         for (keel::usize rr = k + 1; rr < p; ++rr) {
-            const keel::f64 v = std::fabs(M[rr * p + k]);
+            const keel::f64 v = keel::abs(M[rr * p + k]);
             if (v > pmax) { pmax = v; piv = rr; }
         }
         if (pmax == 0.0) return false;
@@ -67,8 +64,8 @@ struct LinkFn {
 };
 
 keel::f64 sigmoid(keel::f64 x) {
-    if (x > 0)  return 1.0 / (1.0 + std::exp(-x));
-    const keel::f64 e = std::exp(x);
+    if (x > 0)  return 1.0 / (1.0 + keel::exp(-x));
+    const keel::f64 e = keel::exp(x);
     return e / (1.0 + e);
 }
 
@@ -81,18 +78,18 @@ keel::f64 dEtaLogit(keel::f64 mu) {
     return 1.0 / (m * (1.0 - m));
 }
 
-keel::f64 invLog(keel::f64 e)   { return std::exp(e); }
+keel::f64 invLog(keel::f64 e)   { return keel::exp(e); }
 keel::f64 dEtaLog(keel::f64 mu) {
     const keel::f64 m = std::max(mu, 1e-12);
     return 1.0 / m;
 }
 
 keel::f64 invRecip(keel::f64 e) {
-    const keel::f64 r = (std::fabs(e) > 1e-300) ? e : ((e < 0) ? -1e-300 : 1e-300);
+    const keel::f64 r = (keel::abs(e) > 1e-300) ? e : ((e < 0) ? -1e-300 : 1e-300);
     return 1.0 / r;
 }
 keel::f64 dEtaRecip(keel::f64 mu) {
-    const keel::f64 m = (std::fabs(mu) > 1e-300) ? mu : 1e-300;
+    const keel::f64 m = (keel::abs(mu) > 1e-300) ? mu : 1e-300;
     return -1.0 / (m * m);
 }
 
@@ -100,7 +97,7 @@ keel::f64 dEtaRecip(keel::f64 mu) {
 // dEta/dMu = 1 / phi(norminv(mu)) where phi is the standard normal pdf.
 keel::f64 invProbit(keel::f64 e) {
     // normcdf(e) = 0.5 * erfc(-e / sqrt(2))
-    return 0.5 * std::erfc(-e / std::sqrt(2.0));
+    return 0.5 * keel::erfc(-e / keel::sqrt(2.0));
 }
 keel::f64 dEtaProbit(keel::f64 mu) {
     const keel::f64 m = std::min(std::max(mu, 1e-12), 1.0 - 1e-12);
@@ -111,15 +108,15 @@ keel::f64 dEtaProbit(keel::f64 mu) {
     // so use a rational approximation (Beasley-Springer / Wichura):
     const keel::f64 pp = 2.0 * m - 1.0;
     // Cheap fallback: iterate one Newton step from a logit guess.
-    keel::f64 z = std::log(m / (1.0 - m));
+    keel::f64 z = keel::log(m / (1.0 - m));
     for (keel::i32 i = 0; i < 5; ++i) {
-        const keel::f64 F = 0.5 * std::erfc(-z / std::sqrt(2.0));
-        const keel::f64 f = (1.0 / std::sqrt(2.0 * keel::kPi)) * std::exp(-0.5 * z * z);
+        const keel::f64 F = 0.5 * keel::erfc(-z / keel::sqrt(2.0));
+        const keel::f64 f = (1.0 / keel::sqrt(2.0 * keel::kPi)) * keel::exp(-0.5 * z * z);
         if (f < 1e-300) break;
         z -= (F - m) / f;
     }
     (void)pp;
-    const keel::f64 phi = (1.0 / std::sqrt(2.0 * keel::kPi)) * std::exp(-0.5 * z * z);
+    const keel::f64 phi = (1.0 / keel::sqrt(2.0 * keel::kPi)) * keel::exp(-0.5 * z * z);
     return (phi > 1e-300) ? 1.0 / phi : 1e300;
 }
 
@@ -178,20 +175,20 @@ keel::f64 dEtaProbit(keel::f64 mu) {
         const keel::f64 m = std::min(std::max(mu, 1e-12), 1.0 - 1e-12);
         const keel::f64 yy = std::min(std::max(y,  0.0), 1.0);
         keel::f64 t = 0.0;
-        if (yy > 0.0)     t += yy * std::log(yy / m);
-        if (yy < 1.0)     t += (1.0 - yy) * std::log((1.0 - yy) / (1.0 - m));
+        if (yy > 0.0)     t += yy * keel::log(yy / m);
+        if (yy < 1.0)     t += (1.0 - yy) * keel::log((1.0 - yy) / (1.0 - m));
         return 2.0 * t;
     }
     case GlmDistribution::Poisson: {
         const keel::f64 m = std::max(mu, 1e-12);
         const keel::f64 yy = std::max(y, 0.0);
-        const keel::f64 termY = (yy > 0.0) ? yy * std::log(yy / m) : 0.0;
+        const keel::f64 termY = (yy > 0.0) ? yy * keel::log(yy / m) : 0.0;
         return 2.0 * (termY - (yy - m));
     }
     case GlmDistribution::Gamma: {
         const keel::f64 m = std::max(mu, 1e-12);
         const keel::f64 yy = std::max(y, 1e-12);
-        return 2.0 * (-std::log(yy / m) + (yy - m) / m);
+        return 2.0 * (-keel::log(yy / m) + (yy - m) / m);
     }
     case GlmDistribution::InverseGaussian: {
         const keel::f64 m = std::max(mu, 1e-12);

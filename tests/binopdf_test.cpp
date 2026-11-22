@@ -2,6 +2,7 @@
 // binopdf.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -47,6 +48,6 @@ TEST_F(BinopdfTest, BoundaryProbabilities)
 
 TEST_F(BinopdfTest, InvalidParamsReturnNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("binopdf(3, -1, 0.3)")));
-    EXPECT_TRUE(std::isnan(evalScalar("binopdf(3, 10, -0.1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("binopdf(3, -1, 0.3)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("binopdf(3, 10, -0.1)")));
 }

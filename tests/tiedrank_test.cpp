@@ -3,6 +3,7 @@
 // Regression guard for tiedrank() — ranks adjusted for ties.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <gtest/gtest.h>
 
 using namespace numkit;
@@ -52,7 +53,7 @@ TEST_F(TiedrankTest, NaNGetsNaNRank)
 {
     eval("[r, t] = tiedrank([1 NaN 3 2]);");
     EXPECT_DOUBLE_EQ(evalScalar("r(1)"), 1.0);
-    EXPECT_TRUE(std::isnan(evalScalar("r(2)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("r(2)")));
     EXPECT_DOUBLE_EQ(evalScalar("r(3)"), 3.0);
     EXPECT_DOUBLE_EQ(evalScalar("r(4)"), 2.0);
     EXPECT_DOUBLE_EQ(evalScalar("t"), 0.0);

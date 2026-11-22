@@ -2,6 +2,7 @@
 // unifstat.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -39,6 +40,6 @@ TEST_F(UnifstatTest, ScalarAVectorB)
 
 TEST_F(UnifstatTest, DegenerateOrInvertedReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("unifstat(1, 1)")));   // a == b → NaN
-    EXPECT_TRUE(std::isnan(evalScalar("unifstat(2, 1)")));   // a > b  → NaN
+    EXPECT_TRUE(keel::is_nan(evalScalar("unifstat(1, 1)")));   // a == b → NaN
+    EXPECT_TRUE(keel::is_nan(evalScalar("unifstat(2, 1)")));   // a > b  → NaN
 }

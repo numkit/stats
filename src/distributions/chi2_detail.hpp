@@ -10,15 +10,13 @@
 #pragma once
 
 #include <keel/core.h>
+#include <keel/math.h>
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
-#include <cstring>
-#include <limits>
 #include <tuple>
 #include <utility>
 
@@ -47,14 +45,14 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
 // public chi2pdf formula exactly.
 inline keel::f64 chi2pdfK(keel::f64 x, keel::f64 k)
 {
-    if (k < 0.0) return std::numeric_limits<keel::f64>::quiet_NaN();
+    if (k < 0.0) return keel::Limits<keel::f64>::quiet_nan();
     if (k == 0.0) return 0.0;
     if (x < 0.0) return 0.0;
     const keel::f64 half_k = 0.5 * k;
-    const keel::f64 log_norm = -half_k * std::log(2.0) - std::lgamma(half_k);
+    const keel::f64 log_norm = -half_k * keel::log(2.0) - keel::lgamma(half_k);
     if (x == 0.0)
-        return (k == 2.0) ? 0.5 : (k > 2.0 ? 0.0 : std::numeric_limits<keel::f64>::infinity());
-    return std::exp(log_norm + (half_k - 1.0) * std::log(x) - 0.5 * x);
+        return (k == 2.0) ? 0.5 : (k > 2.0 ? 0.0 : keel::Limits<keel::f64>::infinity());
+    return keel::exp(log_norm + (half_k - 1.0) * keel::log(x) - 0.5 * x);
 }
 
 } // anonymous

@@ -3,6 +3,7 @@
 // from MATLAB R2025b probe.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -36,23 +37,23 @@ TEST_F(GamlikeTest, AVarBasic)
 
 TEST_F(GamlikeTest, InvalidShapeReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("gamlike([0, 1], x)")));
-    EXPECT_TRUE(std::isnan(evalScalar("gamlike([-1, 1], x)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("gamlike([0, 1], x)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("gamlike([-1, 1], x)")));
 }
 
 TEST_F(GamlikeTest, InvalidScaleReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("gamlike([2, 0], x)")));
-    EXPECT_TRUE(std::isnan(evalScalar("gamlike([2, -1], x)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("gamlike([2, 0], x)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("gamlike([2, -1], x)")));
 }
 
 TEST_F(GamlikeTest, NonPositiveDataReturnsInf)
 {
     // x <= 0 is outside Gamma's support → log f = -inf → nL = +inf.
-    EXPECT_TRUE(std::isinf(evalScalar("gamlike([2, 1], [1 2 0 4]')")));
+    EXPECT_TRUE(keel::is_inf(evalScalar("gamlike([2, 1], [1 2 0 4]')")));
 }
 
 TEST_F(GamlikeTest, EmptyDataReturnsInf)
 {
-    EXPECT_TRUE(std::isinf(evalScalar("gamlike([2, 1], [])")));
+    EXPECT_TRUE(keel::is_inf(evalScalar("gamlike([2, 1], [])")));
 }

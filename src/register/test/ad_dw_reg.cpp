@@ -18,7 +18,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <tuple>
 #include <utility>

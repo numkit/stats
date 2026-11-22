@@ -5,6 +5,7 @@
 // content (var/std/median stay in toolboxes/builtin as base MATLAB).
 
 #include <keel/core.h>
+#include <keel/math.h>
 #include <keel/format.h>
 #include <keel/memory.h>
 #include <numkit/stats/moments/moments.hpp>
@@ -15,7 +16,6 @@
 #include <numkit/ops/helpers.hpp>
 #include <numkit/ops/reductions.hpp>
 
-#include <cmath>
 #include <utility>
 
 namespace numkit::stats {
@@ -43,7 +43,7 @@ Value narrowToSingle(Value d, keel::Allocator *mr)
 // requires n >= 3 for the bias correction; otherwise NaN.
 keel::f64 skewnessFromSlice(const keel::f64 *data, keel::usize n, keel::i32 normFlag)
 {
-    if (n < 2) return std::nan("");
+    if (n < 2) return keel::kNaN;
     keel::f64 mean = 0.0;
     for (keel::usize i = 0; i < n; ++i) mean += data[i];
     mean /= keel::as<keel::f64>(n);
@@ -56,12 +56,12 @@ keel::f64 skewnessFromSlice(const keel::f64 *data, keel::usize n, keel::i32 norm
     }
     m2 /= keel::as<keel::f64>(n);
     m3 /= keel::as<keel::f64>(n);
-    if (m2 <= 0.0) return std::nan("");
-    keel::f64 y = m3 / std::pow(m2, 1.5);
+    if (m2 <= 0.0) return keel::kNaN;
+    keel::f64 y = m3 / keel::pow(m2, 1.5);
     if (normFlag == 0) {
-        if (n < 3) return std::nan("");
+        if (n < 3) return keel::kNaN;
         const keel::f64 nd = keel::as<keel::f64>(n);
-        y *= std::sqrt(nd * (nd - 1.0)) / (nd - 2.0);
+        y *= keel::sqrt(nd * (nd - 1.0)) / (nd - 2.0);
     }
     return y;
 }
@@ -70,7 +70,7 @@ keel::f64 skewnessFromSlice(const keel::f64 *data, keel::usize n, keel::i32 norm
 // requires n >= 4 for the bias correction; otherwise NaN.
 keel::f64 kurtosisFromSlice(const keel::f64 *data, keel::usize n, keel::i32 normFlag)
 {
-    if (n < 2) return std::nan("");
+    if (n < 2) return keel::kNaN;
     keel::f64 mean = 0.0;
     for (keel::usize i = 0; i < n; ++i) mean += data[i];
     mean /= keel::as<keel::f64>(n);
@@ -83,10 +83,10 @@ keel::f64 kurtosisFromSlice(const keel::f64 *data, keel::usize n, keel::i32 norm
     }
     m2 /= keel::as<keel::f64>(n);
     m4 /= keel::as<keel::f64>(n);
-    if (m2 <= 0.0) return std::nan("");
+    if (m2 <= 0.0) return keel::kNaN;
     keel::f64 y = m4 / (m2 * m2);
     if (normFlag == 0) {
-        if (n < 4) return std::nan("");
+        if (n < 4) return keel::kNaN;
         const keel::f64 nd = keel::as<keel::f64>(n);
         y = ((nd - 1.0) / ((nd - 2.0) * (nd - 3.0)))
                 * ((nd + 1.0) * y - 3.0 * (nd - 1.0))
@@ -118,7 +118,7 @@ Value dispatchMomentReduction(const Value &x, keel::i32 dim, keel::i32 normFlag,
             // slice and reduce the count before the moment kernel runs.
             keel::usize k = 0;
             for (keel::usize i = 0; i < n; ++i)
-                if (!std::isnan(slice[i])) slice[k++] = slice[i];
+                if (!keel::is_nan(slice[i])) slice[k++] = slice[i];
             return fromSlice(slice, k, normFlag);
         }, mr);
     if (x.type() == ValueType::SINGLE)

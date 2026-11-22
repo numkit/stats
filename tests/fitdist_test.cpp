@@ -3,6 +3,7 @@
 // Regression guard for fitdist (probability-distribution struct).
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <gtest/gtest.h>
 #include <cmath>
 
@@ -58,7 +59,7 @@ TEST_F(FitdistTest, LognormalReturnsMuSigma)
          "pd = fitdist(xl, 'Lognormal');");
     EXPECT_NEAR(evalScalar("pd.ParameterValues(1)"), 0.3, 1e-12);
     // sample std (N-1) of [0.1 0.2 0.3 0.4 0.5]: std = sqrt(0.025) ≈ 0.158114
-    EXPECT_NEAR(evalScalar("pd.ParameterValues(2)"), std::sqrt(0.025), 1e-12);
+    EXPECT_NEAR(evalScalar("pd.ParameterValues(2)"), keel::sqrt(0.025), 1e-12);
 }
 
 TEST_F(FitdistTest, UnknownDistRejected)

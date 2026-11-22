@@ -12,11 +12,8 @@
 #include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
-#include <limits>
 #include <numeric>
 #include <tuple>
 #include <utility>
@@ -32,9 +29,9 @@ bool gaussSolve(keel::f64 *M, keel::f64 *b, keel::usize p)
 {
     for (keel::usize k = 0; k < p; ++k) {
         keel::usize piv = k;
-        keel::f64 pmax = std::fabs(M[k * p + k]);
+        keel::f64 pmax = keel::abs(M[k * p + k]);
         for (keel::usize rr = k + 1; rr < p; ++rr) {
-            const keel::f64 v = std::fabs(M[rr * p + k]);
+            const keel::f64 v = keel::abs(M[rr * p + k]);
             if (v > pmax) { pmax = v; piv = rr; }
         }
         if (pmax == 0.0) return false;
@@ -80,7 +77,7 @@ bool gaussSolve(keel::f64 *M, keel::f64 *b, keel::usize p)
         b[i] = s;
     }
     if (!gaussSolve(M.data(), b.data(), p))
-        std::fill(b.begin(), b.end(), std::numeric_limits<keel::f64>::quiet_NaN());
+        std::fill(b.begin(), b.end(), keel::Limits<keel::f64>::quiet_nan());
     return b;
 }
 
@@ -93,11 +90,11 @@ constexpr keel::f64 kSqrtEps = 1.4901161193847656e-08;  // sqrt(eps)
 
 [[maybe_unused]] keel::f64 robustWeight(RobustWeight wt, keel::f64 u)
 {
-    const keel::f64 a = std::fabs(u);
+    const keel::f64 a = keel::abs(u);
     switch (wt) {
         case RobustWeight::Andrews: {
             const keel::f64 r = std::max(kSqrtEps, a);
-            return (r < keel::kPi) ? std::sin(r) / r : 0.0;
+            return (r < keel::kPi) ? keel::sin(r) / r : 0.0;
         }
         case RobustWeight::Bisquare: {
             if (a >= 1.0) return 0.0;
@@ -109,11 +106,11 @@ constexpr keel::f64 kSqrtEps = 1.4901161193847656e-08;  // sqrt(eps)
         case RobustWeight::Huber:    return 1.0 / std::max(1.0, a);
         case RobustWeight::Logistic: {
             const keel::f64 r = std::max(kSqrtEps, a);
-            return std::tanh(r) / r;
+            return keel::tanh(r) / r;
         }
         case RobustWeight::Ols:      return 1.0;
         case RobustWeight::Talwar:   return (a < 1.0) ? 1.0 : 0.0;
-        case RobustWeight::Welsch:   return std::exp(-(u * u));
+        case RobustWeight::Welsch:   return keel::exp(-(u * u));
     }
     return 1.0;
 }
@@ -140,7 +137,7 @@ constexpr keel::f64 kSqrtEps = 1.4901161193847656e-08;  // sqrt(eps)
 {
     const keel::usize n = r_in.size();
     keel::Array<keel::f64> r(n);
-    for (keel::usize i = 0; i < n; ++i) r[i] = std::fabs(r_in[i]);
+    for (keel::usize i = 0; i < n; ++i) r[i] = keel::abs(r_in[i]);
     std::sort(r.begin(), r.end());
     const keel::usize start = (p >= 1) ? (p - 1) : 0;   // 0-based first kept
     const keel::usize m = (start < n) ? (n - start) : 0;
@@ -161,7 +158,7 @@ constexpr keel::f64 kSqrtEps = 1.4901161193847656e-08;  // sqrt(eps)
     const keel::f64 m = s / keel::f64(n);
     keel::f64 ss = 0.0;
     for (keel::f64 e : v) ss += (e - m) * (e - m);
-    return std::sqrt(ss / keel::f64(n - 1));
+    return keel::sqrt(ss / keel::f64(n - 1));
 }
 
 // Hat-matrix (leverage) diagonal of X (col-major n×p) via (X'X)^-1.
@@ -181,9 +178,9 @@ constexpr keel::f64 kSqrtEps = 1.4901161193847656e-08;  // sqrt(eps)
     for (keel::usize i = 0; i < p; ++i) inv[i * p + i] = 1.0;
     for (keel::usize col = 0; col < p; ++col) {
         keel::usize piv = col;
-        keel::f64 best = std::fabs(XtX[col * p + col]);
+        keel::f64 best = keel::abs(XtX[col * p + col]);
         for (keel::usize r = col + 1; r < p; ++r) {
-            const keel::f64 v = std::fabs(XtX[r * p + col]);
+            const keel::f64 v = keel::abs(XtX[r * p + col]);
             if (v > best) { best = v; piv = r; }
         }
         if (piv != col)
@@ -282,9 +279,9 @@ namespace {
         A[i * 2 * d + (d + i)] = 1.0;
     for (keel::usize k = 0; k < d; ++k) {
         keel::usize piv = k;
-        keel::f64 pmax = std::fabs(A[k * 2 * d + k]);
+        keel::f64 pmax = keel::abs(A[k * 2 * d + k]);
         for (keel::usize rr = k + 1; rr < d; ++rr) {
-            const keel::f64 v = std::fabs(A[rr * 2 * d + k]);
+            const keel::f64 v = keel::abs(A[rr * 2 * d + k]);
             if (v > pmax) { pmax = v; piv = rr; }
         }
         if (pmax == 0.0) return false;

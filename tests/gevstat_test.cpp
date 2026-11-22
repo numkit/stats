@@ -2,6 +2,7 @@
 // gevstat.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -36,14 +37,14 @@ TEST_F(GevstatTest, K05_VarianceIsInf)
     // k=0.5 → variance Γ(1-2k) → Γ(0) = Inf.
     eval("[m, v] = gevstat(0.5, 1, 0);");
     EXPECT_NEAR(evalScalar("m"), 1.5449077018110318, 1e-6);  // tgamma precision
-    EXPECT_TRUE(std::isinf(evalScalar("v")));
+    EXPECT_TRUE(keel::is_inf(evalScalar("v")));
 }
 
 TEST_F(GevstatTest, K1_MeanIsInf)
 {
     // k>=1 → mean diverges (Γ(1-k) → Inf at k=1).
     eval("[m, v] = gevstat(1, 1, 0);");
-    EXPECT_TRUE(std::isinf(evalScalar("m")));
+    EXPECT_TRUE(keel::is_inf(evalScalar("m")));
 }
 
 TEST_F(GevstatTest, VectorBroadcasting)
@@ -55,6 +56,6 @@ TEST_F(GevstatTest, VectorBroadcasting)
 
 TEST_F(GevstatTest, InvalidSigmaReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("gevstat(0.3,  0, 0)")));
-    EXPECT_TRUE(std::isnan(evalScalar("gevstat(0.3, -1, 0)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("gevstat(0.3,  0, 0)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("gevstat(0.3, -1, 0)")));
 }

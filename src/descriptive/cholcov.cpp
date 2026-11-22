@@ -33,8 +33,6 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
-#include <limits>
 #include <utility>
 
 namespace numkit::stats {
@@ -61,7 +59,7 @@ bool tryCholesky(const Value &SIGMA, keel::Array<keel::f64> &out, keel::usize n)
         for (keel::usize k = 0; k < j; ++k)
             s -= r[k + j * n] * r[k + j * n];
         if (s <= 0.0) return false;
-        r[j + j * n] = std::sqrt(s);
+        r[j + j * n] = keel::sqrt(s);
         const keel::f64 inv_diag = 1.0 / r[j + j * n];
         for (keel::usize i = j + 1; i < n; ++i) {
             keel::f64 t = a[j + i * n];
@@ -105,7 +103,7 @@ cholcov(const Value &SIGMA, keel::Allocator *mr)
     }
     keel::f64 maxAbsD = 0.0;
     for (keel::f64 v : d) maxAbsD = std::max(maxAbsD, keel::abs(v));
-    const keel::f64 tol = std::pow(std::numeric_limits<keel::f64>::epsilon(),
+    const keel::f64 tol = keel::pow(keel::Limits<keel::f64>::kEpsilon,
                                 0.75) * maxAbsD;
 
     // 3. Count "negative" eigenvalues beyond tolerance.
@@ -126,7 +124,7 @@ cholcov(const Value &SIGMA, keel::Allocator *mr)
     const keel::f64 *vd = V.doubleData();
     for (keel::usize k = 0; k < r; ++k) {
         const keel::usize col = keep[k];
-        const keel::f64 s = std::sqrt(d[col]);
+        const keel::f64 s = keel::sqrt(d[col]);
         // T(k, j) = s * V(j, col)
         for (keel::usize j = 0; j < R; ++j)
             o[k + j * r] = s * vd[j + col * R];

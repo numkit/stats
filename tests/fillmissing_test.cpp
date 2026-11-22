@@ -6,6 +6,7 @@
 // methods.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <gtest/gtest.h>
 
 #include <cmath>
@@ -50,8 +51,8 @@ TEST_F(FillMissingTest, NearestLeadingTrailingNaNs)
 TEST_F(FillMissingTest, NearestAllNaNNoOp)
 {
     eval("B = fillmissing([NaN NaN], 'nearest');");
-    EXPECT_TRUE(std::isnan(evalScalar("B(1)")));
-    EXPECT_TRUE(std::isnan(evalScalar("B(2)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("B(1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("B(2)")));
 }
 
 // ── linear ───────────────────────────────────────────────────────
@@ -103,7 +104,7 @@ TEST_F(FillMissingTest, MatrixPreviousPerColumn)
     eval("B = fillmissing([1 NaN; NaN 4; 3 NaN; 5 8], 'previous');");
     EXPECT_NEAR(evalScalar("B(1,1)"), 1.0, 1e-12);
     EXPECT_NEAR(evalScalar("B(2,1)"), 1.0, 1e-12);   // carry from above
-    EXPECT_TRUE(std::isnan(evalScalar("B(1,2)")));   // NOT carried from col1 end
+    EXPECT_TRUE(keel::is_nan(evalScalar("B(1,2)")));   // NOT carried from col1 end
     EXPECT_NEAR(evalScalar("B(2,2)"), 4.0, 1e-12);
     EXPECT_NEAR(evalScalar("B(3,2)"), 4.0, 1e-12);
 }

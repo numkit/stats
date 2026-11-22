@@ -4,6 +4,7 @@
 // callback-driven adapters (bootstrp/bootci/crossval/datasample/jackknife/
 // randsample/combnk) + BootstrpCallbackBuiltin + registerBootstrpCallbackBuiltin.
 #include <keel/core.h>
+#include <keel/math.h>
 #include <keel/format.h>
 #include <keel/memory.h>
 #include <keel/ref.h>
@@ -18,7 +19,6 @@
 #include "resample/resample_detail.hpp"
 
 #include <algorithm>
-#include <cstring>
 #include <mutex>
 #include <keel/random.h>
 #include <numeric>
@@ -274,7 +274,7 @@ void bootci_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
         // Linear-interpolation percentile (matches MATLAB prctile default).
         auto qFn = [&](keel::f64 q) {
             const keel::f64 pos = q * (keel::as<keel::f64>(nboot) - 1.0);
-            const keel::usize lo = keel::as<keel::usize>(std::floor(pos));
+            const keel::usize lo = keel::as<keel::usize>(keel::floor(pos));
             const keel::usize hi = std::min(keel::as<keel::usize>(lo + 1),
                                               keel::as<keel::usize>(nboot - 1));
             const keel::f64 frac = pos - keel::as<keel::f64>(lo);

@@ -23,7 +23,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <tuple>
 #include <utility>
@@ -128,7 +127,7 @@ static keel::f64 digamma(keel::f64 z)
     while (z < 8.0) { r -= 1.0 / z; z += 1.0; }
     const keel::f64 inv  = 1.0 / z;
     const keel::f64 inv2 = inv * inv;
-    r += std::log(z) - 0.5 * inv;
+    r += keel::log(z) - 0.5 * inv;
     r -= inv2 * (1.0/12.0 - inv2 * (1.0/120.0 - inv2 * 1.0/252.0));
     return r;
 }
@@ -143,8 +142,8 @@ template <class Eval>
 static void fill_fd_avar2(keel::f64 *p, keel::f64 p0, keel::f64 p1,
                           keel::f64 nL, Eval eval_nL)
 {
-    const keel::f64 NaNd = std::numeric_limits<keel::f64>::quiet_NaN();
-    if (!std::isfinite(nL)) {
+    const keel::f64 NaNd = keel::Limits<keel::f64>::quiet_nan();
+    if (!keel::is_finite(nL)) {
         p[0] = NaNd; p[1] = NaNd; p[2] = NaNd; p[3] = NaNd;
         return;
     }
@@ -162,7 +161,7 @@ static void fill_fd_avar2(keel::f64 *p, keel::f64 p0, keel::f64 p1,
     const keel::f64 I11 = (f_p1 - 2.0 * nL + f_m1) / (h1 * h1);
     const keel::f64 I01 = (f_pp - f_pm - f_mp + f_mm) / (4.0 * h0 * h1);
     const keel::f64 det = I00 * I11 - I01 * I01;
-    if (det == 0.0 || !std::isfinite(det)) {
+    if (det == 0.0 || !keel::is_finite(det)) {
         p[0] = NaNd; p[1] = NaNd; p[2] = NaNd; p[3] = NaNd;
     } else {
         const keel::f64 inv = 1.0 / det;
@@ -179,11 +178,11 @@ template <class Eval>
 static void fill_fd_avar3(keel::f64 *p, keel::f64 p0, keel::f64 p1, keel::f64 p2,
                           keel::f64 nL, Eval eval_nL)
 {
-    const keel::f64 NaNd = std::numeric_limits<keel::f64>::quiet_NaN();
+    const keel::f64 NaNd = keel::Limits<keel::f64>::quiet_nan();
     auto setNaN = [&]() {
         for (keel::i32 i = 0; i < 9; ++i) p[i] = NaNd;
     };
-    if (!std::isfinite(nL)) { setNaN(); return; }
+    if (!keel::is_finite(nL)) { setNaN(); return; }
 
     const keel::f64 h0 = std::max(1e-4, 1e-4 * keel::abs(p0));
     const keel::f64 h1 = std::max(1e-4, 1e-4 * keel::abs(p1));
@@ -216,7 +215,7 @@ static void fill_fd_avar3(keel::f64 *p, keel::f64 p0, keel::f64 p1, keel::f64 p2
     const keel::f64 C12 = -(H00*H12 - H01*H02);
     const keel::f64 C22 = H00*H11 - H01*H01;
     const keel::f64 det = H00 * C00 + H01 * C01 + H02 * C02;
-    if (det == 0.0 || !std::isfinite(det)) { setNaN(); return; }
+    if (det == 0.0 || !keel::is_finite(det)) { setNaN(); return; }
     const keel::f64 inv = 1.0 / det;
     // Column-major 3×3, parameter order [p0, p1, p2].
     p[0] = C00 * inv; p[1] = C01 * inv; p[2] = C02 * inv;  // col 0
@@ -274,14 +273,14 @@ void normlike_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         const keel::f64 inv_s3  = inv_s2 * inv_s;
         const keel::f64 inv_s4  = inv_s2 * inv_s2;
         const keel::f64 sqrt2pi_inv = keel::kInvSqrt2Pi;
-        const keel::f64 sqrt2_inv   = 1.0 / std::sqrt(2.0);
+        const keel::f64 sqrt2_inv   = 1.0 / keel::sqrt(2.0);
         keel::f64 I00 = 0.0, I01 = 0.0, I11 = 0.0;
         bool nanSeen = false;
         for (keel::usize i = 0; i < N; ++i) {
             const keel::f64 w = useF ? freq.elemAsDouble(i) : 1.0;
             if (w == 0.0) continue;
             const keel::f64 xi = x.elemAsDouble(i);
-            if (std::isnan(xi)) { nanSeen = true; break; }
+            if (keel::is_nan(xi)) { nanSeen = true; break; }
             const keel::f64 d = xi - mu;
             const keel::f64 z = d * inv_s;
             const bool censored = useC && (cens.elemAsDouble(i) != 0.0);
@@ -290,8 +289,8 @@ void normlike_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                 I11 += w * (-inv_s2 + 3.0 * d * d * inv_s4);
                 I01 += w * 2.0 * d * inv_s3;
             } else {
-                const keel::f64 phi = sqrt2pi_inv * std::exp(-0.5 * z * z);
-                const keel::f64 S   = 0.5 * std::erfc(z * sqrt2_inv);
+                const keel::f64 phi = sqrt2pi_inv * keel::exp(-0.5 * z * z);
+                const keel::f64 S   = 0.5 * keel::erfc(z * sqrt2_inv);
                 const keel::f64 h   = phi / S;
                 const keel::f64 hp  = h * (h - z);
                 I00 += w * hp * inv_s2;
@@ -299,14 +298,14 @@ void normlike_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                 I01 += w * (z * hp + h) * inv_s2;
             }
         }
-        const keel::f64 NaNd = std::numeric_limits<keel::f64>::quiet_NaN();
+        const keel::f64 NaNd = keel::Limits<keel::f64>::quiet_nan();
         Value av = Value::matrix(2, 2, ValueType::DOUBLE, ctx.engine->allocator());
         keel::f64 *p = av.doubleDataMut();
         if (nanSeen || N == 0 || !(sigma > 0.0)) {
             p[0] = NaNd; p[1] = NaNd; p[2] = NaNd; p[3] = NaNd;
         } else {
             const keel::f64 det = I00 * I11 - I01 * I01;
-            if (det == 0.0 || !std::isfinite(det)) {
+            if (det == 0.0 || !keel::is_finite(det)) {
                 p[0] = NaNd; p[1] = NaNd; p[2] = NaNd; p[3] = NaNd;
             } else {
                 const keel::f64 inv = 1.0 / det;
@@ -390,9 +389,9 @@ void betalike_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     if (nargout >= 2) {
         Value av = Value::matrix(2, 2, ValueType::DOUBLE, mr);
         keel::f64 *p = av.doubleDataMut();
-        const keel::f64 NaNd = std::numeric_limits<keel::f64>::quiet_NaN();
+        const keel::f64 NaNd = keel::Limits<keel::f64>::quiet_nan();
         const keel::usize N = x.numel();
-        if (!std::isfinite(nL) || !(a > 0.0) || !(b > 0.0) || N == 0) {
+        if (!keel::is_finite(nL) || !(a > 0.0) || !(b > 0.0) || N == 0) {
             p[0] = NaNd; p[1] = NaNd; p[2] = NaNd; p[3] = NaNd;
         } else {
             const keel::f64 Ca = -digamma(a) + digamma(a + b);
@@ -402,14 +401,14 @@ void betalike_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             for (keel::usize i = 0; i < N; ++i) {
                 const keel::f64 xi = x.elemAsDouble(i);
                 if (xi <= 0.0 || xi >= 1.0) { bad = true; break; }
-                const keel::f64 sa = std::log(xi)    + Ca;
-                const keel::f64 sb = std::log1p(-xi) + Cb;
+                const keel::f64 sa = keel::log(xi)    + Ca;
+                const keel::f64 sb = keel::log1p(-xi) + Cb;
                 Iaa += sa * sa;
                 Ibb += sb * sb;
                 Iab += sa * sb;
             }
             const keel::f64 det = Iaa * Ibb - Iab * Iab;
-            if (bad || det == 0.0 || !std::isfinite(det)) {
+            if (bad || det == 0.0 || !keel::is_finite(det)) {
                 p[0] = NaNd; p[1] = NaNd; p[2] = NaNd; p[3] = NaNd;
             } else {
                 const keel::f64 inv = 1.0 / det;
@@ -469,7 +468,7 @@ void explike_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     Value emptyVal = Value::matrix(0, 0, ValueType::DOUBLE, mr);
     const Value &cens = (args.size() >= 3) ? args[2] : emptyVal;
     const Value &freq = (args.size() >= 4) ? args[3] : emptyVal;
-    keel::f64 avar = std::numeric_limits<keel::f64>::quiet_NaN();
+    keel::f64 avar = keel::Limits<keel::f64>::quiet_nan();
     const keel::f64 nL = explike_full(mu, args[1], cens, freq,
                                    nargout >= 2 ? &avar : nullptr);
     outs[0] = Value::scalar(nL, mr);
@@ -606,8 +605,8 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             throw Error(keel::format("mle: custom '{}' requires a non-empty 'start' parameter vector", custom_kind),
                         0, 0, "mle", "", "numkit:mle:missingStart");
         const keel::usize K = start_val.numel();
-        keel::Array<keel::f64> p0(K), lb(K, -std::numeric_limits<keel::f64>::infinity()),
-                            ub(K,  std::numeric_limits<keel::f64>::infinity());
+        keel::Array<keel::f64> p0(K), lb(K, -keel::Limits<keel::f64>::infinity()),
+                            ub(K,  keel::Limits<keel::f64>::infinity());
         for (keel::usize k = 0; k < K; ++k) p0[k] = start_val.elemAsDouble(k);
         if (!lower_val.isEmpty()) {
             for (keel::usize k = 0; k < K && k < lower_val.numel(); ++k)
@@ -628,7 +627,7 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         const keel::f64 bigPen = 1e100;
         auto evalNLL = [&](const keel::Array<keel::f64> &theta) -> keel::f64 {
             for (keel::usize k = 0; k < K; ++k) {
-                if (!std::isfinite(theta[k]) || theta[k] < lb[k] || theta[k] > ub[k])
+                if (!keel::is_finite(theta[k]) || theta[k] < lb[k] || theta[k] > ub[k])
                     return bigPen;
             }
             try {
@@ -644,7 +643,7 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                         res = ctx.engine->callFunctionHandle(custom_fh, keel::ArrayRef<Value>(cargs2, 2), ctx.env);
                     }
                     const keel::f64 v = res.toScalar();
-                    return std::isfinite(v) ? v : bigPen;
+                    return keel::is_finite(v) ? v : bigPen;
                 }
                 // 'pdf' or 'logpdf': pass (x, p1, p2, ...), fallback to (x, pVec)
                 Value vals;
@@ -669,14 +668,14 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                     if (fi == 0.0) continue;
                     const keel::f64 v = vals.elemAsDouble(vals.numel() == 1 ? 0 : i);
                     if (isLog) {
-                        if (!std::isfinite(v)) return bigPen;
+                        if (!keel::is_finite(v)) return bigPen;
                         nll -= fi * v;
                     } else {
-                        if (!(v > 0.0) || !std::isfinite(v)) return bigPen;
-                        nll -= fi * std::log(v);
+                        if (!(v > 0.0) || !keel::is_finite(v)) return bigPen;
+                        nll -= fi * keel::log(v);
                     }
                 }
-                return std::isfinite(nll) ? nll : bigPen;
+                return keel::is_finite(nll) ? nll : bigPen;
             } catch (...) {
                 return bigPen;
             }
@@ -804,13 +803,13 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                         aug[r * (2 * K) + c] -= f * aug[col * (2 * K) + c];
                 }
             }
-            const keel::f64 zCrit = std::sqrt(chi2inv(Value::scalar(1.0 - alpha, mr), 1.0, mr).toScalar());
+            const keel::f64 zCrit = keel::sqrt(chi2inv(Value::scalar(1.0 - alpha, mr), 1.0, mr).toScalar());
             Value pci = Value::matrix(2, K, ValueType::DOUBLE, mr);
             keel::f64 *pd = pci.doubleDataMut();
             for (keel::usize k = 0; k < K; ++k) {
                 keel::f64 varK = invOk ? aug[k * (2 * K) + (K + k)]
-                                    : (H[k + k * K] > 0.0 ? 1.0 / H[k + k * K] : std::numeric_limits<keel::f64>::quiet_NaN());
-                keel::f64 se = (varK > 0.0) ? std::sqrt(varK) : std::numeric_limits<keel::f64>::quiet_NaN();
+                                    : (H[k + k * K] > 0.0 ? 1.0 / H[k + k * K] : keel::Limits<keel::f64>::quiet_nan());
+                keel::f64 se = (varK > 0.0) ? keel::sqrt(varK) : keel::Limits<keel::f64>::quiet_nan();
                 pd[0 + k * 2] = phat[k] - zCrit * se;
                 pd[1 + k * 2] = phat[k] + zCrit * se;
             }
@@ -830,7 +829,7 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             const keel::f64 d = xd[i] - mean;
             ss += d * d;
         }
-        const keel::f64 sigma = std::sqrt(ss / keel::as<keel::f64>(N));
+        const keel::f64 sigma = keel::sqrt(ss / keel::as<keel::f64>(N));
         auto out = Value::matrix(1, 2, ValueType::DOUBLE, mr);
         out.doubleDataMut()[0] = mean;
         out.doubleDataMut()[1] = sigma;
@@ -863,7 +862,7 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     if (dist.equals_ignore_ascii_case("poisson") || dist == "poiss") {
         keel::f64 sum = 0.0;
         for (keel::usize i = 0; i < N; ++i) {
-            if (xd[i] < 0.0 || xd[i] != std::floor(xd[i]))
+            if (xd[i] < 0.0 || xd[i] != keel::floor(xd[i]))
                 throw Error("mle: poisson requires non-negative integer data",
                     0, 0, "mle", "", "numkit:mle:badData");
             sum += xd[i];
@@ -884,15 +883,15 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             if (xd[i] <= 0.0)
                 throw Error("mle: lognormal requires strictly positive data",
                     0, 0, "mle", "", "numkit:mle:badData");
-            sum_log += std::log(xd[i]);
+            sum_log += keel::log(xd[i]);
         }
         const keel::f64 mu = sum_log / keel::as<keel::f64>(N);
         keel::f64 ss = 0.0;
         for (keel::usize i = 0; i < N; ++i) {
-            const keel::f64 d = std::log(xd[i]) - mu;
+            const keel::f64 d = keel::log(xd[i]) - mu;
             ss += d * d;
         }
-        const keel::f64 sigma = std::sqrt(ss / keel::as<keel::f64>(N));
+        const keel::f64 sigma = keel::sqrt(ss / keel::as<keel::f64>(N));
         auto out = Value::matrix(1, 2, ValueType::DOUBLE, mr);
         out.doubleDataMut()[0] = mu;
         out.doubleDataMut()[1] = sigma;
@@ -901,7 +900,7 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             // CI on (mu, sigma) of log(x) — matches MATLAB's lognormal pci.
             Value logx = Value::matrix(1, N, ValueType::DOUBLE, mr);
             keel::f64 *lx = logx.doubleDataMut();
-            for (keel::usize i = 0; i < N; ++i) lx[i] = std::log(xd[i]);
+            for (keel::usize i = 0; i < N; ++i) lx[i] = keel::log(xd[i]);
             auto [m, s, muci, sdci] = normfit(logx, alpha, Value::Empty, Value::Empty, mr);
             (void)m; (void)s;
             emitPci2(muci, sdci);
@@ -995,20 +994,20 @@ void fitdist_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
             const keel::f64 d = xd[i] - mean;
             ss += d * d;
         }
-        const keel::f64 sigma = std::sqrt(ss / keel::as<keel::f64>(N - 1));  // N-1
+        const keel::f64 sigma = keel::sqrt(ss / keel::as<keel::f64>(N - 1));  // N-1
         params = Value::matrix(1, 2, ValueType::DOUBLE, mr);
         params.doubleDataMut()[0] = mean;
         params.doubleDataMut()[1] = sigma;
     } else if (canonical == "Lognormal") {
         keel::f64 sum_log = 0.0;
-        for (keel::usize i = 0; i < N; ++i) sum_log += std::log(xd[i]);
+        for (keel::usize i = 0; i < N; ++i) sum_log += keel::log(xd[i]);
         const keel::f64 mu = sum_log / keel::as<keel::f64>(N);
         keel::f64 ss = 0.0;
         for (keel::usize i = 0; i < N; ++i) {
-            const keel::f64 d = std::log(xd[i]) - mu;
+            const keel::f64 d = keel::log(xd[i]) - mu;
             ss += d * d;
         }
-        const keel::f64 sigma = std::sqrt(ss / keel::as<keel::f64>(N - 1));
+        const keel::f64 sigma = keel::sqrt(ss / keel::as<keel::f64>(N - 1));
         params = Value::matrix(1, 2, ValueType::DOUBLE, mr);
         params.doubleDataMut()[0] = mu;
         params.doubleDataMut()[1] = sigma;

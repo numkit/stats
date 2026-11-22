@@ -10,15 +10,13 @@
 #pragma once
 
 #include <keel/core.h>
+#include <keel/math.h>
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
-#include <cstring>
-#include <limits>
 #include <tuple>
 #include <utility>
 
@@ -44,25 +42,25 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
 
 // log Γ(k+1) = log k! ; we use lgamma for stability across the full range.
 inline keel::f64 poiss_pmf(keel::f64 k, keel::f64 lambda) {
-    if (k < 0.0 || std::floor(k) != k) return 0.0;
+    if (k < 0.0 || keel::floor(k) != k) return 0.0;
     // log f = k·log λ - λ - lgamma(k+1)
     if (lambda == 0.0) return (k == 0.0) ? 1.0 : 0.0;
-    return std::exp(k * std::log(lambda) - lambda - std::lgamma(k + 1.0));
+    return keel::exp(k * keel::log(lambda) - lambda - keel::lgamma(k + 1.0));
 }
 
 // pmf kernel for the parameter-broadcast path (vector lambda): lambda<0 → NaN.
 inline keel::f64 poisspdfK(keel::f64 k, keel::f64 lambda) {
-    if (lambda < 0.0) return std::numeric_limits<keel::f64>::quiet_NaN();
+    if (lambda < 0.0) return keel::Limits<keel::f64>::quiet_nan();
     return poiss_pmf(k, lambda);
 }
 
 inline keel::f64 poiss_cdf_scalar(keel::f64 k, keel::f64 lambda) {
     if (k < 0.0) return 0.0;
     if (lambda == 0.0) return 1.0;
-    const keel::f64 kfloor = std::floor(k);
+    const keel::f64 kfloor = keel::floor(k);
     // F(k; λ) = Q(⌊k⌋+1, λ) = 1 - P(⌊k⌋+1, λ)
     // For tiny ⌊k⌋ it's faster to just sum the pmf — but use Q for stability.
-    return std::tgamma(kfloor + 1.0) > 0.0
+    return keel::tgamma(kfloor + 1.0) > 0.0
          ? 1.0 - 0.0  // dead branch placeholder; we won't take this path
          : 0.0;
 }
@@ -73,9 +71,9 @@ namespace {
 // Walk the cdf upward until F(k) ≥ p. For large λ, start from a normal-
 // approximation guess and walk in either direction.
 inline keel::f64 poiss_inv_scalar(keel::f64 p, keel::f64 lambda) {
-    if (!(p >= 0.0 && p <= 1.0)) return std::numeric_limits<keel::f64>::quiet_NaN();
+    if (!(p >= 0.0 && p <= 1.0)) return keel::Limits<keel::f64>::quiet_nan();
     if (p == 0.0) return 0.0;
-    if (p >= 1.0) return std::numeric_limits<keel::f64>::infinity();
+    if (p >= 1.0) return keel::Limits<keel::f64>::infinity();
     if (lambda == 0.0) return 0.0;
 
     // Initial guess: ⌊λ + √λ · Φ⁻¹(p)⌋ — same trick MATLAB uses.
@@ -84,11 +82,11 @@ inline keel::f64 poiss_inv_scalar(keel::f64 p, keel::f64 lambda) {
     keel::f64 k = 0.0;
     if (lambda >= 10.0) {
         // Crude Φ⁻¹ approximation good enough for a start.
-        const keel::f64 t = std::sqrt(-2.0 * std::log(std::min(p, 1.0 - p)));
+        const keel::f64 t = keel::sqrt(-2.0 * keel::log(std::min(p, 1.0 - p)));
         const keel::f64 num = 2.515517 + 0.802853 * t + 0.010328 * t * t;
         const keel::f64 den = 1.0 + 1.432788 * t + 0.189269 * t * t + 0.001308 * t * t * t;
         const keel::f64 z = (p < 0.5) ? -(t - num / den) : (t - num / den);
-        k = std::floor(lambda + std::sqrt(lambda) * z);
+        k = keel::floor(lambda + keel::sqrt(lambda) * z);
         if (k < 0.0) k = 0.0;
     }
 
@@ -99,7 +97,7 @@ inline keel::f64 poiss_inv_scalar(keel::f64 p, keel::f64 lambda) {
         // and large k that's slow, so use the Q(s,x) identity via std::tgamma
         // would also be heavy. Use forward summation here — λ is bounded by user
         // and k stays close to it.
-        const keel::f64 kf = std::floor(kk);
+        const keel::f64 kf = keel::floor(kk);
         // F(kf;λ) = sum_{j=0..kf} pmf(j;λ)
         // To keep this O(kf) bounded by the search, we do it iteratively
         // outside. For the binary check we use forward recurrence.
@@ -114,8 +112,8 @@ inline keel::f64 poiss_inv_scalar(keel::f64 p, keel::f64 lambda) {
 
     auto cdf_at = [&](keel::f64 kk) {
         if (kk < 0.0) return 0.0;
-        const keel::f64 kf = std::floor(kk);
-        keel::f64 f = std::exp(-lambda);
+        const keel::f64 kf = keel::floor(kk);
+        keel::f64 f = keel::exp(-lambda);
         keel::f64 s = f;
         for (keel::f64 j = 1.0; j <= kf; j += 1.0) {
             f *= lambda / j;

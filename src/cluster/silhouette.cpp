@@ -3,6 +3,7 @@
 // Clustering silhouette quality metric, delegating to keel::stats::silhouette.
 
 #include <keel/arena.h>
+#include <keel/math.h>
 #include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
@@ -15,7 +16,6 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 
-#include <cmath>
 
 namespace numkit::stats {
 
@@ -65,7 +65,7 @@ Value silhouette(const Value &X, const Value &clust, keel::StringRef metric,
     for (keel::usize i = 0; i < N * D; ++i) xv[i] = X.elemAsDouble(i);
     keel::Array<keel::i32> lbl(N, 0, scratch.allocator());
     for (keel::usize i = 0; i < N; ++i)
-        lbl[i] = keel::as<keel::i32>(std::lround(clust.elemAsDouble(i)));
+        lbl[i] = keel::as<keel::i32>(keel::round_i64(clust.elemAsDouble(i)));
 
     Value out = Value::matrix(N, 1, ValueType::DOUBLE, mr);
     (void)keel::stats::silhouette(

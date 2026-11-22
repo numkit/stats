@@ -4,6 +4,7 @@
 // Closes the ⚠️ gap.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <gtest/gtest.h>
 
 using namespace numkit;
@@ -51,7 +52,7 @@ TEST_F(CorrXYTest, ConstantColumnReturnsNaN)
 {
     eval("X = [1; 1; 1; 1; 1]; Y = [1; 2; 3; 4; 5];"
          "c = corr(X, Y);");
-    EXPECT_TRUE(std::isnan(evalScalar("c")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("c")));
 }
 
 TEST_F(CorrXYTest, AsymmetricSizesMatrix)
@@ -107,7 +108,7 @@ TEST_F(CorrXYTest, RowsPairwiseDeletion)
     EXPECT_NEAR(evalScalar("Cp(2,3)"), -0.300375704593055, 1e-10);
     EXPECT_NEAR(evalScalar("Cp(1,1)"),  1.0,               1e-12);
     // 'all' (default) still NaN-poisons.
-    EXPECT_TRUE(std::isnan(evalScalar("Ca = corr(Xn); Ca(2,2)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("Ca = corr(Xn); Ca(2,2)")));
     // 'pairwise' also works for Spearman and Kendall.
     eval("Cs = corr(Xn,'rows','pairwise','type','Spearman');");
     EXPECT_NEAR(evalScalar("Cs(1,1)"), 1.0, 1e-12);

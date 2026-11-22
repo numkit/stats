@@ -2,6 +2,7 @@
 // ncx2stat.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -39,7 +40,7 @@ TEST_F(Ncx2statTest, Lambda0ReducesToCentralChi2)
 
 TEST_F(Ncx2statTest, InvalidParamsReturnNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("ncx2stat( 0, 2)")));   // k <= 0
-    EXPECT_TRUE(std::isnan(evalScalar("ncx2stat(-1, 2)")));
-    EXPECT_TRUE(std::isnan(evalScalar("ncx2stat( 5, -1)")));  // λ < 0
+    EXPECT_TRUE(keel::is_nan(evalScalar("ncx2stat( 0, 2)")));   // k <= 0
+    EXPECT_TRUE(keel::is_nan(evalScalar("ncx2stat(-1, 2)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("ncx2stat( 5, -1)")));  // λ < 0
 }

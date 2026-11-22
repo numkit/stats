@@ -16,10 +16,7 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
-#include <cstring>
-#include <limits>
 #include <tuple>
 #include <utility>
 
@@ -49,13 +46,13 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
 // Sample inverse-cdf: x = mu + sigma · ((-log(u))^(-k) - 1)/k for k≠0,
 // x = mu − sigma·log(−log(u)) for k=0.
 inline keel::f64 gev_inv_one(keel::f64 u, keel::f64 k, keel::f64 sigma, keel::f64 mu) {
-    if (!(u >= 0.0 && u <= 1.0)) return std::numeric_limits<keel::f64>::quiet_NaN();
+    if (!(u >= 0.0 && u <= 1.0)) return keel::Limits<keel::f64>::quiet_nan();
     if (u == 0.0) return (k > 0) ? mu - sigma / k
-                                 : -std::numeric_limits<keel::f64>::infinity();
+                                 : -keel::Limits<keel::f64>::infinity();
     if (u == 1.0) return (k < 0) ? mu - sigma / k
-                                 :  std::numeric_limits<keel::f64>::infinity();
-    if (k == 0.0) return mu - sigma * std::log(-std::log(u));
-    return mu + sigma * (std::pow(-std::log(u), -k) - 1.0) / k;
+                                 :  keel::Limits<keel::f64>::infinity();
+    if (k == 0.0) return mu - sigma * keel::log(-keel::log(u));
+    return mu + sigma * (keel::pow(-keel::log(u), -k) - 1.0) / k;
 }
 
 } // anonymous

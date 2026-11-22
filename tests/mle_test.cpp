@@ -3,6 +3,7 @@
 // Regression guard for mle (closed-form max-likelihood estimator).
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <gtest/gtest.h>
 
 using namespace numkit;
@@ -28,7 +29,7 @@ TEST_F(MleTest, NormalExplicit)
     eval("x = [1 2 3 4 5]; m = mle(x, 'distribution', 'normal');");
     EXPECT_NEAR(evalScalar("m(1)"), 3.0, 1e-12);
     // sigma = sqrt(mean((x - 3)^2)) = sqrt(2)
-    EXPECT_NEAR(evalScalar("m(2)"), std::sqrt(2.0), 1e-12);
+    EXPECT_NEAR(evalScalar("m(2)"), keel::sqrt(2.0), 1e-12);
 }
 
 TEST_F(MleTest, Exponential)

@@ -4,6 +4,7 @@
 // gtest provides regression coverage for all four.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -29,7 +30,7 @@ public:
 TEST_F(SignExtrasTest, SigntestStatsHasZvalField)
 {
     eval("[p, h, st] = signtest(x);");
-    EXPECT_TRUE(std::isnan(evalScalar("st.zval")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("st.zval")));
     EXPECT_DOUBLE_EQ(evalScalar("st.sign"), 7);
     EXPECT_DOUBLE_EQ(evalScalar("p"), 0.015625);
 }

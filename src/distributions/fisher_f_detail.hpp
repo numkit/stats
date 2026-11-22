@@ -10,15 +10,13 @@
 #pragma once
 
 #include <keel/core.h>
+#include <keel/math.h>
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
-#include <cstring>
-#include <limits>
 #include <tuple>
 #include <utility>
 
@@ -47,21 +45,21 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
 // Mirrors the public fpdf bit-identically.
 inline keel::f64 fpdfK(keel::f64 x, keel::f64 v1, keel::f64 v2)
 {
-    if (v1 <= 0.0 || v2 <= 0.0) return std::numeric_limits<keel::f64>::quiet_NaN();
+    if (v1 <= 0.0 || v2 <= 0.0) return keel::Limits<keel::f64>::quiet_nan();
     const keel::f64 a = 0.5 * v1;
     const keel::f64 b = 0.5 * v2;
-    const keel::f64 lbeta = std::lgamma(a) + std::lgamma(b) - std::lgamma(a + b);
-    const keel::f64 log_v1 = std::log(v1);
-    const keel::f64 log_v2 = std::log(v2);
+    const keel::f64 lbeta = keel::lgamma(a) + keel::lgamma(b) - keel::lgamma(a + b);
+    const keel::f64 log_v1 = keel::log(v1);
+    const keel::f64 log_v2 = keel::log(v2);
     if (x < 0.0) return 0.0;
     if (x == 0.0) {
-        if (v1 < 2.0) return std::numeric_limits<keel::f64>::infinity();
+        if (v1 < 2.0) return keel::Limits<keel::f64>::infinity();
         if (v1 == 2.0)
-            return std::exp(a * log_v1 + b * log_v2 - (a + b) * std::log(v2) - lbeta);
+            return keel::exp(a * log_v1 + b * log_v2 - (a + b) * keel::log(v2) - lbeta);
         return 0.0;
     }
-    return std::exp(a * log_v1 + b * log_v2 + (a - 1.0) * std::log(x)
-                    - (a + b) * std::log(v2 + v1 * x) - lbeta);
+    return keel::exp(a * log_v1 + b * log_v2 + (a - 1.0) * keel::log(x)
+                    - (a + b) * keel::log(v2 + v1 * x) - lbeta);
 }
 
 } // anonymous
@@ -70,22 +68,22 @@ namespace {
 keel::f64 ncfpdf_one(keel::f64 x, keel::f64 nu1, keel::f64 nu2, keel::f64 delta)
 {
     if (!(nu1 > 0.0) || !(nu2 > 0.0) || delta < 0.0)
-        return std::numeric_limits<keel::f64>::quiet_NaN();
+        return keel::Limits<keel::f64>::quiet_nan();
     if (x <= 0.0) return 0.0;
     if (delta == 0.0) {
         // Central F pdf in log-space.
-        const keel::f64 log_norm = std::lgamma(0.5 * (nu1 + nu2))
-                              - std::lgamma(0.5 * nu1)
-                              - std::lgamma(0.5 * nu2)
-                              + 0.5 * nu1 * (std::log(nu1) - std::log(nu2));
-        return std::exp(log_norm + (0.5 * nu1 - 1.0) * std::log(x)
-                       - 0.5 * (nu1 + nu2) * std::log1p(nu1 * x / nu2));
+        const keel::f64 log_norm = keel::lgamma(0.5 * (nu1 + nu2))
+                              - keel::lgamma(0.5 * nu1)
+                              - keel::lgamma(0.5 * nu2)
+                              + 0.5 * nu1 * (keel::log(nu1) - keel::log(nu2));
+        return keel::exp(log_norm + (0.5 * nu1 - 1.0) * keel::log(x)
+                       - 0.5 * (nu1 + nu2) * keel::log1p(nu1 * x / nu2));
     }
     const keel::f64 L = 0.5 * delta;
-    const keel::f64 log_L = std::log(L);
-    const keel::f64 log_r = std::log(nu1 / nu2);
-    const keel::f64 log_x = std::log(x);
-    const keel::f64 log_one_plus_rx = std::log1p(nu1 * x / nu2);
+    const keel::f64 log_L = keel::log(L);
+    const keel::f64 log_r = keel::log(nu1 / nu2);
+    const keel::f64 log_x = keel::log(x);
+    const keel::f64 log_one_plus_rx = keel::log1p(nu1 * x / nu2);
 
     keel::f64 sum = 0.0, abs_sum = 0.0;
     constexpr keel::i32 kMax = 2000;
@@ -93,13 +91,13 @@ keel::f64 ncfpdf_one(keel::f64 x, keel::f64 nu1, keel::f64 nu2, keel::f64 delta)
         // log term_k
         const keel::f64 a = 0.5 * nu1 + keel::f64(k);
         const keel::f64 b = 0.5 * nu2;
-        const keel::f64 log_beta = std::lgamma(a) + std::lgamma(b) - std::lgamma(a + b);
-        const keel::f64 log_term = -L + keel::f64(k) * log_L - std::lgamma(keel::f64(k) + 1.0)
+        const keel::f64 log_beta = keel::lgamma(a) + keel::lgamma(b) - keel::lgamma(a + b);
+        const keel::f64 log_term = -L + keel::f64(k) * log_L - keel::lgamma(keel::f64(k) + 1.0)
                               + a * log_r
                               + (a - 1.0) * log_x
                               - (a + b) * log_one_plus_rx
                               - log_beta;
-        const keel::f64 t = std::exp(log_term);
+        const keel::f64 t = keel::exp(log_term);
         sum += t;
         abs_sum += t;
         if (k > 10 && t < 1e-16 * abs_sum) break;
@@ -123,14 +121,14 @@ keel::f64 ncfcdf_one(keel::f64 x, keel::f64 nu1, keel::f64 nu2, keel::f64 delta,
                   keel::Allocator *mr)
 {
     if (!(nu1 > 0.0) || !(nu2 > 0.0) || delta < 0.0)
-        return std::numeric_limits<keel::f64>::quiet_NaN();
+        return keel::Limits<keel::f64>::quiet_nan();
     if (x <= 0.0) return 0.0;
     const keel::f64 y = (nu1 * x) / (nu1 * x + nu2);
     if (delta == 0.0)
         return betainc_scalar(y, 0.5 * nu1, 0.5 * nu2, mr);
 
     const keel::f64 L = 0.5 * delta;
-    keel::f64 Pj = std::exp(-L);
+    keel::f64 Pj = keel::exp(-L);
     keel::f64 sum = 0.0;
     constexpr keel::i32 kMax = 2000;
     for (keel::i32 k = 0; k < kMax; ++k) {
@@ -149,17 +147,17 @@ keel::f64 ncfcdf_one(keel::f64 x, keel::f64 nu1, keel::f64 nu2, keel::f64 delta,
                   keel::Allocator *mr)
 {
     if (!(nu1 > 0.0) || !(nu2 > 0.0) || delta < 0.0
-        || std::isnan(p) || p < 0.0 || p > 1.0)
-        return std::numeric_limits<keel::f64>::quiet_NaN();
+        || keel::is_nan(p) || p < 0.0 || p > 1.0)
+        return keel::Limits<keel::f64>::quiet_nan();
     if (p == 0.0) return 0.0;
-    if (p == 1.0) return std::numeric_limits<keel::f64>::infinity();
+    if (p == 1.0) return keel::Limits<keel::f64>::infinity();
 
     // Initial guess: central finv (or rough fallback for δ > 0).
     keel::f64 x;
     {
         Value pv = Value::scalar(p, mr);
         x = finv(pv, nu1, nu2, mr).toScalar();
-        if (!(x > 0.0) || !std::isfinite(x)) x = 1.0;
+        if (!(x > 0.0) || !keel::is_finite(x)) x = 1.0;
     }
     // Heuristic right-shift for δ > 0: noncentral F has larger mean.
     if (delta > 0.0) x *= (1.0 + delta / nu1);
@@ -168,24 +166,24 @@ keel::f64 ncfcdf_one(keel::f64 x, keel::f64 nu1, keel::f64 nu2, keel::f64 delta,
     keel::f64 hi = std::max(x + 1.0, 50.0 * x + 50.0);
     while (ncfcdf_one(hi, nu1, nu2, delta, mr) < p) {
         hi *= 2.0;
-        if (!std::isfinite(hi)) break;
+        if (!keel::is_finite(hi)) break;
     }
 
     for (keel::i32 it = 0; it < 80; ++it) {
         const keel::f64 F  = ncfcdf_one(x, nu1, nu2, delta, mr);
         const keel::f64 f  = ncfpdf_one(x, nu1, nu2, delta);
         const keel::f64 err = F - p;
-        if (std::fabs(err) < 1e-14) return x;
+        if (keel::abs(err) < 1e-14) return x;
         if (err > 0.0) hi = x; else lo = x;
         keel::f64 x_new;
         if (f > 1e-300) {
             x_new = x - err / f;
-            if (!std::isfinite(x_new) || x_new <= lo || x_new >= hi)
+            if (!keel::is_finite(x_new) || x_new <= lo || x_new >= hi)
                 x_new = 0.5 * (lo + hi);
         } else {
             x_new = 0.5 * (lo + hi);
         }
-        if (std::fabs(x_new - x) < 1e-14 * std::max(1.0, std::fabs(x_new)))
+        if (keel::abs(x_new - x) < 1e-14 * std::max(1.0, keel::abs(x_new)))
             return x_new;
         x = x_new;
     }

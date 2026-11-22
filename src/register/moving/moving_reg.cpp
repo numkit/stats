@@ -17,7 +17,6 @@
 #include <numkit/ops/reductions.hpp>  // numkit::ops::firstNonSingletonDim, validateDim
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <tuple>
 #include <utility>

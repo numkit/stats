@@ -1,6 +1,7 @@
 // toolboxes/stats/src/distributions/poisson.cpp
 
 #include <keel/core.h>
+#include <keel/math.h>
 #include <keel/memory.h>
 #include <keel/stats.h>
 #include <numkit/stats/distributions/poisson.hpp>
@@ -15,8 +16,6 @@
 
 #include "dist_helpers.hpp"
 
-#include <cmath>
-#include <limits>
 #include <mutex>
 
 #include "poisson_detail.hpp"
@@ -28,12 +27,12 @@ namespace {
 keel::f64 samplePoisson1(::numkit::ops::RngContext &rng, keel::f64 lam, keel::Allocator *mr)
 {
     if (!(lam > 0.0))
-        return (lam == 0.0) ? 0.0 : std::numeric_limits<keel::f64>::quiet_NaN();
-    if (!std::isfinite(lam))
-        return std::numeric_limits<keel::f64>::quiet_NaN();
+        return (lam == 0.0) ? 0.0 : keel::Limits<keel::f64>::quiet_nan();
+    if (!keel::is_finite(lam))
+        return keel::Limits<keel::f64>::quiet_nan();
     keel::f64 k = 0.0;
     while (lam >= 15.0) {
-        const keel::f64 m = std::floor(7.0 * lam / 8.0);
+        const keel::f64 m = keel::floor(7.0 * lam / 8.0);
         const keel::f64 x = randg(rng, m, 1, 1, mr).toScalar();
         if (x <= lam) {
             k += m;
@@ -45,10 +44,10 @@ keel::f64 samplePoisson1(::numkit::ops::RngContext &rng, keel::f64 lam, keel::Al
             return k;
         }
     }
-    keel::f64 t = -std::log(rng.nextUniform());
+    keel::f64 t = -keel::log(rng.nextUniform());
     while (t <= lam) {
         k += 1.0;
-        t -= std::log(rng.nextUniform());
+        t -= keel::log(rng.nextUniform());
     }
     return k;
 }
@@ -58,7 +57,7 @@ keel::f64 samplePoisson1(::numkit::ops::RngContext &rng, keel::f64 lam, keel::Al
 namespace {
 inline bool poiss_argcheck(keel::f64 lambda) noexcept
 {
-    return lambda >= 0.0 && !std::isnan(lambda);
+    return lambda >= 0.0 && !keel::is_nan(lambda);
 }
 } // namespace
 
@@ -84,8 +83,8 @@ Value poissrnd(::numkit::ops::RngContext &rng, keel::f64 lambda, keel::usize row
     if (rows * cols == 0) return out;
     keel::f64 *od = out.doubleDataMut();
     const keel::usize n = rows * cols;
-    if (lambda < 0.0 || std::isnan(lambda)) {
-        const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
+    if (lambda < 0.0 || keel::is_nan(lambda)) {
+        const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
         for (keel::usize i = 0; i < n; ++i) od[i] = nan;
         return out;
     }
@@ -100,7 +99,7 @@ Value poissrnd(::numkit::ops::RngContext &rng, keel::f64 lambda, keel::usize row
 std::tuple<keel::f64, keel::f64> poisstat(keel::f64 lambda)
 {
     if (lambda <= 0.0) {
-        const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
+        const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
         return std::make_tuple(nan, nan);
     }
     return std::make_tuple(lambda, lambda);

@@ -4,6 +4,7 @@
 // coordinate descent and IRLS kernels to keel::stats.
 
 #include <keel/arena.h>
+#include <keel/algo.h>
 #include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
@@ -13,7 +14,6 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 
-#include <cstring>
 
 #include "lasso_detail.hpp"
 
@@ -57,7 +57,7 @@ LassoResult lasso(const Value &X, const Value &y, const Value &lambdas,
     auto Bout = Value::matrix(p, nL, ValueType::DOUBLE, mr);
     auto intOut = Value::matrix(1, nL, ValueType::DOUBLE, mr);
     auto lambdaOut = Value::matrix(1, nL, ValueType::DOUBLE, mr);
-    std::memcpy(lambdaOut.doubleDataMut(), lv.data(), nL * sizeof(keel::f64));
+    keel::copy_n(lambdaOut.doubleDataMut(), lv.data(), nL);
 
     (void)keel::stats::lasso(xv.as_ref(), n, p, yv.as_ref(), lv.as_ref(), alpha,
                              keel::MutArrayRef<keel::f64>(Bout.doubleDataMut(), p * nL),
@@ -90,7 +90,7 @@ LassoResult lassoglm(const Value &X, const Value &y, GlmDistribution distr,
     auto Bout = Value::matrix(p, nL, ValueType::DOUBLE, mr);
     auto intOut = Value::matrix(1, nL, ValueType::DOUBLE, mr);
     auto lambdaOut = Value::matrix(1, nL, ValueType::DOUBLE, mr);
-    std::memcpy(lambdaOut.doubleDataMut(), lv.data(), nL * sizeof(keel::f64));
+    keel::copy_n(lambdaOut.doubleDataMut(), lv.data(), nL);
 
     (void)keel::stats::lassoglm(xv.as_ref(), n, p, yv.as_ref(), toKeelFamily(distr), lv.as_ref(),
                                 alpha,

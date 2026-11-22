@@ -6,6 +6,7 @@
 // only coincide at the MLE.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -39,17 +40,17 @@ TEST_F(BetalikeTest, AVarBasicSymmetricBeta)
 
 TEST_F(BetalikeTest, InvalidShapeReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("betalike([0, 2], x)")));
-    EXPECT_TRUE(std::isnan(evalScalar("betalike([2, -1], x)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("betalike([0, 2], x)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("betalike([2, -1], x)")));
 }
 
 TEST_F(BetalikeTest, DataOutOfUnitInterval)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("betalike([2, 2], [0.5 1.5]')")));
-    EXPECT_TRUE(std::isnan(evalScalar("betalike([2, 2], [0.0 0.5]')")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("betalike([2, 2], [0.5 1.5]')")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("betalike([2, 2], [0.0 0.5]')")));
 }
 
 TEST_F(BetalikeTest, EmptyDataReturnsInf)
 {
-    EXPECT_TRUE(std::isinf(evalScalar("betalike([2, 2], [])")));
+    EXPECT_TRUE(keel::is_inf(evalScalar("betalike([2, 2], [])")));
 }

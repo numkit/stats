@@ -2,6 +2,7 @@
 // poissinv.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -32,13 +33,13 @@ TEST_F(PoissinvTest, VectorQ)
 TEST_F(PoissinvTest, BoundaryQuantiles)
 {
     EXPECT_DOUBLE_EQ(evalScalar("poissinv(0, 2)"), 0.0);
-    EXPECT_TRUE(std::isinf(evalScalar("poissinv(1, 2)")));
+    EXPECT_TRUE(keel::is_inf(evalScalar("poissinv(1, 2)")));
 }
 
 TEST_F(PoissinvTest, OutOfRangeProbReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("poissinv(-0.1, 2)")));
-    EXPECT_TRUE(std::isnan(evalScalar("poissinv( 1.5, 2)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("poissinv(-0.1, 2)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("poissinv( 1.5, 2)")));
 }
 
 TEST_F(PoissinvTest, Lambda0Degenerate)
@@ -48,5 +49,5 @@ TEST_F(PoissinvTest, Lambda0Degenerate)
 
 TEST_F(PoissinvTest, NegativeLambdaReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("poissinv(0.5, -1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("poissinv(0.5, -1)")));
 }

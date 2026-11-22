@@ -9,6 +9,7 @@
 //   icdf(...)  -> <fam>inv ,  random(...) -> <fam>rnd .
 // bugs/stats/distribution-dispatchers.
 #include <keel/array.h>
+#include <keel/math.h>
 #include <keel/core.h>
 #include <keel/format.h>
 #include <keel/ref.h>
@@ -22,8 +23,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <cmath>
-#include <limits>
 
 namespace numkit::stats {
 
@@ -161,9 +160,9 @@ void dispatchDistStruct(const char *fnName, const char *suffix,
     const Value &pd = args[0];
     const bool isTrunc = pd.hasField("IsTruncated") && pd.field("IsTruncated").toBool();
     const keel::f64 tLo = pd.hasField("TruncLower") ? pd.field("TruncLower").toScalar()
-                                                 : -std::numeric_limits<keel::f64>::infinity();
+                                                 : -keel::Limits<keel::f64>::infinity();
     const keel::f64 tHi = pd.hasField("TruncUpper") ? pd.field("TruncUpper").toScalar()
-                                                 : std::numeric_limits<keel::f64>::infinity();
+                                                 : keel::Limits<keel::f64>::infinity();
     const keel::StringRef sfx(suffix);
 
     if (sfx == "rnd") {
@@ -204,9 +203,9 @@ void dispatchDistStruct(const char *fnName, const char *suffix,
             return;
         }
         // Truncated random: inverse-CDF transform icdf_base(pl + (pu - pl) * rand(sz))
-        const keel::f64 pl = std::isinf(tLo) && tLo < 0.0
+        const keel::f64 pl = keel::is_inf(tLo) && tLo < 0.0
             ? 0.0 : evalDistStructBase(pd, "cdf", Value::scalar(tLo, mr), ctx).toScalar();
-        const keel::f64 pu = std::isinf(tHi) && tHi > 0.0
+        const keel::f64 pu = keel::is_inf(tHi) && tHi > 0.0
             ? 1.0 : evalDistStructBase(pd, "cdf", Value::scalar(tHi, mr), ctx).toScalar();
         const keel::f64 Z = std::max(pu - pl, 0.0);
         keel::usize rows = 1, cols = 1;
@@ -228,9 +227,9 @@ void dispatchDistStruct(const char *fnName, const char *suffix,
         return;
     }
 
-    const keel::f64 pl = std::isinf(tLo) && tLo < 0.0
+    const keel::f64 pl = keel::is_inf(tLo) && tLo < 0.0
         ? 0.0 : evalDistStructBase(pd, "cdf", Value::scalar(tLo, mr), ctx).toScalar();
-    const keel::f64 pu = std::isinf(tHi) && tHi > 0.0
+    const keel::f64 pu = keel::is_inf(tHi) && tHi > 0.0
         ? 1.0 : evalDistStructBase(pd, "cdf", Value::scalar(tHi, mr), ctx).toScalar();
     const keel::f64 Z = std::max(pu - pl, 1e-300);
 
@@ -266,7 +265,7 @@ void dispatchDistStruct(const char *fnName, const char *suffix,
         for (keel::usize i = 0; i < n; ++i) {
             const keel::f64 pi = xVal.elemAsDouble(i);
             pScaled.doubleDataMut()[i] = (pi < 0.0 || pi > 1.0)
-                ? std::numeric_limits<keel::f64>::quiet_NaN()
+                ? keel::Limits<keel::f64>::quiet_nan()
                 : (pl + pi * (pu - pl));
         }
         outs[0] = evalDistStructBase(pd, "inv", pScaled, ctx);
@@ -390,8 +389,8 @@ void makedist_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mut
     if (nparams >= 2) pd.setFieldAll(n2, Value::scalar(p2, mr));
     if (nparams >= 3) pd.setFieldAll(n3, Value::scalar(p3, mr));
     pd.setFieldAll("IsTruncated", Value::logicalScalar(false, mr));
-    pd.setFieldAll("TruncLower", Value::scalar(-std::numeric_limits<keel::f64>::infinity(), mr));
-    pd.setFieldAll("TruncUpper", Value::scalar(std::numeric_limits<keel::f64>::infinity(), mr));
+    pd.setFieldAll("TruncLower", Value::scalar(-keel::Limits<keel::f64>::infinity(), mr));
+    pd.setFieldAll("TruncUpper", Value::scalar(keel::Limits<keel::f64>::infinity(), mr));
     outs[0] = std::move(pd);
 }
 

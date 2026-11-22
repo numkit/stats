@@ -4,6 +4,7 @@
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
 #include <keel/core.h>
+#include <keel/math.h>
 #include <keel/format.h>
 #include <keel/ref.h>
 #include <keel/arena.h>
@@ -23,7 +24,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <tuple>
 #include <utility>
@@ -329,7 +329,7 @@ void jbtest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     // 3rd arg = mctol (Monte-Carlo standard-error tolerance).
     const keel::f64 mctol = (args.size() > 2 && !args[2].isEmpty())
                          ? args[2].toScalar()
-                         : std::numeric_limits<keel::f64>::quiet_NaN();
+                         : keel::Limits<keel::f64>::quiet_nan();
     auto [h, p, JB, cv] = jbtest(args[0], alpha, mctol, ctx.engine->allocator());
     outs[0] = std::move(h);
     if (nargout > 1) outs[1] = std::move(p);
@@ -456,7 +456,7 @@ void chi2gof_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         const keel::f64 d = x.elemAsDouble(i) - mean;
         sq += d * d;
     }
-    const keel::f64 sd = std::sqrt(sq / keel::f64(N - 1));
+    const keel::f64 sd = keel::sqrt(sq / keel::f64(N - 1));
 
     // Build edges.
     keel::Array<keel::f64> edges(scratch.allocator());
@@ -522,17 +522,17 @@ void chi2gof_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     // Build E under N(mean, sd) by default (via norm CDF).
     keel::Array<keel::f64> E(K0, 0.0, scratch.allocator());
     auto Phi = [](keel::f64 z) {
-        return 0.5 * (1.0 + std::erf(z / std::sqrt(2.0)));
+        return 0.5 * (1.0 + keel::erf(z / keel::sqrt(2.0)));
     };
     // Total mass under tail-extended bins so that Σ E = N (matches MATLAB).
     // The first bin extends to -∞, the last to +∞ (chi2gof convention).
     for (keel::usize b = 0; b < K0; ++b) {
-        const keel::f64 z_lo = (b == 0)        ? -std::numeric_limits<keel::f64>::infinity()
+        const keel::f64 z_lo = (b == 0)        ? -keel::Limits<keel::f64>::infinity()
                                             : (edges[b]     - mean) / sd;
-        const keel::f64 z_hi = (b == K0 - 1)   ?  std::numeric_limits<keel::f64>::infinity()
+        const keel::f64 z_hi = (b == K0 - 1)   ?  keel::Limits<keel::f64>::infinity()
                                             : (edges[b + 1] - mean) / sd;
-        const keel::f64 F_lo = std::isfinite(z_lo) ? Phi(z_lo) : 0.0;
-        const keel::f64 F_hi = std::isfinite(z_hi) ? Phi(z_hi) : 1.0;
+        const keel::f64 F_lo = keel::is_finite(z_lo) ? Phi(z_lo) : 0.0;
+        const keel::f64 F_hi = keel::is_finite(z_hi) ? Phi(z_hi) : 1.0;
         E[b] = keel::f64(N) * (F_hi - F_lo);
     }
 
@@ -692,7 +692,7 @@ void runstest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
 
     // arg[1] is positional v (scalar), 'ud' string for up-down test, or a
     // name-value start.
-    keel::f64 v = std::numeric_limits<keel::f64>::quiet_NaN();   // sentinel: use median(x)
+    keel::f64 v = keel::Limits<keel::f64>::quiet_nan();   // sentinel: use median(x)
     bool up_down = false;
     keel::usize i = 1;
     if (i < args.size() && (args[i].isChar() || args[i].isString())) {
@@ -736,7 +736,7 @@ void runstest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             for (keel::usize k = 1; k < Nx; ++k) {
                 const keel::f64 xa = x.elemAsDouble(k - 1);
                 const keel::f64 xb = x.elemAsDouble(k);
-                if (std::isnan(xa) || std::isnan(xb)) continue;
+                if (keel::is_nan(xa) || keel::is_nan(xb)) continue;
                 diffs.push_back((xb > xa) ? 1.0 : ((xb < xa) ? -1.0 : 0.0));
             }
             Value sgn = Value::matrix(1, diffs.size(), ValueType::DOUBLE, mr);
@@ -755,7 +755,7 @@ void runstest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         s.field("nruns") = R;
         s.field("n1")    = n1;
         s.field("n0")    = n0;
-        if (!std::isnan(z.toScalar())) s.field("z") = z;
+        if (!keel::is_nan(z.toScalar())) s.field("z") = z;
         outs[2] = std::move(s);
     }
 }
@@ -791,7 +791,7 @@ void ranksum_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     if (nargout > 1) outs[1] = std::move(h);
     if (nargout > 2) {
         Value s = Value::structure(mr);
-        if (!std::isnan(z.toScalar())) s.field("zval") = z;
+        if (!keel::is_nan(z.toScalar())) s.field("zval") = z;
         s.field("ranksum") = rs;
         outs[2] = std::move(s);
     }
@@ -836,7 +836,7 @@ void signrank_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         Value s = Value::structure(mr);
         s.field("signedrank") = sr;
         // zval only present for approximate method (NaN otherwise).
-        if (!std::isnan(z.toScalar())) s.field("zval") = z;
+        if (!keel::is_nan(z.toScalar())) s.field("zval") = z;
         outs[2] = std::move(s);
     }
 }
@@ -883,7 +883,7 @@ void signtest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         // MATLAB R2025b stats struct shape: {zval, sign}. zval is NaN
         // for the exact (binomial) path — currently always taken;
         // 'approximate' would populate zval with the normal-approx z.
-        s.field("zval") = Value::scalar(std::numeric_limits<keel::f64>::quiet_NaN(), mr);
+        s.field("zval") = Value::scalar(keel::Limits<keel::f64>::quiet_nan(), mr);
         s.field("sign") = sig;
         outs[2] = std::move(s);
     }

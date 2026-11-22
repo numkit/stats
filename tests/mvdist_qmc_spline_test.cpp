@@ -7,6 +7,7 @@
 // mvncdf(0) = 0.5, Halton base-2/base-3 digits, spline-at-nodes = sin).
 
 #include "dual_engine_fixture.hpp"
+#include <keel/math.h>
 
 #include <cmath>
 
@@ -49,15 +50,15 @@ TEST_P(MvdistQmcSplineTest, SplineAtNodes)
     // linspace(0,10,11) includes 0, 5, 10 as nodes → exact sin values there.
     eval("xs = linspace(0,10,11); yq = spline(xs, sin(xs), [0 5 10]);");
     EXPECT_NEAR(evalScalar("yq(1)"), 0.0, 1e-9);              // sin(0)
-    EXPECT_NEAR(evalScalar("yq(2)"), std::sin(5.0), 1e-9);   // sin(5)
-    EXPECT_NEAR(evalScalar("yq(3)"), std::sin(10.0), 1e-9);  // sin(10)
+    EXPECT_NEAR(evalScalar("yq(2)"), keel::sin(5.0), 1e-9);   // sin(5)
+    EXPECT_NEAR(evalScalar("yq(3)"), keel::sin(10.0), 1e-9);  // sin(10)
 }
 
 TEST_P(MvdistQmcSplineTest, SplineInterpolatesBetweenNodes)
 {
     // Off-node query: cubic spline of a fine sin grid is close to sin.
     eval("xs = linspace(0,10,21); yq = spline(xs, sin(xs), 2.5);");
-    EXPECT_NEAR(evalScalar("yq"), std::sin(2.5), 1e-3);
+    EXPECT_NEAR(evalScalar("yq"), keel::sin(2.5), 1e-3);
 }
 
 INSTANTIATE_DUAL(MvdistQmcSplineTest);

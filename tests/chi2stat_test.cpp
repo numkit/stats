@@ -2,6 +2,7 @@
 // chi2stat. Reference values from MATLAB R2025b.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -37,6 +38,6 @@ TEST_F(Chi2statTest, VectorInputs)
 TEST_F(Chi2statTest, DegenerateKReturnsNaN)
 {
     // MATLAB convention: k <= 0 ⇒ moments NaN.
-    EXPECT_TRUE(std::isnan(evalScalar("chi2stat(0)")));
-    EXPECT_TRUE(std::isnan(evalScalar("chi2stat(-1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("chi2stat(0)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("chi2stat(-1)")));
 }

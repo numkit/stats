@@ -10,15 +10,13 @@
 #pragma once
 
 #include <keel/core.h>
+#include <keel/math.h>
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
-#include <cstring>
-#include <limits>
 #include <tuple>
 #include <utility>
 
@@ -46,27 +44,27 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
 // per-element domain (b<=0 → NaN). Mirror the public fns bit-identically.
 inline keel::f64 raylpdfK(keel::f64 x, keel::f64 b)
 {
-    if (b <= 0.0) return std::numeric_limits<keel::f64>::quiet_NaN();
+    if (b <= 0.0) return keel::Limits<keel::f64>::quiet_nan();
     const keel::f64 inv_b2 = 1.0 / (b * b);
     if (x < 0.0) return 0.0;
-    return x * inv_b2 * std::exp(-0.5 * x * x * inv_b2);
+    return x * inv_b2 * keel::exp(-0.5 * x * x * inv_b2);
 }
 
 inline keel::f64 raylcdfK(keel::f64 x, keel::f64 b)
 {
-    if (b <= 0.0) return std::numeric_limits<keel::f64>::quiet_NaN();
+    if (b <= 0.0) return keel::Limits<keel::f64>::quiet_nan();
     const keel::f64 inv_b2 = 1.0 / (b * b);
     if (x <= 0.0) return 0.0;
-    return -std::expm1(-0.5 * x * x * inv_b2);
+    return -keel::expm1(-0.5 * x * x * inv_b2);
 }
 
 inline keel::f64 raylinvK(keel::f64 p, keel::f64 b)
 {
-    if (b <= 0.0) return std::numeric_limits<keel::f64>::quiet_NaN();
-    if (p < 0.0 || p > 1.0) return std::numeric_limits<keel::f64>::quiet_NaN();
+    if (b <= 0.0) return keel::Limits<keel::f64>::quiet_nan();
+    if (p < 0.0 || p > 1.0) return keel::Limits<keel::f64>::quiet_nan();
     if (p == 0.0) return 0.0;
-    if (p >= 1.0) return std::numeric_limits<keel::f64>::infinity();
-    return b * std::sqrt(-2.0 * std::log1p(-p));
+    if (p >= 1.0) return keel::Limits<keel::f64>::infinity();
+    return b * keel::sqrt(-2.0 * keel::log1p(-p));
 }
 
 } // anonymous

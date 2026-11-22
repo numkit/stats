@@ -3,6 +3,7 @@
 // Regression guard for ncfstat + ncfrnd.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <gtest/gtest.h>
 
 #include <cmath>
@@ -44,15 +45,15 @@ TEST_F(NcfStatRndTest, NcfstatDeltaZeroEqualsCentral)
 TEST_F(NcfStatRndTest, NcfstatNu2EqualsTwoMeanNan)
 {
     eval("[m, v] = ncfstat(5, 2, 3);");
-    EXPECT_TRUE(std::isnan(evalScalar("m")));
-    EXPECT_TRUE(std::isnan(evalScalar("v")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("m")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("v")));
 }
 
 TEST_F(NcfStatRndTest, NcfstatNu2EqualsFourVarNan)
 {
     eval("[m, v] = ncfstat(5, 4, 3);");
-    EXPECT_FALSE(std::isnan(evalScalar("m")));
-    EXPECT_TRUE(std::isnan(evalScalar("v")));
+    EXPECT_FALSE(keel::is_nan(evalScalar("m")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("v")));
 }
 
 // ── ncfrnd ──────────────────────────────────────────────────────────

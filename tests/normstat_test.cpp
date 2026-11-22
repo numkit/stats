@@ -2,6 +2,7 @@
 // normstat. Reference values from MATLAB R2025b.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -46,6 +47,6 @@ TEST_F(NormstatTest, ScalarMuVectorSigma)
 
 TEST_F(NormstatTest, InvalidSigmaReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("normstat(0,  0)")));
-    EXPECT_TRUE(std::isnan(evalScalar("normstat(0, -1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("normstat(0,  0)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("normstat(0, -1)")));
 }

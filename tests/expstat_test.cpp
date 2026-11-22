@@ -2,6 +2,7 @@
 // expstat. Reference values from MATLAB R2025b.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -36,6 +37,6 @@ TEST_F(ExpstatTest, VectorInputs)
 
 TEST_F(ExpstatTest, InvalidMuReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("expstat(0)")));
-    EXPECT_TRUE(std::isnan(evalScalar("expstat(-1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("expstat(0)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("expstat(-1)")));
 }

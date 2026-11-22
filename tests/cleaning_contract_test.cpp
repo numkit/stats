@@ -4,6 +4,7 @@
 // standardizeMissing. One TEST_F per probed contract branch.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/engine.hpp>
 #include <numkit/stats/descriptive/descriptive.hpp>
 #include <gtest/gtest.h>
@@ -73,10 +74,10 @@ TEST_F(CleaningTest, DetrendBreakpointsAndNaN)
     // fractional breakpoints are legal (reference does not round)
     EXPECT_NEAR(num("detrend(1:5, 1, [2.5])"), 0.0, 1e-12);
     // default NaN policy poisons the run; omitnan keeps the fit
-    EXPECT_TRUE(std::isnan(num("detrend([1 2 NaN 4 5])")));
+    EXPECT_TRUE(keel::is_nan(num("detrend([1 2 NaN 4 5])")));
     engine.eval("don = detrend([1 2 NaN 4 5], 'omitnan');");
     EXPECT_NEAR(num("don(2)"), 0.0, 1e-12);
-    EXPECT_TRUE(std::isnan(num("don(3)")));
+    EXPECT_TRUE(keel::is_nan(num("don(3)")));
     // Continuous=false: segment-wise fit
     EXPECT_NEAR(num("detrend(1:5, 1, [2 4], 'Continuous', false)(1)"), 0.0, 1e-12);
     // per-column operation
@@ -266,17 +267,17 @@ TEST_F(CleaningTest, FillmissingMovingAndEndValues)
     EXPECT_NEAR(num("y(5)"), 4.0, 1e-12);
     engine.eval("yn = fillmissing([NaN 1 NaN NaN 4 NaN], 'movmean', 3, "
                 "'EndValues', 'none');");
-    EXPECT_TRUE(std::isnan(num("yn(1)")));
-    EXPECT_TRUE(std::isnan(num("yn(6)")));
+    EXPECT_TRUE(keel::is_nan(num("yn(1)")));
+    EXPECT_TRUE(keel::is_nan(num("yn(6)")));
     // EndValues previous/next: only the edge a direction can supply
     engine.eval("p1 = fillmissing([NaN 1 3 NaN]', 'previous', "
                 "'EndValues', 'previous');");
-    EXPECT_TRUE(std::isnan(num("p1(1)")));
+    EXPECT_TRUE(keel::is_nan(num("p1(1)")));
     EXPECT_NEAR(num("p1(4)"), 3.0, 1e-12);
     engine.eval("p2 = fillmissing([NaN 1 3 NaN]', 'previous', "
                 "'EndValues', 'next');");
     EXPECT_NEAR(num("p2(1)"), 1.0, 1e-12);
-    EXPECT_TRUE(std::isnan(num("p2(4)")));
+    EXPECT_TRUE(keel::is_nan(num("p2(4)")));
     // numeric EndValues constant fills everything
     engine.eval("p3 = fillmissing([NaN NaN NaN]', 'previous', "
                 "'EndValues', 7);");
@@ -311,8 +312,8 @@ TEST_F(CleaningTest, SamplePointsAndAdvancedFillmissing)
     engine.eval("y_sp = fillmissing([0 NaN 6], 'linear', 'SamplePoints', [0 1 3]);");
     EXPECT_NEAR(num("y_sp(2)"), 2.0, 1e-12);
     engine.eval("y_mg = fillmissing([1 NaN NaN 4 5 NaN 7], 'linear', 'MaxGap', 2);");
-    EXPECT_TRUE(std::isnan(num("y_mg(2)")));
-    EXPECT_TRUE(std::isnan(num("y_mg(3)")));
+    EXPECT_TRUE(keel::is_nan(num("y_mg(2)")));
+    EXPECT_TRUE(keel::is_nan(num("y_mg(3)")));
     EXPECT_NEAR(num("y_mg(6)"), 6.0, 1e-12);
 
     // fillmissing with 'knn'
@@ -334,9 +335,9 @@ TEST_F(CleaningTest, StandardizeMissingIndicatorVector)
     engine.eval("s1 = standardizeMissing([1 2 3], [2 3]); "
                 "s2 = standardizeMissing([1 NaN 3], [1 NaN]);");
     EXPECT_EQ(num("s1(1)"), 1.0);
-    EXPECT_TRUE(std::isnan(num("s1(2)")));
+    EXPECT_TRUE(keel::is_nan(num("s1(2)")));
     // NaN indicators also match NaN
-    EXPECT_TRUE(std::isnan(num("s2(2)")));
+    EXPECT_TRUE(keel::is_nan(num("s2(2)")));
     // integer / logical / char arrays flow through unchanged
     EXPECT_EQ(cls("standardizeMissing(int8([1 2 3]), 2)"), "int8");
     engine.eval("si = standardizeMissing(int8([1 2 3]), 2);");

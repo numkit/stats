@@ -2,6 +2,7 @@
 // norminv. Reference values from MATLAB R2025b.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <gtest/gtest.h>
 
 using namespace numkit;
@@ -41,19 +42,19 @@ TEST_F(NorminvTest, NonUnitSigma)
 
 TEST_F(NorminvTest, BoundaryProbabilities)
 {
-    EXPECT_TRUE(std::isinf(evalScalar("norminv(0)")) && evalScalar("norminv(0)") < 0);
-    EXPECT_TRUE(std::isinf(evalScalar("norminv(1)")) && evalScalar("norminv(1)") > 0);
+    EXPECT_TRUE(keel::is_inf(evalScalar("norminv(0)")) && evalScalar("norminv(0)") < 0);
+    EXPECT_TRUE(keel::is_inf(evalScalar("norminv(1)")) && evalScalar("norminv(1)") > 0);
 }
 
 TEST_F(NorminvTest, OutOfRangeProbReturnsNaN)
 {
     // MATLAB: NaN (not -Inf/+Inf for p<0/p>1).
-    EXPECT_TRUE(std::isnan(evalScalar("norminv(-0.1)")));
-    EXPECT_TRUE(std::isnan(evalScalar("norminv( 1.5)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("norminv(-0.1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("norminv( 1.5)")));
 }
 
 TEST_F(NorminvTest, InvalidSigmaReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("norminv(0.5, 0,  0)")));
-    EXPECT_TRUE(std::isnan(evalScalar("norminv(0.5, 0, -1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("norminv(0.5, 0,  0)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("norminv(0.5, 0, -1)")));
 }

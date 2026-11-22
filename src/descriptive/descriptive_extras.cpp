@@ -25,8 +25,6 @@
 #include <numkit/ops/reductions.hpp>
 
 #include <algorithm>
-#include <cmath>
-#include <limits>
 
 #include "descriptive_extras_detail.hpp"
 #include "descriptive_detail.hpp"   // narrowToSingle
@@ -56,9 +54,9 @@ Value iqr(const Value &x, keel::i32 dim, keel::Allocator *mr)
             keel::Array<keel::f64> buf;
             buf.reserve(n);
             for (keel::usize i = 0; i < n; ++i)
-                if (!std::isnan(s[i])) buf.push_back(s[i]);
+                if (!keel::is_nan(s[i])) buf.push_back(s[i]);
             const keel::usize k = buf.size();
-            if (k == 0) return std::numeric_limits<keel::f64>::quiet_NaN();
+            if (k == 0) return keel::Limits<keel::f64>::quiet_nan();
             keel::Array<keel::f64> buf2 = buf.clone();
             const keel::f64 q3 = sliceQuantile(buf.data(), k, 0.75);
             const keel::f64 q1 = sliceQuantile(buf2.data(), k, 0.25);
@@ -140,10 +138,10 @@ Value rmse(const Value &f, const Value &a, keel::i32 dim, keel::Allocator *mr)
     const keel::i32 dResolved = resolveDim(diff, dim, "rmse");
     auto v = applyAlongDim(diff, dResolved,
         [](keel::usize, const keel::f64 *s, keel::usize k) -> keel::f64 {
-            if (k == 0) return std::numeric_limits<keel::f64>::quiet_NaN();
+            if (k == 0) return keel::Limits<keel::f64>::quiet_nan();
             keel::f64 sum = 0.0;
             for (keel::usize i = 0; i < k; ++i) sum += s[i];
-            return std::sqrt(sum / keel::as<keel::f64>(k));
+            return keel::sqrt(sum / keel::as<keel::f64>(k));
         }, mr);
     return v;
 }
@@ -181,7 +179,7 @@ Value mape(const Value &f, const Value &a, keel::i32 dim, keel::Allocator *mr)
     const keel::i32 dResolved = resolveDim(pct, dim, "mape");
     return applyAlongDim(pct, dResolved,
         [](keel::usize, const keel::f64 *s, keel::usize k) -> keel::f64 {
-            if (k == 0) return std::numeric_limits<keel::f64>::quiet_NaN();
+            if (k == 0) return keel::Limits<keel::f64>::quiet_nan();
             keel::f64 sum = 0.0;
             for (keel::usize i = 0; i < k; ++i) sum += s[i];
             return sum / keel::as<keel::f64>(k);
@@ -238,9 +236,9 @@ Value partialcorr_of(const Value &X, const Value &Y, const Value &Z, keel::Alloc
             for (keel::usize kc = 0; kc < pZ1 && !singular; ++kc) {
                 // Pivot.
                 keel::usize piv = kc;
-                keel::f64 pmax = std::fabs(Mcopy[kc + kc * pZ1]);
+                keel::f64 pmax = keel::abs(Mcopy[kc + kc * pZ1]);
                 for (keel::usize r = kc + 1; r < pZ1; ++r) {
-                    const keel::f64 v = std::fabs(Mcopy[r + kc * pZ1]);
+                    const keel::f64 v = keel::abs(Mcopy[r + kc * pZ1]);
                     if (v > pmax) { pmax = v; piv = r; }
                 }
                 if (pmax == 0.0) { singular = true; break; }
@@ -299,7 +297,7 @@ Value partialcorr_of(const Value &X, const Value &Y, const Value &Z, keel::Alloc
             const keel::f64 d = v[i + col * m] - mean;
             s += d * d;
         }
-        return std::sqrt(s / keel::as<keel::f64>(m - 1));
+        return keel::sqrt(s / keel::as<keel::f64>(m - 1));
     };
 
     for (keel::usize i = 0; i < pX; ++i) {
@@ -312,7 +310,7 @@ Value partialcorr_of(const Value &X, const Value &Y, const Value &Z, keel::Alloc
             for (keel::usize k = 0; k < m; ++k)
                 cov += (Xres_data[k + i * m] - mx) * (Yres_data[k + j * m] - my);
             cov /= keel::as<keel::f64>(m - 1);
-            R[i + j * pX] = (sx > 0.0 && sy > 0.0) ? cov / (sx * sy) : std::nan("");
+            R[i + j * pX] = (sx > 0.0 && sy > 0.0) ? cov / (sx * sy) : keel::kNaN;
         }
     }
     return Rout;
@@ -452,7 +450,7 @@ Value corr_xy(const Value &X, const Value &Y, keel::Allocator *mr)
             const keel::f64 d = X.elemAsDouble(r + i * n) - mx[i];
             ss += d * d;
         }
-        nrmX[i] = std::sqrt(ss);
+        nrmX[i] = keel::sqrt(ss);
     }
     for (keel::usize j = 0; j < q; ++j) {
         keel::f64 ss = 0.0;
@@ -460,7 +458,7 @@ Value corr_xy(const Value &X, const Value &Y, keel::Allocator *mr)
             const keel::f64 d = Y.elemAsDouble(r + j * n) - my[j];
             ss += d * d;
         }
-        nrmY[j] = std::sqrt(ss);
+        nrmY[j] = keel::sqrt(ss);
     }
     for (keel::usize j = 0; j < q; ++j) {
         for (keel::usize i = 0; i < p; ++i) {
@@ -472,7 +470,7 @@ Value corr_xy(const Value &X, const Value &Y, keel::Allocator *mr)
             }
             const keel::f64 denom = nrmX[i] * nrmY[j];
             od[i + j * p] = (denom > 0.0) ? (s / denom)
-                                          : std::numeric_limits<keel::f64>::quiet_NaN();
+                                          : keel::Limits<keel::f64>::quiet_nan();
         }
     }
     return out;
@@ -517,7 +515,7 @@ Value detrendBP_of(const Value &x, keel::ArrayRef<keel::f64> bpUser,
     keel::Array<keel::f64> bps;
     bps.push_back(0.0);
     for (keel::f64 v : bpUser) {
-        const keel::f64 off = std::floor(v + 0.5);
+        const keel::f64 off = keel::floor(v + 0.5);
         if (off > 0.0 && off < keel::as<keel::f64>(N - 1)) bps.push_back(off);
     }
     bps.push_back(keel::as<keel::f64>(N - 1));
@@ -798,18 +796,18 @@ keel::f64 reduceMetricRun(const keel::f64 *X, const keel::f64 *w, keel::usize n,
     keel::f64 sw = 0.0, sx = 0.0;
     keel::usize cnt = 0;
     for (keel::usize j = 0; j < n; ++j) {
-        if (omit && std::isnan(X[j])) continue;
+        if (omit && keel::is_nan(X[j])) continue;
         const keel::f64 wj = w ? w[j] : 1.0;
-        if (omit && std::isnan(wj)) continue;
+        if (omit && keel::is_nan(wj)) continue;
         sw += wj;
         sx += wj * X[j];
         ++cnt;
     }
     if (cnt == 0 || sw == 0.0)
-        return std::numeric_limits<keel::f64>::quiet_NaN();
+        return keel::Limits<keel::f64>::quiet_nan();
     const keel::f64 r = sx / sw;
-    if (omit && anyMadeNaN && std::isnan(r))
-        return std::numeric_limits<keel::f64>::quiet_NaN();
+    if (omit && anyMadeNaN && keel::is_nan(r))
+        return keel::Limits<keel::f64>::quiet_nan();
     return r;
 }
 
@@ -871,7 +869,7 @@ Value rmse(const Value &f, const Value &a, keel::i32 dim, const ErrorMetricOpts 
     // error metrics without a dim), and per-column runs for matrices.
     if (vecInput) {
         const keel::f64 *wd = o.weights ? o.weights->doubleData() : nullptr;
-        const keel::f64 v = std::sqrt(reduceMetricRun(X.data(), wd, n, omit, false));
+        const keel::f64 v = keel::sqrt(reduceMetricRun(X.data(), wd, n, omit, false));
         return single ? narrowToSingle(Value::scalar(v, mr), mr)
                       : Value::scalar(v, mr);
     }
@@ -896,7 +894,7 @@ Value rmse(const Value &f, const Value &a, keel::i32 dim, const ErrorMetricOpts 
                 wd = o.weights->doubleData();   // dim-length vector
         }
         keel::f64 v = reduceMetricRun(run.data(), wd, runLen, omit, false);
-        rd[k] = std::sqrt(v);
+        rd[k] = keel::sqrt(v);
     }
     if (single) R = narrowToSingle(std::move(R), mr);
     return R;
@@ -927,13 +925,13 @@ Value mape(const Value &f, const Value &a, keel::i32 dim, const ErrorMetricOpts 
         const keel::f64 fi = f.elemAsDouble(f.numel() == 1 ? 0 : i);
         const keel::f64 ai = a.elemAsDouble(a.numel() == 1 ? 0 : i);
         // |A-F|/|A| — complex inputs: modulus ratio (real result).
-        X[i] = std::fabs(ai - fi) / std::fabs(ai);
-        if (o.omitzero && !std::isfinite(X[i]) && std::isfinite(ai - fi))
+        X[i] = keel::abs(ai - fi) / keel::abs(ai);
+        if (o.omitzero && !keel::is_finite(X[i]) && keel::is_finite(ai - fi))
             madeNaN[i] = 1;
     }
     if (o.omitzero)
         for (keel::usize i = 0; i < n; ++i)
-            if (madeNaN[i]) X[i] = std::numeric_limits<keel::f64>::quiet_NaN();
+            if (madeNaN[i]) X[i] = keel::Limits<keel::f64>::quiet_nan();
     const bool omit = o.omitnan || o.omitzero;
     const bool vecInput = (f.dims().isVector() || f.isScalar()) &&
                           (a.dims().isVector() || a.isScalar());
@@ -974,8 +972,8 @@ Value mape(const Value &f, const Value &a, keel::i32 dim, const ErrorMetricOpts 
         keel::f64 v;
         if (!omit) {
             bool anyNaN = false;
-            for (keel::f64 xj : run) anyNaN = anyNaN || std::isnan(xj);
-            v = anyNaN ? std::numeric_limits<keel::f64>::quiet_NaN()
+            for (keel::f64 xj : run) anyNaN = anyNaN || keel::is_nan(xj);
+            v = anyNaN ? keel::Limits<keel::f64>::quiet_nan()
                        : reduceMetricRun(run.data(), wd, runLen, false, false);
         } else {
             v = reduceMetricRun(run.data(), wd, runLen, true, anyMade);
@@ -994,7 +992,7 @@ Value range_of(const Value &x, keel::i32 dim, keel::Allocator *mr)
     const keel::i32 d = resolveDim(x, dim, "range");
     return applyAlongDim(x, d,
         [](keel::usize, const keel::f64 *s, keel::usize n) -> keel::f64 {
-            if (n == 0) return std::numeric_limits<keel::f64>::quiet_NaN();
+            if (n == 0) return keel::Limits<keel::f64>::quiet_nan();
             keel::f64 lo = s[0], hi = s[0];
             for (keel::usize i = 1; i < n; ++i) {
                 if (s[i] < lo) lo = s[i];
@@ -1016,14 +1014,14 @@ Value mad_of(const Value &x, keel::i32 flag, keel::i32 dim, keel::Allocator *mr)
                 keel::Array<keel::f64> v;
                 v.reserve(n);
                 for (keel::usize i = 0; i < n; ++i)
-                    if (!std::isnan(s[i])) v.push_back(s[i]);
+                    if (!keel::is_nan(s[i])) v.push_back(s[i]);
                 const keel::usize k = v.size();
-                if (k == 0) return std::numeric_limits<keel::f64>::quiet_NaN();
+                if (k == 0) return keel::Limits<keel::f64>::quiet_nan();
                 keel::f64 mean = 0.0;
                 for (keel::usize i = 0; i < k; ++i) mean += v[i];
                 mean /= keel::as<keel::f64>(k);
                 keel::f64 sum = 0.0;
-                for (keel::usize i = 0; i < k; ++i) sum += std::fabs(v[i] - mean);
+                for (keel::usize i = 0; i < k; ++i) sum += keel::abs(v[i] - mean);
                 return sum / keel::as<keel::f64>(k);
             }, mr);
     }
@@ -1033,12 +1031,12 @@ Value mad_of(const Value &x, keel::i32 flag, keel::i32 dim, keel::Allocator *mr)
             keel::Array<keel::f64> buf;
             buf.reserve(n);
             for (keel::usize i = 0; i < n; ++i)
-                if (!std::isnan(s[i])) buf.push_back(s[i]);
+                if (!keel::is_nan(s[i])) buf.push_back(s[i]);
             const keel::usize k = buf.size();
-            if (k == 0) return std::numeric_limits<keel::f64>::quiet_NaN();
+            if (k == 0) return keel::Limits<keel::f64>::quiet_nan();
             const keel::f64 med = sliceQuantile(buf.data(), k, 0.5);
             keel::Array<keel::f64> dev(k);
-            for (keel::usize i = 0; i < k; ++i) dev[i] = std::fabs(buf[i] - med);
+            for (keel::usize i = 0; i < k; ++i) dev[i] = keel::abs(buf[i] - med);
             return sliceQuantile(dev.data(), k, 0.5);
         }, mr);
 }
@@ -1052,15 +1050,15 @@ Value geomean_of(const Value &x, keel::i32 dim, bool omitnan, keel::Allocator *m
             keel::f64 sum = 0.0;
             keel::usize k = 0;
             for (keel::usize i = 0; i < n; ++i) {
-                if (omitnan && std::isnan(s[i])) continue;  // 'omitnan'
+                if (omitnan && keel::is_nan(s[i])) continue;  // 'omitnan'
                 if (s[i] < 0.0)
-                    return std::numeric_limits<keel::f64>::quiet_NaN();
+                    return keel::Limits<keel::f64>::quiet_nan();
                 if (s[i] == 0.0) return 0.0;
-                sum += std::log(s[i]);
+                sum += keel::log(s[i]);
                 ++k;
             }
-            if (k == 0) return std::numeric_limits<keel::f64>::quiet_NaN();
-            return std::exp(sum / keel::as<keel::f64>(k));
+            if (k == 0) return keel::Limits<keel::f64>::quiet_nan();
+            return keel::exp(sum / keel::as<keel::f64>(k));
         }, mr);
 }
 
@@ -1073,13 +1071,13 @@ Value harmmean_of(const Value &x, keel::i32 dim, bool omitnan, keel::Allocator *
             keel::f64 sum = 0.0;
             keel::usize k = 0;
             for (keel::usize i = 0; i < n; ++i) {
-                if (omitnan && std::isnan(s[i])) continue;  // 'omitnan'
+                if (omitnan && keel::is_nan(s[i])) continue;  // 'omitnan'
                 if (s[i] <= 0.0)
-                    return std::numeric_limits<keel::f64>::quiet_NaN();
+                    return keel::Limits<keel::f64>::quiet_nan();
                 sum += 1.0 / s[i];
                 ++k;
             }
-            if (k == 0) return std::numeric_limits<keel::f64>::quiet_NaN();
+            if (k == 0) return keel::Limits<keel::f64>::quiet_nan();
             return keel::as<keel::f64>(k) / sum;
         }, mr);
 }
@@ -1091,8 +1089,8 @@ Value moment_of(const Value &x, keel::i32 order, keel::i32 dim, keel::Allocator 
     const keel::i32 k = order;
     return applyAlongDim(x, d,
         [k](keel::usize, const keel::f64 *s, keel::usize n) -> keel::f64 {
-            if (n == 0) return std::numeric_limits<keel::f64>::quiet_NaN();
-            if (k < 0) return std::numeric_limits<keel::f64>::quiet_NaN();
+            if (n == 0) return keel::Limits<keel::f64>::quiet_nan();
+            if (k < 0) return keel::Limits<keel::f64>::quiet_nan();
             if (k == 0) return 1.0;          // m_0 = 1
             if (k == 1) return 0.0;          // central first moment
             keel::f64 mean = 0.0;
@@ -1101,7 +1099,7 @@ Value moment_of(const Value &x, keel::i32 order, keel::i32 dim, keel::Allocator 
             keel::f64 sum = 0.0;
             for (keel::usize i = 0; i < n; ++i) {
                 const keel::f64 d2 = s[i] - mean;
-                sum += std::pow(d2, k);
+                sum += keel::pow(d2, k);
             }
             return sum / keel::as<keel::f64>(n);
         }, mr);
@@ -1121,13 +1119,13 @@ Value trimmean_of(const Value &x, keel::f64 pct, keel::i32 dim, bool useFloor,
     const keel::f64 p = pct;
     return applyAlongDim(x, d,
         [p, useFloor](keel::usize, const keel::f64 *s, keel::usize n) -> keel::f64 {
-            if (n == 0) return std::numeric_limits<keel::f64>::quiet_NaN();
+            if (n == 0) return keel::Limits<keel::f64>::quiet_nan();
             // Number of values to trim from EACH end.
             const keel::f64 kf = keel::as<keel::f64>(n) * p / 200.0;
             const keel::usize k = useFloor
-                ? keel::as<keel::usize>(std::floor(kf))
-                : keel::as<keel::usize>(std::max(0.0, std::ceil(kf - 0.5)));
-            if (2 * k >= n) return std::numeric_limits<keel::f64>::quiet_NaN();
+                ? keel::as<keel::usize>(keel::floor(kf))
+                : keel::as<keel::usize>(std::max(0.0, keel::ceil(kf - 0.5)));
+            if (2 * k >= n) return keel::Limits<keel::f64>::quiet_nan();
             keel::Array<keel::f64> buf(keel::ArrayRef<keel::f64>(s, n));
             std::sort(buf.begin(), buf.end());
             keel::f64 sum = 0.0;
@@ -1146,32 +1144,32 @@ KsdensityFull
 ksdensity_full(const Value &x, const Value &pts, keel::f64 bw_user, keel::StringRef kernel_name, keel::StringRef function_mode, keel::usize numpoints, const Value *weights, keel::Allocator *mr, keel::f64 supportLo, keel::f64 supportHi, keel::StringRef boundary_correction)
 {
     const keel::usize N = x.numel();
-    const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
+    const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
     if (N == 0)
         return {Value::matrix(0, 0, ValueType::DOUBLE, mr),
                 Value::matrix(0, 0, ValueType::DOUBLE, mr),
                 Value::scalar(nan, mr)};
 
     const KsKernel kernel = parse_ks_kernel(kernel_name);
-    const bool hasLo = std::isfinite(supportLo);
-    const bool hasHi = std::isfinite(supportHi);
+    const bool hasLo = keel::is_finite(supportLo);
+    const bool hasHi = keel::is_finite(supportHi);
     const bool hasBounds = hasLo || hasHi;
     const bool useReflection = hasBounds && boundary_correction.equals_ignore_ascii_case("reflection");
     const bool useLogTransform = hasBounds && !useReflection;
 
     // Transform helpers for 'log' boundary correction on bounded/semi-bounded support.
     auto fwdTransform = [&](keel::f64 v) -> keel::f64 {
-        if (hasLo && hasHi) return std::log((v - supportLo) / (supportHi - v));
-        if (hasLo)          return std::log(v - supportLo);
-        return -std::log(supportHi - v);
+        if (hasLo && hasHi) return keel::log((v - supportLo) / (supportHi - v));
+        if (hasLo)          return keel::log(v - supportLo);
+        return -keel::log(supportHi - v);
     };
     auto invTransform = [&](keel::f64 y) -> keel::f64 {
         if (hasLo && hasHi) {
-            const keel::f64 ey = std::exp(y);
+            const keel::f64 ey = keel::exp(y);
             return (supportLo + supportHi * ey) / (1.0 + ey);
         }
-        if (hasLo) return supportLo + std::exp(y);
-        return supportHi - std::exp(-y);
+        if (hasLo) return supportLo + keel::exp(y);
+        return supportHi - keel::exp(-y);
     };
     auto jacTransform = [&](keel::f64 v) -> keel::f64 {
         if (hasLo && hasHi) return (supportHi - supportLo) / ((v - supportLo) * (supportHi - v));
@@ -1217,7 +1215,7 @@ ksdensity_full(const Value &x, const Value &pts, keel::f64 bw_user, keel::String
         const keel::f64 med = (N % 2 == 1) ? tmp[N / 2]
                                         : 0.5 * (tmp[N / 2 - 1] + tmp[N / 2]);
         keel::Array<keel::f64> dev(N);
-        for (keel::usize i = 0; i < N; ++i) dev[i] = std::fabs(xs[i] - med);
+        for (keel::usize i = 0; i < N; ++i) dev[i] = keel::abs(xs[i] - med);
         std::sort(dev.begin(), dev.end());
         const keel::f64 mad = (N % 2 == 1) ? dev[N / 2]
                                         : 0.5 * (dev[N / 2 - 1] + dev[N / 2]);
@@ -1226,15 +1224,15 @@ ksdensity_full(const Value &x, const Value &pts, keel::f64 bw_user, keel::String
             // IQR fallback.
             auto pct = [&](keel::f64 p) {
                 const keel::f64 pos = p * (keel::f64(N) - 1.0);
-                const keel::usize lo = (keel::usize)std::floor(pos);
-                const keel::usize hi = (keel::usize)std::ceil(pos);
+                const keel::usize lo = (keel::usize)keel::floor(pos);
+                const keel::usize hi = (keel::usize)keel::ceil(pos);
                 const keel::f64 t = pos - keel::f64(lo);
                 return xs[lo] * (1.0 - t) + xs[hi] * t;
             };
             const keel::f64 iqr = pct(0.75) - pct(0.25);
             sigma = (iqr > 0.0) ? iqr / 1.349 : 1.0;
         }
-        bw = sigma * std::pow(4.0 / (3.0 * keel::f64(N)), 0.2);
+        bw = sigma * keel::pow(4.0 / (3.0 * keel::f64(N)), 0.2);
         if (!(bw > 0.0)) bw = 1.0;
     }
 
@@ -1373,14 +1371,14 @@ ksdensity_full(const Value &x, const Value &pts, keel::f64 bw_user, keel::String
             }
             if      (modeRef == "cdf")      fd[j] = F;
             else if (modeRef == "survivor") fd[j] = 1.0 - F;
-            else                            fd[j] = -std::log(std::max(1.0 - F, 1e-300));
+            else                            fd[j] = -keel::log(std::max(1.0 - F, 1e-300));
         }
     } else if (modeRef == "icdf") {
         // Inverse CDF: the `grid` values are PROBABILITIES p in [0, 1].
         // Solve F(x) = p via Newton's method on the smoothed cdf/pdf, seeded
         // by linear inverse-interpolation of a 100-point grid cdf over the
         // data range.
-        const keel::f64 infv = std::numeric_limits<keel::f64>::infinity();
+        const keel::f64 infv = keel::Limits<keel::f64>::infinity();
         auto cdf_at = [&](keel::f64 xq) {
             keel::f64 s = 0.0;
             for (keel::usize i = 0; i < N; ++i)
@@ -1405,7 +1403,7 @@ ksdensity_full(const Value &x, const Value &pts, keel::f64 bw_user, keel::String
                 gF[g] = cdf_at(gx[g]);
             }
         }
-        const keel::f64 min_dF0 = std::sqrt(std::numeric_limits<keel::f64>::epsilon());
+        const keel::f64 min_dF0 = keel::sqrt(keel::Limits<keel::f64>::kEpsilon);
         for (keel::usize j = 0; j < M; ++j) {
             const keel::f64 p = grid[j];
             if (p < 0.0 || p > 1.0) { fd[j] = nan;   continue; }
@@ -1430,7 +1428,7 @@ ksdensity_full(const Value &x, const Value &pts, keel::f64 bw_user, keel::String
                 const keel::f64 dp = p - F0;
                 const keel::f64 dx = dp / dF0;
                 x0 += dx;
-                if (std::fabs(dx) <= 1e-6 * std::fabs(x0) || std::fabs(dp) <= 1e-8)
+                if (keel::abs(dx) <= 1e-6 * keel::abs(x0) || keel::abs(dp) <= 1e-8)
                     break;
             }
             fd[j] = useLogTransform ? invTransform(x0) : x0;
@@ -1554,7 +1552,7 @@ datastats(const Value &x, keel::Allocator *mr)
     v.reserve(N);
     for (keel::usize i = 0; i < N; ++i) v.push_back(x.elemAsDouble(i));
 
-    const auto nan = std::numeric_limits<keel::f64>::quiet_NaN();
+    const auto nan = keel::Limits<keel::f64>::quiet_nan();
     if (N == 0) {
         return std::make_tuple(Value::scalar(0.0, mr),
                                Value::scalar(nan, mr),
@@ -1583,7 +1581,7 @@ datastats(const Value &x, keel::Allocator *mr)
     if (N > 1) {
         keel::f64 sq = 0.0;
         for (keel::f64 vi : v) { const keel::f64 d = vi - mean; sq += d * d; }
-        sd = std::sqrt(sq / keel::as<keel::f64>(N - 1));
+        sd = keel::sqrt(sq / keel::as<keel::f64>(N - 1));
     }
     const keel::f64 range = mx - mn;
 
@@ -1621,7 +1619,7 @@ Value filloutliers(const Value &A, const Value &fillMethod,
     // A user-supplied factor for quartiles is the IQR multiplier k; the
     // internal formula uses 0.5·tf·IQR, so scale by 2.
     keel::f64 tf;
-    if (std::isnan(thresholdFactor))
+    if (keel::is_nan(thresholdFactor))
         tf = 3.0;
     else
         tf = (detRef == "quartiles") ? 2.0 * thresholdFactor : thresholdFactor;
@@ -1688,7 +1686,7 @@ ecdfhist(const Value &f, const Value &x, keel::i32 m, keel::Allocator *mr)
     // boundary values to the upper bin (off-by-one shift in counts).
     for (keel::usize k = 0; k < K; ++k) {
         const keel::f64 v = vals[k];
-        keel::i32 bin = keel::as<keel::i32>(std::ceil((v - xmin) / width)) - 1;
+        keel::i32 bin = keel::as<keel::i32>(keel::ceil((v - xmin) / width)) - 1;
         if (bin < 0)  bin = 0;
         if (bin >= m) bin = m - 1;
         nd[bin] += probs[k];
@@ -1722,7 +1720,7 @@ EcdfFull ecdf_full(const Value &y, const Value *freq, keel::StringRef function_m
     keel::f64 Wtotal = 0.0;
     for (keel::usize i = 0; i < n; ++i) {
         const keel::f64 s = y.elemAsDouble(i);
-        if (std::isnan(s)) continue;
+        if (keel::is_nan(s)) continue;
         const keel::f64 w = has_freq ? freq->elemAsDouble(i) : 1.0;
         if (w == 0.0) continue;
         vw.push_back({s, w});
@@ -1813,19 +1811,19 @@ EcdfFull ecdf_full(const Value &y, const Value *freq, keel::StringRef function_m
     // Greenwood-style binomial Wald CI for cdf / survivor; analogous
     // log-transform for cumulative hazard. Match MATLAB R2025b: first
     // and last rows return NaN bounds.
-    const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
+    const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
     R.flo = Value::matrix(L, 1, ValueType::DOUBLE, mr);
     R.fup = Value::matrix(L, 1, ValueType::DOUBLE, mr);
     keel::f64 *lo = R.flo.doubleDataMut();
     keel::f64 *hi = R.fup.doubleDataMut();
 
     // z = -norminv(α/2). For α=0.05 → ~1.959964.
-    const keel::f64 z = std::sqrt(2.0) * [&]{
+    const keel::f64 z = keel::sqrt(2.0) * [&]{
         keel::f64 e = 1.0 - alpha;
         for (keel::i32 it = 0; it < 50; ++it) {
-            const keel::f64 f = std::erf(e) - (1.0 - alpha);
-            const keel::f64 fp = (2.0 / std::sqrt(keel::kPi))
-                              * std::exp(-e * e);
+            const keel::f64 f = keel::erf(e) - (1.0 - alpha);
+            const keel::f64 fp = (2.0 / keel::sqrt(keel::kPi))
+                              * keel::exp(-e * e);
             e -= f / fp;
         }
         return e;
@@ -1833,7 +1831,7 @@ EcdfFull ecdf_full(const Value &y, const Value *freq, keel::StringRef function_m
     for (keel::usize k = 0; k < L; ++k) {
         if (k == 0 || k == L - 1) { lo[k] = nan; hi[k] = nan; continue; }
         const keel::f64 F = ff[k];
-        const keel::f64 se = std::sqrt(F * (1.0 - F) / N);
+        const keel::f64 se = keel::sqrt(F * (1.0 - F) / N);
         keel::f64 l = F - z * se;
         keel::f64 h = F + z * se;
         if (l < 0.0) l = 0.0;

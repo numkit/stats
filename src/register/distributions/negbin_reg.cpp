@@ -17,7 +17,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <tuple>
 #include <utility>
@@ -63,7 +62,7 @@ void nbincdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
             const Value &ref = (nr == N) ? r : (np == N ? p : k);
             v = dist_empty_like(ref, mr);
             keel::f64 *od = v.doubleDataMut();
-            const keel::f64 NaN = std::numeric_limits<keel::f64>::quiet_NaN();
+            const keel::f64 NaN = keel::Limits<keel::f64>::quiet_nan();
             for (keel::usize i = 0; i < N; ++i) {
                 const keel::f64 ri = r.elemAsDouble(nr == 1 ? 0 : i);
                 const keel::f64 pi = p.elemAsDouble(np == 1 ? 0 : i);
@@ -96,7 +95,7 @@ void nbininv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
     const Value &ref = (nr == N) ? r : (np == N ? p : q);
     Value out = dist_empty_like(ref, mr);
     keel::f64 *od = out.doubleDataMut();
-    const keel::f64 NaN = std::numeric_limits<keel::f64>::quiet_NaN();
+    const keel::f64 NaN = keel::Limits<keel::f64>::quiet_nan();
     for (keel::usize i = 0; i < N; ++i) {
         const keel::f64 ri = r.elemAsDouble(nr == 1 ? 0 : i);
         const keel::f64 pi = p.elemAsDouble(np == 1 ? 0 : i);

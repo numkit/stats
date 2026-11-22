@@ -2,6 +2,7 @@
 // unifinv.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -40,15 +41,15 @@ TEST_F(UnifinvTest, VectorQuantile)
 
 TEST_F(UnifinvTest, ProbOutOfRange)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("unifinv(-0.1)")));
-    EXPECT_TRUE(std::isnan(evalScalar("unifinv( 1.5)")));
-    EXPECT_TRUE(std::isnan(evalScalar("unifinv( NaN, 0, 1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("unifinv(-0.1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("unifinv( 1.5)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("unifinv( NaN, 0, 1)")));
 }
 
 TEST_F(UnifinvTest, BadParams)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("unifinv(0.5, 1, 0)")));   // b < a
-    EXPECT_TRUE(std::isnan(evalScalar("unifinv(0.5, 5, 1)")));   // b < a
-    EXPECT_TRUE(std::isnan(evalScalar("unifinv(0.5, 1, 1)")));   // b == a degenerate
-    EXPECT_TRUE(std::isnan(evalScalar("unifinv(0.5, NaN, 1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("unifinv(0.5, 1, 0)")));   // b < a
+    EXPECT_TRUE(keel::is_nan(evalScalar("unifinv(0.5, 5, 1)")));   // b < a
+    EXPECT_TRUE(keel::is_nan(evalScalar("unifinv(0.5, 1, 1)")));   // b == a degenerate
+    EXPECT_TRUE(keel::is_nan(evalScalar("unifinv(0.5, NaN, 1)")));
 }

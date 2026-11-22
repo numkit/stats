@@ -24,8 +24,6 @@
 #include <numkit/ops/reductions.hpp>  // numkit::ops::firstNonSingletonDim, validateDim
 
 #include <algorithm>
-#include <cmath>
-#include <limits>
 
 #include "moving_detail.hpp"
 
@@ -80,14 +78,14 @@ static Value smoothGaussianDim(const Value &x, const Window &w, keel::f64 sigma,
             keel::f64 sw = 0.0, ssum = 0.0;
             for (keel::i64 j = lo; j <= hi; ++j) {
                 const keel::f64 v = src[j * step];
-                if (opt.omit_nan && std::isnan(v)) continue;
+                if (opt.omit_nan && keel::is_nan(v)) continue;
                 const keel::f64 dd = keel::as<keel::f64>(j - i);
-                const keel::f64 wt = std::exp(-dd * dd * inv2s2);
+                const keel::f64 wt = keel::exp(-dd * dd * inv2s2);
                 ssum += wt * v;
                 sw += wt;
             }
             dst[i * step] = (sw > 0.0) ? ssum / sw
-                                       : std::numeric_limits<keel::f64>::quiet_NaN();
+                                       : keel::Limits<keel::f64>::quiet_nan();
         }
     };
 
@@ -129,7 +127,7 @@ static void buildSGMatrix(keel::i32 F, keel::i32 deg, keel::Array<keel::f64> &B)
     for (keel::i32 a = 0; a < p1; ++a)
         for (keel::i32 b = 0; b < p1; ++b) {
             keel::f64 s = 0.0;
-            for (keel::i32 i = 0; i < F; ++i) s += std::pow(keel::as<keel::f64>(i - m), a + b);
+            for (keel::i32 i = 0; i < F; ++i) s += keel::pow(keel::as<keel::f64>(i - m), a + b);
             AtA[a * p1 + b] = s;
         }
     // Invert AtA via Gauss-Jordan on [AtA | I].
@@ -137,8 +135,8 @@ static void buildSGMatrix(keel::i32 F, keel::i32 deg, keel::Array<keel::f64> &B)
     keel::Array<keel::f64> aug(keel::as<keel::usize>(p1) * W, 0.0);
     for (keel::i32 i = 0; i < p1; ++i) { for (keel::i32 j = 0; j < p1; ++j) aug[i * W + j] = AtA[i * p1 + j]; aug[i * W + p1 + i] = 1.0; }
     for (keel::i32 col = 0; col < p1; ++col) {
-        keel::i32 piv = col; keel::f64 best = std::fabs(aug[col * W + col]);
-        for (keel::i32 r = col + 1; r < p1; ++r) { keel::f64 v = std::fabs(aug[r * W + col]); if (v > best) { best = v; piv = r; } }
+        keel::i32 piv = col; keel::f64 best = keel::abs(aug[col * W + col]);
+        for (keel::i32 r = col + 1; r < p1; ++r) { keel::f64 v = keel::abs(aug[r * W + col]); if (v > best) { best = v; piv = r; } }
         if (piv != col) for (keel::i32 j = 0; j < W; ++j) std::swap(aug[col * W + j], aug[piv * W + j]);
         const keel::f64 d = aug[col * W + col];
         for (keel::i32 j = 0; j < W; ++j) aug[col * W + j] /= d;
@@ -154,9 +152,9 @@ static void buildSGMatrix(keel::i32 F, keel::i32 deg, keel::Array<keel::f64> &B)
         for (keel::i32 j = 0; j < F; ++j) {
             keel::f64 s = 0.0;
             for (keel::i32 a = 0; a < p1; ++a) {
-                const keel::f64 ia = std::pow(keel::as<keel::f64>(i - m), a);
+                const keel::f64 ia = keel::pow(keel::as<keel::f64>(i - m), a);
                 for (keel::i32 b = 0; b < p1; ++b)
-                    s += ia * aug[a * W + p1 + b] * std::pow(keel::as<keel::f64>(j - m), b);
+                    s += ia * aug[a * W + p1 + b] * keel::pow(keel::as<keel::f64>(j - m), b);
             }
             B[keel::as<keel::usize>(i) * F + j] = s;
         }
@@ -249,13 +247,13 @@ static void localRegressSlice(const keel::f64 *src, keel::usize n, keel::isize s
         if (lo < 0)      lo = 0;
         if (lo > N - F)  lo = N - F;
         keel::f64 dmax = 0.0;
-        for (keel::i32 j = lo; j < lo + F; ++j) { const keel::f64 d = std::fabs(j - i); if (d > dmax) dmax = d; }
+        for (keel::i32 j = lo; j < lo + F; ++j) { const keel::f64 d = keel::abs(j - i); if (d > dmax) dmax = d; }
         if (dmax == 0.0) dmax = 1.0;
 
         keel::f64 AtA[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
         keel::f64 Atb[3] = {0, 0, 0};
         for (keel::i32 j = lo; j < lo + F; ++j) {
-            keel::f64 u = std::fabs(j - i) / dmax;
+            keel::f64 u = keel::abs(j - i) / dmax;
             if (u > 1.0) u = 1.0;
             const keel::f64 t1 = 1.0 - u * u * u;
             const keel::f64 w  = t1 * t1 * t1;             // tricube
@@ -276,8 +274,8 @@ static void localRegressSlice(const keel::f64 *src, keel::usize n, keel::isize s
         for (keel::i32 t = 0; t < P; ++t)     b[t] = Atb[t];
         bool ok = true;
         for (keel::i32 col = 0; col < P && ok; ++col) {
-            keel::i32 piv = col; keel::f64 best = std::fabs(M[col * P + col]);
-            for (keel::i32 r = col + 1; r < P; ++r) { const keel::f64 v = std::fabs(M[r * P + col]); if (v > best) { best = v; piv = r; } }
+            keel::i32 piv = col; keel::f64 best = keel::abs(M[col * P + col]);
+            for (keel::i32 r = col + 1; r < P; ++r) { const keel::f64 v = keel::abs(M[r * P + col]); if (v > best) { best = v; piv = r; } }
             if (best < 1e-12) { ok = false; break; }
             if (piv != col) { for (keel::i32 j = 0; j < P; ++j) std::swap(M[col * P + j], M[piv * P + j]); std::swap(b[col], b[piv]); }
             const keel::f64 d = M[col * P + col];
@@ -376,7 +374,7 @@ Value smoothdata(const Value &x, keel::StringRef method, keel::i32 k, keel::i32 
         const keel::usize n = (x.dims().isVector() || x.isScalar())
                           ? x.numel()
                           : x.dims().rows();
-        keel::i64 auto_k = keel::as<keel::i64>(std::round(0.1 * keel::as<keel::f64>(n)));
+        keel::i64 auto_k = keel::as<keel::i64>(keel::round(0.1 * keel::as<keel::f64>(n)));
         if (auto_k < 3) auto_k = 3;
         if (auto_k > keel::as<keel::i64>(n)) auto_k = keel::as<keel::i64>(n);
         k = keel::as<keel::i32>(auto_k);

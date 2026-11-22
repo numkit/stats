@@ -4,6 +4,8 @@
 #pragma once
 
 #include <keel/core.h>
+#include <keel/algo.h>
+#include <keel/math.h>
 #include <keel/format.h>
 #include <keel/memory.h>
 #include <keel/array.h>
@@ -12,11 +14,8 @@
 #include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
-#include <limits>
 #include <numeric>
 #include <tuple>
 #include <utility>
@@ -35,7 +34,7 @@ namespace {
 
 [[maybe_unused]] keel::f64 medianFromSlice(keel::f64 *data, keel::usize n)
 {
-    if (n == 0) return std::nan("");
+    if (n == 0) return keel::kNaN;
     if (n == 1) return data[0];
     const keel::usize mid = n / 2;
     std::nth_element(data, data + mid, data + n);
@@ -65,7 +64,7 @@ namespace {
     if (x.type() == ValueType::DOUBLE) {
         // Column-major copy — same layout as Value storage.
         const keel::f64 *src = x.doubleData();
-        std::memcpy(out.data(), src, n * p * sizeof(keel::f64));
+        keel::copy_n(out.data(), src, n * p);
     } else {
         for (keel::usize k = 0; k < n * p; ++k)
             out[k] = x.elemAsDouble(k);
@@ -80,7 +79,7 @@ namespace {
     for (keel::usize r = 0; r < n; ++r) {
         bool keep = true;
         for (keel::usize c = 0; c < p; ++c) {
-            if (std::isnan(data[c * n + r])) { keep = false; break; }
+            if (keel::is_nan(data[c * n + r])) { keep = false; break; }
         }
         if (keep) {
             // Copy row r to row w (column by column).

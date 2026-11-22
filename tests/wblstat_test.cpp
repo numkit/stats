@@ -2,6 +2,7 @@
 // wblstat.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -33,7 +34,7 @@ TEST_F(WblstatTest, VectorBroadcasting)
 
 TEST_F(WblstatTest, InvalidParamsReturnNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("wblstat(0, 1)")));
-    EXPECT_TRUE(std::isnan(evalScalar("wblstat(1, 0)")));
-    EXPECT_TRUE(std::isnan(evalScalar("wblstat(-1, 1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("wblstat(0, 1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("wblstat(1, 0)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("wblstat(-1, 1)")));
 }

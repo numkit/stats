@@ -2,6 +2,7 @@
 // unidinv.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -38,17 +39,17 @@ TEST_F(UnidinvTest, VectorQuantile)
 TEST_F(UnidinvTest, BoundaryProb)
 {
     // MATLAB: p=0 -> NaN (no integer pre-image), p=1 -> N.
-    EXPECT_TRUE(std::isnan(evalScalar("unidinv(0, 6)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("unidinv(0, 6)")));
     EXPECT_DOUBLE_EQ(evalScalar("unidinv(1, 6)"), 6.0);
 }
 
 TEST_F(UnidinvTest, EdgeCases)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("unidinv(-0.1, 6)")));
-    EXPECT_TRUE(std::isnan(evalScalar("unidinv( 1.5, 6)")));
-    EXPECT_TRUE(std::isnan(evalScalar("unidinv( 0.5, 0)")));
-    EXPECT_TRUE(std::isnan(evalScalar("unidinv( 0.5, -1)")));
-    EXPECT_TRUE(std::isnan(evalScalar("unidinv( 0.5, 6.5)")));  // non-integer N
-    EXPECT_TRUE(std::isnan(evalScalar("unidinv( NaN, 6)")));
-    EXPECT_TRUE(std::isnan(evalScalar("unidinv( 0.5, NaN)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("unidinv(-0.1, 6)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("unidinv( 1.5, 6)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("unidinv( 0.5, 0)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("unidinv( 0.5, -1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("unidinv( 0.5, 6.5)")));  // non-integer N
+    EXPECT_TRUE(keel::is_nan(evalScalar("unidinv( NaN, 6)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("unidinv( 0.5, NaN)")));
 }

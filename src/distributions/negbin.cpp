@@ -14,8 +14,6 @@
 
 #include "dist_helpers.hpp"
 
-#include <cmath>
-#include <limits>
 #include <mutex>
 
 #include "negbin_detail.hpp"
@@ -32,21 +30,21 @@ inline bool nbin_argcheck(keel::f64 r, keel::f64 p) noexcept
 Value nbinpdf(const Value &k, keel::f64 r, keel::f64 p, keel::Allocator *mr)
 {
     if (!nbin_argcheck(r, p))
-        return elementwise(k, [](keel::f64){ return std::numeric_limits<keel::f64>::quiet_NaN(); }, mr);
+        return elementwise(k, [](keel::f64){ return keel::Limits<keel::f64>::quiet_nan(); }, mr);
     return elementwise(k, [=](keel::f64 ki){ return nbin_pmf(ki, r, p); }, mr);
 }
 
 Value nbincdf(const Value &k, keel::f64 r, keel::f64 p, keel::Allocator *mr)
 {
     if (r <= 0.0 || p <= 0.0 || p > 1.0)
-        return elementwise(k, [](keel::f64){ return std::numeric_limits<keel::f64>::quiet_NaN(); }, mr);
+        return elementwise(k, [](keel::f64){ return keel::Limits<keel::f64>::quiet_nan(); }, mr);
     return elementwise(k, [=](keel::f64 ki){ return nbin_cdf_scalar(ki, r, p, mr); }, mr);
 }
 
 Value nbininv(const Value &q, keel::f64 r, keel::f64 p, keel::Allocator *mr)
 {
     if (!nbin_params_ok(r, p))
-        return elementwise(q, [](keel::f64){ return std::numeric_limits<keel::f64>::quiet_NaN(); }, mr);
+        return elementwise(q, [](keel::f64){ return keel::Limits<keel::f64>::quiet_nan(); }, mr);
     return elementwise(q, [=](keel::f64 qi) { return nbin_inv_scalar(qi, r, p); }, mr);
 }
 
@@ -74,7 +72,7 @@ Value nbinrnd(::numkit::ops::RngContext &rng, keel::f64 r, keel::f64 p, keel::us
 std::tuple<keel::f64, keel::f64> nbinstat(keel::f64 r, keel::f64 p)
 {
     if (r <= 0.0 || p <= 0.0 || p > 1.0) {
-        const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
+        const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
         return std::make_tuple(nan, nan);
     }
     const keel::f64 mean = r * (1.0 - p) / p;

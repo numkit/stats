@@ -3,6 +3,7 @@
 // ridge / nlparci / glmval. One TEST_F per probed contract branch.
 
 #include <keel/core.h>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <numkit/stats/regress/regress.hpp>
@@ -142,8 +143,8 @@ TEST_F(RegressionContractTest, GlmvalFormsAndGates)
     // Custom link struct with function handle Inverse.
     engine.eval("S = struct('Link', @(mu) log(mu), 'Derivative', @(mu) 1./mu, 'Inverse', @(eta) exp(eta));"
                 "yc = glmval([0; 1], [1; 2], S);");
-    EXPECT_NEAR(at("yc", 0), std::exp(1.0), 1e-12);
-    EXPECT_NEAR(at("yc", 1), std::exp(2.0), 1e-12);
+    EXPECT_NEAR(at("yc", 0), keel::exp(1.0), 1e-12);
+    EXPECT_NEAR(at("yc", 1), keel::exp(2.0), 1e-12);
 }
 
 } // namespace

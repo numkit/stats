@@ -3,6 +3,7 @@
 // change). Reference values from MATLAB R2025b probe.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -56,13 +57,13 @@ TEST_F(BetainvTest, BoundaryProbabilities)
 
 TEST_F(BetainvTest, OutOfRangeProbReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("betainv(-0.1, 2, 3)")));
-    EXPECT_TRUE(std::isnan(evalScalar("betainv( 1.1, 2, 3)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("betainv(-0.1, 2, 3)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("betainv( 1.1, 2, 3)")));
 }
 
 TEST_F(BetainvTest, InvalidShapeReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("betainv(0.5,  0, 3)")));
-    EXPECT_TRUE(std::isnan(evalScalar("betainv(0.5,  2, 0)")));
-    EXPECT_TRUE(std::isnan(evalScalar("betainv(0.5, -1, 3)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("betainv(0.5,  0, 3)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("betainv(0.5,  2, 0)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("betainv(0.5, -1, 3)")));
 }

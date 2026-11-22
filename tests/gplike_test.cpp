@@ -8,6 +8,7 @@
 //   x < 0 OK as long as 1 + k*x/sigma > 0
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -61,22 +62,22 @@ TEST_F(GplikeTest, NegativeXAllowedIfSupportOK)
 TEST_F(GplikeTest, SupportViolationReturnsInf)
 {
     // k=-1, x=10 → t = 1 - 10 = -9 → +Inf.
-    EXPECT_TRUE(std::isinf(evalScalar("gplike([-1, 1], 10)")) &&
+    EXPECT_TRUE(keel::is_inf(evalScalar("gplike([-1, 1], 10)")) &&
                 evalScalar("gplike([-1, 1], 10)") > 0);
 }
 
 TEST_F(GplikeTest, NegativeSigmaReturnsNegInf)
 {
     const double v = evalScalar("gplike([0.5, -1], x)");
-    EXPECT_TRUE(std::isinf(v) && v < 0);
+    EXPECT_TRUE(keel::is_inf(v) && v < 0);
 }
 
 TEST_F(GplikeTest, ZeroSigmaReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("gplike([0.5, 0], x)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("gplike([0.5, 0], x)")));
 }
 
 TEST_F(GplikeTest, EmptyDataReturnsInf)
 {
-    EXPECT_TRUE(std::isinf(evalScalar("gplike([0.5, 1], [])")));
+    EXPECT_TRUE(keel::is_inf(evalScalar("gplike([0.5, 1], [])")));
 }

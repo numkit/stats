@@ -18,6 +18,7 @@
 // is uniform across libs.
 
 #include <keel/array.h>
+#include <keel/math.h>
 #include <keel/core.h>
 #include <keel/format.h>
 #include <keel/memory.h>
@@ -29,8 +30,6 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
-#include <limits>
 
 namespace numkit::stats {
 
@@ -59,7 +58,7 @@ keel::f64 aggregate(Agg fn, const keel::Array<keel::f64> &vals)
     // Filter NaN.
     keel::Array<keel::f64> v;
     v.reserve(vals.size());
-    for (keel::f64 x : vals) if (!std::isnan(x)) v.push_back(x);
+    for (keel::f64 x : vals) if (!keel::is_nan(x)) v.push_back(x);
     const keel::usize n = v.size();
 
     switch (fn) {
@@ -71,19 +70,19 @@ keel::f64 aggregate(Agg fn, const keel::Array<keel::f64> &vals)
             return s;
         }
         case Agg::Min: {
-            if (n == 0) return std::numeric_limits<keel::f64>::quiet_NaN();
+            if (n == 0) return keel::Limits<keel::f64>::quiet_nan();
             keel::f64 m = v[0];
             for (keel::usize i = 1; i < n; ++i) m = std::min(m, v[i]);
             return m;
         }
         case Agg::Max: {
-            if (n == 0) return std::numeric_limits<keel::f64>::quiet_NaN();
+            if (n == 0) return keel::Limits<keel::f64>::quiet_nan();
             keel::f64 m = v[0];
             for (keel::usize i = 1; i < n; ++i) m = std::max(m, v[i]);
             return m;
         }
         case Agg::Mean: {
-            if (n == 0) return std::numeric_limits<keel::f64>::quiet_NaN();
+            if (n == 0) return keel::Limits<keel::f64>::quiet_nan();
             keel::f64 s = 0.0;
             for (keel::f64 x : v) s += x;
             return s / keel::as<keel::f64>(n);
@@ -95,7 +94,7 @@ keel::f64 aggregate(Agg fn, const keel::Array<keel::f64> &vals)
                 // MATLAB std/var of <2 elements: 0 by convention with N
                 // normalisation, NaN with N-1. grpstats uses N-1
                 // convention -> NaN.
-                return std::numeric_limits<keel::f64>::quiet_NaN();
+                return keel::Limits<keel::f64>::quiet_nan();
             }
             keel::f64 s = 0.0;
             for (keel::f64 x : v) s += x;
@@ -107,12 +106,12 @@ keel::f64 aggregate(Agg fn, const keel::Array<keel::f64> &vals)
             }
             const keel::f64 var = ss / keel::as<keel::f64>(n - 1);
             if (fn == Agg::Var) return var;
-            const keel::f64 sd = std::sqrt(var);
+            const keel::f64 sd = keel::sqrt(var);
             if (fn == Agg::Std) return sd;
-            return sd / std::sqrt(keel::as<keel::f64>(n));   // Sem
+            return sd / keel::sqrt(keel::as<keel::f64>(n));   // Sem
         }
     }
-    return std::numeric_limits<keel::f64>::quiet_NaN();
+    return keel::Limits<keel::f64>::quiet_nan();
 }
 
 void grpstats_argcheck(const Value &X, const Value &group)
@@ -144,7 +143,7 @@ grpstats(const Value &X, const Value &group, keel::ArrayRef<keel::String> fn_nam
     for (keel::usize i = 0; i < N; ++i) g[i] = group.elemAsDouble(i);
     keel::Array<keel::f64> u_g;
     u_g.reserve(N);
-    for (keel::f64 v : g) if (!std::isnan(v)) u_g.push_back(v);
+    for (keel::f64 v : g) if (!keel::is_nan(v)) u_g.push_back(v);
     std::sort(u_g.begin(), u_g.end());
     u_g.resize(std::unique(u_g.begin(), u_g.end()) - u_g.begin());
     const keel::usize Ng = u_g.size();

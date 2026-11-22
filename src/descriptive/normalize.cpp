@@ -5,6 +5,7 @@
 // convention). Output is always DOUBLE regardless of input class.
 
 #include <keel/array.h>
+#include <keel/math.h>
 #include <keel/core.h>
 #include <keel/format.h>
 #include <keel/memory.h>
@@ -16,8 +17,6 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
-#include <limits>
 
 #include "normalize_detail.hpp"
 
@@ -78,7 +77,7 @@ keel::f64 colStdPop(const keel::f64 *x, keel::usize n) {
         const keel::f64 d = x[i] - m;
         s += d * d;
     }
-    return std::sqrt(s / keel::as<keel::f64>(n));
+    return keel::sqrt(s / keel::as<keel::f64>(n));
 }
 
 // Sample (N-1) standard deviation — MATLAB's default for std/zscore/normalize.
@@ -90,7 +89,7 @@ keel::f64 colStdSample(const keel::f64 *x, keel::usize n) {
         const keel::f64 d = x[i] - m;
         s += d * d;
     }
-    return std::sqrt(s / keel::as<keel::f64>(n - 1));
+    return keel::sqrt(s / keel::as<keel::f64>(n - 1));
 }
 
 keel::f64 colMedian(keel::Array<keel::f64> v) {
@@ -114,7 +113,7 @@ keel::f64 colIQR(keel::Array<keel::f64> v) {
         const keel::f64 pos = pfrac * keel::f64(n) - 0.5;   // index in [-0.5, n-0.5]
         if (pos <= 0.0)               return v[0];
         if (pos >= keel::f64(n - 1))     return v[n - 1];
-        const keel::usize lo   = keel::as<keel::usize>(std::floor(pos));
+        const keel::usize lo   = keel::as<keel::usize>(keel::floor(pos));
         const keel::f64 frac = pos - keel::f64(lo);
         return v[lo] * (1.0 - frac) + v[lo + 1] * frac;
     };
@@ -180,7 +179,7 @@ NormalizeResult normalize(const Value &A, keel::StringRef method,
             if (paramIsStr && paramStr == "robust") {
                 keel::Array<keel::f64> tmp(keel::ArrayRef<keel::f64>(col, n));
                 const keel::f64 med = colMedian(tmp.clone());
-                for (keel::f64 &v : tmp) v = std::fabs(v - med);
+                for (keel::f64 &v : tmp) v = keel::abs(v - med);
                 const keel::f64 mad = colMedian(std::move(tmp));
                 const keel::f64 inv = (mad != 0.0) ? 1.0 / mad : 0.0;
                 cVal = med; sVal = mad;
@@ -211,7 +210,7 @@ NormalizeResult normalize(const Value &A, keel::StringRef method,
             } else if (paramIsStr && paramStr == "mad") {
                 keel::Array<keel::f64> tmp(keel::ArrayRef<keel::f64>(col, n));
                 const keel::f64 med = colMedian(tmp.clone());
-                for (keel::f64 &v : tmp) v = std::fabs(v - med);
+                for (keel::f64 &v : tmp) v = keel::abs(v - med);
                 sc = colMedian(std::move(tmp));
             } else                                      sc = colStdSample(col, n);
             const keel::f64 inv = (sc != 0.0) ? 1.0 / sc : 0.0;
@@ -241,20 +240,20 @@ NormalizeResult normalize(const Value &A, keel::StringRef method,
             // default p=2; p=1 / p=Inf / general p supported.
             const keel::f64 p = hasParam && !paramIsStr ? paramNum : 2.0;
             keel::f64 L;
-            if (std::isinf(p)) {
+            if (keel::is_inf(p)) {
                 L = 0.0;
-                for (keel::usize i = 0; i < n; ++i) L = std::max(L, std::fabs(col[i]));
+                for (keel::usize i = 0; i < n; ++i) L = std::max(L, keel::abs(col[i]));
             } else if (p == 1.0) {
                 L = 0.0;
-                for (keel::usize i = 0; i < n; ++i) L += std::fabs(col[i]);
+                for (keel::usize i = 0; i < n; ++i) L += keel::abs(col[i]);
             } else if (p == 2.0) {
                 keel::f64 s = 0.0;
                 for (keel::usize i = 0; i < n; ++i) s += col[i] * col[i];
-                L = std::sqrt(s);
+                L = keel::sqrt(s);
             } else {
                 keel::f64 s = 0.0;
-                for (keel::usize i = 0; i < n; ++i) s += std::pow(std::fabs(col[i]), p);
-                L = std::pow(s, 1.0 / p);
+                for (keel::usize i = 0; i < n; ++i) s += keel::pow(keel::abs(col[i]), p);
+                L = keel::pow(s, 1.0 / p);
             }
             const keel::f64 inv = (L != 0.0) ? 1.0 / L : 0.0;
             cVal = 0.0; sVal = L;
@@ -301,8 +300,8 @@ Value rescale(const Value &A, keel::f64 lo, keel::f64 hi,
     const keel::usize W = A.dims().cols();
     Value out = Value::matrix(H, W, ValueType::DOUBLE, mr);
     if (H == 0 || W == 0) return out;
-    const bool haveImn = !std::isnan(inputMin);
-    const bool haveImx = !std::isnan(inputMax);
+    const bool haveImn = !keel::is_nan(inputMin);
+    const bool haveImx = !keel::is_nan(inputMax);
     forEachColumn(A, [&](keel::usize j, keel::f64 *col, keel::usize n) {
         // Input range: explicit 'InputMin'/'InputMax' override the data
         // min/max. When given, values are clamped to [mn, mx] (MATLAB).

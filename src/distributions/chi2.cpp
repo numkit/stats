@@ -16,8 +16,6 @@
 
 #include "dist_helpers.hpp"
 
-#include <cmath>
-#include <cstring>
 #include <mutex>
 #include <keel/random.h>
 
@@ -64,7 +62,7 @@ std::tuple<keel::f64, keel::f64> chi2stat(keel::f64 k)
 {
     // MATLAB convention: k <= 0 ⇒ moments NaN (degenerate distribution).
     if (k <= 0.0) {
-        const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
+        const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
         return std::make_tuple(nan, nan);
     }
     return std::make_tuple(k, 2.0 * k);

@@ -3,6 +3,7 @@
 // Regression guard for corrcov() — correlation matrix from covariance.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <gtest/gtest.h>
 
 using namespace numkit;
@@ -48,7 +49,7 @@ TEST_F(CorrcovTest, ScalarInput)
     // corrcov(5) -> R = 1, sigma = sqrt(5)
     eval("[R, s] = corrcov(5);");
     EXPECT_DOUBLE_EQ(evalScalar("R"), 1.0);
-    EXPECT_NEAR(evalScalar("s"), std::sqrt(5.0), 1e-12);
+    EXPECT_NEAR(evalScalar("s"), keel::sqrt(5.0), 1e-12);
 }
 
 TEST_F(CorrcovTest, NegativeCorrelation)
@@ -86,8 +87,8 @@ TEST_F(CorrcovTest, ZeroVarianceGivesNaN)
 {
     // C(1,1) = 0 -> sigma(1) = 0 -> R(1,*) and R(*,1) involve division by 0.
     eval("R = corrcov([0 0; 0 1]);");
-    EXPECT_TRUE(std::isnan(evalScalar("R(1,1)")));
-    EXPECT_TRUE(std::isnan(evalScalar("R(1,2)")));
-    EXPECT_TRUE(std::isnan(evalScalar("R(2,1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("R(1,1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("R(1,2)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("R(2,1)")));
     EXPECT_DOUBLE_EQ(evalScalar("R(2,2)"), 1.0);
 }

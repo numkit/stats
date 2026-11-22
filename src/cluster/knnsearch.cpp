@@ -13,8 +13,6 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
-#include <cstring>
 
 #include "knnsearch_detail.hpp"
 
@@ -94,9 +92,9 @@ knnsearch(const Value &X, const Value &Y, keel::i32 K, keel::StringRef metric, k
         // K > Nx: pad rest with NaN.
         for (keel::i32 k = Keff; k < K; ++k) {
             id[q + keel::as<keel::usize>(k) * Ny] =
-                std::numeric_limits<keel::f64>::quiet_NaN();
+                keel::Limits<keel::f64>::quiet_nan();
             dd_out[q + keel::as<keel::usize>(k) * Ny] =
-                std::numeric_limits<keel::f64>::quiet_NaN();
+                keel::Limits<keel::f64>::quiet_nan();
         }
     }
     return {std::move(Idx), std::move(Dout)};

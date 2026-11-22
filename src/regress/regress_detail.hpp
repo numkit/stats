@@ -4,17 +4,15 @@
 #pragma once
 
 #include <keel/core.h>
+#include <keel/math.h>
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
-#include <limits>
 #include <numeric>
 #include <tuple>
 #include <utility>
@@ -33,7 +31,7 @@ namespace {
         keel::f64 s = M[j + j * d];
         for (keel::usize k = 0; k < j; ++k) s -= L[j + k * d] * L[j + k * d];
         if (s <= 0.0) return false;
-        const keel::f64 Ljj = std::sqrt(s);
+        const keel::f64 Ljj = keel::sqrt(s);
         L[j + j * d] = Ljj;
         for (keel::usize i = j + 1; i < d; ++i) {
             keel::f64 t = M[i + j * d];

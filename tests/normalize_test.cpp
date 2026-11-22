@@ -5,6 +5,7 @@
 // every method used its default. vs MATLAB R2025b.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <gtest/gtest.h>
 
 #include <cmath>
@@ -44,7 +45,7 @@ TEST_F(NormalizeParamTest, NormP)
     EXPECT_DOUBLE_EQ(evalScalar("b(1)"), 0.2);
     EXPECT_DOUBLE_EQ(evalScalar("b(5)"), 1.0);
     eval("c = normalize([1 2 3 4 5], 'norm', 2);");   // default 2-norm = /sqrt(55)
-    EXPECT_NEAR(evalScalar("c(1)"), 1.0 / std::sqrt(55.0), 1e-12);
+    EXPECT_NEAR(evalScalar("c(1)"), 1.0 / keel::sqrt(55.0), 1e-12);
 }
 
 TEST_F(NormalizeParamTest, ScaleAndCenterReference)
@@ -54,7 +55,7 @@ TEST_F(NormalizeParamTest, ScaleAndCenterReference)
     EXPECT_DOUBLE_EQ(evalScalar("s(5)"), 5.0);
     // default 'scale' = std (sample N-1): /sqrt(2.5).
     eval("sd = normalize([1 2 3 4 5], 'scale');");
-    EXPECT_NEAR(evalScalar("sd(1)"), 1.0 / std::sqrt(2.5), 1e-12);
+    EXPECT_NEAR(evalScalar("sd(1)"), 1.0 / keel::sqrt(2.5), 1e-12);
     // center 'median' subtracts the median (3 here).
     eval("cm = normalize([1 2 3 4 5], 'center', 'median');");
     EXPECT_DOUBLE_EQ(evalScalar("cm(1)"), -2.0);

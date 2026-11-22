@@ -10,15 +10,13 @@
 #pragma once
 
 #include <keel/core.h>
+#include <keel/math.h>
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
-#include <cstring>
-#include <limits>
 #include <tuple>
 #include <utility>
 
@@ -45,16 +43,16 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
 // log f(k; r, p) = lgamma(k + r) - lgamma(k+1) - lgamma(r)
 //                + r·log(p) + k·log(1-p)
 inline keel::f64 nbin_pmf(keel::f64 k, keel::f64 r, keel::f64 p) {
-    if (k < 0.0 || std::floor(k) != k) return 0.0;
+    if (k < 0.0 || keel::floor(k) != k) return 0.0;
     if (p == 1.0) return (k == 0.0) ? 1.0 : 0.0;
-    const keel::f64 lc = std::lgamma(k + r) - std::lgamma(k + 1.0) - std::lgamma(r);
-    return std::exp(lc + r * std::log(p) + k * std::log1p(-p));
+    const keel::f64 lc = keel::lgamma(k + r) - keel::lgamma(k + 1.0) - keel::lgamma(r);
+    return keel::exp(lc + r * keel::log(p) + k * keel::log1p(-p));
 }
 
 inline keel::f64 nbin_cdf_scalar(keel::f64 k, keel::f64 r, keel::f64 p, keel::Allocator *mr) {
     if (k < 0.0) return 0.0;
     if (p == 1.0) return 1.0;
-    const keel::f64 kf = std::floor(k);
+    const keel::f64 kf = keel::floor(k);
     // F(k; r, p) = I_p(r, ⌊k⌋ + 1)
     Value xv = Value::scalar(p, mr);
     Value av = Value::scalar(r, mr);
@@ -69,19 +67,19 @@ inline bool nbin_params_ok(keel::f64 r, keel::f64 p) {
 }
 
 inline keel::f64 nbinpdfK(keel::f64 k, keel::f64 r, keel::f64 p) {
-    if (!nbin_params_ok(r, p)) return std::numeric_limits<keel::f64>::quiet_NaN();
+    if (!nbin_params_ok(r, p)) return keel::Limits<keel::f64>::quiet_nan();
     return nbin_pmf(k, r, p);
 }
 
 // Smallest integer k with F(k; r, p) ≥ qival, via pmf-recurrence
 // pmf(k+1)/pmf(k) = (k+r)/(k+1)·(1-p). (r, p) assumed valid.
 inline keel::f64 nbin_inv_scalar(keel::f64 qival, keel::f64 r, keel::f64 p) {
-    if (!(qival >= 0.0 && qival <= 1.0)) return std::numeric_limits<keel::f64>::quiet_NaN();
+    if (!(qival >= 0.0 && qival <= 1.0)) return keel::Limits<keel::f64>::quiet_nan();
     if (qival == 0.0) return 0.0;
-    if (qival >= 1.0) return std::numeric_limits<keel::f64>::infinity();
+    if (qival >= 1.0) return keel::Limits<keel::f64>::infinity();
     if (p == 1.0) return 0.0;
     const keel::f64 q1m = 1.0 - p;
-    keel::f64 pmf = std::pow(p, r);   // pmf(0)
+    keel::f64 pmf = keel::pow(p, r);   // pmf(0)
     keel::f64 cdf = pmf;
     const keel::f64 tol = std::max(1e-13, qival * 1e-13);
     if (cdf >= qival - tol) return 0.0;
@@ -90,7 +88,7 @@ inline keel::f64 nbin_inv_scalar(keel::f64 qival, keel::f64 r, keel::f64 p) {
         cdf += pmf;
         if (cdf >= qival - tol) return k + 1.0;
     }
-    return std::numeric_limits<keel::f64>::infinity();
+    return keel::Limits<keel::f64>::infinity();
 }
 
 } // anonymous

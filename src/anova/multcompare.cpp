@@ -16,8 +16,6 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
-#include <limits>
 
 namespace numkit::stats {
 
@@ -32,7 +30,7 @@ void multcompare_argcheck(const Value &stats, keel::f64 alpha)
         || !stats.hasField("s") || !stats.hasField("df"))
         throw Error("multcompare: stats must have fields {means, n, s, df}",
                     0, 0, "multcompare", "", "numkit:multcompare:missingField");
-    if (alpha <= 0.0 || alpha >= 1.0 || std::isnan(alpha))
+    if (alpha <= 0.0 || alpha >= 1.0 || keel::is_nan(alpha))
         throw Error("multcompare: alpha must be in (0, 1)",
                     0, 0, "multcompare", "", "numkit:multcompare:badAlpha");
     if (stats.field("means").numel() < 2)
@@ -43,7 +41,7 @@ void multcompare_argcheck(const Value &stats, keel::f64 alpha)
 // Two-sided t p-value: 2 * (1 - tcdf(|t|, df)).
 keel::f64 tTwoSidedP(keel::f64 tStat, keel::f64 df, keel::Allocator *mr)
 {
-    Value tV = Value::scalar(std::fabs(tStat), mr);
+    Value tV = Value::scalar(keel::abs(tStat), mr);
     const keel::f64 F = tcdf(tV, df, mr).toScalar();
     return std::min(1.0, std::max(0.0, 2.0 * (1.0 - F)));
 }
@@ -73,13 +71,13 @@ constexpr keel::f64 kGL16W[8] = {
 inline keel::f64 normPhi(keel::f64 z)
 {
     constexpr keel::f64 kInvSqrt2Pi = keel::kInvSqrt2Pi;
-    return kInvSqrt2Pi * std::exp(-0.5 * z * z);
+    return kInvSqrt2Pi * keel::exp(-0.5 * z * z);
 }
 
 inline keel::f64 normCdfScalar(keel::f64 z)
 {
     constexpr keel::f64 kInvSqrt2 = 0.7071067811865475244008;
-    return 0.5 * std::erfc(-z * kInvSqrt2);
+    return 0.5 * keel::erfc(-z * kInvSqrt2);
 }
 
 // Normal range CDF: P(max_{1..k} Z_i - min_{1..k} Z_i <= w)
@@ -92,7 +90,7 @@ keel::f64 normalRangeCDF(keel::f64 w, keel::usize k)
     auto integrand = [&](keel::f64 z) -> keel::f64 {
         const keel::f64 diff = normCdfScalar(z + w) - normCdfScalar(z);
         if (diff <= 0.0) return 0.0;
-        return normPhi(z) * std::pow(diff, km1);
+        return normPhi(z) * keel::pow(diff, km1);
     };
     auto quad16 = [&](keel::f64 a, keel::f64 b) -> keel::f64 {
         const keel::f64 mid = 0.5 * (a + b);
@@ -112,16 +110,16 @@ keel::f64 normalRangeCDF(keel::f64 w, keel::usize k)
 keel::f64 studentizedRangeCDF(keel::f64 q, keel::usize k, keel::f64 df)
 {
     if (q <= 0.0) return 0.0;
-    if (!std::isfinite(df) || df > 1e5) return normalRangeCDF(q, k);
+    if (!keel::is_finite(df) || df > 1e5) return normalRangeCDF(q, k);
 
     const keel::f64 halfDf = 0.5 * df;
     const keel::f64 logConst = 0.6931471805599453094172
-                          + halfDf * std::log(halfDf)
-                          - std::lgamma(halfDf);
+                          + halfDf * keel::log(halfDf)
+                          - keel::lgamma(halfDf);
     auto scalePdf = [&](keel::f64 u) -> keel::f64 {
         if (u <= 0.0) return 0.0;
-        const keel::f64 lp = logConst + (df - 1.0) * std::log(u) - halfDf * u * u;
-        return std::exp(lp);
+        const keel::f64 lp = logConst + (df - 1.0) * keel::log(u) - halfDf * u * u;
+        return keel::exp(lp);
     };
     auto integrand = [&](keel::f64 u) -> keel::f64 {
         const keel::f64 fu = scalePdf(u);
@@ -139,7 +137,7 @@ keel::f64 studentizedRangeCDF(keel::f64 q, keel::usize k, keel::f64 df)
         }
         return s * half;
     };
-    const keel::f64 spread = 8.0 / std::sqrt(std::max(0.5, df));
+    const keel::f64 spread = 8.0 / keel::sqrt(std::max(0.5, df));
     const keel::f64 uMin = std::max(1e-6, 1.0 - spread);
     const keel::f64 uMax = 1.0 + spread;
     const keel::f64 res = quad16(uMin, 1.0) + quad16(1.0, uMax);
@@ -150,7 +148,7 @@ keel::f64 studentizedRangeCDF(keel::f64 q, keel::usize k, keel::f64 df)
 keel::f64 studentizedRangeInv(keel::f64 p, keel::usize k, keel::f64 df)
 {
     if (p <= 0.0) return 0.0;
-    if (p >= 1.0) return std::numeric_limits<keel::f64>::infinity();
+    if (p >= 1.0) return keel::Limits<keel::f64>::infinity();
     keel::f64 lo = 0.0;
     keel::f64 hi = 4.0;
     while (studentizedRangeCDF(hi, k, df) < p && hi < 1e6) {
@@ -191,7 +189,7 @@ Value multcompare(const Value &stats, keel::f64 alpha, McCorrection ctype,
     keel::f64 tCrit = 0.0;
     if (ctype == McCorrection::TukeyKramer) {
         const keel::f64 qCrit = studentizedRangeInv(1.0 - alpha, K, df);
-        tCrit = qCrit / std::sqrt(2.0);
+        tCrit = qCrit / keel::sqrt(2.0);
     } else {
         const keel::f64 alphaEffective = (ctype == McCorrection::Bonferroni)
             ? (alpha / keel::as<keel::f64>(nPairs))
@@ -207,12 +205,12 @@ Value multcompare(const Value &stats, keel::f64 alpha, McCorrection ctype,
     for (keel::usize i = 0; i < K; ++i) {
         for (keel::usize j = i + 1; j < K; ++j) {
             const keel::f64 diff = m[i] - m[j];
-            const keel::f64 se   = s * std::sqrt(1.0 / n[i] + 1.0 / n[j]);
+            const keel::f64 se   = s * keel::sqrt(1.0 / n[i] + 1.0 / n[j]);
             const keel::f64 halfCI = tCrit * se;
             const keel::f64 tStat  = (se > 0.0) ? diff / se : 0.0;
             keel::f64 pVal = 1.0;
             if (ctype == McCorrection::TukeyKramer) {
-                const keel::f64 qStat = std::fabs(tStat) * std::sqrt(2.0);
+                const keel::f64 qStat = keel::abs(tStat) * keel::sqrt(2.0);
                 pVal = std::min(1.0, std::max(0.0, 1.0 - studentizedRangeCDF(qStat, K, df)));
             } else {
                 pVal = tTwoSidedP(tStat, df, mr);

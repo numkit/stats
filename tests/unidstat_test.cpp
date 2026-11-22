@@ -2,6 +2,7 @@
 // unidstat.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -33,7 +34,7 @@ TEST_F(UnidstatTest, VectorInputs)
 
 TEST_F(UnidstatTest, InvalidNReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("unidstat(0)")));
-    EXPECT_TRUE(std::isnan(evalScalar("unidstat(-1)")));
-    EXPECT_TRUE(std::isnan(evalScalar("unidstat(2.5)")));  // non-integer
+    EXPECT_TRUE(keel::is_nan(evalScalar("unidstat(0)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("unidstat(-1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("unidstat(2.5)")));  // non-integer
 }

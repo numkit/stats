@@ -18,10 +18,7 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
-#include <cstring>
-#include <limits>
 #include <tuple>
 #include <utility>
 
@@ -45,7 +42,7 @@ namespace {
             throw Error(keel::format("mvnrnd: Sigma must be positive definite "
                         "(Cholesky failed at row {})", j + 1),
                          0, 0, "mvnrnd", "", "numkit:mvnrnd:notPD");
-        const keel::f64 Ljj = std::sqrt(diag);
+        const keel::f64 Ljj = keel::sqrt(diag);
         S[j * n + j] = Ljj;
         // Below-diagonal entries: L[i][j] = (S[i][j] - sum_{k<j} L[i][k]*L[j][k]) / L[j][j]
         for (keel::usize i = j + 1; i < n; ++i) {
@@ -64,7 +61,7 @@ namespace {
 namespace {
 
 // Standard normal CDF.
-keel::f64 phiCdf(keel::f64 x) { return 0.5 * std::erfc(-x / std::sqrt(2.0)); }
+keel::f64 phiCdf(keel::f64 x) { return 0.5 * keel::erfc(-x / keel::sqrt(2.0)); }
 
 // 16-point Gauss-Legendre quadrature on [0, 1] for the bivariate
 // normal CDF via the parametric integral
@@ -100,7 +97,7 @@ keel::f64 phiCdf(keel::f64 x) { return 0.5 * std::erfc(-x / std::sqrt(2.0)); }
         const keel::f64 r2 = 1.0 - t * t;
         // φ_2(h, k; t) at point (h, k) with corr t.
         const keel::f64 quad = (h * h - 2.0 * t * h * k + k * k) / (2.0 * r2);
-        const keel::f64 pdf = std::exp(-quad) / (2.0 * keel::kPi * std::sqrt(r2));
+        const keel::f64 pdf = keel::exp(-quad) / (2.0 * keel::kPi * keel::sqrt(r2));
         integral += GL_W[i] * pdf;
     }
     integral *= rho;
@@ -138,8 +135,8 @@ keel::f64 phiCdf(keel::f64 x) { return 0.5 * std::erfc(-x / std::sqrt(2.0)); }
 // Acklam's full-precision inverse standard normal CDF Φ⁻¹(p).
 inline keel::f64 phiInv(keel::f64 p)
 {
-    if (p <= 0.0) return -std::numeric_limits<keel::f64>::infinity();
-    if (p >= 1.0) return  std::numeric_limits<keel::f64>::infinity();
+    if (p <= 0.0) return -keel::Limits<keel::f64>::infinity();
+    if (p >= 1.0) return  keel::Limits<keel::f64>::infinity();
     static constexpr keel::f64 a1 = -3.969683028665376e+01, a2 =  2.209460984245205e+02,
                             a3 = -2.759285104469687e+02, a4 =  1.383577518672690e+02,
                             a5 = -3.066479806614716e+01, a6 =  2.506628277459239e+00;
@@ -154,7 +151,7 @@ inline keel::f64 phiInv(keel::f64 p)
     static constexpr keel::f64 p_low  = 0.02425;
     static constexpr keel::f64 p_high = 1.0 - p_low;
     if (p < p_low) {
-        const keel::f64 q = std::sqrt(-2.0 * std::log(p));
+        const keel::f64 q = keel::sqrt(-2.0 * keel::log(p));
         return (((((c1 * q + c2) * q + c3) * q + c4) * q + c5) * q + c6) /
                ((((d1 * q + d2) * q + d3) * q + d4) * q + 1.0);
     }
@@ -164,7 +161,7 @@ inline keel::f64 phiInv(keel::f64 p)
         return (((((a1 * r + a2) * r + a3) * r + a4) * r + a5) * r + a6) * q /
                (((((b1 * r + b2) * r + b3) * r + b4) * r + b5) * r + 1.0);
     }
-    const keel::f64 q = std::sqrt(-2.0 * std::log(1.0 - p));
+    const keel::f64 q = keel::sqrt(-2.0 * keel::log(1.0 - p));
     return -(((((c1 * q + c2) * q + c3) * q + c4) * q + c5) * q + c6) /
              ((((d1 * q + d2) * q + d3) * q + d4) * q + 1.0);
 }
@@ -178,7 +175,7 @@ inline keel::f64 genzSovCdf(const keel::f64 *L, keel::usize d,
                          keel::f64 tol = 1e-5)
 {
     auto evalPhi = [](keel::f64 x) -> keel::f64 {
-        if (std::isinf(x)) return x < 0.0 ? 0.0 : 1.0;
+        if (keel::is_inf(x)) return x < 0.0 ? 0.0 : 1.0;
         return phiCdf(x);
     };
     const keel::f64 d0 = evalPhi(a[0] / L[0]);
@@ -196,8 +193,8 @@ inline keel::f64 genzSovCdf(const keel::f64 *L, keel::usize d,
     for (keel::usize k = 0; k < m; ++k) {
         const keel::f64 pk = (k < 32) ? keel::as<keel::f64>(kPrimes[k])
                                    : keel::as<keel::f64>(137 + 2 * k);
-        const keel::f64 rt = std::sqrt(pk);
-        alpha[k] = rt - std::floor(rt);
+        const keel::f64 rt = keel::sqrt(pk);
+        alpha[k] = rt - keel::floor(rt);
     }
 
     keel::Array<keel::f64> y(m), w(m);
@@ -238,7 +235,7 @@ inline keel::f64 genzSovCdf(const keel::f64 *L, keel::usize d,
             const keel::f64 pd = keel::as<keel::f64>(p);
             for (keel::usize k = 0; k < m; ++k) {
                 keel::f64 v = pd * alpha[k] + shift[k];
-                w[k] = v - std::floor(v);
+                w[k] = v - keel::floor(v);
             }
             const keel::f64 f1 = evalIntegrand(w);
             for (keel::usize k = 0; k < m; ++k) w[k] = 1.0 - w[k];
@@ -251,7 +248,7 @@ inline keel::f64 genzSovCdf(const keel::f64 *L, keel::usize d,
         meanEst += delta / keel::as<keel::f64>(completedBatches);
         m2 += delta * (batchMean - meanEst);
         if (completedBatches >= 4) {
-            const keel::f64 se = std::sqrt(m2 / keel::as<keel::f64>(completedBatches * (completedBatches - 1)));
+            const keel::f64 se = keel::sqrt(m2 / keel::as<keel::f64>(completedBatches * (completedBatches - 1)));
             if (se <= tol) break;
         }
     }
@@ -293,7 +290,7 @@ mvtcdf_shape_check(const Value &X, const Value &C, const char *fn)
 {
     if (!(tol > 0.0)) tol = 0.01;
     const keel::f64 n_d = 1.0 / (tol * tol);
-    keel::i32 N = (n_d > 1e7) ? 10000000 : keel::as<keel::i32>(std::ceil(n_d));
+    keel::i32 N = (n_d > 1e7) ? 10000000 : keel::as<keel::i32>(keel::ceil(n_d));
     if (N < 10000) N = 10000;
     if (N % 2) ++N;   // antithetic pairs
     return N;
@@ -314,7 +311,7 @@ keel::f64 mvtcdf_mc(const keel::Array<keel::f64> &Lchol, keel::usize d,
     keel::i32 hits = 0;
     for (keel::i32 k = 0; k < N / 2; ++k) {
         for (keel::usize j = 0; j < d; ++j) z[j] = keel::random::normal_f64(gen);
-        const keel::f64 scale = std::sqrt(df / keel::random::chi_squared_f64(gen, df));
+        const keel::f64 scale = keel::sqrt(df / keel::random::chi_squared_f64(gen, df));
         // Pass 1: z direct.
         for (keel::usize j = 0; j < d; ++j) {
             keel::f64 s = 0.0;

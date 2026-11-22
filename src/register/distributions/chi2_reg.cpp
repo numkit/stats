@@ -17,7 +17,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <tuple>
 #include <utility>
@@ -84,7 +83,7 @@ void chi2inv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
     const Value &ref = (nk == N) ? k : p;
     Value out = dist_empty_like(ref, mr);
     keel::f64 *od = out.doubleDataMut();
-    const keel::f64 NaN = std::numeric_limits<keel::f64>::quiet_NaN();
+    const keel::f64 NaN = keel::Limits<keel::f64>::quiet_nan();
     for (keel::usize i = 0; i < N; ++i) {
         const keel::f64 pi = p.elemAsDouble(np == 1 ? 0 : i);
         const keel::f64 ki = k.elemAsDouble(nk == 1 ? 0 : i);

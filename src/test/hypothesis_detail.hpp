@@ -4,6 +4,7 @@
 #pragma once
 
 #include <keel/core.h>
+#include <keel/math.h>
 #include <keel/memory.h>
 #include <keel/array.h>
 #include <keel/random.h>
@@ -13,11 +14,8 @@
 #include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
-#include <limits>
 #include <numeric>
 #include <tuple>
 #include <utility>
@@ -132,10 +130,10 @@ keel::f64 marsagliaK(keel::i32 n, keel::f64 d) {
         for (keel::i32 j = 0; j < m; ++j)
             H[i*m+j] = (i - j + 1 < 0) ? 0.0 : 1.0;
     for (keel::i32 i = 0; i < m; ++i) {
-        H[i*m + 0]     -= std::pow(h, i + 1);
-        H[(m-1)*m + i] -= std::pow(h, m - i);
+        H[i*m + 0]     -= keel::pow(h, i + 1);
+        H[(m-1)*m + i] -= keel::pow(h, m - i);
     }
-    H[(m-1)*m + 0] += (2.0*h - 1.0 > 0.0) ? std::pow(2.0*h - 1.0, m) : 0.0;
+    H[(m-1)*m + 0] += (2.0*h - 1.0 > 0.0) ? keel::pow(2.0*h - 1.0, m) : 0.0;
     for (keel::i32 i = 0; i < m; ++i)
         for (keel::i32 j = 0; j < m; ++j)
             if (i - j + 1 > 0)
@@ -147,7 +145,7 @@ keel::f64 marsagliaK(keel::i32 n, keel::f64 d) {
         s = s * i / n;
         if (s < 1e-140) { s *= 1e140; eQ -= 140; }
     }
-    return s * std::pow(10.0, keel::as<keel::f64>(eQ));
+    return s * keel::pow(10.0, keel::as<keel::f64>(eQ));
 }
 
 // P(D_n^+ >= d) — exact one-sided KS survival (Birnbaum-Tingey 1951), log space.
@@ -155,17 +153,17 @@ keel::f64 birnbaumTingey(keel::i32 n, keel::f64 d) {
     if (d <= 0.0) return 1.0;
     if (d >= 1.0) return 0.0;
     const keel::f64 dn = keel::as<keel::f64>(n);
-    const keel::i32 jmax = keel::as<keel::i32>(std::floor(dn * (1.0 - d)));
+    const keel::i32 jmax = keel::as<keel::i32>(keel::floor(dn * (1.0 - d)));
     keel::f64 sum = 0.0;
     for (keel::i32 j = 0; j <= jmax; ++j) {
         const keel::f64 a = 1.0 - d - j / dn;
         const keel::f64 b = d + j / dn;
         if (a <= 0.0 && n - j > 0) continue;     // a^(n-j) == 0
-        const keel::f64 logC = std::lgamma(dn + 1.0) - std::lgamma(j + 1.0)
-                          - std::lgamma(dn - j + 1.0);
-        keel::f64 logterm = logC + (j - 1) * std::log(b);
-        if (n - j > 0) logterm += (dn - j) * std::log(a);
-        sum += std::exp(logterm);
+        const keel::f64 logC = keel::lgamma(dn + 1.0) - keel::lgamma(j + 1.0)
+                          - keel::lgamma(dn - j + 1.0);
+        keel::f64 logterm = logC + (j - 1) * keel::log(b);
+        if (n - j > 0) logterm += (dn - j) * keel::log(a);
+        sum += keel::exp(logterm);
     }
     return std::min(1.0, std::max(0.0, d * sum));
 }
@@ -175,7 +173,7 @@ keel::f64 birnbaumTingey(keel::i32 n, keel::f64 d) {
 [[maybe_unused]] keel::f64 ksOneSampleTwoSidedP(keel::i32 n, keel::f64 D) {
     const keel::f64 s = keel::as<keel::f64>(n) * D * D;
     if (s > 7.24 || (s > 3.76 && n > 99))
-        return std::min(1.0, 2.0 * std::exp(-(2.000071 + 0.331/std::sqrt((keel::f64)n)
+        return std::min(1.0, 2.0 * keel::exp(-(2.000071 + 0.331/keel::sqrt((keel::f64)n)
                                               + 1.409/n) * s));
     return 1.0 - marsagliaK(n, D);
 }
@@ -186,12 +184,12 @@ keel::f64 birnbaumTingey(keel::i32 n, keel::f64 d) {
 // Two-sample KS p (Stephens' corrected asymptotic): two-sided is the
 // alternating series, one-sided the single leading term.
 [[maybe_unused]] keel::f64 ksTwoSampleP(keel::f64 neff, keel::f64 D, bool twoSided) {
-    const keel::f64 lambda = (std::sqrt(neff) + 0.12 + 0.11/std::sqrt(neff)) * D;
+    const keel::f64 lambda = (keel::sqrt(neff) + 0.12 + 0.11/keel::sqrt(neff)) * D;
     if (!twoSided)
-        return std::min(1.0, std::max(0.0, std::exp(-2.0 * lambda * lambda)));
+        return std::min(1.0, std::max(0.0, keel::exp(-2.0 * lambda * lambda)));
     keel::f64 total = 0.0;
     for (keel::i32 k = 1; k <= 101; ++k) {
-        const keel::f64 term = std::exp(-2.0 * lambda * lambda * k * k);
+        const keel::f64 term = keel::exp(-2.0 * lambda * lambda * k * k);
         total += (k & 1) ? term : -term;
         if (term < 1e-20 && k > 4) break;
     }
@@ -240,7 +238,7 @@ inline keel::f64 jb_stat(const keel::f64 *x, keel::usize N) {
         m4 += d2 * d2;
     }
     m2 /= keel::f64(N); m3 /= keel::f64(N); m4 /= keel::f64(N);
-    const keel::f64 S = (m2 > 0.0) ? m3 / std::pow(m2, 1.5) : 0.0;
+    const keel::f64 S = (m2 > 0.0) ? m3 / keel::pow(m2, 1.5) : 0.0;
     const keel::f64 K = (m2 > 0.0) ? m4 / (m2 * m2) : 0.0;
     return keel::f64(N) / 6.0 * (S * S + 0.25 * (K - 3.0) * (K - 3.0));
 }
@@ -273,14 +271,14 @@ struct JBMCResult { keel::f64 p; keel::f64 cv; };
         }
         total += this_batch;
         const keel::f64 p_hat = keel::f64(exceeds) / keel::f64(total);
-        const keel::f64 se = std::sqrt(std::max(p_hat * (1.0 - p_hat), 1.0 / keel::f64(total))
+        const keel::f64 se = keel::sqrt(std::max(p_hat * (1.0 - p_hat), 1.0 / keel::f64(total))
                                     / keel::f64(total));
         if (se < mctol && total >= 3 * batch) break;
     }
     // Critical value: (1-alpha) quantile of the empirical H₀ distribution.
     std::sort(JB_h0.begin(), JB_h0.end());
     const keel::f64 rank = (1.0 - alpha) * (keel::f64(JB_h0.size()) - 1.0);
-    const keel::usize lo = (keel::usize)std::floor(rank);
+    const keel::usize lo = (keel::usize)keel::floor(rank);
     const keel::usize hi = std::min(lo + 1, JB_h0.size() - 1);
     const keel::f64 frac = rank - keel::f64(lo);
     const keel::f64 cv = JB_h0[lo] * (1.0 - frac) + JB_h0[hi] * frac;
@@ -317,7 +315,7 @@ struct Groups {
     for (keel::usize i = 0; i < Nx; ++i) {
         const keel::f64 xi = x.elemAsDouble(i);
         const keel::f64 gi = group.elemAsDouble(i);
-        if (std::isnan(xi) || std::isnan(gi)) continue;
+        if (keel::is_nan(xi) || keel::is_nan(gi)) continue;
         keel::i32 b = -1;
         for (keel::usize j = 0; j < labels.size(); ++j)
             if (labels[j] == gi) { b = (keel::i32)j; break; }
@@ -393,8 +391,8 @@ inline keel::f64 median_sorted(keel::f64 *a, keel::usize n) {
 namespace {
 
 inline keel::f64 log_binom(keel::f64 n, keel::f64 k) {
-    if (k < 0.0 || k > n) return -std::numeric_limits<keel::f64>::infinity();
-    return std::lgamma(n + 1.0) - std::lgamma(k + 1.0) - std::lgamma(n - k + 1.0);
+    if (k < 0.0 || k > n) return -keel::Limits<keel::f64>::infinity();
+    return keel::lgamma(n + 1.0) - keel::lgamma(k + 1.0) - keel::lgamma(n - k + 1.0);
 }
 
 // Exact P(R = r) under H0 for a sequence with n1 ones and n0 zeros.
@@ -406,13 +404,13 @@ inline keel::f64 log_binom(keel::f64 n, keel::f64 k) {
     if (r % 2 == 0) {
         const keel::i32 k = r / 2;
         if (k < 1 || k > n1 || k > n0) return 0.0;
-        const keel::f64 lp = std::log(2.0) + log_binom(keel::f64(n1 - 1), keel::f64(k - 1))
+        const keel::f64 lp = keel::log(2.0) + log_binom(keel::f64(n1 - 1), keel::f64(k - 1))
                         + log_binom(keel::f64(n0 - 1), keel::f64(k - 1)) - logC;
-        return std::exp(lp);
+        return keel::exp(lp);
     }
     const keel::i32 k = (r - 1) / 2;            // r = 2k+1
-    keel::f64 t1 = -std::numeric_limits<keel::f64>::infinity();
-    keel::f64 t2 = -std::numeric_limits<keel::f64>::infinity();
+    keel::f64 t1 = -keel::Limits<keel::f64>::infinity();
+    keel::f64 t2 = -keel::Limits<keel::f64>::infinity();
     // Start with 1: (k+1) ones-blocks, k zero-blocks → C(n1-1, k)·C(n0-1, k-1)
     if (k <= n1 - 1 && k - 1 >= 0 && k - 1 <= n0 - 1)
         t1 = log_binom(keel::f64(n1 - 1), keel::f64(k))
@@ -421,12 +419,12 @@ inline keel::f64 log_binom(keel::f64 n, keel::f64 k) {
     if (k - 1 >= 0 && k - 1 <= n1 - 1 && k <= n0 - 1)
         t2 = log_binom(keel::f64(n1 - 1), keel::f64(k - 1))
            + log_binom(keel::f64(n0 - 1), keel::f64(k));
-    if (std::isinf(t1) && std::isinf(t2)) return 0.0;
+    if (keel::is_inf(t1) && keel::is_inf(t2)) return 0.0;
     const keel::f64 lmax = std::max(t1, t2);
-    const keel::f64 lsum = lmax + std::log(
-          (std::isinf(t1) ? 0.0 : std::exp(t1 - lmax))
-        + (std::isinf(t2) ? 0.0 : std::exp(t2 - lmax)));
-    return std::exp(lsum - logC);
+    const keel::f64 lsum = lmax + keel::log(
+          (keel::is_inf(t1) ? 0.0 : keel::exp(t1 - lmax))
+        + (keel::is_inf(t2) ? 0.0 : keel::exp(t2 - lmax)));
+    return keel::exp(lsum - logC);
 }
 
 } // anonymous

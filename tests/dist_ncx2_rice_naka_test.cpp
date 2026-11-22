@@ -7,6 +7,7 @@
 // the closed form (mean = k + lambda, var = 2(k + 2*lambda)).
 
 #include "dual_engine_fixture.hpp"
+#include <keel/math.h>
 
 #include <cmath>
 
@@ -83,5 +84,5 @@ TEST_P(DistNcx2RiceNakaTest, Ncx2rndLambdaZeroIsCentralChi2)
     eval("rng(0); z0 = ncx2rnd(4, 0, 1000, 1);");
     EXPECT_NEAR(evalScalar("mean(z0)"), 4.0, 0.4);   // chi2(4) mean
     eval("rng(0); zz = ncx2rnd(4, 1e-12, 1000, 1);");
-    EXPECT_TRUE(std::isfinite(evalScalar("mean(zz)")));
+    EXPECT_TRUE(keel::is_finite(evalScalar("mean(zz)")));
 }

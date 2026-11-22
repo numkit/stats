@@ -9,6 +9,8 @@
 // trivially if needed.
 
 #include <keel/core.h>
+#include <keel/algo.h>
+#include <keel/math.h>
 #include <keel/memory.h>
 #include <keel/arena.h>
 #include <keel/array.h>
@@ -23,9 +25,6 @@
 #include "dist_helpers.hpp"
 
 #include <algorithm>
-#include <cmath>
-#include <cstring>
-#include <limits>
 #include <mutex>
 #include <keel/random.h>
 
@@ -169,8 +168,8 @@ Value mvncdf(const Value &X, const Value &mu, const Value &Sigma,
         // diagonal of L is the standard deviation when L is lower-tri).
         // Actually the std devs are sqrt of diagonal of Sigma. Get them
         // from Sigma directly.
-        const keel::f64 s1 = Sigma.isEmpty() ? 1.0 : std::sqrt(Sigma.elemAsDouble(0));
-        const keel::f64 s2 = Sigma.isEmpty() ? 1.0 : std::sqrt(Sigma.elemAsDouble(3));
+        const keel::f64 s1 = Sigma.isEmpty() ? 1.0 : keel::sqrt(Sigma.elemAsDouble(0));
+        const keel::f64 s2 = Sigma.isEmpty() ? 1.0 : keel::sqrt(Sigma.elemAsDouble(3));
         const keel::f64 s12 = Sigma.isEmpty() ? 0.0 : Sigma.elemAsDouble(2);
         const keel::f64 rho = (s1 > 0 && s2 > 0) ? s12 / (s1 * s2) : 0.0;
         for (keel::usize i = 0; i < n; ++i) {
@@ -182,7 +181,7 @@ Value mvncdf(const Value &X, const Value &mu, const Value &Sigma,
     }
 
     // d ≥ 3: Genz (1992) Separation-of-Variables QMC integrator.
-    keel::Array<keel::f64> a(d, -std::numeric_limits<keel::f64>::infinity());
+    keel::Array<keel::f64> a(d, -keel::Limits<keel::f64>::infinity());
     keel::Array<keel::f64> b(d);
     for (keel::usize i = 0; i < n; ++i) {
         for (keel::usize j = 0; j < d; ++j)
@@ -219,7 +218,7 @@ Value mvtrnd(::numkit::ops::RngContext &rng, const Value &C, keel::f64 df, keel:
     keel::Array<keel::f64> z(d);
     for (keel::usize r = 0; r < n; ++r) {
         for (keel::usize k = 0; k < d; ++k) z[k] = keel::random::normal_f64(gen);
-        const keel::f64 scale = std::sqrt(df / keel::random::chi_squared_f64(gen, df));
+        const keel::f64 scale = keel::sqrt(df / keel::random::chi_squared_f64(gen, df));
         for (keel::usize j = 0; j < d; ++j) {
             keel::f64 v = 0.0;
             for (keel::usize k = 0; k <= j; ++k) v += L[j * d + k] * z[k];
@@ -242,7 +241,7 @@ Value mnrnd(::numkit::ops::RngContext &rng, keel::usize N, const Value &P, keel:
     bool anyNan = false;
     for (keel::usize i = 0; i < k; ++i) {
         const keel::f64 pi = P.elemAsDouble(i);
-        if (std::isnan(pi)) { anyNan = true; continue; }
+        if (keel::is_nan(pi)) { anyNan = true; continue; }
         if (pi < 0.0)
             throw Error("mnrnd: probabilities must be non-negative",
                         0, 0, "mnrnd", "", "numkit:mnrnd:negProb");
@@ -253,7 +252,7 @@ Value mnrnd(::numkit::ops::RngContext &rng, keel::usize N, const Value &P, keel:
         auto out = Value::matrix(m, k, ValueType::DOUBLE, mr);
         keel::f64 *od = out.doubleDataMut();
         for (keel::usize i = 0; i < m * k; ++i)
-            od[i] = std::numeric_limits<keel::f64>::quiet_NaN();
+            od[i] = keel::Limits<keel::f64>::quiet_nan();
         return out;
     }
     if (!(sumP > 0.0))
@@ -304,7 +303,7 @@ static void invertLowerTriInPlace(keel::f64 *L, keel::usize d)
             Linv[i * d + j] = -s / L[i * d + i];
         }
     }
-    std::memcpy(L, Linv.data(), d * d * sizeof(keel::f64));
+    keel::copy_n(L, Linv.data(), d * d);
 }
 
 std::tuple<Value, Value>
@@ -345,7 +344,7 @@ wishrnd_factor(::numkit::ops::RngContext &rng, const Value &Sigma, keel::f64 df,
     }
 
     // Sample Bartlett factor B (lower-tri) or Krzanowski X (when df <= 81+d and integer).
-    if (df <= 81.0 + keel::as<keel::f64>(d) && df == std::floor(df)) {
+    if (df <= 81.0 + keel::as<keel::f64>(d) && df == keel::floor(df)) {
         auto W = Value::matrix(d, d, ValueType::DOUBLE, mr);
         keel::f64 *od = W.doubleDataMut();
         const keel::usize m = keel::as<keel::usize>(df);
@@ -380,7 +379,7 @@ wishrnd_factor(::numkit::ops::RngContext &rng, const Value &Sigma, keel::f64 df,
     keel::Array<keel::f64> B(d * d, 0.0);
     for (keel::usize i = 0; i < d; ++i) {
         const keel::f64 dfi = df - keel::as<keel::f64>(i);
-        B[i * d + i] = std::sqrt(keel::random::chi_squared_f64(gen, dfi));
+        B[i * d + i] = keel::sqrt(keel::random::chi_squared_f64(gen, dfi));
         for (keel::usize j = 0; j < i; ++j)
             B[i * d + j] = keel::random::normal_f64(gen);
     }
@@ -479,7 +478,7 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, keel::f64 df, 
 
     // Bartlett sample Y ~ W(inv(Tau), df), or Krzanowski X when df <= 81+d and integer.
     keel::Array<keel::f64> Y(d * d, 0.0);
-    if (df <= 81.0 + keel::as<keel::f64>(d) && df == std::floor(df)) {
+    if (df <= 81.0 + keel::as<keel::f64>(d) && df == keel::floor(df)) {
         const keel::usize m = keel::as<keel::usize>(df);
         keel::Array<keel::f64> X(m * d);
         for (keel::usize c = 0; c < d; ++c)
@@ -504,7 +503,7 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, keel::f64 df, 
         keel::Array<keel::f64> B(d * d, 0.0);
         for (keel::usize i = 0; i < d; ++i) {
             const keel::f64 dfi = df - keel::as<keel::f64>(i);
-            B[i * d + i] = std::sqrt(2.0 * randg(rng, dfi * 0.5, 1, 1, mr).toScalar());
+            B[i * d + i] = keel::sqrt(2.0 * randg(rng, dfi * 0.5, 1, 1, mr).toScalar());
         }
         for (keel::usize j = 1; j < d; ++j)
             for (keel::usize i = 0; i < j; ++i)
@@ -532,7 +531,7 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, keel::f64 df, 
     keel::Array<keel::f64> B(d * d, 0.0);
     for (keel::usize i = 0; i < d; ++i) {
         const keel::f64 dfi = df - keel::as<keel::f64>(i);
-        B[i * d + i] = std::sqrt(keel::random::chi_squared_f64(gen, dfi));
+        B[i * d + i] = keel::sqrt(keel::random::chi_squared_f64(gen, dfi));
         for (keel::usize j = 0; j < i; ++j)
             B[i * d + j] = keel::random::normal_f64(gen);
     }
@@ -625,7 +624,7 @@ Value mvtcdf(const Value &X, const Value &C, keel::f64 df, keel::f64 tol,
 
     const keel::i32 N = mvtcdf_N_from_tol(tol);
     keel::random::Xoshiro256PlusPlus mc_gen(12345ULL);
-    const keel::f64 NEG_INF = -std::numeric_limits<keel::f64>::infinity();
+    const keel::f64 NEG_INF = -keel::Limits<keel::f64>::infinity();
 
     const keel::usize nRows = n;   // plain local: capturing a structured
                                    // binding directly in a lambda is C++20.
@@ -664,7 +663,7 @@ Value mvtcdf_box(const Value &Lb, const Value &Ub, const Value &C, keel::f64 df,
             const keel::f64 Lv = Lb.elemAsDouble(i);
             const keel::f64 Uv = Ub.elemAsDouble(i);
             auto cdf_one = [&](keel::f64 x) -> keel::f64 {
-                if (std::isinf(x)) return (x > 0) ? 1.0 : 0.0;
+                if (keel::is_inf(x)) return (x > 0) ? 1.0 : 0.0;
                 const keel::f64 z = df / (df + x * x);
                 Value zv = Value::scalar(z, mr);
                 Value av = Value::scalar(0.5 * df, mr);

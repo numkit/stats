@@ -3,6 +3,7 @@
 // Regression guard for anova2 (two-way ANOVA without replication).
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <gtest/gtest.h>
 
 using namespace numkit;
@@ -22,7 +23,7 @@ TEST_F(Anova2Test, ClassicFertilizerExample)
     eval("Y = [55 26 78; 60 24 73; 70 28 75; 65 27 80]; p = anova2(Y);");
     EXPECT_NEAR(evalScalar("p(1)"), 4.72675e-06, 1e-10);   // strong column effect
     EXPECT_NEAR(evalScalar("p(2)"), 0.297202,    1e-5);    // no row effect
-    EXPECT_TRUE(std::isnan(evalScalar("p(3)")));            // no interaction (reps=1)
+    EXPECT_TRUE(keel::is_nan(evalScalar("p(3)")));            // no interaction (reps=1)
 }
 
 TEST_F(Anova2Test, StrongRowEffect)

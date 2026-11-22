@@ -15,9 +15,7 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstdint>
-#include <limits>
 #include <mutex>
 
 #include "kmeans_detail.hpp"
@@ -59,7 +57,7 @@ kmeans_full(::numkit::ops::RngContext &rng, const Value &X, keel::i32 K, keel::i
     auto &gen = rng;
 
     LloydResult best(scratch.allocator());
-    keel::f64 best_total = std::numeric_limits<keel::f64>::infinity();
+    keel::f64 best_total = keel::Limits<keel::f64>::infinity();
 
     for (keel::i32 rep = 0; rep < replicates; ++rep) {
         keel::Array<keel::f64> C0(scratch.allocator());

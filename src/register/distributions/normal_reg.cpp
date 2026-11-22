@@ -17,7 +17,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <tuple>
 #include <utility>
@@ -96,7 +95,7 @@ void normrnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
     for (keel::usize i = 0; i < n; ++i) {
         const keel::f64 m = muVal.elemAsDouble(nmu == 1 ? 0 : i);
         const keel::f64 s = sigVal.elemAsDouble(nsig == 1 ? 0 : i);
-        od[i] = (s < 0.0) ? std::numeric_limits<keel::f64>::quiet_NaN()
+        od[i] = (s < 0.0) ? keel::Limits<keel::f64>::quiet_nan()
                           : (m + s * rng.nextNormal());
     }
     if (args.size() > 2) {

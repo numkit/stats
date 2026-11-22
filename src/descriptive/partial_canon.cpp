@@ -6,6 +6,7 @@
 //   canoncorr    — canonical correlation analysis (QR + SVD)
 
 #include <keel/core.h>
+#include <keel/math.h>
 #include <keel/memory.h>
 #include <keel/arena.h>
 #include <keel/array.h>
@@ -17,9 +18,6 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
-#include <cstring>
-#include <limits>
 
 namespace numkit::stats {
 
@@ -31,9 +29,9 @@ bool solveGauss(keel::f64 *M, keel::f64 *b, keel::usize p)
 {
     for (keel::usize k = 0; k < p; ++k) {
         keel::usize piv = k;
-        keel::f64 pmax = std::fabs(M[k * p + k]);
+        keel::f64 pmax = keel::abs(M[k * p + k]);
         for (keel::usize r = k + 1; r < p; ++r) {
-            const keel::f64 v = std::fabs(M[r * p + k]);
+            const keel::f64 v = keel::abs(M[r * p + k]);
             if (v > pmax) { pmax = v; piv = r; }
         }
         if (pmax == 0.0) return false;
@@ -101,8 +99,8 @@ keel::f64 pearsonOfCentered(const keel::f64 *a, const keel::f64 *b, keel::usize 
         saa += a[k] * a[k];
         sbb += b[k] * b[k];
     }
-    if (saa <= 0.0 || sbb <= 0.0) return std::nan("");
-    return sab / std::sqrt(saa * sbb);
+    if (saa <= 0.0 || sbb <= 0.0) return keel::kNaN;
+    return sab / keel::sqrt(saa * sbb);
 }
 
 void partialcorri_argcheck(const Value &Y, const Value &X, const Value &Z)
@@ -314,7 +312,7 @@ CanoncorrResult canoncorr(const Value &X, const Value &Y,
                 for (keel::usize j = i + 1; j < dim; ++j)
                     s -= Rd[j * R.dims().rows() + i] * Od[col * dim + j];
                 const keel::f64 diag = Rd[i * R.dims().rows() + i];
-                Od[col * dim + i] = (std::fabs(diag) > 0.0) ? s / diag : 0.0;
+                Od[col * dim + i] = (keel::abs(diag) > 0.0) ? s / diag : 0.0;
             }
         }
         return Out;

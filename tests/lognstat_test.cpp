@@ -2,6 +2,7 @@
 // lognstat.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -41,6 +42,6 @@ TEST_F(LognstatTest, ScalarMuVectorSigma)
 
 TEST_F(LognstatTest, InvalidSigmaReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("lognstat(0,  0)")));
-    EXPECT_TRUE(std::isnan(evalScalar("lognstat(0, -1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("lognstat(0,  0)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("lognstat(0, -1)")));
 }

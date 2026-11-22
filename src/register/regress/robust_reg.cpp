@@ -16,7 +16,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <tuple>
 #include <utility>
@@ -48,7 +47,7 @@ void robustfit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                         "'ols', 'talwar', 'welsch'",
                         0, 0, "robustfit", "", "numkit:robustfit:badWeight");
     }
-    keel::f64 tune = std::numeric_limits<keel::f64>::quiet_NaN();
+    keel::f64 tune = keel::Limits<keel::f64>::quiet_nan();
     if (args.size() >= 4 && !args[3].isEmpty())
         tune = args[3].toScalar();
 

@@ -16,8 +16,6 @@
 
 #include "dist_helpers.hpp"
 
-#include <cmath>
-#include <limits>
 #include <mutex>
 #include <keel/random.h>
 
@@ -64,7 +62,7 @@ Value betarnd(::numkit::ops::RngContext &rng, keel::f64 a, keel::f64 b, keel::us
 std::tuple<keel::f64, keel::f64> betastat(keel::f64 a, keel::f64 b)
 {
     if (a <= 0.0 || b <= 0.0) {
-        const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
+        const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
         return std::make_tuple(nan, nan);
     }
     const keel::f64 s = a + b;

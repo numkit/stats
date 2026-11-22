@@ -10,16 +10,14 @@
 #pragma once
 
 #include <keel/array.h>
+#include <keel/math.h>
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
-#include <cstring>
-#include <limits>
 #include <tuple>
 #include <utility>
 
@@ -37,7 +35,7 @@ namespace {
         x += 1.0;
     }
     const keel::f64 x2 = 1.0 / (x * x);
-    keel::f64 r = std::log(x) - 0.5 / x;
+    keel::f64 r = keel::log(x) - 0.5 / x;
     r -= x2 * (1.0 / 12.0
               - x2 * (1.0 / 120.0
                      - x2 * (1.0 / 252.0)));
@@ -90,8 +88,8 @@ Value wald_ci_2d(NllFn &&nll, keel::f64 t1, keel::f64 t2,
     // FD step: eps^{1/3} ≈ 6e-6 is theoretically optimal for 2nd-deriv
     // central FD; relax to 1e-4 for distributions with curved score
     // functions (digamma/trigamma) to suppress roundoff noise.
-    const keel::f64 h1 = std::max(std::fabs(t1), 1.0) * 1e-4;
-    const keel::f64 h2 = std::max(std::fabs(t2), 1.0) * 1e-4;
+    const keel::f64 h1 = std::max(keel::abs(t1), 1.0) * 1e-4;
+    const keel::f64 h2 = std::max(keel::abs(t2), 1.0) * 1e-4;
     const keel::f64 f00   = nll(t1, t2);
     const keel::f64 f1p   = nll(t1 + h1, t2);
     const keel::f64 f1m   = nll(t1 - h1, t2);
@@ -107,14 +105,14 @@ Value wald_ci_2d(NllFn &&nll, keel::f64 t1, keel::f64 t2,
     const keel::f64 det = H11 * H22 - H12 * H12;
     Value out = Value::matrix(2, 2, ValueType::DOUBLE, mr);
     keel::f64 *od = out.doubleDataMut();
-    if (std::fabs(det) < 1e-300 || H11 < 0.0 || H22 < 0.0) {
-        for (keel::i32 i = 0; i < 4; ++i) od[i] = std::numeric_limits<keel::f64>::quiet_NaN();
+    if (keel::abs(det) < 1e-300 || H11 < 0.0 || H22 < 0.0) {
+        for (keel::i32 i = 0; i < 4; ++i) od[i] = keel::Limits<keel::f64>::quiet_nan();
         return out;
     }
     const keel::f64 V11 = H22 / det;
     const keel::f64 V22 = H11 / det;
-    const keel::f64 se1 = std::sqrt(std::max(V11, 0.0));
-    const keel::f64 se2 = std::sqrt(std::max(V22, 0.0));
+    const keel::f64 se1 = keel::sqrt(std::max(V11, 0.0));
+    const keel::f64 se2 = keel::sqrt(std::max(V22, 0.0));
 
     // z_{α/2} from norminv(1 - α/2). Series via std::erf inversion is
     // unnecessary — use the closed-form via erfc^{-1} approximation:
@@ -123,7 +121,7 @@ Value wald_ci_2d(NllFn &&nll, keel::f64 t1, keel::f64 t2,
         // Wichura AS 241: high-accuracy norm-inv for p = 1 - a/2.
         const keel::f64 p = 1.0 - 0.5 * a;
         const keel::f64 q = p - 0.5;
-        if (std::fabs(q) <= 0.425) {
+        if (keel::abs(q) <= 0.425) {
             const keel::f64 r = 0.180625 - q * q;
             return q * (((((((2.509080928730122727e3 * r
                 + 3.343057558358812877e4) * r + 6.726577092700870006e4) * r
@@ -136,7 +134,7 @@ Value wald_ci_2d(NllFn &&nll, keel::f64 t1, keel::f64 t2,
                 + 4.231333070160091088e1) * r + 1.0);
         }
         keel::f64 r = (q < 0.0) ? p : 1.0 - p;
-        r = std::sqrt(-std::log(r));
+        r = keel::sqrt(-keel::log(r));
         keel::f64 v;
         if (r <= 5.0) {
             r -= 1.6;
@@ -173,21 +171,21 @@ Value wald_ci_2d(NllFn &&nll, keel::f64 t1, keel::f64 t2,
                 return {t - z * se, t + z * se};
             case CITransform::LOG: {
                 if (!(t > 0.0))
-                    return {std::numeric_limits<keel::f64>::quiet_NaN(),
-                            std::numeric_limits<keel::f64>::quiet_NaN()};
+                    return {keel::Limits<keel::f64>::quiet_nan(),
+                            keel::Limits<keel::f64>::quiet_nan()};
                 const keel::f64 se_log = se / t;
-                return {t * std::exp(-z * se_log), t * std::exp(z * se_log)};
+                return {t * keel::exp(-z * se_log), t * keel::exp(z * se_log)};
             }
             case CITransform::LOGIT: {
                 if (!(t > 0.0 && t < 1.0))
-                    return {std::numeric_limits<keel::f64>::quiet_NaN(),
-                            std::numeric_limits<keel::f64>::quiet_NaN()};
+                    return {keel::Limits<keel::f64>::quiet_nan(),
+                            keel::Limits<keel::f64>::quiet_nan()};
                 const keel::f64 se_logit = se / (t * (1.0 - t));
-                const keel::f64 logit = std::log(t / (1.0 - t));
+                const keel::f64 logit = keel::log(t / (1.0 - t));
                 const keel::f64 lo = logit - z * se_logit;
                 const keel::f64 hi = logit + z * se_logit;
-                return {1.0 / (1.0 + std::exp(-lo)),
-                        1.0 / (1.0 + std::exp(-hi))};
+                return {1.0 / (1.0 + keel::exp(-lo)),
+                        1.0 / (1.0 + keel::exp(-hi))};
             }
         }
         return {t, t};
@@ -206,66 +204,66 @@ namespace {
 
 [[maybe_unused]] keel::f64 nll_gam(keel::f64 a, keel::f64 b, const keel::Array<keel::f64> &xv)
 {
-    if (!(a > 0.0) || !(b > 0.0)) return std::numeric_limits<keel::f64>::infinity();
+    if (!(a > 0.0) || !(b > 0.0)) return keel::Limits<keel::f64>::infinity();
     const keel::f64 N = keel::as<keel::f64>(xv.size());
     keel::f64 sx = 0.0, slx = 0.0;
-    for (keel::f64 v : xv) { sx += v; slx += std::log(v); }
-    return N * std::lgamma(a) + N * a * std::log(b)
+    for (keel::f64 v : xv) { sx += v; slx += keel::log(v); }
+    return N * keel::lgamma(a) + N * a * keel::log(b)
          - (a - 1.0) * slx + sx / b;
 }
 
 [[maybe_unused]] keel::f64 nll_wbl(keel::f64 a, keel::f64 b, const keel::Array<keel::f64> &xv)
 {
-    if (!(a > 0.0) || !(b > 0.0)) return std::numeric_limits<keel::f64>::infinity();
+    if (!(a > 0.0) || !(b > 0.0)) return keel::Limits<keel::f64>::infinity();
     const keel::f64 N = keel::as<keel::f64>(xv.size());
     keel::f64 slx = 0.0, sw = 0.0;
     for (keel::f64 v : xv) {
-        slx += std::log(v);
-        sw  += std::pow(v / a, b);
+        slx += keel::log(v);
+        sw  += keel::pow(v / a, b);
     }
-    return -N * std::log(b) + N * b * std::log(a)
+    return -N * keel::log(b) + N * b * keel::log(a)
          - (b - 1.0) * slx + sw;
 }
 
 [[maybe_unused]] keel::f64 nll_beta(keel::f64 a, keel::f64 b, const keel::Array<keel::f64> &xv)
 {
-    if (!(a > 0.0) || !(b > 0.0)) return std::numeric_limits<keel::f64>::infinity();
+    if (!(a > 0.0) || !(b > 0.0)) return keel::Limits<keel::f64>::infinity();
     const keel::f64 N = keel::as<keel::f64>(xv.size());
     keel::f64 slx = 0.0, sl1mx = 0.0;
     for (keel::f64 v : xv) {
-        slx   += std::log(v);
-        sl1mx += std::log(1.0 - v);
+        slx   += keel::log(v);
+        sl1mx += keel::log(1.0 - v);
     }
-    return N * (std::lgamma(a) + std::lgamma(b) - std::lgamma(a + b))
+    return N * (keel::lgamma(a) + keel::lgamma(b) - keel::lgamma(a + b))
          - (a - 1.0) * slx - (b - 1.0) * sl1mx;
 }
 
 [[maybe_unused]] keel::f64 nll_nbin(keel::f64 r, keel::f64 p, const keel::Array<keel::f64> &xv)
 {
     if (!(r > 0.0) || !(p > 0.0) || !(p < 1.0))
-        return std::numeric_limits<keel::f64>::infinity();
+        return keel::Limits<keel::f64>::infinity();
     const keel::f64 N = keel::as<keel::f64>(xv.size());
     keel::f64 term = 0.0;
     keel::f64 sx = 0.0;
     for (keel::f64 v : xv) {
-        term -= std::lgamma(v + r) - std::lgamma(r) - std::lgamma(v + 1.0);
+        term -= keel::lgamma(v + r) - keel::lgamma(r) - keel::lgamma(v + 1.0);
         sx   += v;
     }
-    return term - N * r * std::log(p) - sx * std::log(1.0 - p);
+    return term - N * r * keel::log(p) - sx * keel::log(1.0 - p);
 }
 
 [[maybe_unused]] keel::f64 nll_ev(keel::f64 mu, keel::f64 sigma, const keel::Array<keel::f64> &xv)
 {
-    if (!(sigma > 0.0)) return std::numeric_limits<keel::f64>::infinity();
+    if (!(sigma > 0.0)) return keel::Limits<keel::f64>::infinity();
     const keel::f64 N = keel::as<keel::f64>(xv.size());
     // log f(x) = -log σ + t - exp(t), t = (x-μ)/σ. NLL is sum of -log f.
     keel::f64 st = 0.0, set = 0.0;
     for (keel::f64 v : xv) {
         const keel::f64 t = (v - mu) / sigma;
         st  += t;
-        set += std::exp(t);
+        set += keel::exp(t);
     }
-    return N * std::log(sigma) - st + set;
+    return N * keel::log(sigma) - st + set;
 }
 
 // gpfit NLL is already defined as gp_nll above.
@@ -283,19 +281,19 @@ namespace {
     Value out = Value::matrix(2, 2, ValueType::DOUBLE, mr);
     keel::f64 *od = out.doubleDataMut();
     const keel::f64 det = H11 * H22 - H12 * H12;
-    if (std::fabs(det) < 1e-300 || H11 < 0.0 || H22 < 0.0) {
-        for (keel::i32 i = 0; i < 4; ++i) od[i] = std::numeric_limits<keel::f64>::quiet_NaN();
+    if (keel::abs(det) < 1e-300 || H11 < 0.0 || H22 < 0.0) {
+        for (keel::i32 i = 0; i < 4; ++i) od[i] = keel::Limits<keel::f64>::quiet_nan();
         return out;
     }
     const keel::f64 V11 = H22 / det;
     const keel::f64 V22 = H11 / det;
-    const keel::f64 se1 = std::sqrt(std::max(V11, 0.0));
-    const keel::f64 se2 = std::sqrt(std::max(V22, 0.0));
+    const keel::f64 se1 = keel::sqrt(std::max(V11, 0.0));
+    const keel::f64 se2 = keel::sqrt(std::max(V22, 0.0));
     // z_{α/2} — at default α=0.05 returns 1.959963984540054.
     const keel::f64 z = [](keel::f64 a) -> keel::f64 {
         const keel::f64 p = 1.0 - 0.5 * a;
         const keel::f64 q = p - 0.5;
-        if (std::fabs(q) <= 0.425) {
+        if (keel::abs(q) <= 0.425) {
             const keel::f64 r = 0.180625 - q * q;
             return q * (((((((2.509080928730122727e3 * r
                 + 3.343057558358812877e4) * r + 6.726577092700870006e4) * r
@@ -308,7 +306,7 @@ namespace {
                 + 4.231333070160091088e1) * r + 1.0);
         }
         keel::f64 r = (q < 0.0) ? p : 1.0 - p;
-        r = std::sqrt(-std::log(r));
+        r = keel::sqrt(-keel::log(r));
         keel::f64 v;
         if (r <= 5.0) {
             r -= 1.6;
@@ -343,21 +341,21 @@ namespace {
                 return {t - z * se, t + z * se};
             case CITransform::LOG: {
                 if (!(t > 0.0))
-                    return {std::numeric_limits<keel::f64>::quiet_NaN(),
-                            std::numeric_limits<keel::f64>::quiet_NaN()};
+                    return {keel::Limits<keel::f64>::quiet_nan(),
+                            keel::Limits<keel::f64>::quiet_nan()};
                 const keel::f64 se_log = se / t;
-                return {t * std::exp(-z * se_log), t * std::exp(z * se_log)};
+                return {t * keel::exp(-z * se_log), t * keel::exp(z * se_log)};
             }
             case CITransform::LOGIT: {
                 if (!(t > 0.0 && t < 1.0))
-                    return {std::numeric_limits<keel::f64>::quiet_NaN(),
-                            std::numeric_limits<keel::f64>::quiet_NaN()};
+                    return {keel::Limits<keel::f64>::quiet_nan(),
+                            keel::Limits<keel::f64>::quiet_nan()};
                 const keel::f64 se_logit = se / (t * (1.0 - t));
-                const keel::f64 logit = std::log(t / (1.0 - t));
+                const keel::f64 logit = keel::log(t / (1.0 - t));
                 const keel::f64 lo = logit - z * se_logit;
                 const keel::f64 hi = logit + z * se_logit;
-                return {1.0 / (1.0 + std::exp(-lo)),
-                        1.0 / (1.0 + std::exp(-hi))};
+                return {1.0 / (1.0 + keel::exp(-lo)),
+                        1.0 / (1.0 + keel::exp(-hi))};
             }
         }
         return {t, t};

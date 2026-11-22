@@ -3,6 +3,7 @@
 // Reference values from Octave statistics package.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -41,7 +42,7 @@ TEST_F(RicestatTest, VectorBroadcasting)
 
 TEST_F(RicestatTest, InvalidParamsReturnNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("ricestat( 2, 0)")));
-    EXPECT_TRUE(std::isnan(evalScalar("ricestat( 2, -1)")));
-    EXPECT_TRUE(std::isnan(evalScalar("ricestat(-1, 1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("ricestat( 2, 0)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("ricestat( 2, -1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("ricestat(-1, 1)")));
 }

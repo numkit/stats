@@ -12,8 +12,6 @@
 
 #include "dist_helpers.hpp"
 
-#include <cmath>
-#include <limits>
 #include <mutex>
 
 #include "uniform_detail.hpp"
@@ -57,7 +55,7 @@ Value unifrnd(::numkit::ops::RngContext &rng, keel::f64 a, keel::f64 b, keel::us
 std::tuple<keel::f64, keel::f64> unifstat(keel::f64 a, keel::f64 b)
 {
     if (b <= a) {
-        const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
+        const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
         return std::make_tuple(nan, nan);
     }
     const keel::f64 w = b - a;

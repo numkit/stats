@@ -4,18 +4,16 @@
 #pragma once
 
 #include <keel/array.h>
+#include <keel/math.h>
 #include <keel/core.h>
 #include <keel/string.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
-#include <cstring>
-#include <limits>
 #include <numeric>
 #include <tuple>
 #include <utility>
@@ -33,7 +31,7 @@ keel::Array<keel::f64> sortedUniqueNoNaN(const Value &x)
     v.reserve(N);
     for (keel::usize i = 0; i < N; ++i) {
         const keel::f64 xi = x.elemAsDouble(i);
-        if (std::isnan(xi)) continue;
+        if (keel::is_nan(xi)) continue;
         v.push_back(xi);
     }
     std::sort(v.begin(), v.end());
@@ -55,7 +53,7 @@ keel::Array<keel::f64> sortedUniqueNoNaN(const Value &x)
 [[maybe_unused]] keel::String labelString(keel::f64 v)
 {
     char buf[64];
-    if (std::isfinite(v) && v == std::floor(v) && std::fabs(v) < 1e15)
+    if (keel::is_finite(v) && v == keel::floor(v) && keel::abs(v) < 1e15)
         std::snprintf(buf, sizeof(buf), "%lld", keel::as<keel::i64>(v));
     else
         std::snprintf(buf, sizeof(buf), "%.5g", v);

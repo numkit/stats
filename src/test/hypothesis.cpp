@@ -19,7 +19,6 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 
-#include <limits>
 #include <tuple>
 #include <utility>
 
@@ -725,7 +724,7 @@ jbtest(const Value &x, keel::f64 alpha, keel::f64 mctol, keel::Allocator *mr)
 std::tuple<Value, Value, Value, Value>
 jbtest(const Value &x, keel::f64 alpha, keel::Allocator *mr)
 {
-    return jbtest(x, alpha, std::numeric_limits<keel::f64>::quiet_NaN(), mr);
+    return jbtest(x, alpha, keel::Limits<keel::f64>::quiet_nan(), mr);
 }
 
 // ════════════════════════════════════════════════════════════════════

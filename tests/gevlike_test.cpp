@@ -8,6 +8,7 @@
 // MATLAB's analytical ACOV — documented as a known gap.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -52,15 +53,15 @@ TEST_F(GevlikeTest, ACovKPositive)
 
 TEST_F(GevlikeTest, SupportViolationReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("gevlike([0.5, 1, 0], [-100; -1; 0])")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("gevlike([0.5, 1, 0], [-100; -1; 0])")));
 }
 
 TEST_F(GevlikeTest, NegativeSigmaReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("gevlike([0.5, -1, 0], x)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("gevlike([0.5, -1, 0], x)")));
 }
 
 TEST_F(GevlikeTest, EmptyDataReturnsInf)
 {
-    EXPECT_TRUE(std::isinf(evalScalar("gevlike([0.5, 1, 0], [])")));
+    EXPECT_TRUE(keel::is_inf(evalScalar("gevlike([0.5, 1, 0], [])")));
 }

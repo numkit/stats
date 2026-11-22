@@ -2,6 +2,7 @@
 // unifpdf.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -45,14 +46,14 @@ TEST_F(UnifpdfTest, VectorAcrossSupport)
 
 TEST_F(UnifpdfTest, BadParams)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("unifpdf(0.5, 1, 0)")));   // b < a
-    EXPECT_TRUE(std::isnan(evalScalar("unifpdf(0.5, 5, 1)")));   // b < a
-    EXPECT_TRUE(std::isnan(evalScalar("unifpdf(0.5, 1, 1)")));   // b == a degenerate
+    EXPECT_TRUE(keel::is_nan(evalScalar("unifpdf(0.5, 1, 0)")));   // b < a
+    EXPECT_TRUE(keel::is_nan(evalScalar("unifpdf(0.5, 5, 1)")));   // b < a
+    EXPECT_TRUE(keel::is_nan(evalScalar("unifpdf(0.5, 1, 1)")));   // b == a degenerate
 }
 
 TEST_F(UnifpdfTest, NaNX)
 {
     // MATLAB convention: NaN x -> NaN; NaN params fall through to false
     // comparison and emit 0 (not tested here — MATLAB-only quirk).
-    EXPECT_TRUE(std::isnan(evalScalar("unifpdf(NaN, 0, 1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("unifpdf(NaN, 0, 1)")));
 }

@@ -3,6 +3,7 @@
 // Regression guard for bootci / bootstrp (function-handle based).
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <gtest/gtest.h>
 #include <cmath>
 
@@ -40,7 +41,7 @@ TEST_F(BootTest, BootstrpStdScaling)
          "expected_se = std(x) / sqrt(100);");
     const double observed_se = evalScalar("std(B)");
     const double expected_se = evalScalar("expected_se");
-    EXPECT_LT(std::fabs(observed_se - expected_se), 0.05);
+    EXPECT_LT(keel::abs(observed_se - expected_se), 0.05);
 }
 
 TEST_F(BootTest, BootstrpRequiresFuncHandle)

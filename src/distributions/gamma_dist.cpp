@@ -6,6 +6,7 @@
 // rnd uses MATLAB-exact Marsaglia-Tsang on RngContext.
 
 #include <keel/core.h>
+#include <keel/math.h>
 #include <keel/memory.h>
 #include <keel/stats.h>
 #include <numkit/stats/distributions/gamma_dist.hpp>
@@ -18,8 +19,6 @@
 
 #include "dist_helpers.hpp"
 
-#include <cmath>
-#include <limits>
 #include <mutex>
 
 #include "gamma_dist_detail.hpp"
@@ -31,9 +30,9 @@ namespace {
 keel::f64 sampleGamma1(::numkit::ops::RngContext &rng, keel::f64 a)
 {
     if (!(a > 0.0))
-        return (a == 0.0) ? 0.0 : std::numeric_limits<keel::f64>::quiet_NaN();
+        return (a == 0.0) ? 0.0 : keel::Limits<keel::f64>::quiet_nan();
     const keel::f64 d = (a < 1.0 ? (a + 1.0) : a) - 1.0 / 3.0;
-    const keel::f64 c = 1.0 / std::sqrt(9.0 * d);
+    const keel::f64 c = 1.0 / keel::sqrt(9.0 * d);
     keel::f64 u = rng.nextUniform();
     const keel::f64 u_boost = (a < 1.0) ? rng.nextUniform() : 1.0;
     keel::f64 v = 0.0;
@@ -44,13 +43,13 @@ keel::f64 sampleGamma1(::numkit::ops::RngContext &rng, keel::f64 a)
             v = v * v * v;
             const keel::f64 z2 = z * z;
             if (u < 1.0 - 0.0331 * z2 * z2 ||
-                std::log(u) < 0.5 * z2 + d * (1.0 - v + std::log(v))) {
+                keel::log(u) < 0.5 * z2 + d * (1.0 - v + keel::log(v))) {
                 break;
             }
         }
         u = rng.nextUniform();
     }
-    return (a < 1.0) ? (d * v * std::pow(u_boost, 1.0 / a)) : (d * v);
+    return (a < 1.0) ? (d * v * keel::pow(u_boost, 1.0 / a)) : (d * v);
 }
 
 } // namespace
@@ -113,7 +112,7 @@ Value randg(::numkit::ops::RngContext &rng, const Value &shapeArray, keel::Alloc
 std::tuple<keel::f64, keel::f64> gamstat(keel::f64 a, keel::f64 b)
 {
     if (a <= 0.0 || b <= 0.0) {
-        const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
+        const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
         return std::make_tuple(nan, nan);
     }
     return std::make_tuple(a * b, a * b * b);

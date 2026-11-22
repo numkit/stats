@@ -4,6 +4,7 @@
 // prediction confidence intervals.
 
 #include <keel/array.h>
+#include <keel/algo.h>
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <keel/ref.h>
@@ -19,9 +20,6 @@
 
 #include <algorithm>
 #include <keel/static_array.h>
-#include <cmath>
-#include <cstring>
-#include <limits>
 
 namespace numkit::stats {
 
@@ -41,7 +39,7 @@ Value flatToMatrix(const keel::f64 *data, keel::usize rows, keel::usize cols,
                     keel::Allocator *mr)
 {
     auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
-    std::memcpy(out.doubleDataMut(), data, rows * cols * sizeof(keel::f64));
+    keel::copy_n(out.doubleDataMut(), data, rows * cols);
     return out;
 }
 
@@ -112,9 +110,9 @@ keel::Array<keel::f64> lmStep(keel::ArrayRef<keel::f64> J,
     // Gauss elimination (M is row-major p×p).
     for (keel::usize k = 0; k < p; ++k) {
         keel::usize piv = k;
-        keel::f64 pmax = std::fabs(M[k * p + k]);
+        keel::f64 pmax = keel::abs(M[k * p + k]);
         for (keel::usize rr = k + 1; rr < p; ++rr) {
-            const keel::f64 v = std::fabs(M[rr * p + k]);
+            const keel::f64 v = keel::abs(M[rr * p + k]);
             if (v > pmax) { pmax = v; piv = rr; }
         }
         if (pmax == 0.0) {
@@ -165,13 +163,13 @@ keel::Array<keel::f64> invJtJ(keel::ArrayRef<keel::f64> J,
         A[i * 2 * p + (p + i)] = 1.0;
     for (keel::usize k = 0; k < p; ++k) {
         keel::usize piv = k;
-        keel::f64 pmax = std::fabs(A[k * 2 * p + k]);
+        keel::f64 pmax = keel::abs(A[k * 2 * p + k]);
         for (keel::usize rr = k + 1; rr < p; ++rr) {
-            const keel::f64 v = std::fabs(A[rr * 2 * p + k]);
+            const keel::f64 v = keel::abs(A[rr * 2 * p + k]);
             if (v > pmax) { pmax = v; piv = rr; }
         }
         if (pmax == 0.0) {
-            return keel::Array<keel::f64>(p * p, std::numeric_limits<keel::f64>::quiet_NaN());
+            return keel::Array<keel::f64>(p * p, keel::Limits<keel::f64>::quiet_nan());
         }
         if (piv != k) {
             for (keel::usize j = 0; j < 2 * p; ++j)
@@ -254,7 +252,7 @@ NlinfitResult nlinfit(const Value &X, const Value &y,
 
         if (sseNew < sse) {
             // Accept.
-            const keel::f64 rel = std::sqrt(stepNorm2) / (std::sqrt(betaNorm2) + 1e-12);
+            const keel::f64 rel = keel::sqrt(stepNorm2) / (keel::sqrt(betaNorm2) + 1e-12);
             const keel::f64 relF = (sse - sseNew) / (sse + 1e-12);
             beta = keel::move(betaNew);
             rv   = keel::move(rNew);
@@ -316,7 +314,7 @@ Value nlparci(const Value &beta, const Value &R, const Value &J,
     auto out = Value::matrix(p, 2, ValueType::DOUBLE, mr);
     keel::f64 *od = out.doubleDataMut();
     for (keel::usize i = 0; i < p; ++i) {
-        const keel::f64 se = std::sqrt(mse * Inv[i * p + i]);
+        const keel::f64 se = keel::sqrt(mse * Inv[i * p + i]);
         const keel::f64 b  = beta.elemAsDouble(i);
         od[0 * p + i] = b - tcrit * se;  // lower (col 0)
         od[1 * p + i] = b + tcrit * se;  // upper (col 1)
@@ -387,7 +385,7 @@ nlpredci(FnHandle model, const Value &X, const Value &beta,
         for (keel::usize a = 0; a < p; ++a)
             for (keel::usize b = 0; b < p; ++b)
                 var += Jq[a * m + i] * Inv[a * p + b] * Jq[b * m + i];
-        dd[i] = tcrit * std::sqrt(mse * var);
+        dd[i] = tcrit * keel::sqrt(mse * var);
     }
     return { std::move(ypred), std::move(delta) };
 }

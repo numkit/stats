@@ -11,7 +11,6 @@
 #include <keel/string.h>
 #include <numkit/value/value.hpp>
 
-#include <limits>
 #include <tuple>
 #include <utility>
 
@@ -623,8 +622,8 @@ NormalizeResult normalize(const Value &A, keel::StringRef method,
 /// @return          Rescaled array, same shape as `A`.
 /// @see normalize
 Value rescale(const Value &A, keel::f64 lo, keel::f64 hi,
-              keel::f64 inputMin = std::numeric_limits<keel::f64>::quiet_NaN(),
-              keel::f64 inputMax = std::numeric_limits<keel::f64>::quiet_NaN(),
+              keel::f64 inputMin = keel::Limits<keel::f64>::quiet_nan(),
+              keel::f64 inputMax = keel::Limits<keel::f64>::quiet_nan(),
               keel::Allocator *mr = nullptr);
 
 /// @brief Z-score normalisation (`Y = zscore(A)`).
@@ -835,7 +834,7 @@ Grp2idxResult grp2idx(const Value &s, keel::Allocator *mr = nullptr);
 /// @see isoutlier
 Value filloutliers(const Value &A, const Value &fillMethod,
                    keel::StringRef findMethod = "median",
-                   keel::f64 thresholdFactor = std::numeric_limits<keel::f64>::quiet_NaN(),
+                   keel::f64 thresholdFactor = keel::Limits<keel::f64>::quiet_nan(),
                    keel::Allocator *mr = nullptr);
 
 

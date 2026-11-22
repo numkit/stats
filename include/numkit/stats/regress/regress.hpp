@@ -9,7 +9,6 @@
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <keel/ref.h>
-#include <limits>
 #include <numkit/value/value.hpp>
 #include <numkit/value/fn_handle.hpp>
 
@@ -213,7 +212,7 @@ struct RobustfitResult {
 /// @see regress, fitlm
 RobustfitResult robustfit(const Value &X, const Value &y,
                            RobustWeight weight = RobustWeight::Bisquare,
-                           keel::f64 tune = std::numeric_limits<keel::f64>::quiet_NaN(),
+                           keel::f64 tune = keel::Limits<keel::f64>::quiet_nan(),
                            keel::Allocator *mr = nullptr);
 
 /// @brief Result of robust covariance estimation (`[sigma, mu] = robustcov(X)`).

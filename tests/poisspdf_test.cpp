@@ -2,6 +2,7 @@
 // poisspdf.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -42,5 +43,5 @@ TEST_F(PoisspdfTest, Lambda0Degenerate)
 
 TEST_F(PoisspdfTest, NegativeLambdaReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("poisspdf(3, -1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("poisspdf(3, -1)")));
 }

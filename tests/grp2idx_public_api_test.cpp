@@ -5,6 +5,7 @@
 // Grp2idxResult struct { G, GN, GL }).
 
 #include <numkit/stats/descriptive/descriptive.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 
 #include <cmath>
@@ -35,7 +36,7 @@ TEST(Grp2idxPublicApi, Numeric)
     // NaN -> NaN index, excluded from the group set
     stats::Grp2idxResult rn = stats::grp2idx(gv(e, "[1 NaN 2]", "sn"), e.allocator());
     EXPECT_DOUBLE_EQ(rn.G.doubleData()[0], 1.0);
-    EXPECT_TRUE(std::isnan(rn.G.doubleData()[1]));
+    EXPECT_TRUE(keel::is_nan(rn.G.doubleData()[1]));
     EXPECT_EQ(rn.GN.numel(), 2u);
 }
 

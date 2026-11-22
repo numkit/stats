@@ -3,6 +3,7 @@
 // support. Reference values from MATLAB R2025b probe.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -59,25 +60,25 @@ TEST_F(VarStdTest, VarOmitnanExplicit)
 
 TEST_F(VarStdTest, VarDefaultPoisonsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("var(v)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("var(v)")));
 }
 
 TEST_F(VarStdTest, StdMatrix)
 {
     eval("y = std(A);");
-    EXPECT_NEAR(evalScalar("y(1)"), std::sqrt(2.5), 1e-12);
+    EXPECT_NEAR(evalScalar("y(1)"), keel::sqrt(2.5), 1e-12);
 }
 
 TEST_F(VarStdTest, StdAll)
 {
     EXPECT_NEAR(evalScalar("std(A, 0, 'all')"),
-                std::sqrt(8.5714285714), 1e-9);
+                keel::sqrt(8.5714285714), 1e-9);
 }
 
 TEST_F(VarStdTest, StdWeighted)
 {
     EXPECT_NEAR(evalScalar("std([1 2 3 4 5]', [1 2 1 2 1]')"),
-                std::sqrt(1.7142857142857142), 1e-10);
+                keel::sqrt(1.7142857142857142), 1e-10);
 }
 
 // --- Single-element variance (n == 1). MATLAB returns 0 for BOTH the
@@ -122,15 +123,15 @@ TEST_F(VarStdTest, StdSingleElementVectorIsZero)
 // DEEP-PROBE 2026-05-29: nk previously returned a 0x0 empty for all.
 TEST_F(VarStdTest, VarStdEmptyIsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("var([])")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("var([])")));
     EXPECT_DOUBLE_EQ(evalScalar("numel(var([]))"), 1.0);
-    EXPECT_TRUE(std::isnan(evalScalar("std([])")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("std([])")));
     EXPECT_DOUBLE_EQ(evalScalar("numel(std([]))"), 1.0);
 
     eval("c = var(zeros(0,3));");
     EXPECT_DOUBLE_EQ(evalScalar("numel(c)"), 3.0);
-    EXPECT_TRUE(std::isnan(evalScalar("c(1)")));
-    EXPECT_TRUE(std::isnan(evalScalar("c(3)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("c(1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("c(3)")));
 
     EXPECT_DOUBLE_EQ(evalScalar("numel(var(zeros(3,0)))"), 0.0);
     EXPECT_DOUBLE_EQ(evalScalar("size(var(zeros(3,0)),1)"), 1.0);

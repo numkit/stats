@@ -3,6 +3,7 @@
 // Latin Hypercube sampling (lhsdesign / lhsnorm).
 
 #include <keel/array.h>
+#include <keel/math.h>
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <keel/random.h>
@@ -16,7 +17,6 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <mutex>
 #include <numeric>
 
@@ -53,7 +53,7 @@ void buildOneLhs(keel::f64 *od, keel::usize n, keel::usize p, bool smooth,
 keel::f64 minPairwiseDistSquared(const keel::f64 *X, keel::usize n, keel::usize p)
 {
     if (n < 2) return 0.0;
-    keel::f64 best = std::numeric_limits<keel::f64>::infinity();
+    keel::f64 best = keel::Limits<keel::f64>::infinity();
     for (keel::usize i = 0; i < n; ++i) {
         for (keel::usize k = i + 1; k < n; ++k) {
             keel::f64 s = 0.0;
@@ -84,7 +84,7 @@ keel::f64 maxAbsColCorrelation(const keel::f64 *X, keel::usize n, keel::usize p)
             const keel::f64 d = X[j * n + i] - mu[j];
             v += d * d;
         }
-        sd[j] = std::sqrt(v / keel::as<keel::f64>(n - 1));
+        sd[j] = keel::sqrt(v / keel::as<keel::f64>(n - 1));
         if (sd[j] < 1e-300) sd[j] = 1e-300;
     }
     keel::f64 best = 0.0;
@@ -94,7 +94,7 @@ keel::f64 maxAbsColCorrelation(const keel::f64 *X, keel::usize n, keel::usize p)
             for (keel::usize i = 0; i < n; ++i)
                 s += (X[a * n + i] - mu[a]) * (X[b * n + i] - mu[b]);
             const keel::f64 r = s / (keel::as<keel::f64>(n - 1) * sd[a] * sd[b]);
-            const keel::f64 abr = std::fabs(r);
+            const keel::f64 abr = keel::abs(r);
             if (abr > best) best = abr;
         }
     }
@@ -201,7 +201,7 @@ Value lhsnorm(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigm
             ud[i] = (keel::as<keel::f64>(rank[i]) - xi) * invN;
         }
         const keel::f64 muj = mu.elemAsDouble(j);
-        const keel::f64 sdj = std::sqrt(std::max(0.0, Sigma.elemAsDouble(j + j * d)));
+        const keel::f64 sdj = keel::sqrt(std::max(0.0, Sigma.elemAsDouble(j + j * d)));
         if (sdj > 0.0) {
             Value zCol = norminv(uCol, muj, sdj, mr);
             for (keel::usize i = 0; i < n; ++i)

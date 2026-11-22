@@ -4,6 +4,8 @@
 // Dykstra's correction), delegating numerical kernels to keel::stats::nearcorr.
 
 #include <keel/arena.h>
+#include <keel/algo.h>
+#include <keel/math.h>
 #include <keel/array.h>
 #include <keel/core.h>
 #include <keel/format.h>
@@ -20,8 +22,6 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 
-#include <cmath>
-#include <cstring>
 
 namespace numkit::stats {
 
@@ -102,7 +102,7 @@ Value nearcorr_full(const Value &A, keel::ArrayRef<Value> nv, keel::Allocator *m
                 if (v.type() != ValueType::DOUBLE || !v.isScalar())
                     badOpt("'MaxIterations' must be a double scalar");
                 const keel::f64 m = v.toScalar();
-                if (!(m > 0.0) || m != std::floor(m))
+                if (!(m > 0.0) || m != keel::floor(m))
                     badOpt(keel::format("'MaxIterations' must be a positive integer, got {}", m));
                 maxIterD = m;
                 break;
@@ -126,20 +126,20 @@ Value nearcorr_full(const Value &A, keel::ArrayRef<Value> nv, keel::Allocator *m
                     badOpt("'Weights' must be a length-N vector or N-by-N matrix");
                 for (keel::usize k = 0; k < v.numel(); ++k) {
                     const keel::f64 wk = v.elemAsDouble(k);
-                    if (!(wk > 0.0) || !std::isfinite(wk))
+                    if (!(wk > 0.0) || !keel::is_finite(wk))
                         badOpt("'Weights' entries must be finite and positive");
                 }
                 wScale.resize(N * N);
                 if (isVec) {
                     for (keel::usize j = 0; j < N; ++j)
                         for (keel::usize i = 0; i < N; ++i)
-                            wScale[i + j * N] = std::sqrt(v.elemAsDouble(i) * v.elemAsDouble(j));
+                            wScale[i + j * N] = keel::sqrt(v.elemAsDouble(i) * v.elemAsDouble(j));
                 } else {
                     for (keel::usize j = 0; j < N; ++j)
                         for (keel::usize i = 0; i < N; ++i) {
                             if (i < j && v.elemAsDouble(i + j * N) != v.elemAsDouble(j + i * N))
                                 badOpt("'Weights' matrix must be symmetric");
-                            wScale[i + j * N] = std::sqrt(v.elemAsDouble(i + j * N));
+                            wScale[i + j * N] = keel::sqrt(v.elemAsDouble(i + j * N));
                         }
                 }
                 break;
@@ -165,7 +165,7 @@ Value nearcorr_full(const Value &A, keel::ArrayRef<Value> nv, keel::Allocator *m
         keel::f32 *od = out.singleDataMut();
         for (keel::usize k = 0; k < N * N; ++k) od[k] = keel::as<keel::f32>(res[k]);
     } else {
-        std::memcpy(out.doubleDataMut(), res.data(), N * N * sizeof(keel::f64));
+        keel::copy_n(out.doubleDataMut(), res.data(), N * N);
     }
     return out;
 }

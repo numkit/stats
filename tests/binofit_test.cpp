@@ -4,6 +4,7 @@
 // (coverage gap).
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -70,5 +71,5 @@ TEST_F(BinofitTest, NonDefaultAlpha)
 
 TEST_F(BinofitTest, NonPositiveNReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("binofit(0, 0)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("binofit(0, 0)")));
 }

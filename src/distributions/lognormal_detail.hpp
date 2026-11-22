@@ -16,10 +16,7 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
-#include <cstring>
-#include <limits>
 #include <tuple>
 #include <utility>
 
@@ -47,16 +44,16 @@ constexpr keel::f64 kSqrt2 = 1.41421356237309504880;
 constexpr keel::f64 kSqrt2Pi = keel::kSqrt2Pi;
 
 // Φ(z) via complementary error fn (avoids cancellation in tail).
-inline keel::f64 phi(keel::f64 z) { return 0.5 * std::erfc(-z / kSqrt2); }
+inline keel::f64 phi(keel::f64 z) { return 0.5 * keel::erfc(-z / kSqrt2); }
 
 // Φ⁻¹(p) — Beasley-Springer-Moro / Acklam-style approximation; refined by
 // one Newton step against erfc. Same construction as norminv in normal.cpp.
 inline keel::f64 phiInv(keel::f64 p)
 {
     if (!(p > 0.0) || !(p < 1.0)) {
-        if (p == 0.0) return -std::numeric_limits<keel::f64>::infinity();
-        if (p == 1.0) return  std::numeric_limits<keel::f64>::infinity();
-        return std::numeric_limits<keel::f64>::quiet_NaN();
+        if (p == 0.0) return -keel::Limits<keel::f64>::infinity();
+        if (p == 1.0) return  keel::Limits<keel::f64>::infinity();
+        return keel::Limits<keel::f64>::quiet_nan();
     }
     // Acklam coefficients
     static const keel::f64 a[] = { -3.969683028665376e+01,  2.209460984245205e+02,
@@ -73,7 +70,7 @@ inline keel::f64 phiInv(keel::f64 p)
     const keel::f64 pl = 0.02425, ph = 1.0 - pl;
     keel::f64 q, r, x;
     if (p < pl) {
-        q = std::sqrt(-2.0 * std::log(p));
+        q = keel::sqrt(-2.0 * keel::log(p));
         x = (((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) /
             ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1.0);
     } else if (p <= ph) {
@@ -82,13 +79,13 @@ inline keel::f64 phiInv(keel::f64 p)
         x = (((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5]) * q /
             (((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1.0);
     } else {
-        q = std::sqrt(-2.0 * std::log(1.0 - p));
+        q = keel::sqrt(-2.0 * keel::log(1.0 - p));
         x = -(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) /
              ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1.0);
     }
     // One Newton refinement: x ← x - (Φ(x) - p) / φ(x)
     const keel::f64 e = phi(x) - p;
-    const keel::f64 u = e * kSqrt2Pi * std::exp(0.5 * x * x);
+    const keel::f64 u = e * kSqrt2Pi * keel::exp(0.5 * x * x);
     return x - u;
 }
 
@@ -97,30 +94,30 @@ inline keel::f64 phiInv(keel::f64 p)
 // bit-identically (cdf/inv via phi / phiInv).
 inline keel::f64 lognpdfK(keel::f64 x, keel::f64 mu, keel::f64 sigma)
 {
-    if (sigma <= 0.0) return std::numeric_limits<keel::f64>::quiet_NaN();
+    if (sigma <= 0.0) return keel::Limits<keel::f64>::quiet_nan();
     const keel::f64 inv_sig = 1.0 / sigma;
     const keel::f64 inv_sqrt2pi = 1.0 / kSqrt2Pi;
     if (x <= 0.0) return 0.0;
-    const keel::f64 z = (std::log(x) - mu) * inv_sig;
-    return inv_sqrt2pi * inv_sig * std::exp(-0.5 * z * z) / x;
+    const keel::f64 z = (keel::log(x) - mu) * inv_sig;
+    return inv_sqrt2pi * inv_sig * keel::exp(-0.5 * z * z) / x;
 }
 
 inline keel::f64 logncdfK(keel::f64 x, keel::f64 mu, keel::f64 sigma)
 {
-    if (sigma <= 0.0) return std::numeric_limits<keel::f64>::quiet_NaN();
+    if (sigma <= 0.0) return keel::Limits<keel::f64>::quiet_nan();
     const keel::f64 inv_sig = 1.0 / sigma;
     if (x <= 0.0) return 0.0;
-    return phi((std::log(x) - mu) * inv_sig);
+    return phi((keel::log(x) - mu) * inv_sig);
 }
 
 inline keel::f64 logninvK(keel::f64 p, keel::f64 mu, keel::f64 sigma)
 {
-    if (sigma <= 0.0) return std::numeric_limits<keel::f64>::quiet_NaN();
-    if (std::isnan(p) || p < 0.0 || p > 1.0)
-        return std::numeric_limits<keel::f64>::quiet_NaN();
+    if (sigma <= 0.0) return keel::Limits<keel::f64>::quiet_nan();
+    if (keel::is_nan(p) || p < 0.0 || p > 1.0)
+        return keel::Limits<keel::f64>::quiet_nan();
     if (p == 0.0) return 0.0;
-    if (p == 1.0) return std::numeric_limits<keel::f64>::infinity();
-    return std::exp(mu + sigma * phiInv(p));
+    if (p == 1.0) return keel::Limits<keel::f64>::infinity();
+    return keel::exp(mu + sigma * phiInv(p));
 }
 
 } // anonymous

@@ -2,6 +2,7 @@
 // wbllike.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -49,15 +50,15 @@ TEST_F(WbllikeTest, InvalidParams)
 {
     eval(kSetup);
     // fix #5: invalid params -> NaN (was +Inf).
-    EXPECT_TRUE(std::isnan(evalScalar("wbllike([0, 2], data)")));   // scale=0
-    EXPECT_TRUE(std::isnan(evalScalar("wbllike([-1, 2], data)")));  // scale<0
-    EXPECT_TRUE(std::isnan(evalScalar("wbllike([1, 0], data)")));   // shape=0
-    EXPECT_TRUE(std::isnan(evalScalar("wbllike([1, -1], data)")));  // shape<0
+    EXPECT_TRUE(keel::is_nan(evalScalar("wbllike([0, 2], data)")));   // scale=0
+    EXPECT_TRUE(keel::is_nan(evalScalar("wbllike([-1, 2], data)")));  // scale<0
+    EXPECT_TRUE(keel::is_nan(evalScalar("wbllike([1, 0], data)")));   // shape=0
+    EXPECT_TRUE(keel::is_nan(evalScalar("wbllike([1, -1], data)")));  // shape<0
 }
 
 TEST_F(WbllikeTest, NonPositiveData)
 {
     // Weibull support is x > 0; any non-positive x -> NaN (was +Inf).
-    EXPECT_TRUE(std::isnan(evalScalar("wbllike([1, 2], [-1; 2; 3])")));
-    EXPECT_TRUE(std::isnan(evalScalar("wbllike([1, 2], [0; 2; 3])")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("wbllike([1, 2], [-1; 2; 3])")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("wbllike([1, 2], [0; 2; 3])")));
 }

@@ -2,6 +2,7 @@
 // gaminv.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -31,13 +32,13 @@ TEST_F(GaminvTest, VectorQ)
 TEST_F(GaminvTest, BoundaryQuantiles)
 {
     EXPECT_DOUBLE_EQ(evalScalar("gaminv(0, 2, 1)"), 0.0);
-    EXPECT_TRUE(std::isinf(evalScalar("gaminv(1, 2, 1)")));
+    EXPECT_TRUE(keel::is_inf(evalScalar("gaminv(1, 2, 1)")));
 }
 
 TEST_F(GaminvTest, OutOfRangeProbReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("gaminv(-0.1, 2, 1)")));
-    EXPECT_TRUE(std::isnan(evalScalar("gaminv( 1.5, 2, 1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("gaminv(-0.1, 2, 1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("gaminv( 1.5, 2, 1)")));
 }
 
 TEST_F(GaminvTest, A0DegenerateZero)
@@ -47,6 +48,6 @@ TEST_F(GaminvTest, A0DegenerateZero)
 
 TEST_F(GaminvTest, InvalidParamsReturnNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("gaminv(0.5, -1, 1)")));
-    EXPECT_TRUE(std::isnan(evalScalar("gaminv(0.5,  2, 0)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("gaminv(0.5, -1, 1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("gaminv(0.5,  2, 0)")));
 }

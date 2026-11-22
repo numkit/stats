@@ -10,15 +10,13 @@
 #pragma once
 
 #include <keel/core.h>
+#include <keel/math.h>
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
-#include <cstring>
-#include <limits>
 #include <tuple>
 #include <utility>
 
@@ -46,17 +44,17 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
 // per-element domain: a<0 or b<=0 → NaN, a==0 → 0. Mirrors public gampdf.
 inline keel::f64 gampdfK(keel::f64 x, keel::f64 a, keel::f64 b)
 {
-    if (a < 0.0 || b <= 0.0) return std::numeric_limits<keel::f64>::quiet_NaN();
+    if (a < 0.0 || b <= 0.0) return keel::Limits<keel::f64>::quiet_nan();
     if (a == 0.0) return 0.0;
     if (x < 0.0) return 0.0;
-    const keel::f64 log_b = std::log(b);
-    const keel::f64 lga   = std::lgamma(a);
+    const keel::f64 log_b = keel::log(b);
+    const keel::f64 lga   = keel::lgamma(a);
     if (x == 0.0) {
-        if (a < 1.0) return std::numeric_limits<keel::f64>::infinity();
+        if (a < 1.0) return keel::Limits<keel::f64>::infinity();
         if (a > 1.0) return 0.0;
-        return std::exp(-lga - log_b);   // a == 1 → 1/b
+        return keel::exp(-lga - log_b);   // a == 1 → 1/b
     }
-    return std::exp((a - 1.0) * std::log(x) - x / b - a * log_b - lga);
+    return keel::exp((a - 1.0) * keel::log(x) - x / b - a * log_b - lga);
 }
 
 } // anonymous

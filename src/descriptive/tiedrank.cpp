@@ -21,6 +21,7 @@
 // themselves, then NaN slots are written back as NaN).
 
 #include <keel/array.h>
+#include <keel/math.h>
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <numkit/stats/descriptive/descriptive.hpp>
@@ -29,8 +30,6 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
-#include <limits>
 #include <utility>
 
 namespace numkit::stats {
@@ -46,8 +45,8 @@ keel::f64 rankOneColumn(const keel::f64 *col, keel::usize N, keel::f64 *ranks)
     keel::Array<std::pair<keel::f64, keel::usize>> nz;
     nz.reserve(N);
     for (keel::usize i = 0; i < N; ++i) {
-        if (std::isnan(col[i])) {
-            ranks[i] = std::numeric_limits<keel::f64>::quiet_NaN();
+        if (keel::is_nan(col[i])) {
+            ranks[i] = keel::Limits<keel::f64>::quiet_nan();
         } else {
             nz.emplace_back(col[i], i);
         }

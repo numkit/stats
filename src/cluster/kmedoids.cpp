@@ -4,6 +4,7 @@
 // delegating numerical kernels to keel::stats.
 
 #include <keel/arena.h>
+#include <keel/algo.h>
 #include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
@@ -18,8 +19,6 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 
-#include <cstring>
-#include <limits>
 
 #include "kmedoids_detail.hpp"
 
@@ -86,7 +85,7 @@ kmedoids_full(::numkit::ops::RngContext &rng, const Value &X, keel::i32 K,
     keel::Array<keel::i32> best_med(Ku, 0, scratch.allocator());
     keel::Array<keel::i32> best_idx(N, 0, scratch.allocator());
     keel::Array<keel::f64> best_sumd(Ku, 0.0, scratch.allocator());
-    keel::f64 best_total = std::numeric_limits<keel::f64>::infinity();
+    keel::f64 best_total = keel::Limits<keel::f64>::infinity();
     keel::i32 best_iters = 0;
     keel::i32 best_rep   = 0;
 
@@ -110,9 +109,9 @@ kmedoids_full(::numkit::ops::RngContext &rng, const Value &X, keel::i32 K,
 
         if (total < best_total) {
             best_total = total;
-            std::memcpy(best_med.data(), med.data(), Ku * sizeof(keel::i32));
-            std::memcpy(best_idx.data(), idx.data(), N * sizeof(keel::i32));
-            std::memcpy(best_sumd.data(), sumd.data(), Ku * sizeof(keel::f64));
+            keel::copy_n(best_med.data(), med.data(), Ku);
+            keel::copy_n(best_idx.data(), idx.data(), N);
+            keel::copy_n(best_sumd.data(), sumd.data(), Ku);
             best_iters = rep_iters;
             best_rep = rep + 1;
         }

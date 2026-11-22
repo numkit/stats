@@ -4,6 +4,7 @@
 // delegating IRLS numerical kernels to keel::stats.
 
 #include <keel/arena.h>
+#include <keel/algo.h>
 #include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
@@ -13,7 +14,6 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 
-#include <cstring>
 
 namespace numkit::stats {
 
@@ -83,13 +83,13 @@ GlmfitResult glmfit(const Value &X, const Value &y,
     Value resid     = Value::matrix(n, 1, ValueType::DOUBLE, mr);
     Value wts       = Value::matrix(n, 1, ValueType::DOUBLE, mr);
 
-    std::memcpy(bv.doubleDataMut(), fit.beta.data(), p * sizeof(keel::f64));
-    std::memcpy(covb.doubleDataMut(), fit.covb.data(), p * p * sizeof(keel::f64));
-    std::memcpy(se.doubleDataMut(), fit.se.data(), p * sizeof(keel::f64));
-    std::memcpy(coeffcorr.doubleDataMut(), fit.coeffcorr.data(), p * p * sizeof(keel::f64));
-    std::memcpy(tStat.doubleDataMut(), fit.t_stat.data(), p * sizeof(keel::f64));
-    std::memcpy(resid.doubleDataMut(), fit.resid.data(), n * sizeof(keel::f64));
-    std::memcpy(wts.doubleDataMut(), fit.wts.data(), n * sizeof(keel::f64));
+    keel::copy_n(bv.doubleDataMut(), fit.beta.data(), p);
+    keel::copy_n(covb.doubleDataMut(), fit.covb.data(), p * p);
+    keel::copy_n(se.doubleDataMut(), fit.se.data(), p);
+    keel::copy_n(coeffcorr.doubleDataMut(), fit.coeffcorr.data(), p * p);
+    keel::copy_n(tStat.doubleDataMut(), fit.t_stat.data(), p);
+    keel::copy_n(resid.doubleDataMut(), fit.resid.data(), n);
+    keel::copy_n(wts.doubleDataMut(), fit.wts.data(), n);
 
     Value stats = Value::structure(mr);
     stats.field("beta")      = bv;

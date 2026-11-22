@@ -10,6 +10,7 @@
 //   gevfit  — Generalised Extreme Value
 
 #include <keel/array.h>
+#include <keel/math.h>
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <keel/stats.h>
@@ -24,7 +25,6 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 
-#include <cmath>
 
 namespace numkit::stats {
 
@@ -161,7 +161,7 @@ keel::stats::Fit2Result run_nbinfit(const Value &x, keel::f64 alpha, bool comput
         throw Error("nbinfit: need at least 2 observations",
                     0, 0, "nbinfit", "", "numkit:nbinfit:tooFewObs");
     for (keel::f64 v : xv) {
-        if (v < 0.0 || std::fabs(v - std::round(v)) > 1e-9)
+        if (v < 0.0 || keel::abs(v - keel::round(v)) > 1e-9)
             throw Error("nbinfit: observations must be non-negative integers",
                         0, 0, "nbinfit", "", "numkit:nbinfit:notInteger");
     }
@@ -183,7 +183,7 @@ keel::stats::Fit2Result run_evfit(const Value &x, const Value &censoring, const 
         throw Error("evfit: need at least 2 observations",
                     0, 0, "evfit", "", "numkit:evfit:tooFewObs");
     for (keel::f64 v : xv) {
-        if (!std::isfinite(v))
+        if (!keel::is_finite(v))
             throw Error("evfit: observations must be finite",
                         0, 0, "evfit", "", "numkit:evfit:notFinite");
     }
@@ -227,7 +227,7 @@ keel::stats::Fit2Result run_gpfit(const Value &x, keel::f64 alpha, bool compute_
         throw Error("gpfit: need at least 2 observations",
                     0, 0, "gpfit", "", "numkit:gpfit:tooFewObs");
     for (keel::f64 v : xv) {
-        if (!std::isfinite(v) || v < 0.0)
+        if (!keel::is_finite(v) || v < 0.0)
             throw Error("gpfit: observations must be finite and ≥ 0 "
                         "(threshold θ = 0 assumed)",
                         0, 0, "gpfit", "", "numkit:gpfit:invalidData");
@@ -244,7 +244,7 @@ keel::stats::Fit3Result run_gevfit(const Value &x, keel::f64 alpha, bool compute
         throw Error("gevfit: need at least 3 observations",
                     0, 0, "gevfit", "", "numkit:gevfit:tooFewObs");
     for (keel::f64 v : xv) {
-        if (!std::isfinite(v))
+        if (!keel::is_finite(v))
             throw Error("gevfit: observations must be finite",
                         0, 0, "gevfit", "", "numkit:gevfit:notFinite");
     }

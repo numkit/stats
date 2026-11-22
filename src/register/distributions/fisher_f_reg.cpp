@@ -17,7 +17,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <tuple>
 #include <utility>
@@ -61,7 +60,7 @@ void fcdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArra
         } else {
             dist_match_numel({nx, n1, n2}, "fcdf");
             Value y = broadcast_dist3(x, v1, v2, mr, "fcdf", [](keel::f64 xi, keel::f64 d1, keel::f64 d2) -> keel::f64 {
-                if (d1 <= 0.0 || d2 <= 0.0) return std::numeric_limits<keel::f64>::quiet_NaN();
+                if (d1 <= 0.0 || d2 <= 0.0) return keel::Limits<keel::f64>::quiet_nan();
                 if (xi <= 0.0) return 0.0;
                 return (d1 * xi) / (d1 * xi + d2);
             });
@@ -100,14 +99,14 @@ void finv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArra
     Value out = dist_empty_like(ref, mr);
     keel::f64 *od = out.doubleDataMut();
     const keel::usize nz = z.numel();
-    const keel::f64 NaN = std::numeric_limits<keel::f64>::quiet_NaN();
+    const keel::f64 NaN = keel::Limits<keel::f64>::quiet_nan();
     for (keel::usize i = 0; i < N; ++i) {
         const keel::f64 d1 = v1.elemAsDouble(n1 == 1 ? 0 : i);
         const keel::f64 d2 = v2.elemAsDouble(n2 == 1 ? 0 : i);
         if (d1 <= 0.0 || d2 <= 0.0) { od[i] = NaN; continue; }
         const keel::f64 zi = z.elemAsDouble(nz == 1 ? 0 : i);
         if (zi <= 0.0) { od[i] = 0.0; continue; }
-        if (zi >= 1.0) { od[i] = std::numeric_limits<keel::f64>::infinity(); continue; }
+        if (zi >= 1.0) { od[i] = keel::Limits<keel::f64>::infinity(); continue; }
         od[i] = (d2 / d1) * zi / (1.0 - zi);
     }
     outs[0] = std::move(out);

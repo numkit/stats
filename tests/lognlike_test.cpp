@@ -2,6 +2,7 @@
 // lognlike. Reference values from MATLAB R2025b.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -53,12 +54,12 @@ TEST_F(LognlikeTest, CensoringPlusFreq)
 
 TEST_F(LognlikeTest, ZeroSigmaReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("lognlike([0, 0], [1 2 3 4 5]')")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("lognlike([0, 0], [1 2 3 4 5]')")));
 }
 
 TEST_F(LognlikeTest, NegativeXReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("lognlike([0, 1], [-1 2 3]')")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("lognlike([0, 1], [-1 2 3]')")));
 }
 
 TEST_F(LognlikeTest, EmptyDataReturnsZero)

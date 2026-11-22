@@ -10,15 +10,13 @@
 #pragma once
 
 #include <keel/core.h>
+#include <keel/math.h>
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
-#include <cstring>
-#include <limits>
 #include <tuple>
 #include <utility>
 
@@ -45,22 +43,22 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
 // Scalar kernels for the parameter-broadcast path (vector N). Own their
 // per-element domain (N<1 or noninteger N → NaN). Mirror the public fns.
 inline keel::f64 unidpdfK(keel::f64 k, keel::f64 N) {
-    if (N < 1.0 || std::floor(N) != N) return std::numeric_limits<keel::f64>::quiet_NaN();
-    if (k < 1.0 || k > N || std::floor(k) != k) return 0.0;
+    if (N < 1.0 || keel::floor(N) != N) return keel::Limits<keel::f64>::quiet_nan();
+    if (k < 1.0 || k > N || keel::floor(k) != k) return 0.0;
     return 1.0 / N;
 }
 
 inline keel::f64 unidcdfK(keel::f64 k, keel::f64 N) {
-    if (N < 1.0 || std::floor(N) != N) return std::numeric_limits<keel::f64>::quiet_NaN();
+    if (N < 1.0 || keel::floor(N) != N) return keel::Limits<keel::f64>::quiet_nan();
     if (k < 1.0) return 0.0;
     if (k >= N) return 1.0;
-    return std::floor(k) / N;
+    return keel::floor(k) / N;
 }
 
 inline keel::f64 unidinvK(keel::f64 p, keel::f64 N) {
-    if (!(N >= 1.0) || std::floor(N) != N) return std::numeric_limits<keel::f64>::quiet_NaN();
-    if (std::isnan(p) || p <= 0.0 || p > 1.0) return std::numeric_limits<keel::f64>::quiet_NaN();
-    const keel::f64 r = std::ceil(p * N);
+    if (!(N >= 1.0) || keel::floor(N) != N) return keel::Limits<keel::f64>::quiet_nan();
+    if (keel::is_nan(p) || p <= 0.0 || p > 1.0) return keel::Limits<keel::f64>::quiet_nan();
+    const keel::f64 r = keel::ceil(p * N);
     return r < 1.0 ? 1.0 : (r > N ? N : r);
 }
 

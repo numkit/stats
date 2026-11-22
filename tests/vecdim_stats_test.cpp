@@ -7,6 +7,7 @@
 // vecdim-partial.md, trimmean-vecdim.md — now fixed).
 
 #include "dual_engine_fixture.hpp"
+#include <keel/math.h>
 
 #include <gtest/gtest.h>
 
@@ -110,5 +111,5 @@ TEST_P(VecdimStatsTest, MapeRmseVecdim)
     // Per-slice rmse of A vs 2A == sqrt(mean of the j=1 block squares):
     // (1+4+49+64+169+196+361+400)/8 = 155.5.
     eval("rr = rmse(A, 2*A, [1 3]);");
-    EXPECT_NEAR(evalScalar("rr(1);"), std::sqrt(155.5), 1e-12);
+    EXPECT_NEAR(evalScalar("rr(1);"), keel::sqrt(155.5), 1e-12);
 }

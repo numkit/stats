@@ -4,6 +4,7 @@
 // empty => 0).
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -53,12 +54,12 @@ TEST_F(ExplikeTest, CensoringPlusFreq)
 
 TEST_F(ExplikeTest, NegativeMuReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("explike(-1, x)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("explike(-1, x)")));
 }
 
 TEST_F(ExplikeTest, ZeroMuReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("explike(0, x)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("explike(0, x)")));
 }
 
 TEST_F(ExplikeTest, EmptyDataReturnsZero)

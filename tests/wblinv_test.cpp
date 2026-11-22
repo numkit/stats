@@ -2,6 +2,7 @@
 // wblinv.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -27,7 +28,7 @@ TEST_F(WblinvTest, DefaultsExponentialEquivalent)
 TEST_F(WblinvTest, BoundaryProb)
 {
     EXPECT_DOUBLE_EQ(evalScalar("wblinv(0)"), 0.0);
-    EXPECT_TRUE(std::isinf(evalScalar("wblinv(1)")));
+    EXPECT_TRUE(keel::is_inf(evalScalar("wblinv(1)")));
     EXPECT_GT(evalScalar("wblinv(1)"), 0.0);
 }
 
@@ -48,16 +49,16 @@ TEST_F(WblinvTest, VectorQuantile)
 
 TEST_F(WblinvTest, ProbOutOfRange)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("wblinv(-0.1)")));
-    EXPECT_TRUE(std::isnan(evalScalar("wblinv( 1.5)")));
-    EXPECT_TRUE(std::isnan(evalScalar("wblinv( NaN, 1, 1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("wblinv(-0.1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("wblinv( 1.5)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("wblinv( NaN, 1, 1)")));
 }
 
 TEST_F(WblinvTest, BadParams)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("wblinv(0.5,  0, 1)")));
-    EXPECT_TRUE(std::isnan(evalScalar("wblinv(0.5, -1, 1)")));
-    EXPECT_TRUE(std::isnan(evalScalar("wblinv(0.5,  1, 0)")));
-    EXPECT_TRUE(std::isnan(evalScalar("wblinv(0.5,  1, -1)")));
-    EXPECT_TRUE(std::isnan(evalScalar("wblinv(0.5,  NaN, 1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("wblinv(0.5,  0, 1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("wblinv(0.5, -1, 1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("wblinv(0.5,  1, 0)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("wblinv(0.5,  1, -1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("wblinv(0.5,  NaN, 1)")));
 }

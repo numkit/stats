@@ -2,6 +2,7 @@
 // fpdf. Reference values from MATLAB R2025b.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -46,7 +47,7 @@ TEST_F(FpdfTest, DensityAtZero_V1eq2_IsFinite)
 TEST_F(FpdfTest, DensityAtZero_V1lt2_IsInf)
 {
     // F(1, ν2) at x=0 → +∞ (heavy at origin).
-    EXPECT_TRUE(std::isinf(evalScalar("fpdf(0, 1, 10)")));
+    EXPECT_TRUE(keel::is_inf(evalScalar("fpdf(0, 1, 10)")));
 }
 
 TEST_F(FpdfTest, DensityAtZero_V1gt2_IsZero)
@@ -57,7 +58,7 @@ TEST_F(FpdfTest, DensityAtZero_V1gt2_IsZero)
 
 TEST_F(FpdfTest, InvalidDofReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("fpdf(2,  0, 10)")));
-    EXPECT_TRUE(std::isnan(evalScalar("fpdf(2,  5,  0)")));
-    EXPECT_TRUE(std::isnan(evalScalar("fpdf(2, -1, 10)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("fpdf(2,  0, 10)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("fpdf(2,  5,  0)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("fpdf(2, -1, 10)")));
 }

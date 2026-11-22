@@ -13,8 +13,6 @@
 
 #include "dist_helpers.hpp"
 
-#include <cmath>
-#include <limits>
 #include <mutex>
 
 
@@ -52,7 +50,7 @@ Value raylrnd(::numkit::ops::RngContext &rng, keel::f64 b, keel::usize rows, kee
     if (n == 0) return out;
     keel::f64 *od = out.doubleDataMut();
     if (!(b > 0.0)) {
-        const keel::f64 fillVal = (b == 0.0) ? 0.0 : std::numeric_limits<keel::f64>::quiet_NaN();
+        const keel::f64 fillVal = (b == 0.0) ? 0.0 : keel::Limits<keel::f64>::quiet_nan();
         for (keel::usize i = 0; i < n; ++i) od[i] = fillVal;
         return out;
     }
@@ -63,7 +61,7 @@ Value raylrnd(::numkit::ops::RngContext &rng, keel::f64 b, keel::usize rows, kee
     }
     for (keel::usize i = 0; i < n; ++i) {
         const keel::f64 z2 = rng.nextNormal();
-        od[i] = std::sqrt(od[i] + z2 * z2) * b;
+        od[i] = keel::sqrt(od[i] + z2 * z2) * b;
     }
     return out;
 }
@@ -71,10 +69,10 @@ Value raylrnd(::numkit::ops::RngContext &rng, keel::f64 b, keel::usize rows, kee
 std::tuple<keel::f64, keel::f64> raylstat(keel::f64 b)
 {
     if (b <= 0.0) {
-        const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
+        const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
         return std::make_tuple(nan, nan);
     }
-    const keel::f64 mean = b * std::sqrt(0.5 * keel::kPi);
+    const keel::f64 mean = b * keel::sqrt(0.5 * keel::kPi);
     const keel::f64 var  = (2.0 - 0.5 * keel::kPi) * b * b;
     return std::make_tuple(mean, var);
 }

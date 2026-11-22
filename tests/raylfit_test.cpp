@@ -2,6 +2,7 @@
 // raylfit.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -45,7 +46,7 @@ TEST_F(RaylfitTest, SingleElement)
 TEST_F(RaylfitTest, EmptyInput)
 {
     eval("[s, sc] = raylfit([]);");
-    EXPECT_TRUE(std::isnan(evalScalar("s")));
-    EXPECT_TRUE(std::isnan(evalScalar("sc(1)")));
-    EXPECT_TRUE(std::isnan(evalScalar("sc(2)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("s")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("sc(1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("sc(2)")));
 }

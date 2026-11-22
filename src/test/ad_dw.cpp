@@ -4,6 +4,7 @@
 // test (dwtest), delegating numerical kernels to keel::stats.
 
 #include <keel/arena.h>
+#include <keel/math.h>
 #include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
@@ -14,7 +15,6 @@
 #include <numkit/value/value.hpp>
 
 #include <algorithm>
-#include <cmath>
 
 #include "ad_dw_detail.hpp"
 
@@ -57,7 +57,7 @@ adtest(const Value &x, keel::f64 alpha, keel::Allocator *mr)
     for (keel::usize i = 0; i < N; ++i) {
         const keel::f64 xi = x.elemAsDouble(i);
         xv[i] = xi;
-        if (!std::isnan(xi)) ++finite_count;
+        if (!keel::is_nan(xi)) ++finite_count;
     }
     if (finite_count < 4)
         throw Error("adtest: need at least 4 non-NaN observations",

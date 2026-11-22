@@ -2,6 +2,7 @@
 // unifit.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -55,8 +56,8 @@ TEST_F(UnifitTest, EmptyInputReturnsNaN)
     // Convention difference vs MATLAB: nk returns NaN; MATLAB
     // returns empty arrays. We follow nk's *fit family convention.
     eval("[a, b, aci, bci] = unifit([]);");
-    EXPECT_TRUE(std::isnan(evalScalar("a")));
-    EXPECT_TRUE(std::isnan(evalScalar("b")));
-    EXPECT_TRUE(std::isnan(evalScalar("aci(1)")));
-    EXPECT_TRUE(std::isnan(evalScalar("bci(2)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("a")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("b")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("aci(1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("bci(2)")));
 }

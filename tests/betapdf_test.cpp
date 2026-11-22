@@ -3,6 +3,7 @@
 // change). Reference values from MATLAB R2025b probe.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -42,8 +43,8 @@ TEST_F(BetapdfTest, OutOfSupportReturnsZero)
 
 TEST_F(BetapdfTest, InvalidShapeReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("betapdf(0.5,  0, 3)")));
-    EXPECT_TRUE(std::isnan(evalScalar("betapdf(0.5,  2, 0)")));
-    EXPECT_TRUE(std::isnan(evalScalar("betapdf(0.5, -1, 3)")));
-    EXPECT_TRUE(std::isnan(evalScalar("betapdf(0.5,  2, -1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("betapdf(0.5,  0, 3)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("betapdf(0.5,  2, 0)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("betapdf(0.5, -1, 3)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("betapdf(0.5,  2, -1)")));
 }

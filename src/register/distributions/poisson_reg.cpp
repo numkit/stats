@@ -4,6 +4,7 @@
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
 #include <keel/core.h>
+#include <keel/math.h>
 #include <keel/ref.h>
 #include <numkit/sys/plugin.hpp>
 #include <numkit/builtin/datafun.hpp>
@@ -17,7 +18,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <tuple>
 #include <utility>
@@ -58,13 +58,13 @@ void poisscdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mut
             v = dist_empty_like(nk == 0 ? k : lam, mr);
         } else {
             const keel::usize N = dist_match_numel({nk, nl}, "poisscdf");
-            Value xs = elementwise(k, [](keel::f64 ki) { return ki < 0.0 ? 1.0 : std::floor(ki) + 1.0; }, mr);
+            Value xs = elementwise(k, [](keel::f64 ki) { return ki < 0.0 ? 1.0 : keel::floor(ki) + 1.0; }, mr);
             Value lower = ::numkit::builtin::gammainc(lam, xs, mr);   // P(⌊k⌋+1, λ)
             const Value &ref = (nl == N) ? lam : k;
             v = dist_empty_like(ref, mr);
             keel::f64 *od = v.doubleDataMut();
             const keel::usize nlo = lower.numel();
-            const keel::f64 NaN = std::numeric_limits<keel::f64>::quiet_NaN();
+            const keel::f64 NaN = keel::Limits<keel::f64>::quiet_nan();
             for (keel::usize i = 0; i < N; ++i) {
                 const keel::f64 li = lam.elemAsDouble(nl == 1 ? 0 : i);
                 const keel::f64 ki = k.elemAsDouble(nk == 1 ? 0 : i);
@@ -98,7 +98,7 @@ void poissinv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mut
     const Value &ref = (nl == N) ? lam : p;
     Value out = dist_empty_like(ref, mr);
     keel::f64 *od = out.doubleDataMut();
-    const keel::f64 NaN = std::numeric_limits<keel::f64>::quiet_NaN();
+    const keel::f64 NaN = keel::Limits<keel::f64>::quiet_nan();
     for (keel::usize i = 0; i < N; ++i) {
         const keel::f64 li = lam.elemAsDouble(nl == 1 ? 0 : i);
         const keel::f64 pi = p.elemAsDouble(np == 1 ? 0 : i);

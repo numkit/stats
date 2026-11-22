@@ -2,6 +2,7 @@
 // poissfit.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -46,7 +47,7 @@ TEST_F(PoissfitTest, NonDefaultAlpha)
 TEST_F(PoissfitTest, EmptyInput)
 {
     eval("[lh, lci] = poissfit([]);");
-    EXPECT_TRUE(std::isnan(evalScalar("lh")));
-    EXPECT_TRUE(std::isnan(evalScalar("lci(1)")));
-    EXPECT_TRUE(std::isnan(evalScalar("lci(2)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("lh")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("lci(1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("lci(2)")));
 }

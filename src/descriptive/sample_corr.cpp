@@ -21,7 +21,6 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
 
 namespace numkit::stats {
 
@@ -120,7 +119,7 @@ autocorr(const Value &y, keel::i32 numLags, keel::f64 numSTD, keel::Allocator *m
         lags[k] = keel::as<keel::f64>(k);
     }
 
-    const keel::f64 b = (N > 0) ? numSTD / std::sqrt(keel::as<keel::f64>(N)) : 0.0;
+    const keel::f64 b = (N > 0) ? numSTD / keel::sqrt(keel::as<keel::f64>(N)) : 0.0;
     keel::Array<keel::f64> bounds = { b, -b };
     return std::make_tuple(colVec(acf, mr), colVec(lags, mr), colVec(bounds, mr));
 }
@@ -137,7 +136,7 @@ crosscorr(const Value &y1, const Value &y2, keel::i32 numLags, keel::f64 numSTD,
     keel::f64 v1 = 0.0, v2 = 0.0;
     centred(y1, c1, v1);
     centred(y2, c2, v2);
-    const keel::f64 denom = std::sqrt(v1 * v2);
+    const keel::f64 denom = keel::sqrt(v1 * v2);
 
     // xcf at lag k = (1/N) Σ_t c1[t]·c2[t+k] / √(c1(0)·c2(0)), k = -K..K.
     const keel::i64 Kl = keel::as<keel::i64>(K), Nl = keel::as<keel::i64>(N);
@@ -153,7 +152,7 @@ crosscorr(const Value &y1, const Value &y2, keel::i32 numLags, keel::f64 numSTD,
         lags[idx] = keel::as<keel::f64>(k);
     }
 
-    const keel::f64 b = (N > 0) ? numSTD / std::sqrt(keel::as<keel::f64>(N)) : 0.0;
+    const keel::f64 b = (N > 0) ? numSTD / keel::sqrt(keel::as<keel::f64>(N)) : 0.0;
     keel::Array<keel::f64> bounds = { b, -b };
     return std::make_tuple(colVec(xcf, mr), colVec(lags, mr), colVec(bounds, mr));
 }
@@ -192,7 +191,7 @@ parcorr(const Value &y, keel::i32 numLags, keel::f64 numSTD, keel::Allocator *mr
         if (solveDense(A, bb, p)) pacf[k] = bb[p - 1];   // φ_k; else leave 0
     }
 
-    const keel::f64 bnd = (N > 0) ? numSTD / std::sqrt(keel::as<keel::f64>(N)) : 0.0;
+    const keel::f64 bnd = (N > 0) ? numSTD / keel::sqrt(keel::as<keel::f64>(N)) : 0.0;
     keel::Array<keel::f64> bounds = { bnd, -bnd };
     return std::make_tuple(colVec(pacf, mr), colVec(lags, mr), colVec(bounds, mr));
 }

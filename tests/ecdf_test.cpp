@@ -2,6 +2,7 @@
 // ecdf.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -63,8 +64,8 @@ TEST_F(EcdfTest, FrequencyWeighting)
 TEST_F(EcdfTest, FourOutputBoundsBinomial)
 {
     eval("[fc, xc, flo, fup] = ecdf(y);");
-    EXPECT_TRUE(std::isnan(evalScalar("flo(1)")));
-    EXPECT_TRUE(std::isnan(evalScalar("flo(numel(flo))")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("flo(1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("flo(numel(flo))")));
     EXPECT_NEAR(evalScalar("flo(2)"), 0.0,        1e-9);
     EXPECT_NEAR(evalScalar("fup(2)"), 0.31643,    1e-4);
     EXPECT_NEAR(evalScalar("flo(3)"), 0.0253547,  1e-6);

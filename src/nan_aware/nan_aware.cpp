@@ -5,6 +5,7 @@
 // MATLAB-taxonomy refactor — Statistics Toolbox content.
 
 #include <keel/core.h>
+#include <keel/math.h>
 #include <keel/memory.h>
 #include <keel/arena.h>
 #include <keel/array.h>
@@ -18,8 +19,6 @@
 #include <numkit/ops/nan_reductions.hpp>
 
 #include <algorithm>
-#include <cmath>
-#include <cstring>
 
 #include "nan_aware_detail.hpp"
 
@@ -62,7 +61,7 @@ Value nanmean(const Value &x, keel::i32 dim, keel::Allocator *mr)
     if ((x.dims().isVector() || x.isScalar()) && x.type() == ValueType::DOUBLE) {
         const auto r = nanSumCountScan(x.doubleData(), x.numel());
         return Value::scalar(r.count > 0 ? r.sum / keel::as<keel::f64>(r.count)
-                                          : std::nan(""), mr);
+                                          : keel::kNaN, mr);
     }
 
     const keel::i32 d = resolveDim(x, dim, "nanmean");
@@ -70,7 +69,7 @@ Value nanmean(const Value &x, keel::i32 dim, keel::Allocator *mr)
         [](keel::usize, keel::f64 *slice, keel::usize n) {
             const auto r = nanSumCountScan(slice, n);
             return r.count > 0 ? r.sum / keel::as<keel::f64>(r.count)
-                               : std::nan("");
+                               : keel::kNaN;
         }, mr);
 }
 
@@ -123,12 +122,12 @@ Value nanstdev(const Value &x, keel::i32 normFlag, keel::i32 dim, keel::Allocato
     if (x.isEmpty())
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     if ((x.dims().isVector() || x.isScalar()) && x.type() == ValueType::DOUBLE)
-        return Value::scalar(std::sqrt(nanVarianceTwoPass(x.doubleData(), x.numel(), normFlag)), mr);
+        return Value::scalar(keel::sqrt(nanVarianceTwoPass(x.doubleData(), x.numel(), normFlag)), mr);
 
     const keel::i32 d = resolveDim(x, dim, "nanstd");
     return applyAlongDim(x, d,
         [normFlag](keel::usize, keel::f64 *slice, keel::usize n) {
-            return std::sqrt(nanVarianceTwoPass(slice, n, normFlag));
+            return keel::sqrt(nanVarianceTwoPass(slice, n, normFlag));
         }, mr);
 }
 
@@ -166,10 +165,10 @@ Value nancov(const Value &x, keel::i32 normFlag, keel::Allocator *mr)
 
     if (n_kept == 0) {
         // All rows dropped → MATLAB returns NaN-filled p×p (or scalar NaN for vector).
-        if (p == 1) return Value::scalar(std::nan(""), mr);
+        if (p == 1) return Value::scalar(keel::kNaN, mr);
         auto out = Value::matrix(p, p, ValueType::DOUBLE, mr);
         keel::f64 *d = out.doubleDataMut();
-        for (keel::usize k = 0; k < p * p; ++k) d[k] = std::nan("");
+        for (keel::usize k = 0; k < p * p; ++k) d[k] = keel::kNaN;
         return out;
     }
 
@@ -216,7 +215,7 @@ Value nancov(const Value &x, const Value &y, keel::i32 normFlag,
     if (n_kept == 0) {
         auto out = Value::matrix(2, 2, ValueType::DOUBLE, mr);
         keel::f64 *d = out.doubleDataMut();
-        for (keel::usize k = 0; k < 4; ++k) d[k] = std::nan("");
+        for (keel::usize k = 0; k < 4; ++k) d[k] = keel::kNaN;
         return out;
     }
     keel::Array<keel::f64> tight(n_kept * 2, scratch.allocator());

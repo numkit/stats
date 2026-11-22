@@ -5,6 +5,7 @@
 // mode only ('pairwise' is a documented gap).
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <gtest/gtest.h>
 
 #include <cmath>
@@ -104,7 +105,7 @@ TEST_F(NancovTest, PartialrowsPairwiseDeletion)
     EXPECT_NEAR(evalScalar("Cp(2,1)"), 7.0 / 3.0, 1e-12);
     EXPECT_NEAR(evalScalar("Cp(2,2)"), 7.0 / 3.0, 1e-12);
     // 'includenan' (default) still NaN-poisons.
-    EXPECT_TRUE(std::isnan(evalScalar("Ci = cov(X,'includenan'); Ci(2,2)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("Ci = cov(X,'includenan'); Ci(2,2)")));
 }
 
 // ── corrcoef 'Rows' NaN policy (2026-05-30): 'complete' / 'pairwise' ──
@@ -135,7 +136,7 @@ TEST_F(NancovTest, CorrcoefRowsPairwise)
     EXPECT_NEAR(evalScalar("Cp(2,3)"), -0.300375704593055, 1e-10);
     EXPECT_NEAR(evalScalar("Cp(1,1)"),  1.0,               1e-12);
     // 'all' (default) still NaN-poisons.
-    EXPECT_TRUE(std::isnan(evalScalar("Ca = corrcoef(Xn); Ca(2,2)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("Ca = corrcoef(Xn); Ca(2,2)")));
     // [R,P] with 'pairwise' uses per-pair degrees of freedom (df_ij = m_ij - 2).
     eval("[R,P] = corrcoef(Xn,'Rows','pairwise');");
     EXPECT_NEAR(evalScalar("P(1,3)"), 0.7098095, 1e-5);
@@ -158,9 +159,9 @@ TEST_F(NancovTest, SkewnessKurtosisOmitNaN)
     EXPECT_NEAR(evalScalar("s = skewness([1 5; 2 6; 3 7; 4 100]); s(2)"),
                 1.153657, 1e-5);
     // A column with < 2 non-NaN values yields NaN.
-    EXPECT_TRUE(std::isnan(evalScalar("s = skewness([NaN 5; NaN 6; 3 7]); s(1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("s = skewness([NaN 5; NaN 6; 3 7]); s(1)")));
     // flag=0 (bias-corrected) kurtosis needs >= 4 non-NaN -> NaN with 3.
-    EXPECT_TRUE(std::isnan(evalScalar("k = kurtosis(Mn,0); k(2)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("k = kurtosis(Mn,0); k(2)")));
 }
 
 // ── mad/iqr NaN omission (2026-05-30) ────────────────────────────────
@@ -183,8 +184,8 @@ TEST_F(NancovTest, MadIqrOmitNaN)
     EXPECT_NEAR(evalScalar("m = mad([1 5;2 6;3 7;4 100]); m(2)"), 35.25, 1e-12);
     EXPECT_NEAR(evalScalar("q = iqr([1 5;2 6;3 7;4 100]); q(2)"), 48.0,  1e-12);
     // All-NaN column -> NaN.
-    EXPECT_TRUE(std::isnan(evalScalar("m = mad([NaN; NaN; NaN]); m(1)")));
-    EXPECT_TRUE(std::isnan(evalScalar("q = iqr([NaN; NaN; NaN]); q(1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("m = mad([NaN; NaN; NaN]); m(1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("q = iqr([NaN; NaN; NaN]); q(1)")));
 }
 
 // ── geomean/harmmean 'omitnan' nanflag (2026-05-30) ──────────────────
@@ -202,8 +203,8 @@ TEST_F(NancovTest, GeomeanHarmmeanOmitNaN)
     // Column 1 (no NaN) unchanged.
     EXPECT_NEAR(evalScalar("g = geomean(Mn,'omitnan');  g(1)"), 2.605171084697, 1e-9);
     // Default (includenan) still propagates NaN.
-    EXPECT_TRUE(std::isnan(evalScalar("g = geomean(Mn); g(2)")));
-    EXPECT_TRUE(std::isnan(evalScalar("h = harmmean(Mn); h(2)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("g = geomean(Mn); g(2)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("h = harmmean(Mn); h(2)")));
     // omitnan honours the dim argument.
     EXPECT_NEAR(evalScalar("g = geomean([1 NaN 3; 4 5 6],2,'omitnan'); g(1)"),
                 1.732050807568877, 1e-9);

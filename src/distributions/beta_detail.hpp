@@ -10,15 +10,13 @@
 #pragma once
 
 #include <keel/core.h>
+#include <keel/math.h>
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
-#include <cstring>
-#include <limits>
 #include <tuple>
 #include <utility>
 
@@ -47,16 +45,16 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
 // including the x∈{0,1} boundary cases.
 inline keel::f64 betapdfK(keel::f64 x, keel::f64 a, keel::f64 b)
 {
-    if (a <= 0.0 || b <= 0.0) return std::numeric_limits<keel::f64>::quiet_NaN();
-    const keel::f64 lbeta = std::lgamma(a) + std::lgamma(b) - std::lgamma(a + b);
+    if (a <= 0.0 || b <= 0.0) return keel::Limits<keel::f64>::quiet_nan();
+    const keel::f64 lbeta = keel::lgamma(a) + keel::lgamma(b) - keel::lgamma(a + b);
     if (x < 0.0 || x > 1.0) return 0.0;
     if (x == 0.0)
-        return (a == 1.0) ? std::exp(-lbeta) * (b == 1.0 ? 1.0 : std::pow(1.0, b - 1.0))
-                          : (a > 1.0 ? 0.0 : std::numeric_limits<keel::f64>::infinity());
+        return (a == 1.0) ? keel::exp(-lbeta) * (b == 1.0 ? 1.0 : keel::pow(1.0, b - 1.0))
+                          : (a > 1.0 ? 0.0 : keel::Limits<keel::f64>::infinity());
     if (x == 1.0)
-        return (b == 1.0) ? std::exp(-lbeta) * (a == 1.0 ? 1.0 : std::pow(1.0, a - 1.0))
-                          : (b > 1.0 ? 0.0 : std::numeric_limits<keel::f64>::infinity());
-    return std::exp((a - 1.0) * std::log(x) + (b - 1.0) * std::log1p(-x) - lbeta);
+        return (b == 1.0) ? keel::exp(-lbeta) * (a == 1.0 ? 1.0 : keel::pow(1.0, a - 1.0))
+                          : (b > 1.0 ? 0.0 : keel::Limits<keel::f64>::infinity());
+    return keel::exp((a - 1.0) * keel::log(x) + (b - 1.0) * keel::log1p(-x) - lbeta);
 }
 
 } // anonymous

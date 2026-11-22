@@ -1,6 +1,7 @@
 // toolboxes/stats/src/resample/resample.cpp
 
 #include <keel/array.h>
+#include <keel/math.h>
 #include <keel/core.h>
 #include <keel/format.h>
 #include <keel/memory.h>
@@ -15,7 +16,6 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cstring>
 #include <mutex>
 #include <numeric>
 
@@ -179,7 +179,7 @@ Value randsample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
     Value population;
     keel::usize N = 0;
     if (args[0].isScalar() && args[0].isNumeric()
-            && args[0].elemAsDouble(0) == std::floor(args[0].elemAsDouble(0))
+            && args[0].elemAsDouble(0) == keel::floor(args[0].elemAsDouble(0))
             && args[0].elemAsDouble(0) >= 0.0) {
         N = keel::as<keel::usize>(args[0].elemAsDouble(0));
     } else {
@@ -271,7 +271,7 @@ Value datasample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
     const Value &X = args[0];
     const keel::f64 kD = args[1].elemAsDouble(0);
     if (!(args[1].isScalar() && args[1].isNumeric() && kD >= 0.0
-            && kD == std::floor(kD)))
+            && kD == keel::floor(kD)))
         throw Error("datasample: sample size K must be a non-negative "
                     "integer.",
                     0, 0, "datasample", "", "numkit:datasample:invalidK");

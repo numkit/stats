@@ -5,6 +5,7 @@
 // contract branch.
 
 #include <keel/core.h>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <numkit/core/engine.hpp>
 #include <numkit/stats/descriptive/descriptive.hpp>
@@ -135,8 +136,8 @@ TEST_F(CorrContractTest, CorrWeightsContract)
               "numkit:corr:invalidWeight");
     // Weighted p-values are NaN by definition (probe72 CWpNaN).
     engine.eval("[rw, pw] = corr(X, Y, 'Weights', [1 1 1 1 2]');");
-    EXPECT_TRUE(std::isnan(at("pw", 0)));
-    EXPECT_TRUE(std::isnan(at("pw", 5)));
+    EXPECT_TRUE(keel::is_nan(at("pw", 0)));
+    EXPECT_TRUE(keel::is_nan(at("pw", 5)));
     // Zero-weight rows drop in EVERY Rows mode (probe72 CW0a/CW0b).
     engine.eval("W0 = [1 0 1 1 1]'; "
                 "Ca = corr(X, Y, 'Rows', 'complete', 'Weights', W0); "
@@ -153,8 +154,8 @@ TEST_F(CorrContractTest, CorrWeightsContract)
                 "rku = corr(X, Y, 'Type', 'Kendall');");
     EXPECT_NEAR(num("max(max(abs(rsw - rsu)))"), 0.0, 1e-12);
     EXPECT_NEAR(num("max(max(abs(rkw - rku)))"), 0.0, 1e-12);
-    EXPECT_TRUE(std::isnan(at("psw", 0)));
-    EXPECT_TRUE(std::isnan(at("pkw", 0)));
+    EXPECT_TRUE(keel::is_nan(at("psw", 0)));
+    EXPECT_TRUE(keel::is_nan(at("pkw", 0)));
 }
 
 // ── corr: Tail ────────────────────────────────────────────────────────
@@ -192,8 +193,8 @@ TEST_F(CorrContractTest, CorrSmallNAndClasses)
     engine.eval("[r2, p2] = corr(X([1 2],:));");
     EXPECT_NEAR(at("r2", 0), 1.0, 1e-12);
     EXPECT_NEAR(at("r2", 4), 1.0, 1e-12);
-    EXPECT_TRUE(std::isnan(at("p2", 1)));
-    EXPECT_TRUE(std::isnan(at("p2", 3)));
+    EXPECT_TRUE(keel::is_nan(at("p2", 1)));
+    EXPECT_TRUE(keel::is_nan(at("p2", 3)));
     EXPECT_NEAR(at("p2", 0), 1.0, 1e-12);
     // Single input → single output (C13; double-compute cast, ~1e-7).
     engine.eval("S3 = corr(single(X), Y);");

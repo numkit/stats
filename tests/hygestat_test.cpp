@@ -2,6 +2,7 @@
 // Coverage for hygestat (vectorised in sweep 5dd32c38).
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -45,7 +46,7 @@ TEST_F(HygestatTest, BoundaryCases)
 
 TEST_F(HygestatTest, InvalidParamsReturnNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("hygestat( 0,  0, 10)")));   // M=0
-    EXPECT_TRUE(std::isnan(evalScalar("hygestat(50, 60, 10)")));   // K > M
-    EXPECT_TRUE(std::isnan(evalScalar("hygestat(50, 20, 60)")));   // N > M
+    EXPECT_TRUE(keel::is_nan(evalScalar("hygestat( 0,  0, 10)")));   // M=0
+    EXPECT_TRUE(keel::is_nan(evalScalar("hygestat(50, 60, 10)")));   // K > M
+    EXPECT_TRUE(keel::is_nan(evalScalar("hygestat(50, 20, 60)")));   // N > M
 }

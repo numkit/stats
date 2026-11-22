@@ -14,6 +14,7 @@
 // linkage METHOD / cluster Criterion is the value-list class.
 
 #include <keel/array.h>
+#include <keel/math.h>
 #include <keel/core.h>
 #include <keel/format.h>
 #include <keel/memory.h>
@@ -30,7 +31,6 @@
 #include <numkit/value/value.hpp>
 
 #include <algorithm>
-#include <cmath>
 
 namespace numkit::stats {
 
@@ -133,7 +133,7 @@ Pdist2Out pdist2_full(const Value &X, const Value &Y, keel::ArrayRef<Value> tail
             if (s == "smallest" || s == "largest") {
                 const keel::f64 kv = argcheck::expectedReal(
                     tail[i + 1], 4, "k", "pdist2");
-                if (!(kv >= 1.0 && kv == std::floor(kv)))
+                if (!(kv >= 1.0 && kv == keel::floor(kv)))
                     throw Error(keel::format("pdist2: the 'Smallest'/'Largest' count "
                                 "must be a positive integer scalar (got {}).", kv),
                                 0, 0, "pdist2", "", "numkit:pdist2:badK");
@@ -272,7 +272,7 @@ Value inconsistent_full(const Value &Z, keel::ArrayRef<Value> tail,
     keel::i32 depth = 2;
     if (!tail.empty()) {
         const keel::f64 d = tail[0].elemAsDouble(0);
-        if (!(d >= 1.0 && d == std::floor(d)))
+        if (!(d >= 1.0 && d == keel::floor(d)))
             throw Error(keel::format("inconsistent: depth must be a positive integer "
                         "scalar (got {}).", d),
                         0, 0, "inconsistent", "", "numkit:inconsistent:badDepth");

@@ -4,6 +4,7 @@
 // (descriptive extras: bounds, iqr, maxk, mink, rmse).
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <cmath>
 #include <gtest/gtest.h>
@@ -72,7 +73,7 @@ TEST_F(MovingTest, MovstdMatchesSqrtMovvar)
     for (int i = 1; i <= 5; ++i) {
         const double vi = evalScalar("v(" + std::to_string(i) + ")");
         const double si = evalScalar("s(" + std::to_string(i) + ")");
-        EXPECT_NEAR(si, std::sqrt(vi), 1e-12);
+        EXPECT_NEAR(si, keel::sqrt(vi), 1e-12);
     }
 }
 
@@ -259,7 +260,7 @@ TEST_F(MovingTest, MinkBottomTwo)
 TEST_F(MovingTest, RmseScalarVsVector)
 {
     // rmse([1 2 3 4], 0) → sqrt(mean([1 4 9 16])) = sqrt(7.5)
-    EXPECT_NEAR(evalScalar("rmse([1 2 3 4], 0)"), std::sqrt(7.5), 1e-12);
+    EXPECT_NEAR(evalScalar("rmse([1 2 3 4], 0)"), keel::sqrt(7.5), 1e-12);
 }
 
 TEST_F(MovingTest, RmseTwoVectorsZeroOnIdentical)

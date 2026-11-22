@@ -2,6 +2,7 @@
 //
 // Self-contained C-ABI implementation for `numkit/stats`.
 #include <keel/array.h>
+#include <keel/memory.h>
 #include <keel/core.h>
 #include <keel/ref.h>
 #include <numkit/stats/c_api.h>
@@ -11,7 +12,6 @@
 #include <numkit/value/c_api_bridge.hpp>
 
 #include <algorithm>
-#include <cstring>
 #include <exception>
 
 struct numkit_stats_ctx_s {
@@ -202,7 +202,7 @@ keel::usize numkit_stats_format(const numkit_stats_ctx *ctx,
         keel::String s = ctx->ctx.formatValue(numkit::c_abi::unboxValue(v));
         if (!buf || buf_cap == 0) return s.size();
         keel::usize n = std::min(s.size(), buf_cap - 1);
-        if (n > 0) std::memcpy(buf, s.data(), n);
+        if (n > 0) keel::mem_copy(buf, s.data(), n);
         buf[n] = '\0';
         return s.size();
     } catch (...) {

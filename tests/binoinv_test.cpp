@@ -2,6 +2,7 @@
 // binoinv.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -43,9 +44,9 @@ TEST_F(BinoinvTest, ExtremeProb)
 
 TEST_F(BinoinvTest, InvalidReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("binoinv(-0.1, 10, 0.3)")));
-    EXPECT_TRUE(std::isnan(evalScalar("binoinv(1.5,  10, 0.3)")));
-    EXPECT_TRUE(std::isnan(evalScalar("binoinv(0.5,  10, -0.1)")));
-    EXPECT_TRUE(std::isnan(evalScalar("binoinv(0.5,  -1, 0.3)")));
-    EXPECT_TRUE(std::isnan(evalScalar("binoinv(0.5,  2.5, 0.3)")));  // non-integer n
+    EXPECT_TRUE(keel::is_nan(evalScalar("binoinv(-0.1, 10, 0.3)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("binoinv(1.5,  10, 0.3)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("binoinv(0.5,  10, -0.1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("binoinv(0.5,  -1, 0.3)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("binoinv(0.5,  2.5, 0.3)")));  // non-integer n
 }

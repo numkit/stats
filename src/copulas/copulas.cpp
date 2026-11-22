@@ -3,6 +3,7 @@
 // Five copula families (Gaussian, t, Clayton, Frank, Gumbel) — pdf + cdf.
 
 #include <keel/arena.h>
+#include <keel/math.h>
 #include <keel/array.h>
 #include <keel/core.h>
 #include <keel/format.h>
@@ -13,7 +14,6 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 
-#include <cmath>
 #include <utility>
 
 namespace numkit::stats {
@@ -55,10 +55,10 @@ keel::f64 extract_rho_2x2(const Value &R, const char *fn)
     const keel::f64 r10 = R.elemAsDouble(1);
     const keel::f64 r01 = R.elemAsDouble(2);
     const keel::f64 r11 = R.elemAsDouble(3);
-    if (std::fabs(r00 - 1.0) > 1e-9 || std::fabs(r11 - 1.0) > 1e-9)
+    if (keel::abs(r00 - 1.0) > 1e-9 || keel::abs(r11 - 1.0) > 1e-9)
         throw Error(keel::format("{}: R must have unit diagonal", fn),
                     0, 0, fn, "", keel::format("numkit:{}:Rdiag", fn));
-    if (std::fabs(r01 - r10) > 1e-9)
+    if (keel::abs(r01 - r10) > 1e-9)
         throw Error(keel::format("{}: R must be symmetric", fn),
                     0, 0, fn, "", keel::format("numkit:{}:Rsym", fn));
     const keel::f64 rho = 0.5 * (r01 + r10);
@@ -75,11 +75,11 @@ keel::usize check_R_dim(const Value &R, const char *fn)
                     0, 0, fn, "", keel::format("numkit:{}:dimR", fn));
     const keel::usize d = R.dims().rows();
     for (keel::usize i = 0; i < d; ++i) {
-        if (std::fabs(R.elemAsDouble(i * d + i) - 1.0) > 1e-9)
+        if (keel::abs(R.elemAsDouble(i * d + i) - 1.0) > 1e-9)
             throw Error(keel::format("{}: R must have unit diagonal", fn),
                         0, 0, fn, "", keel::format("numkit:{}:Rdiag", fn));
         for (keel::usize j = i + 1; j < d; ++j) {
-            if (std::fabs(R.elemAsDouble(j * d + i) - R.elemAsDouble(i * d + j)) > 1e-9)
+            if (keel::abs(R.elemAsDouble(j * d + i) - R.elemAsDouble(i * d + j)) > 1e-9)
                 throw Error(keel::format("{}: R must be symmetric", fn),
                             0, 0, fn, "", keel::format("numkit:{}:Rsym", fn));
         }

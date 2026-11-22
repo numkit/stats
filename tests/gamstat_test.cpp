@@ -2,6 +2,7 @@
 // gamstat.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -41,7 +42,7 @@ TEST_F(GamstatTest, ScalarAVectorB)
 
 TEST_F(GamstatTest, InvalidParamsReturnNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("gamstat(0,  1)")));
-    EXPECT_TRUE(std::isnan(evalScalar("gamstat(2,  0)")));
-    EXPECT_TRUE(std::isnan(evalScalar("gamstat(-1, 1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("gamstat(0,  1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("gamstat(2,  0)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("gamstat(-1, 1)")));
 }

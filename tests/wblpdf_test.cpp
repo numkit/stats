@@ -2,6 +2,7 @@
 // wblpdf.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -35,7 +36,7 @@ TEST_F(WblpdfTest, AtZeroByShape)
 {
     // Density at x=0 depends on shape b: b=1 -> 1/a, b<1 -> Inf, b>1 -> 0.
     EXPECT_DOUBLE_EQ(evalScalar("wblpdf(0, 1, 1)"), 1.0);
-    EXPECT_TRUE(std::isinf(evalScalar("wblpdf(0, 1, 0.5)")));
+    EXPECT_TRUE(keel::is_inf(evalScalar("wblpdf(0, 1, 0.5)")));
     EXPECT_DOUBLE_EQ(evalScalar("wblpdf(0, 1, 2)"), 0.0);
 }
 
@@ -50,14 +51,14 @@ TEST_F(WblpdfTest, VectorAcrossSupport)
 
 TEST_F(WblpdfTest, BadParams)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("wblpdf(1,  0, 1)")));
-    EXPECT_TRUE(std::isnan(evalScalar("wblpdf(1, -1, 1)")));
-    EXPECT_TRUE(std::isnan(evalScalar("wblpdf(1,  1, 0)")));
-    EXPECT_TRUE(std::isnan(evalScalar("wblpdf(1,  1, -1)")));
-    EXPECT_TRUE(std::isnan(evalScalar("wblpdf(1, NaN, 1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("wblpdf(1,  0, 1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("wblpdf(1, -1, 1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("wblpdf(1,  1, 0)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("wblpdf(1,  1, -1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("wblpdf(1, NaN, 1)")));
 }
 
 TEST_F(WblpdfTest, NaNX)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("wblpdf(NaN, 1, 1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("wblpdf(NaN, 1, 1)")));
 }

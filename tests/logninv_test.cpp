@@ -2,6 +2,7 @@
 // logninv.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -32,17 +33,17 @@ TEST_F(LogninvTest, VectorQ)
 TEST_F(LogninvTest, BoundaryQuantiles)
 {
     EXPECT_DOUBLE_EQ(evalScalar("logninv(0)"), 0.0);
-    EXPECT_TRUE(std::isinf(evalScalar("logninv(1)")));
+    EXPECT_TRUE(keel::is_inf(evalScalar("logninv(1)")));
 }
 
 TEST_F(LogninvTest, OutOfRangeProbReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("logninv(-0.1)")));
-    EXPECT_TRUE(std::isnan(evalScalar("logninv( 1.5)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("logninv(-0.1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("logninv( 1.5)")));
 }
 
 TEST_F(LogninvTest, InvalidSigmaReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("logninv(0.5, 0,  0)")));
-    EXPECT_TRUE(std::isnan(evalScalar("logninv(0.5, 0, -1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("logninv(0.5, 0,  0)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("logninv(0.5, 0, -1)")));
 }

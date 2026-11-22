@@ -4,6 +4,7 @@
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
 #include <keel/array.h>
+#include <keel/math.h>
 #include <keel/core.h>
 #include <keel/ref.h>
 #include <numkit/sys/plugin.hpp>
@@ -17,7 +18,6 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <cstdio>
 #include <tuple>
@@ -72,7 +72,7 @@ void anova1_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         //                  'Error', ssW,dfW,ssW/dfW,[],[]
         //                  'Total', ssB+ssW,dfB+dfW,[],[],[] }.
         Value tbl = Value::cell(4, 6, mr);
-        const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
+        const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
         auto strV = [&](const char *s){ return Value::fromString(s, mr); };
         auto numV = [&](keel::f64 v){ return Value::scalar(v, mr); };
         auto setCell = [&](keel::usize r, keel::usize c, const Value &v) {
@@ -137,8 +137,8 @@ void anova1_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             total += ng;
         }
         const keel::f64 sPooled = (total > K)
-            ? std::sqrt(sse / keel::as<keel::f64>(total - K))
-            : std::numeric_limits<keel::f64>::quiet_NaN();
+            ? keel::sqrt(sse / keel::as<keel::f64>(total - K))
+            : keel::Limits<keel::f64>::quiet_nan();
 
         Value s = Value::structure(mr);
         s.field("F")      = Value::scalar(F, mr);
@@ -197,7 +197,7 @@ void kruskalwallis_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         // mirror MATLAB shape; SS / MS pieces aren't strictly defined for
         // the K-W rank statistic, but populate what we can.
         Value tbl = Value::cell(4, 6, mr);
-        const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
+        const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
         auto strV = [&](const char *s){ return Value::fromString(s, mr); };
         auto numV = [&](keel::f64 v){ return Value::scalar(v, mr); };
         auto setCell = [&](keel::usize r, keel::usize c, const Value &v) {
@@ -231,7 +231,7 @@ void kruskalwallis_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         for (keel::usize i = 0; i < N; ++i) {
             const keel::f64 v = yArg.elemAsDouble(i);
             const keel::f64 g = gArg.elemAsDouble(i);
-            if (std::isnan(v) || std::isnan(g)) continue;
+            if (keel::is_nan(v) || keel::is_nan(g)) continue;
             all.push_back({v, i, g});
         }
         const keel::usize M = all.size();
@@ -324,7 +324,7 @@ void anova2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         throw Error("anova2: row count must be an integer multiple (>= 2) of reps and columns >= 2",
                     0, 0, "anova2", "", "numkit:anova2:tooSmall");
     const keel::usize r = M / R;
-    const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
+    const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
 
     keel::f64 pCols = nan, pRows = nan, pInter = nan;
     keel::f64 Fc = nan, Fr = nan, Fi = nan;
@@ -395,7 +395,7 @@ void anova2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             pRows  = std::max(0.0, 1.0 - fcdf(Value::scalar(Fr, mr), dfR, dfE, mr).toScalar());
             pInter = std::max(0.0, 1.0 - fcdf(Value::scalar(Fi, mr), dfI, dfE, mr).toScalar());
         } else if (msE == 0.0) {
-            const keel::f64 inf = std::numeric_limits<keel::f64>::infinity();
+            const keel::f64 inf = keel::Limits<keel::f64>::infinity();
             Fc = Fr = Fi = inf;
             pCols = pRows = pInter = 0.0;
         }

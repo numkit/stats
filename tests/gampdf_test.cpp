@@ -2,6 +2,7 @@
 // gampdf.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -36,7 +37,7 @@ TEST_F(GampdfTest, NegativeXReturnsZero)
 
 TEST_F(GampdfTest, DensityAtZeroByShape)
 {
-    EXPECT_TRUE(std::isinf(evalScalar("gampdf(0, 0.5, 1)")));   // a<1 → Inf
+    EXPECT_TRUE(keel::is_inf(evalScalar("gampdf(0, 0.5, 1)")));   // a<1 → Inf
     EXPECT_DOUBLE_EQ(evalScalar("gampdf(0, 1, 1)"), 1.0);        // a=1 → 1/b
     EXPECT_DOUBLE_EQ(evalScalar("gampdf(0, 2, 1)"), 0.0);        // a>1 → 0
 }
@@ -44,6 +45,6 @@ TEST_F(GampdfTest, DensityAtZeroByShape)
 TEST_F(GampdfTest, DegenerateOrInvalidParams)
 {
     EXPECT_DOUBLE_EQ(evalScalar("gampdf(2, 0, 1)"), 0.0);        // a=0 (degenerate)
-    EXPECT_TRUE(std::isnan(evalScalar("gampdf(2, -1, 1)")));      // a<0
-    EXPECT_TRUE(std::isnan(evalScalar("gampdf(2, 2, 0)")));       // b=0
+    EXPECT_TRUE(keel::is_nan(evalScalar("gampdf(2, -1, 1)")));      // a<0
+    EXPECT_TRUE(keel::is_nan(evalScalar("gampdf(2, 2, 0)")));       // b=0
 }

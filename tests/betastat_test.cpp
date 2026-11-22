@@ -2,6 +2,7 @@
 // betastat. Reference values from MATLAB R2025b.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -52,10 +53,10 @@ TEST_F(BetastatTest, ScalarBroadcastWithVector)
 TEST_F(BetastatTest, InvalidShapeReturnsNaN)
 {
     eval("[m, v] = betastat(0, 3);");
-    EXPECT_TRUE(std::isnan(evalScalar("m")));
-    EXPECT_TRUE(std::isnan(evalScalar("v")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("m")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("v")));
 
     eval("[m, v] = betastat(2, -1);");
-    EXPECT_TRUE(std::isnan(evalScalar("m")));
-    EXPECT_TRUE(std::isnan(evalScalar("v")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("m")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("v")));
 }

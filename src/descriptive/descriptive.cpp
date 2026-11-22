@@ -11,6 +11,7 @@
 // compat.* lives in toolboxes/stats/src/library.cpp.
 
 #include <keel/core.h>
+#include <keel/math.h>
 #include <keel/memory.h>
 #include <keel/arena.h>
 #include <keel/array.h>
@@ -28,10 +29,8 @@
 #include <numkit/builtin/detail/datafun/var_reduction.hpp>
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <limits>
 #include <type_traits>
 #include <utility>
 
@@ -114,12 +113,12 @@ Value stdev(const Value &x, keel::i32 normFlag, keel::i32 dim, keel::Allocator *
     if (x.isEmpty())
         return emptyStatReductionNaN(x, dim, mr);
     if ((x.dims().isVector() || x.isScalar()) && x.type() == ValueType::DOUBLE)
-        return Value::scalar(std::sqrt(varianceTwoPass(x.doubleData(), x.numel(), normFlag)), mr);
+        return Value::scalar(keel::sqrt(varianceTwoPass(x.doubleData(), x.numel(), normFlag)), mr);
 
     const keel::i32 d = resolveDim(x, dim, "std");
     Value r = applyAlongDim(x, d,
         [normFlag](keel::usize, keel::f64 *slice, keel::usize n) {
-            return std::sqrt(varianceTwoPass(slice, n, normFlag));
+            return keel::sqrt(varianceTwoPass(slice, n, normFlag));
         }, mr);
     if (x.type() == ValueType::SINGLE)
         r = narrowToSingle(std::move(r), mr);
@@ -224,7 +223,7 @@ mode(const Value &x, keel::i32 dim, keel::Allocator *mr)
     // [M,F]=mode([]) gives M=NaN, F=0; mode(zeros(0,3))=[NaN NaN NaN] with
     // F=[0 0 0]; mode(zeros(3,0))=1x0 empties.
     if (x.isEmpty())
-        return { emptyStatReductionFill(x, dim, std::nan(""), mr),
+        return { emptyStatReductionFill(x, dim, keel::kNaN, mr),
                  emptyStatReductionFill(x, dim, 0.0, mr) };
     const keel::i32 d = resolveDim(x, dim, "mode");
     return dispatchMode(x, d, mr, "mode");
@@ -247,7 +246,7 @@ Value cov(const Value &x, keel::i32 normFlag, keel::Allocator *mr)
     readMatrix(x, data, n, p);
     if (n == 0) {
         // MATLAB: cov of empty â†’ NaN (or empty pÃ—p depending on shape).
-        if (p == 1) return Value::scalar(std::nan(""), mr);
+        if (p == 1) return Value::scalar(keel::kNaN, mr);
         return Value::matrix(p, p, ValueType::DOUBLE, mr);
     }
     centerColumns(data.data(), n, p);
@@ -312,12 +311,12 @@ Value corrcoef(const Value &x, keel::Allocator *mr)
         const keel::usize n = x.numel();
         bool hasNan = false;
         for (keel::usize i = 0; i < n; ++i) {
-            if (std::isnan(x.elemAsDouble(i))) {
+            if (keel::is_nan(x.elemAsDouble(i))) {
                 hasNan = true;
                 break;
             }
         }
-        R.doubleDataMut()[0] = (n == 0 || hasNan) ? std::nan("") : 1.0;
+        R.doubleDataMut()[0] = (n == 0 || hasNan) ? keel::kNaN : 1.0;
         return R;
     }
     auto C = cov(x, 0, mr);

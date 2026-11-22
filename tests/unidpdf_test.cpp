@@ -2,6 +2,7 @@
 // unidpdf.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -41,8 +42,8 @@ TEST_F(UnidpdfTest, OutOfSupport)
 
 TEST_F(UnidpdfTest, BadN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("unidpdf(3, 0)")));
-    EXPECT_TRUE(std::isnan(evalScalar("unidpdf(3, -1)")));
-    EXPECT_TRUE(std::isnan(evalScalar("unidpdf(3, 6.5)")));  // non-integer N
-    EXPECT_TRUE(std::isnan(evalScalar("unidpdf(3, NaN)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("unidpdf(3, 0)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("unidpdf(3, -1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("unidpdf(3, 6.5)")));  // non-integer N
+    EXPECT_TRUE(keel::is_nan(evalScalar("unidpdf(3, NaN)")));
 }

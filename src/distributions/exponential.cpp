@@ -1,6 +1,7 @@
 // toolboxes/stats/src/distributions/exponential.cpp
 
 #include <keel/core.h>
+#include <keel/math.h>
 #include <keel/memory.h>
 #include <numkit/stats/distributions/exponential.hpp>
 
@@ -11,8 +12,6 @@
 
 #include "dist_helpers.hpp"
 
-#include <cmath>
-#include <limits>
 #include <mutex>
 
 #include "exponential_detail.hpp"
@@ -47,14 +46,14 @@ Value exprnd(::numkit::ops::RngContext &rng, keel::f64 mu, keel::usize rows, kee
     if (!exp_argcheck(mu) || rows * cols == 0) return out;
     keel::f64 *od = out.doubleDataMut();
     const keel::usize n = rows * cols;
-    for (keel::usize i = 0; i < n; ++i) od[i] = -mu * std::log(rng.nextUniform());
+    for (keel::usize i = 0; i < n; ++i) od[i] = -mu * keel::log(rng.nextUniform());
     return out;
 }
 
 std::tuple<keel::f64, keel::f64> expstat(keel::f64 mu)
 {
     if (mu <= 0.0) {
-        const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
+        const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
         return std::make_tuple(nan, nan);
     }
     return std::make_tuple(mu, mu * mu);

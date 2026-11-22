@@ -2,6 +2,7 @@
 // geostat.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -41,7 +42,7 @@ TEST_F(GeostatTest, P1IsZeroVariance)
 
 TEST_F(GeostatTest, OutOfRangePReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("geostat(0)")));
-    EXPECT_TRUE(std::isnan(evalScalar("geostat(-0.1)")));
-    EXPECT_TRUE(std::isnan(evalScalar("geostat(1.5)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("geostat(0)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("geostat(-0.1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("geostat(1.5)")));
 }

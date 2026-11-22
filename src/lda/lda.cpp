@@ -3,6 +3,7 @@
 // Discriminant analysis (classify), delegating numerical kernels to keel::stats.
 
 #include <keel/arena.h>
+#include <keel/algo.h>
 #include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
@@ -15,7 +16,6 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 
-#include <cstring>
 
 namespace numkit::stats {
 
@@ -73,10 +73,9 @@ classify(const Value &sample, const Value &training, const Value &group,
     Value postV = Value::matrix(Nsamp, res.num_classes, ValueType::DOUBLE, mr);
     Value logpV = Value::matrix(Nsamp, 1, ValueType::DOUBLE, mr);
     if (Nsamp > 0) {
-        std::memcpy(cV.doubleDataMut(), res.pred.data(), Nsamp * sizeof(keel::f64));
-        std::memcpy(postV.doubleDataMut(), res.posterior.data(),
-                    Nsamp * res.num_classes * sizeof(keel::f64));
-        std::memcpy(logpV.doubleDataMut(), res.logp.data(), Nsamp * sizeof(keel::f64));
+        keel::copy_n(cV.doubleDataMut(), res.pred.data(), Nsamp);
+        keel::copy_n(postV.doubleDataMut(), res.posterior.data(), Nsamp * res.num_classes);
+        keel::copy_n(logpV.doubleDataMut(), res.logp.data(), Nsamp);
     }
     return {std::move(cV), Value::scalar(res.train_error, mr), std::move(postV), std::move(logpV)};
 }

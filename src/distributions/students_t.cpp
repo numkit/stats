@@ -4,6 +4,7 @@
 // icdf; rnd uses Z / sqrt(X/ν) with Z ~ N(0,1), X ~ χ²(ν).
 
 #include <keel/core.h>
+#include <keel/math.h>
 #include <keel/memory.h>
 #include <keel/stats.h>
 #include <numkit/stats/distributions/students_t.hpp>
@@ -16,9 +17,6 @@
 
 #include "dist_helpers.hpp"
 
-#include <cmath>
-#include <cstring>
-#include <limits>
 #include <mutex>
 #include <keel/random.h>
 
@@ -65,7 +63,7 @@ Value trnd(::numkit::ops::RngContext &rng, keel::f64 nu, keel::usize rows, keel:
 
 std::tuple<keel::f64, keel::f64> tstat(keel::f64 nu)
 {
-    const keel::f64 NaN = std::numeric_limits<keel::f64>::quiet_NaN();
+    const keel::f64 NaN = keel::Limits<keel::f64>::quiet_nan();
     if (nu <= 0.0) return std::make_tuple(NaN, NaN);
     // mean defined only for nu > 1; variance only for nu > 2.
     const keel::f64 m = (nu > 1.0) ? 0.0 : NaN;
@@ -100,13 +98,13 @@ Value nctinv(const Value &p, keel::f64 nu, keel::f64 delta,
 
 std::tuple<keel::f64, keel::f64> nctstat(keel::f64 nu, keel::f64 delta)
 {
-    const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
+    const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
     if (!(nu > 0.0)) return {nan, nan};
     keel::f64 m = nan, v = nan;
     if (nu > 1.0) {
         // m = δ · sqrt(ν/2) · Γ((ν-1)/2) / Γ(ν/2)
-        const keel::f64 log_ratio = std::lgamma(0.5 * (nu - 1.0)) - std::lgamma(0.5 * nu);
-        m = delta * std::sqrt(0.5 * nu) * std::exp(log_ratio);
+        const keel::f64 log_ratio = keel::lgamma(0.5 * (nu - 1.0)) - keel::lgamma(0.5 * nu);
+        m = delta * keel::sqrt(0.5 * nu) * keel::exp(log_ratio);
     }
     if (nu > 2.0) {
         v = nu * (1.0 + delta * delta) / (nu - 2.0) - m * m;
@@ -125,7 +123,7 @@ Value nctrnd(::numkit::ops::RngContext &rng, keel::f64 nu, keel::f64 delta, keel
     for (keel::usize i = 0; i < n; ++i) {
         const keel::f64 Z = keel::random::normal_f64(gen);
         const keel::f64 X = keel::random::chi_squared_f64(gen, nu);
-        od[i] = (Z + delta) / std::sqrt(X / nu);
+        od[i] = (Z + delta) / keel::sqrt(X / nu);
     }
     return out;
 }

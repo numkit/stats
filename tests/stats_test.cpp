@@ -104,12 +104,12 @@ TEST_P(StatsTest, VarBadFlag)
 TEST_P(StatsTest, StdVectorDefault)
 {
     // std([1 2 3 4 5]) == sqrt(2.5)
-    EXPECT_NEAR(evalScalar("std([1 2 3 4 5]);"), std::sqrt(2.5), 1e-12);
+    EXPECT_NEAR(evalScalar("std([1 2 3 4 5]);"), keel::sqrt(2.5), 1e-12);
 }
 
 TEST_P(StatsTest, StdPopulationFlag)
 {
-    EXPECT_NEAR(evalScalar("std([1 2 3 4 5], 1);"), std::sqrt(2.0), 1e-12);
+    EXPECT_NEAR(evalScalar("std([1 2 3 4 5], 1);"), keel::sqrt(2.0), 1e-12);
 }
 
 TEST_P(StatsTest, StdMatrixDim1)
@@ -471,7 +471,7 @@ TEST_P(StatsTest, StdMatrixDim1LargeRows)
 {
     eval("M = repmat((1:64)', 1, 3); s = std(M);");
     auto *s = getVarPtr("s");
-    const double ref = std::sqrt(64.0 * 65.0 / 12.0);
+    const double ref = keel::sqrt(64.0 * 65.0 / 12.0);
     for (keel::usize c = 0; c < 3; ++c)
         EXPECT_NEAR(s->doubleData()[c], ref, 1e-9 * keel::abs(ref));
 }
@@ -539,7 +539,7 @@ TEST_P(StatsTest, SkewnessKnownValueUncorrected)
     double m2 = 0, m3 = 0;
     for (double v : xs) { double d=v-m; m2+=d*d; m3+=d*d*d; }
     m2 /= 8; m3 /= 8;
-    const double ref = m3 / std::pow(m2, 1.5);
+    const double ref = m3 / keel::pow(m2, 1.5);
     EXPECT_NEAR(evalScalar("skewness([2 4 4 4 5 5 7 9]);"), ref, 1e-10);
 }
 
@@ -551,7 +551,7 @@ TEST_P(StatsTest, SkewnessBiasCorrectedDiffers)
          "u = skewness([1 1 1 1 10], 1);"
          "ratio = y / u;");
     EXPECT_NEAR(evalScalar("ratio;"),
-                std::sqrt(5.0 * 4.0) / 3.0, 1e-10);
+                keel::sqrt(5.0 * 4.0) / 3.0, 1e-10);
 }
 
 TEST_P(StatsTest, SkewnessAlongDim)
@@ -569,7 +569,7 @@ TEST_P(StatsTest, SkewnessAlongDim)
 TEST_P(StatsTest, SkewnessBiasCorrectedTooFewSamples)
 {
     // n < 3 with normFlag=0 → NaN.
-    EXPECT_TRUE(std::isnan(evalScalar("skewness([1 2], 0);")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("skewness([1 2], 0);")));
 }
 
 TEST_P(StatsTest, SkewnessBadFlagThrows)
@@ -610,7 +610,7 @@ TEST_P(StatsTest, KurtosisKnownValueUncorrected)
 TEST_P(StatsTest, KurtosisBiasCorrectedNeedsFour)
 {
     // n < 4 with normFlag=0 → NaN.
-    EXPECT_TRUE(std::isnan(evalScalar("kurtosis([1 2 3], 0);")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("kurtosis([1 2 3], 0);")));
 }
 
 TEST_P(StatsTest, KurtosisBiasCorrectedDiffers)
@@ -1238,7 +1238,7 @@ TEST_P(ReductionDimTest, Nanvar4DAlongDim3)
 TEST_P(ReductionDimTest, Nanstd4DAlongDim3)
 {
     eval("A = reshape(1:120, [2, 3, 4, 5]); A(1,1,2,1) = NaN; s = nanstd(A, 0, 3);");
-    EXPECT_NEAR(evalScalar("s(1, 1, 1, 1);"), std::sqrt(84.0), 1e-12);
+    EXPECT_NEAR(evalScalar("s(1, 1, 1, 1);"), keel::sqrt(84.0), 1e-12);
 }
 
 TEST_P(ReductionDimTest, Nanmax4DAlongDim3)
@@ -1478,7 +1478,7 @@ TEST_P(ReductionDimTest, Mean5DEmptyAlongEmptyDim)
     EXPECT_DOUBLE_EQ(evalScalar("numel(m);"),  48.0);
     // mean of 0 elements is NaN
     eval("v = m(1, 1, 1, 1, 1);");
-    EXPECT_TRUE(std::isnan(evalScalar("v;")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("v;")));
 }
 
 // ── ND reductions on non-DOUBLE inputs ───────────────────────────
@@ -1677,7 +1677,7 @@ TEST_P(ReductionDimTest, ModeNanIgnored)
 TEST_P(ReductionDimTest, ModeAllNanReturnsNan)
 {
     eval("v = [NaN, NaN, NaN]; [m, f] = mode(v);");
-    EXPECT_TRUE(std::isnan(evalScalar("m;")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("m;")));
     EXPECT_DOUBLE_EQ(evalScalar("f;"), 0.0);
 }
 
@@ -1951,7 +1951,7 @@ TEST_P(ReductionDimTest, StdSingleReturnsSingle)
 {
     eval("v = single([1 2 3 4 5]); s = std(v);");
     EXPECT_DOUBLE_EQ(evalScalar("issingle(s);"), 1.0);
-    EXPECT_NEAR(evalScalar("s;"), std::sqrt(2.5), 1e-6);
+    EXPECT_NEAR(evalScalar("s;"), keel::sqrt(2.5), 1e-6);
 }
 
 TEST_P(ReductionDimTest, MedianSingleReturnsSingle)
@@ -1975,7 +1975,7 @@ TEST_P(ReductionDimTest, StdComplexReturnsRealStd)
 {
     // std = sqrt(var), still real-valued.
     eval("v = [1+0i, 1+2i]; s = std(v);");
-    EXPECT_NEAR(evalScalar("s;"), std::sqrt(2.0), 1e-12);
+    EXPECT_NEAR(evalScalar("s;"), keel::sqrt(2.0), 1e-12);
     EXPECT_DOUBLE_EQ(evalScalar("isreal(s);"), 1.0);
 }
 
@@ -2023,7 +2023,7 @@ TEST_P(ReductionDimTest, SumOmitnanSkipsNaN)
 TEST_P(ReductionDimTest, SumIncludenanPropagates)
 {
     eval("v = [1 NaN 2]; s = sum(v, 'includenan');");
-    EXPECT_TRUE(std::isnan(evalScalar("s;")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("s;")));
 }
 
 TEST_P(ReductionDimTest, MeanOmitnanSkipsNaN)
@@ -2035,7 +2035,7 @@ TEST_P(ReductionDimTest, MeanOmitnanSkipsNaN)
 TEST_P(ReductionDimTest, MeanOmitnanAllNaNReturnsNaN)
 {
     eval("v = [NaN NaN]; m = mean(v, 'omitnan');");
-    EXPECT_TRUE(std::isnan(evalScalar("m;")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("m;")));
 }
 
 TEST_P(ReductionDimTest, ProdOmitnanSkipsNaN)
@@ -2096,9 +2096,9 @@ TEST_P(ReductionDimTest, StdOmitnanWithDim)
     // col 2: std([5], 0)     = 0  (single valid value -> 0 in MATLAB, NOT NaN;
     //        verified `format long`: std([1 NaN 3;2 5 4],0,1,'omitnan')=[.7071 0 .7071])
     // col 3: std([3, 4], 0)  = sqrt(0.5)
-    EXPECT_NEAR(evalScalar("r(1);"), std::sqrt(0.5), 1e-12);
+    EXPECT_NEAR(evalScalar("r(1);"), keel::sqrt(0.5), 1e-12);
     EXPECT_DOUBLE_EQ(evalScalar("r(2);"), 0.0);
-    EXPECT_NEAR(evalScalar("r(3);"), std::sqrt(0.5), 1e-12);
+    EXPECT_NEAR(evalScalar("r(3);"), keel::sqrt(0.5), 1e-12);
 }
 
 TEST_P(ReductionDimTest, MedianOmitnanSkipsNaN)
@@ -2129,14 +2129,14 @@ TEST_P(ReductionDimTest, VarComplexOmitnan)
 TEST_P(ReductionDimTest, StdComplexOmitnan)
 {
     eval("v = [1+0i, complex(0, NaN), 1+2i]; r = std(v, 'omitnan');");
-    EXPECT_NEAR(evalScalar("r;"), std::sqrt(2.0), 1e-12);
+    EXPECT_NEAR(evalScalar("r;"), keel::sqrt(2.0), 1e-12);
     EXPECT_DOUBLE_EQ(evalScalar("isreal(r);"), 1.0);
 }
 
 TEST_P(ReductionDimTest, VarComplexOmitnanAllNaN)
 {
     eval("v = [complex(NaN, 0), complex(0, NaN)]; r = var(v, 'omitnan');");
-    EXPECT_TRUE(std::isnan(evalScalar("r;")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("r;")));
 }
 
 // ── Round 7 Item 1: min/max with 'omitnan' (type-preserving) ────
@@ -2159,7 +2159,7 @@ TEST_P(ReductionDimTest, MaxOmitnanAllNaN)
 {
     // All-NaN → NaN value, idx=1.
     eval("v = [NaN NaN NaN]; [m, i] = max(v, [], 'omitnan');");
-    EXPECT_TRUE(std::isnan(evalScalar("m;")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("m;")));
     EXPECT_DOUBLE_EQ(evalScalar("i;"), 1.0);
 }
 
@@ -2212,9 +2212,9 @@ TEST_P(ReductionDimTest, BracketNanLiteralRowVector)
 {
     eval("a = [NaN, 1, NaN];");
     EXPECT_DOUBLE_EQ(evalScalar("size(a, 2);"), 3.0);
-    EXPECT_TRUE(std::isnan(evalScalar("a(1);")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("a(1);")));
     EXPECT_DOUBLE_EQ(evalScalar("a(2);"), 1.0);
-    EXPECT_TRUE(std::isnan(evalScalar("a(3);")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("a(3);")));
 }
 
 TEST_P(ReductionDimTest, BracketNanReassignDoesNotMutateConstant)
@@ -2233,7 +2233,7 @@ TEST_P(ReductionDimTest, BracketNanGlobalConstantStaysScalar)
     // literal that mentions NaN.
     eval("a = [NaN, 1];");
     EXPECT_DOUBLE_EQ(evalScalar("numel(NaN);"), 1.0);
-    EXPECT_TRUE(std::isnan(evalScalar("NaN;")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("NaN;")));
 }
 
 TEST_P(ReductionDimTest, BracketInfReassignDoesNotMutateConstant)
@@ -2264,7 +2264,7 @@ TEST_P(ReductionDimTest, BinaryMaxOmitnanDouble)
     eval("a = [NaN, 1, NaN]; b = [2, NaN, NaN]; m = max(a, b, 'omitnan');");
     EXPECT_DOUBLE_EQ(evalScalar("m(1);"), 2.0);
     EXPECT_DOUBLE_EQ(evalScalar("m(2);"), 1.0);
-    EXPECT_TRUE(std::isnan(evalScalar("m(3);")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("m(3);")));
 }
 
 TEST_P(ReductionDimTest, BinaryMinOmitnanDouble)
@@ -2272,7 +2272,7 @@ TEST_P(ReductionDimTest, BinaryMinOmitnanDouble)
     eval("a = [NaN, 5, NaN]; b = [3, NaN, NaN]; m = min(a, b, 'omitnan');");
     EXPECT_DOUBLE_EQ(evalScalar("m(1);"), 3.0);
     EXPECT_DOUBLE_EQ(evalScalar("m(2);"), 5.0);
-    EXPECT_TRUE(std::isnan(evalScalar("m(3);")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("m(3);")));
 }
 
 TEST_P(ReductionDimTest, BinaryMaxOmitnanSinglePreserves)
@@ -2378,7 +2378,7 @@ TEST_P(NanReductionTest, NanmeanSkipsNaN)
 
 TEST_P(NanReductionTest, NanmeanAllNaNReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("nanmean([NaN NaN]);")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("nanmean([NaN NaN]);")));
 }
 
 TEST_P(NanReductionTest, NanmeanMatrixDim1)
@@ -2400,7 +2400,7 @@ TEST_P(NanReductionTest, NanmaxSkipsNaN)
 
 TEST_P(NanReductionTest, NanmaxAllNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("nanmax([NaN NaN]);")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("nanmax([NaN NaN]);")));
 }
 
 TEST_P(NanReductionTest, NanminSkipsNaN)
@@ -2445,7 +2445,7 @@ TEST_P(NanReductionTest, NanvarSingleValidValue)
 
 TEST_P(NanReductionTest, NanstdSkipsNaN)
 {
-    EXPECT_NEAR(evalScalar("nanstd([1 NaN 2 NaN 3 4 5]);"), std::sqrt(2.5), 1e-12);
+    EXPECT_NEAR(evalScalar("nanstd([1 NaN 2 NaN 3 4 5]);"), keel::sqrt(2.5), 1e-12);
 }
 
 // ── nanmedian ───────────────────────────────────────────────
@@ -2464,7 +2464,7 @@ TEST_P(NanReductionTest, NanmedianEvenCount)
 
 TEST_P(NanReductionTest, NanmedianAllNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("nanmedian([NaN NaN NaN]);")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("nanmedian([NaN NaN NaN]);")));
 }
 
 // ── 3D dim coverage ─────────────────────────────────────────
@@ -2497,7 +2497,7 @@ TEST_P(NanReductionTest, NanmeanReturnsNaNForAllNaNSlice)
     EXPECT_EQ(rows(*v), 1u);
     EXPECT_EQ(cols(*v), 2u);
     EXPECT_DOUBLE_EQ(v->doubleData()[0], 2.0);
-    EXPECT_TRUE(std::isnan(v->doubleData()[1]));
+    EXPECT_TRUE(keel::is_nan(v->doubleData()[1]));
 }
 
 // ── Phase P2 SIMD single-pass coverage ───────────────────────
@@ -2848,7 +2848,7 @@ TEST_P(CumLogicalTest, CumprodLargeNMatchesScalarReference)
     EXPECT_EQ(c->numel(), 64u);
     double acc = 1.0;
     for (keel::usize k = 0; k < 64; ++k) {
-        acc *= std::pow(1.01, static_cast<double>(k));
+        acc *= keel::pow(1.01, static_cast<double>(k));
         EXPECT_NEAR(c->doubleData()[k], acc, 1e-10 * keel::abs(acc))
             << "at k=" << k;
     }
@@ -2963,7 +2963,7 @@ TEST_P(CumLogicalTest, Cumprod3DDim1LargePerPagePerColumn)
     for (keel::usize p = 0; p < 2; ++p)
         for (keel::usize c = 0; c < 2; ++c)
             for (keel::usize r = 0; r < 16; ++r) {
-                const double expected = std::pow(1.05, static_cast<double>(r + 1));
+                const double expected = keel::pow(1.05, static_cast<double>(r + 1));
                 EXPECT_NEAR((*C)(r, c, p), expected,
                             1e-12 * keel::abs(expected))
                     << "at r=" << r << " c=" << c << " p=" << p;
@@ -3225,8 +3225,8 @@ TEST_P(CumLogicalTest, DiffPropagatesNaN)
     eval("d = diff([1 NaN 3 4]);");
     auto *d = getVarPtr("d");
     EXPECT_EQ(d->numel(), 3u);
-    EXPECT_TRUE(std::isnan(d->doubleData()[0]));  // NaN - 1
-    EXPECT_TRUE(std::isnan(d->doubleData()[1]));  // 3 - NaN
+    EXPECT_TRUE(keel::is_nan(d->doubleData()[0]));  // NaN - 1
+    EXPECT_TRUE(keel::is_nan(d->doubleData()[1]));  // 3 - NaN
     EXPECT_DOUBLE_EQ(d->doubleData()[2], 1.0);    // 4 - 3
 }
 

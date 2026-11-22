@@ -3,6 +3,7 @@
 // Regression guard for ncfcdf + ncfinv.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <gtest/gtest.h>
 
 #include <cmath>
@@ -79,7 +80,7 @@ TEST_F(NcfCdfInvTest, NcfinvBoundaryP0)
 
 TEST_F(NcfCdfInvTest, NcfinvBoundaryP1)
 {
-    EXPECT_TRUE(std::isinf(evalScalar("ncfinv(1, 5, 10, 3)")));
+    EXPECT_TRUE(keel::is_inf(evalScalar("ncfinv(1, 5, 10, 3)")));
 }
 
 TEST_F(NcfCdfInvTest, NcfinvDeltaZeroEqualsCentral)

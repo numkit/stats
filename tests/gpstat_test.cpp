@@ -2,6 +2,7 @@
 // gpstat.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -27,13 +28,13 @@ TEST_F(GpstatTest, K05_VarianceIsInf)
 {
     eval("[m, v] = gpstat(0.5, 1, 0);");
     EXPECT_DOUBLE_EQ(evalScalar("m"), 2.0);
-    EXPECT_TRUE(std::isinf(evalScalar("v")));
+    EXPECT_TRUE(keel::is_inf(evalScalar("v")));
 }
 
 TEST_F(GpstatTest, K1_MeanIsInf)
 {
     eval("[m, v] = gpstat(1, 1, 0);");
-    EXPECT_TRUE(std::isinf(evalScalar("m")));
+    EXPECT_TRUE(keel::is_inf(evalScalar("m")));
 }
 
 TEST_F(GpstatTest, VectorBroadcastingK)
@@ -46,6 +47,6 @@ TEST_F(GpstatTest, VectorBroadcastingK)
 
 TEST_F(GpstatTest, InvalidSigmaReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("gpstat(0.3,  0, 0)")));
-    EXPECT_TRUE(std::isnan(evalScalar("gpstat(0.3, -1, 0)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("gpstat(0.3,  0, 0)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("gpstat(0.3, -1, 0)")));
 }

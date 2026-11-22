@@ -2,6 +2,7 @@
 // lognpdf.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -42,6 +43,6 @@ TEST_F(LognpdfTest, NonPositiveXReturnsZero)
 
 TEST_F(LognpdfTest, InvalidSigmaReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("lognpdf(2, 0,  0)")));
-    EXPECT_TRUE(std::isnan(evalScalar("lognpdf(2, 0, -1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("lognpdf(2, 0,  0)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("lognpdf(2, 0, -1)")));
 }

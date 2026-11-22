@@ -2,6 +2,7 @@
 // expfit.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -63,7 +64,7 @@ TEST_F(ExpfitTest, EdgeAllCensored)
     // If every observation is censored, no events -> NaN.
     eval("xs = [1 2 3]'; allcens = [1 1 1]';");
     eval("[mu, ci] = expfit(xs, 0.05, allcens);");
-    EXPECT_TRUE(std::isnan(evalScalar("mu")));
-    EXPECT_TRUE(std::isnan(evalScalar("ci(1)")));
-    EXPECT_TRUE(std::isnan(evalScalar("ci(2)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("mu")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("ci(1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("ci(2)")));
 }

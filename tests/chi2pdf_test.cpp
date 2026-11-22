@@ -2,6 +2,7 @@
 // chi2pdf. Reference values from MATLAB R2025b.
 
 #include <numkit/core/standard_engine.hpp>
+#include <keel/math.h>
 #include <numkit/core/standard_engine.hpp>
 #include <gtest/gtest.h>
 
@@ -52,7 +53,7 @@ TEST_F(Chi2pdfTest, KEqualsZeroReturnsZero)
 
 TEST_F(Chi2pdfTest, NegativeKReturnsNaN)
 {
-    EXPECT_TRUE(std::isnan(evalScalar("chi2pdf(2, -1)")));
+    EXPECT_TRUE(keel::is_nan(evalScalar("chi2pdf(2, -1)")));
 }
 
 TEST_F(Chi2pdfTest, LargeDof)
