@@ -427,7 +427,7 @@ void isoutlierParse(const Value &A, keel::ArrayRef<Value> in, bool forRmoutliers
     keel::usize i = 0;
     if (!in.empty() && isStringValue(in[0])) {
         keel::Array<keel::StringRef> all;
-        all.reserve(std::size(kMethods) + nvNames.size());
+        all.reserve(keel::ArrayRef<keel::StringRef>(kMethods).size() + nvNames.size());
         for (keel::StringRef s : kMethods) all.push_back(s);
         for (keel::StringRef s : nvNames) all.push_back(s);
         const keel::i32 hit = argcheck::matchStringChoice(in[0], all.as_ref());

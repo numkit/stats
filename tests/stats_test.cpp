@@ -14,6 +14,7 @@
 // MATLAB R2024b for the non-trivial cases.
 
 #include <keel/core.h>
+#include <numkit/value/error.hpp>
 #include <keel/math.h>
 #include "dual_engine_fixture.hpp"
 
@@ -94,7 +95,7 @@ TEST_P(StatsTest, VarMatrixPopulationDim2)
 
 TEST_P(StatsTest, VarBadFlag)
 {
-    EXPECT_THROW(eval("var([1 2 3], 2);"), std::runtime_error);
+    EXPECT_THROW(eval("var([1 2 3], 2);"), numkit::Error);
 }
 
 // ============================================================
@@ -276,8 +277,8 @@ TEST_P(StatsTest, QuantileVectorPMatrixDim2)
 
 TEST_P(StatsTest, QuantileBadProb)
 {
-    EXPECT_THROW(eval("quantile([1 2 3], -0.1);"), std::runtime_error);
-    EXPECT_THROW(eval("quantile([1 2 3], 1.5);"), std::runtime_error);
+    EXPECT_THROW(eval("quantile([1 2 3], -0.1);"), numkit::Error);
+    EXPECT_THROW(eval("quantile([1 2 3], 1.5);"), numkit::Error);
 }
 
 TEST_P(StatsTest, PrctileEquivalentToQuantile)
@@ -291,8 +292,8 @@ TEST_P(StatsTest, PrctileEquivalentToQuantile)
 
 TEST_P(StatsTest, PrctileBadProb)
 {
-    EXPECT_THROW(eval("prctile([1 2 3], 150);"), std::runtime_error);
-    EXPECT_THROW(eval("prctile([1 2 3], -10);"), std::runtime_error);
+    EXPECT_THROW(eval("prctile([1 2 3], 150);"), numkit::Error);
+    EXPECT_THROW(eval("prctile([1 2 3], -10);"), numkit::Error);
 }
 
 // ============================================================
