@@ -40,10 +40,10 @@ void lhsdesign_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mu
             throw Error("lhsdesign: name-value arguments expected",
                         0, 0, "lhsdesign", "", "numkit:lhsdesign:badNameValue");
         keel::String name = args[k].toString();
-        for (auto &c : name) c = keel::to_ascii_lower(c);
+        name.to_ascii_lower_in_place();
         if (name == "smooth") {
             keel::String v = args[k + 1].toString();
-            for (auto &c : v) c = keel::to_ascii_lower(c);
+            v.to_ascii_lower_in_place();
             smooth = (v != "off");
         } else if (name == "criterion") {
             static constexpr LhsCriterion kCrit[] = {LhsCriterion::None,

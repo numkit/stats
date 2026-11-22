@@ -6,6 +6,7 @@
 #include <keel/array.h>
 #include <keel/core.h>
 #include <keel/ref.h>
+#include <keel/math.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
@@ -20,9 +21,6 @@
 #include <tuple>
 #include <utility>
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
 
 namespace numkit::stats {
 
@@ -90,8 +88,7 @@ bool gaussSolve(keel::f64 *M, keel::f64 *b, keel::usize p)
 // MATLAB robustfit weight functions (statrobustwfun.m). Argument is the
 // standardised, leverage-adjusted residual u = radj / (max(s,tiny_s)*tune).
 constexpr keel::f64 kSqrtEps = 1.4901161193847656e-08;  // sqrt(eps)
-#ifndef M_PI
-constexpr keel::f64 M_PI = 3.14159265358979323846;
+#ifndef keel::kPi
 #endif
 
 [[maybe_unused]] keel::f64 robustWeight(RobustWeight wt, keel::f64 u)
@@ -100,7 +97,7 @@ constexpr keel::f64 M_PI = 3.14159265358979323846;
     switch (wt) {
         case RobustWeight::Andrews: {
             const keel::f64 r = std::max(kSqrtEps, a);
-            return (r < M_PI) ? std::sin(r) / r : 0.0;
+            return (r < keel::kPi) ? std::sin(r) / r : 0.0;
         }
         case RobustWeight::Bisquare: {
             if (a >= 1.0) return 0.0;

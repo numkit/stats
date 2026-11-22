@@ -13,6 +13,7 @@
 #include <keel/core.h>
 #include <keel/format.h>
 #include <keel/random.h>
+#include <keel/math.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
@@ -24,9 +25,6 @@
 #include <tuple>
 #include <utility>
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
 
 namespace numkit::stats {
 
@@ -102,7 +100,7 @@ keel::f64 phiCdf(keel::f64 x) { return 0.5 * std::erfc(-x / std::sqrt(2.0)); }
         const keel::f64 r2 = 1.0 - t * t;
         // φ_2(h, k; t) at point (h, k) with corr t.
         const keel::f64 quad = (h * h - 2.0 * t * h * k + k * k) / (2.0 * r2);
-        const keel::f64 pdf = std::exp(-quad) / (2.0 * M_PI * std::sqrt(r2));
+        const keel::f64 pdf = std::exp(-quad) / (2.0 * keel::kPi * std::sqrt(r2));
         integral += GL_W[i] * pdf;
     }
     integral *= rho;

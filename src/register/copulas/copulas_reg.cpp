@@ -32,7 +32,7 @@ namespace {
 keel::String family_lower(const Value &v)
 {
     keel::String s = v.toString();
-    for (auto &c : s) c = keel::to_ascii_lower(c);
+    s.to_ascii_lower_in_place();
     return s;
 }
 }

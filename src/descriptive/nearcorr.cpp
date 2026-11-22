@@ -110,7 +110,7 @@ Value nearcorr_full(const Value &A, keel::ArrayRef<Value> nv, keel::Allocator *m
             case 2: {
                 keel::String rawMv = v.toString();
                 keel::String mv = rawMv.clone();
-                for (char &c : mv) c = keel::to_ascii_lower(c);
+                mv.to_ascii_lower_in_place();
                 if (mv != "newton" && mv != "projection")
                     badOpt(keel::format("'Method' must be 'newton' or 'projection', got '{}'", rawMv));
                 break;

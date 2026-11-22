@@ -6,6 +6,7 @@
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <keel/array.h>
+#include <keel/math.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
@@ -20,9 +21,6 @@
 #include <tuple>
 #include <utility>
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
 
 namespace numkit::stats {
 
@@ -63,7 +61,7 @@ keel::f64 chi2inv_scalar(keel::f64 p, keel::f64 k, keel::Allocator *mr) {
 
 // ── Normal MLE helpers (used by normfit / lognfit cens+freq paths) ────
 
-constexpr keel::f64 kPi = 3.14159265358979323846;
+constexpr keel::f64 kPi = keel::kPi;
 
 // Inverse-Mills ratio λ(α) = φ(α)/Φ(-α). For right-censored normal MLE.
 inline keel::f64 inv_mills(keel::f64 a) {

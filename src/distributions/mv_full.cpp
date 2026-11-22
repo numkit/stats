@@ -516,7 +516,7 @@ Value mvncdf_full(keel::ArrayRef<Value> args, keel::Allocator *mr)
             auto getFieldCI = [&](const char *key) -> const Value * {
                 for (auto entry : fields) {
                     keel::String k = keel::String::from(entry.key.as_ref());
-                    for (char &ch : k) ch = keel::to_ascii_lower(ch);
+                    k.to_ascii_lower_in_place();
                     if (k == key && !entry.value.isEmpty() && entry.value.isNumeric())
                         return fields.get(entry.key);
                 }

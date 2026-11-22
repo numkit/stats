@@ -3,6 +3,7 @@
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <keel/stats.h>
+#include <keel/math.h>
 #include <numkit/stats/distributions/rayleigh.hpp>
 
 #include <numkit/builtin/datafun.hpp>
@@ -16,9 +17,6 @@
 #include <limits>
 #include <mutex>
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
 
 #include "rayleigh_detail.hpp"
 
@@ -76,8 +74,8 @@ std::tuple<keel::f64, keel::f64> raylstat(keel::f64 b)
         const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
         return std::make_tuple(nan, nan);
     }
-    const keel::f64 mean = b * std::sqrt(0.5 * M_PI);
-    const keel::f64 var  = (2.0 - 0.5 * M_PI) * b * b;
+    const keel::f64 mean = b * std::sqrt(0.5 * keel::kPi);
+    const keel::f64 var  = (2.0 - 0.5 * keel::kPi) * b * b;
     return std::make_tuple(mean, var);
 }
 

@@ -341,7 +341,7 @@ namespace {
 void smoothdata_argcheck(keel::StringRef method)
 {
     keel::String m = keel::String::from(method);
-    for (auto &c : m) c = keel::to_ascii_lower(c);
+    m.to_ascii_lower_in_place();
     if (!m.empty() && m != "movmean" && m != "movmedian" && m != "gaussian"
         && m != "sgolay" && m != "lowess" && m != "loess") {
         throw Error(keel::format("smoothdata: method '{}' not supported "
@@ -371,9 +371,7 @@ Value smoothdata(const Value &x, keel::StringRef method, keel::i32 k, keel::i32 
 {
     smoothdata_argcheck(method);
     keel::String m = keel::String::from(method);
-    for (auto &c : m) c = keel::to_ascii_lower(c);
-
-    // Heuristic default window — the reference engine picks ~max(min(round(0.1*n), 10), 3).
+    m.to_ascii_lower_in_place();// Heuristic default window — the reference engine picks ~max(min(round(0.1*n), 10), 3).
     if (k <= 0) {
         const keel::usize n = (x.dims().isVector() || x.isScalar())
                           ? x.numel()

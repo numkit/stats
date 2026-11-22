@@ -40,7 +40,7 @@ void kmedoids_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     keel::String start     = keel::String::from("plus");
     auto lower = [](keel::StringRef sv) {
         keel::String s = keel::String::from(sv);
-        for (auto &c : s) c = keel::to_ascii_lower(c);
+        s.to_ascii_lower_in_place();
         return s;
     };
     for (keel::usize i = 2; i + 1 < args.size(); i += 2) {
@@ -82,7 +82,7 @@ void dbscan_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     keel::f64 p = 2.0;
     auto lower = [](keel::StringRef sv) {
         keel::String s = keel::String::from(sv);
-        for (auto &c : s) c = keel::to_ascii_lower(c);
+        s.to_ascii_lower_in_place();
         return s;
     };
     // MATLAB requires N-V form; we also tolerate a 4th positional metric

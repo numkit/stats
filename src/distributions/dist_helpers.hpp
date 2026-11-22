@@ -39,7 +39,7 @@ inline keel::usize stripUpperFlag(keel::ArrayRef<Value> args, bool &upper)
     const Value &last = args[args.size() - 1];
     if (!last.isChar() && !last.isString()) return args.size();
     keel::String s = last.toString();
-    for (char &c : s) c = keel::to_ascii_lower(c);
+    s.to_ascii_lower_in_place();
     if (s == "upper") {
         upper = true;
         return args.size() - 1;

@@ -39,8 +39,7 @@ namespace {
 keel::String lowerCopy(keel::StringRef sv)
 {
     keel::String s = keel::String::from(sv);
-    for (char &c : s)
-        c = keel::to_ascii_lower(c);
+    s.to_ascii_lower_in_place();
     return s;
 }
 

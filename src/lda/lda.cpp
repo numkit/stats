@@ -34,7 +34,7 @@ keel::stats::DiscrimType classify_argcheck(const Value &sample, const Value &tra
                     0, 0, "classify", "", "numkit:classify:group");
 
     keel::String type = keel::String::from(type_in);
-    for (char &c : type) c = keel::to_ascii_lower(c);
+    type.to_ascii_lower_in_place();
     if (type.empty() || type == "linear") return keel::stats::DiscrimType::kLinear;
     if (type == "diaglinear")             return keel::stats::DiscrimType::kDiagLinear;
     if (type == "quadratic")              return keel::stats::DiscrimType::kQuadratic;

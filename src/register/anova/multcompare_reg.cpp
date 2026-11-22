@@ -31,7 +31,7 @@ namespace {
 McCorrection parse_ctype(keel::StringRef raw)
 {
     keel::String s = keel::String::from(raw);
-    for (auto &c : s) c = keel::to_ascii_lower(c);
+    s.to_ascii_lower_in_place();
     if (s == "bonferroni")                 return McCorrection::Bonferroni;
     if (s == "lsd")                        return McCorrection::LSD;
     if (s == "tukey-kramer" || s == "hsd") return McCorrection::TukeyKramer;
@@ -68,7 +68,7 @@ void multcompare_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
                         0, 0, "multcompare", "", "numkit:multcompare:badParam");
         keel::String rawKey = args[i].toString();
         keel::String key = rawKey.clone();
-        for (auto &c : key) c = keel::to_ascii_lower(c);
+        key.to_ascii_lower_in_place();
         const Value &val = args[i + 1];
         if (key == "alpha") {
             alpha = val.toScalar();

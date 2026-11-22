@@ -52,7 +52,7 @@ void rangesearch_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutA
                 throw Error("rangesearch: expected name-value pair",
                             0, 0, "rangesearch", "", "numkit:rangesearch:nvpair");
             keel::String name = args[i].toString();
-            for (auto &c : name) c = keel::to_ascii_lower(c);
+            name.to_ascii_lower_in_place();
             if (i + 1 >= args.size())
                 throw Error(keel::format("rangesearch: '{}' missing value", name),
                             0, 0, "rangesearch", "", "numkit:rangesearch:nvval");

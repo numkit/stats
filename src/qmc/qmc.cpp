@@ -117,7 +117,7 @@ Value net(const Value &stream, keel::i64 n, keel::Allocator *mr)
     keel::String scram;
     if (stream.hasField("scramble"))
         scram = stream.field("scramble").toString();
-    bool useRR2 = (scram == "RR2" || scram == "rr2");
+    bool useRR2 = (scram.equals_ignore_ascii_case("rr2"));
     const keel::Array<keel::i32> primes = first_primes(d);
     keel::Array<keel::Array<keel::i32>> perms;
     if (useRR2) {

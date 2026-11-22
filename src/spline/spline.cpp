@@ -495,7 +495,7 @@ Value fnbrk(const Value &pp, keel::StringRef part_in, keel::Allocator *mr)
         throw Error("fnbrk: input must be a spline struct",
                     0, 0, "fnbrk", "", "numkit:fnbrk:struct");
     keel::String part = keel::String::from(part_in);
-    for (auto &c : part) c = keel::to_ascii_lower(c);
+    part.to_ascii_lower_in_place();
     auto copyV = [&](const Value &v) {
         if (v.type() == ValueType::CHAR || v.isString()) {
             keel::String sv = v.toString();

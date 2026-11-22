@@ -273,7 +273,7 @@ void normlike_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         const keel::f64 inv_s2  = inv_s * inv_s;
         const keel::f64 inv_s3  = inv_s2 * inv_s;
         const keel::f64 inv_s4  = inv_s2 * inv_s2;
-        const keel::f64 sqrt2pi_inv = 1.0 / std::sqrt(2.0 * 3.14159265358979323846);
+        const keel::f64 sqrt2pi_inv = keel::kInvSqrt2Pi;
         const keel::f64 sqrt2_inv   = 1.0 / std::sqrt(2.0);
         keel::f64 I00 = 0.0, I01 = 0.0, I11 = 0.0;
         bool nanSeen = false;
@@ -551,8 +551,7 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     keel::f64 alpha = 0.05;   // 100·(1-alpha)% confidence for the 2nd output pci
     auto toLower = [](keel::StringRef raw) {
         keel::String s = keel::String::from(raw);
-        for (char &ch : s)
-            ch = keel::to_ascii_lower(ch);
+        s.to_ascii_lower_in_place();
         return s;
     };
     for (keel::usize i = 1; i + 1 < args.size(); i += 2) {
@@ -822,7 +821,7 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
 
     const keel::f64 *xd = x.doubleData();
 
-    if (dist == "normal" || dist == "Normal" || dist == "norm") {
+    if (dist.equals_ignore_ascii_case("normal") || dist == "norm") {
         keel::f64 sum = 0.0;
         for (keel::usize i = 0; i < N; ++i) sum += xd[i];
         const keel::f64 mean = sum / keel::as<keel::f64>(N);
@@ -843,7 +842,7 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         }
         return;
     }
-    if (dist == "exponential" || dist == "Exponential" || dist == "exp") {
+    if (dist.equals_ignore_ascii_case("exponential") || dist == "exp") {
         keel::f64 sum = 0.0;
         for (keel::usize i = 0; i < N; ++i) {
             if (xd[i] < 0.0)
@@ -861,7 +860,7 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         }
         return;
     }
-    if (dist == "poisson" || dist == "Poisson" || dist == "poiss") {
+    if (dist.equals_ignore_ascii_case("poisson") || dist == "poiss") {
         keel::f64 sum = 0.0;
         for (keel::usize i = 0; i < N; ++i) {
             if (xd[i] < 0.0 || xd[i] != std::floor(xd[i]))
@@ -879,7 +878,7 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         }
         return;
     }
-    if (dist == "lognormal" || dist == "Lognormal" || dist == "logn") {
+    if (dist.equals_ignore_ascii_case("lognormal") || dist == "logn") {
         keel::f64 sum_log = 0.0;
         for (keel::usize i = 0; i < N; ++i) {
             if (xd[i] <= 0.0)

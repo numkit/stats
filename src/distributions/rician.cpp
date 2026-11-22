@@ -16,10 +16,8 @@
 #include <limits>
 #include <mutex>
 #include <keel/random.h>
+#include <keel/math.h>
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
 
 #include "rician_detail.hpp"
 
@@ -110,8 +108,8 @@ std::tuple<keel::f64, keel::f64> ricestat(keel::f64 s, keel::f64 sigma, keel::Al
         return std::make_tuple(nan, nan);
     }
     if (s == 0.0) {
-        return std::make_tuple(sigma * std::sqrt(M_PI / 2.0),
-                               sigma * sigma * (2.0 - M_PI / 2.0));
+        return std::make_tuple(sigma * std::sqrt(keel::kPi / 2.0),
+                               sigma * sigma * (2.0 - keel::kPi / 2.0));
     }
     const keel::f64 s2 = s * s;
     const keel::f64 sg2 = sigma * sigma;
@@ -120,7 +118,7 @@ std::tuple<keel::f64, keel::f64> ricestat(keel::f64 s, keel::f64 sigma, keel::Al
     const keel::f64 i0 = besseli_scalar(0.0, half, mr);
     const keel::f64 i1 = besseli_scalar(1.0, half, mr);
     const keel::f64 L = std::exp(z / 2.0) * ((1.0 - z) * i0 - z * i1);
-    const keel::f64 mean = sigma * std::sqrt(M_PI / 2.0) * L;
+    const keel::f64 mean = sigma * std::sqrt(keel::kPi / 2.0) * L;
     const keel::f64 var  = 2.0 * sg2 + s2 - mean * mean;
     return std::make_tuple(mean, var);
 }

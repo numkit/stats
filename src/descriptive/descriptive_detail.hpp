@@ -29,9 +29,6 @@
 #include <tuple>
 #include <utility>
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
 
 namespace numkit::stats {
 
@@ -778,8 +775,7 @@ enum class CovNan { Include, Omitrows, Partialrows };
 {
     if (!v.isChar() && !v.isString()) return false;
     keel::String s = v.toString();
-    for (auto &c : s)
-        c = keel::to_ascii_lower(c);
+    s.to_ascii_lower_in_place();
     if (s.as_ref() == "includenan")  { mode = CovNan::Include;     return true; }
     if (s.as_ref() == "omitrows")    { mode = CovNan::Omitrows;    return true; }
     if (s.as_ref() == "partialrows") { mode = CovNan::Partialrows; return true; }
@@ -910,7 +906,7 @@ enum class CorrcoefRows { All, Complete, Pairwise };
     for (keel::usize i = start; i < args.size(); ++i) {
         if (!(args[i].isChar() || args[i].isString())) continue;
         keel::String probe = args[i].toString();
-        for (char &c : probe) c = keel::to_ascii_lower(c);
+        probe.to_ascii_lower_in_place();
         const keel::StringRef pr = probe.as_ref();
         const bool isName = pr == "rows" || pr == "alpha"
             || (pr.size() <= 4 && keel::StringRef("rows").substr(0, pr.size()) == pr)
@@ -927,10 +923,10 @@ enum class CorrcoefRows { All, Complete, Pairwise };
     for (keel::usize i = start; i + 1 < args.size(); i += 2) {
         if (!(args[i].isChar() || args[i].isString())) continue;
         keel::String name = args[i].toString();
-        for (char &c : name) c = keel::to_ascii_lower(c);
+        name.to_ascii_lower_in_place();
         if (name.as_ref() == "rows") {
             keel::String v = args[i + 1].toString();
-            for (char &c : v) c = keel::to_ascii_lower(c);
+            v.to_ascii_lower_in_place();
             if (v.as_ref() == "all")      return CorrcoefRows::All;
             if (v.as_ref() == "complete") return CorrcoefRows::Complete;
             if (v.as_ref() == "pairwise") return CorrcoefRows::Pairwise;
@@ -949,7 +945,7 @@ enum class CorrcoefRows { All, Complete, Pairwise };
     for (keel::usize i = start; i + 1 < args.size(); i += 2) {
         if (!(args[i].isChar() || args[i].isString())) continue;
         keel::String name = args[i].toString();
-        for (char &c : name) c = keel::to_ascii_lower(c);
+        name.to_ascii_lower_in_place();
         if (name.as_ref() == "alpha") {
             const keel::f64 a = args[i + 1].toScalar();
             if (!(a > 0.0 && a < 1.0))
@@ -1275,8 +1271,7 @@ namespace {
     const Value &last = args[args.size() - 1];
     if (last.type() != ValueType::CHAR) return args.size();
     keel::String s = last.toString();
-    std::transform(s.begin(), s.end(), s.begin(),
-                   [](keel::u8 c) { return keel::to_ascii_lower(c); });
+    s.to_ascii_lower_in_place();
     if (s.as_ref() == "omitnan" || s.as_ref() == "omitmissing") { omitNan = true; return args.size() - 1; }
     if (s.as_ref() == "includenan" || s.as_ref() == "includemissing") return args.size() - 1;
     // Not a nan flag â€” leave it to the caller to handle (e.g. 'all').

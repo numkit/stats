@@ -35,7 +35,7 @@ void haltonset_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     for (keel::usize i = 1; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar() && !args[i].isString()) break;
         keel::String name = args[i].toString();
-        for (auto &c : name) c = keel::to_ascii_lower(c);
+        name.to_ascii_lower_in_place();
         const Value &v = args[i + 1];
         if      (name == "skip") skip = keel::as<keel::i64>(v.toScalar());
         else if (name == "leap") leap = keel::as<keel::i64>(v.toScalar());

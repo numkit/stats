@@ -12,6 +12,7 @@
 #include <keel/function_ref.h>
 #include <keel/string.h>
 #include <keel/utf8.h>
+#include <keel/math.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/ops/helpers.hpp>            // createForDims/createMatrix/DimsArg (engine-free)
@@ -29,9 +30,6 @@
 #include <tuple>
 #include <utility>
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
 
 namespace numkit::stats {
 
@@ -969,7 +967,7 @@ enum class KsKernel { Normal, Box, Triangle, Epanechnikov };
 inline keel::f64 ks_pdf(keel::f64 u, KsKernel k) {
     switch (k) {
         case KsKernel::Normal:
-            return 0.3989422804014327 * std::exp(-0.5 * u * u);
+            return keel::kInvSqrt2Pi * std::exp(-0.5 * u * u);
         case KsKernel::Box:
             return (std::fabs(u) <= 1.0) ? 0.5 : 0.0;
         case KsKernel::Triangle:

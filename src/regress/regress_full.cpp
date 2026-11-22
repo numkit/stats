@@ -35,8 +35,7 @@ GlmLink parseGlmLinkName(const Value &v, const char *fn)
 {
     keel::String raw = v.toString();
     keel::String s = raw.clone();
-    for (char &c : s)
-        c = keel::to_ascii_lower(c);
+    s.to_ascii_lower_in_place();
     if (s.empty() || s == "canonical") return GlmLink::Identity;
     if (s == "identity")    return GlmLink::Identity;
     if (s == "logit")       return GlmLink::Logit;
@@ -290,8 +289,7 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
         for (; i + 1 < tail.size(); i += 2) {
             keel::String rawName = tail[i].toString();
             keel::String name = rawName.clone();
-            for (char &c : name)
-                c = keel::to_ascii_lower(c);
+            name.to_ascii_lower_in_place();
             const Value &v = tail[i + 1];
             if      (name == "confidence")   { clev = v.elemAsDouble(0); haveConfidence = true; }
             else if (name == "alpha")        { clev = 1.0 - v.elemAsDouble(0); haveAlpha = true; }
@@ -303,8 +301,7 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
                 if (v.isLogical()) simultaneous = v.toBool();
                 else if (v.isChar() || v.isString()) {
                     keel::String sv = v.toString();
-                    for (char &c : sv)
-                        c = keel::to_ascii_lower(c);
+                    sv.to_ascii_lower_in_place();
                     simultaneous = (sv == "true" || sv == "on");
                 } else {
                     simultaneous = (v.elemAsDouble(0) != 0.0);

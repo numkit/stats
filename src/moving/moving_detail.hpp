@@ -27,9 +27,6 @@
 #include <tuple>
 #include <utility>
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
 
 namespace numkit::stats {
 
@@ -127,8 +124,7 @@ struct MovOpts {
 inline keel::String toLower(keel::StringRef sv)
 {
     keel::String s = keel::String::from(sv);
-    for (auto &c : s)
-        c = keel::to_ascii_lower(c);
+    s.to_ascii_lower_in_place();
     return s;
 }
 

@@ -7,6 +7,7 @@
 #include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
+#include <keel/math.h>
 #include <numkit/stats/anova/anova.hpp>
 
 #include <numkit/stats/distributions/students_t.hpp>   // tinv, tcdf
@@ -71,7 +72,7 @@ constexpr keel::f64 kGL16W[8] = {
 
 inline keel::f64 normPhi(keel::f64 z)
 {
-    constexpr keel::f64 kInvSqrt2Pi = 0.3989422804014326779399;
+    constexpr keel::f64 kInvSqrt2Pi = keel::kInvSqrt2Pi;
     return kInvSqrt2Pi * std::exp(-0.5 * z * z);
 }
 

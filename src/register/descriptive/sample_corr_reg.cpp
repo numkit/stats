@@ -32,7 +32,7 @@ void parseCorrOpts(keel::ArrayRef<Value> args, keel::usize start, keel::i32 &num
     for (keel::usize i = start; i < args.size(); ++i) {
         if (args[i].isChar()) {
             keel::String opt = args[i].toString();
-            for (char &c : opt) c = keel::to_ascii_lower(c);
+            opt.to_ascii_lower_in_place();
             if (i + 1 < args.size()) {
                 if (opt == "numlags") {
                     numLags = argcheck::expectedInteger(

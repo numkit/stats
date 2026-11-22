@@ -11,6 +11,7 @@
 
 #include <keel/core.h>
 #include <keel/memory.h>
+#include <keel/math.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
@@ -22,9 +23,6 @@
 #include <tuple>
 #include <utility>
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
 
 namespace numkit::stats {
 
@@ -46,7 +44,7 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
 }
 
 constexpr keel::f64 kSqrt2 = 1.41421356237309504880;
-constexpr keel::f64 kSqrt2Pi = 2.50662827463100050241;
+constexpr keel::f64 kSqrt2Pi = keel::kSqrt2Pi;
 
 // Φ(z) via complementary error fn (avoids cancellation in tail).
 inline keel::f64 phi(keel::f64 z) { return 0.5 * std::erfc(-z / kSqrt2); }

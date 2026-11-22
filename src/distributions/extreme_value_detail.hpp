@@ -11,6 +11,7 @@
 
 #include <keel/core.h>
 #include <keel/memory.h>
+#include <keel/math.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
@@ -22,15 +23,12 @@
 #include <tuple>
 #include <utility>
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
 
 namespace numkit::stats {
 
 namespace {
 
-constexpr keel::f64 kEulerGamma = 0.5772156649015328606065120900824024;
+constexpr keel::f64 kEulerGamma = keel::kEulerGamma;
 constexpr keel::f64 kPi2Over6   = 1.6449340668482264364724151666460252;  // π²/6
 
 template <typename Op>

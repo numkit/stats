@@ -11,6 +11,7 @@
 
 #include <keel/core.h>
 #include <keel/memory.h>
+#include <keel/math.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
@@ -22,9 +23,6 @@
 #include <tuple>
 #include <utility>
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
 
 namespace numkit::stats {
 
@@ -57,12 +55,12 @@ inline keel::f64 tpdfK(keel::f64 x, keel::f64 nu)
 {
     if (!(nu > 0.0)) return std::numeric_limits<keel::f64>::quiet_NaN();   // nu<=0 / NaN
     if (std::isinf(nu)) {
-        const keel::f64 inv = 1.0 / std::sqrt(2.0 * M_PI);
+        const keel::f64 inv = 1.0 / std::sqrt(2.0 * keel::kPi);
         return inv * std::exp(-0.5 * x * x);
     }
     const keel::f64 log_norm = std::lgamma(0.5 * (nu + 1.0))
                           - std::lgamma(0.5 * nu)
-                          - 0.5 * std::log(nu * M_PI);
+                          - 0.5 * std::log(nu * keel::kPi);
     return std::exp(log_norm - 0.5 * (nu + 1.0) * std::log1p(x * x / nu));
 }
 
@@ -77,11 +75,11 @@ inline keel::f64 tNormInv(keel::f64 p)
     if (y <= -1.0) return -std::numeric_limits<keel::f64>::infinity();
     const keel::f64 a = 0.147;
     const keel::f64 ln1m = std::log(1.0 - y * y);
-    const keel::f64 term = 2.0 / (M_PI * a) + 0.5 * ln1m;
+    const keel::f64 term = 2.0 / (keel::kPi * a) + 0.5 * ln1m;
     keel::f64 xv = std::copysign(std::sqrt(std::sqrt(term * term - ln1m / a) - term), y);
     for (keel::i32 it = 0; it < 2; ++it) {
         const keel::f64 e  = std::erf(xv) - y;
-        const keel::f64 de = 2.0 * std::exp(-xv * xv) / std::sqrt(M_PI);
+        const keel::f64 de = 2.0 * std::exp(-xv * xv) / std::sqrt(keel::kPi);
         xv -= e / de;
     }
     return std::sqrt(2.0) * xv;
@@ -113,13 +111,13 @@ keel::f64 nctpdf_one(keel::f64 x, keel::f64 nu, keel::f64 delta,
     if (delta == 0.0) {
         const keel::f64 log_norm = std::lgamma(0.5 * (nu + 1.0))
                               - std::lgamma(0.5 * nu)
-                              - 0.5 * std::log(nu * M_PI);
+                              - 0.5 * std::log(nu * keel::kPi);
         return std::exp(log_norm - 0.5 * (nu + 1.0) * std::log1p(x * x / nu));
     }
     if (x == 0.0) {
         // f(0; ν, δ) = Γ((ν+1)/2) / [√(νπ) · Γ(ν/2)] · exp(-δ²/2)
         const keel::f64 log_v = std::lgamma(0.5 * (nu + 1.0))
-                           - 0.5 * std::log(nu * M_PI)
+                           - 0.5 * std::log(nu * keel::kPi)
                            - std::lgamma(0.5 * nu)
                            - 0.5 * delta * delta;
         return std::exp(log_v);
@@ -129,7 +127,7 @@ keel::f64 nctpdf_one(keel::f64 x, keel::f64 nu, keel::f64 delta,
     //              - (ν+1)/2 · log(ν + x²)
     const keel::f64 log_pref = 0.5 * nu * std::log(nu)
                           - 0.5 * delta * delta
-                          - 0.5 * std::log(M_PI)
+                          - 0.5 * std::log(keel::kPi)
                           - std::lgamma(0.5 * nu)
                           - 0.5 * (nu + 1.0) * std::log(npx2);
     const keel::f64 xd = x * delta;
@@ -181,7 +179,7 @@ keel::f64 nctcdf_one(keel::f64 x, keel::f64 nu, keel::f64 delta,
     // Series 2 (Q_k coefficient): (δ/(2√(2π))) · (z^k / Γ(k+3/2)) · e^{-z}.
     const keel::f64 e_neg_z = std::exp(-z);
     keel::f64 alpha = e_neg_z;                                    // P_0
-    keel::f64 beta  = (2.0 / std::sqrt(M_PI)) * e_neg_z;          // (z^0 / Γ(3/2)) · e^{-z}
+    keel::f64 beta  = (2.0 / std::sqrt(keel::kPi)) * e_neg_z;          // (z^0 / Γ(3/2)) · e^{-z}
 
     keel::f64 sum1 = 0.0, sum2 = 0.0;
     constexpr keel::i32 kMax = 2000;

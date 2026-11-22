@@ -71,7 +71,7 @@ void clusterdata_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     keel::String distance_metric = keel::String::from("euclidean");
     auto lower = [](keel::StringRef sv) {
         keel::String s = keel::String::from(sv);
-        for (auto &c : s) c = keel::to_ascii_lower(c);
+        s.to_ascii_lower_in_place();
         return s;
     };
     // MATLAB scalar shortcut: clusterdata(X, c) where c is numeric.

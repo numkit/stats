@@ -24,16 +24,13 @@
 #include <tuple>
 #include <utility>
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
 
 namespace numkit::stats {
 
 namespace {
 
 constexpr keel::f64 kSqrt2  = 1.41421356237309504880;
-constexpr keel::f64 kSqrt2Pi = 2.50662827463100050241;
+constexpr keel::f64 kSqrt2Pi = keel::kSqrt2Pi;
 
 // Apply f(x[i]) elementwise into a fresh DOUBLE Value of same shape.
 template <typename Op>
@@ -64,9 +61,9 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
     const keel::f64 q = 1.0 - ay; // tail probability erfc(|x|) = q
     const keel::f64 a = 0.147;
     const keel::f64 ln1m = std::log((1.0 + ay) * q);
-    const keel::f64 term = 2.0 / (M_PI * a) + 0.5 * ln1m;
+    const keel::f64 term = 2.0 / (keel::kPi * a) + 0.5 * ln1m;
     keel::f64 x = std::copysign(std::sqrt(std::sqrt(term * term - ln1m / a) - term), y);
-    const keel::f64 invSqrtPi2 = 2.0 / std::sqrt(M_PI);
+    const keel::f64 invSqrtPi2 = 2.0 / std::sqrt(keel::kPi);
     // 4 Halley iterations for full 53-bit precision across central and tail regions.
     for (keel::i32 i = 0; i < 4; ++i) {
         keel::f64 err;

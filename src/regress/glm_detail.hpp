@@ -4,6 +4,7 @@
 #pragma once
 
 #include <keel/core.h>
+#include <keel/math.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
@@ -18,9 +19,6 @@
 #include <tuple>
 #include <utility>
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
 
 namespace numkit::stats {
 
@@ -116,12 +114,12 @@ keel::f64 dEtaProbit(keel::f64 mu) {
     keel::f64 z = std::log(m / (1.0 - m));
     for (keel::i32 i = 0; i < 5; ++i) {
         const keel::f64 F = 0.5 * std::erfc(-z / std::sqrt(2.0));
-        const keel::f64 f = (1.0 / std::sqrt(2.0 * M_PI)) * std::exp(-0.5 * z * z);
+        const keel::f64 f = (1.0 / std::sqrt(2.0 * keel::kPi)) * std::exp(-0.5 * z * z);
         if (f < 1e-300) break;
         z -= (F - m) / f;
     }
     (void)pp;
-    const keel::f64 phi = (1.0 / std::sqrt(2.0 * M_PI)) * std::exp(-0.5 * z * z);
+    const keel::f64 phi = (1.0 / std::sqrt(2.0 * keel::kPi)) * std::exp(-0.5 * z * z);
     return (phi > 1e-300) ? 1.0 / phi : 1e300;
 }
 

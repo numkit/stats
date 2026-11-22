@@ -5,6 +5,7 @@
 #include <keel/memory.h>
 #include <keel/arena.h>
 #include <keel/array.h>
+#include <keel/math.h>
 #include <numkit/stats/fit/fit.hpp>
 
 #include <numkit/stats/distributions/chi2.hpp>
@@ -439,7 +440,7 @@ keel::f64 lognlike_full(keel::f64 mu, keel::f64 sigma, const Value &x,
     const keel::f64 logS    = std::log(sigma);
     const keel::f64 halfL2pi = 0.5 * kLog2Pi;
     const keel::f64 sqrt2_inv  = 1.0 / std::sqrt(2.0);
-    const keel::f64 sqrt2pi_inv = 1.0 / std::sqrt(2.0 * 3.14159265358979323846);
+    const keel::f64 sqrt2pi_inv = keel::kInvSqrt2Pi;
 
     keel::f64 nL = 0.0;
     keel::f64 I00 = 0.0, I01 = 0.0, I11 = 0.0;

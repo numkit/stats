@@ -21,9 +21,6 @@
 #include <tuple>
 #include <utility>
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
 
 namespace numkit::stats {
 
@@ -51,7 +48,7 @@ struct KnnOpts { keel::i32 K = 1; keel::String metric = keel::String::from("eucl
             throw Error(keel::format("{}: expected name-value pair", fn),
                         0, 0, fn, "", "numkit:knn:nvpair");
         keel::String name = args[i].toString();
-        for (auto &c : name) c = keel::to_ascii_lower(c);
+        name.to_ascii_lower_in_place();
         if (i + 1 >= args.size())
             throw Error(keel::format("{}: '{}' missing value", fn, name),
                         0, 0, fn, "", "numkit:knn:nvval");

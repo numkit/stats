@@ -695,8 +695,7 @@ ErrorMetricOpts parseErrorMetricOpts(keel::ArrayRef<Value> tail,
         keel::String low;
         if (v.isChar() || v.isString()) {
             low = v.toString();
-            for (char &c : low)
-                c = keel::to_ascii_lower(c);
+            low.to_ascii_lower_in_place();
         }
         keel::i32 hit = -1; keel::i32 cnt = 0;
         const keel::StringRef lref = low.as_ref();
@@ -1284,7 +1283,7 @@ ksdensity_full(const Value &x, const Value &pts, keel::f64 bw_user, keel::String
     const keel::usize M = grid.size();
     auto lower = [](keel::StringRef sv) {
         keel::String s = keel::String::from(sv);
-        for (auto &c : s) c = keel::to_ascii_lower(c);
+        s.to_ascii_lower_in_place();
         return s;
     };
     const keel::String mode = function_mode.empty() ? keel::String::from("pdf")
@@ -1610,8 +1609,7 @@ Value filloutliers(const Value &A, const Value &fillMethod,
                    keel::Allocator *mr)
 {
     keel::String detect = keel::String::from(findMethod);
-    for (char &ch : detect)
-        ch = keel::to_ascii_lower(ch);
+    detect.to_ascii_lower_in_place();
     const keel::StringRef detRef = detect.as_ref();
     if (detRef != "median" && detRef != "mean" && detRef != "quartiles")
         throw Error("filloutliers: findMethod must be 'median', 'mean', or "
@@ -1775,7 +1773,7 @@ EcdfFull ecdf_full(const Value &y, const Value *freq, keel::StringRef function_m
     // Apply Function mode.
     auto lower = [](keel::StringRef sv) {
         keel::String s = keel::String::from(sv);
-        for (auto &c : s) c = keel::to_ascii_lower(c);
+        s.to_ascii_lower_in_place();
         return s;
     };
     const keel::String mode = lower(function_mode);
@@ -1826,7 +1824,7 @@ EcdfFull ecdf_full(const Value &y, const Value *freq, keel::StringRef function_m
         keel::f64 e = 1.0 - alpha;
         for (keel::i32 it = 0; it < 50; ++it) {
             const keel::f64 f = std::erf(e) - (1.0 - alpha);
-            const keel::f64 fp = (2.0 / std::sqrt(3.14159265358979323846))
+            const keel::f64 fp = (2.0 / std::sqrt(keel::kPi))
                               * std::exp(-e * e);
             e -= f / fp;
         }

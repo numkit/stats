@@ -854,7 +854,7 @@ runstest(const Value &x, keel::f64 v_in, keel::f64 alpha, TestTail tail,
          keel::StringRef method_in, keel::Allocator *mr)
 {
     keel::String method = keel::String::from(method_in);
-    for (auto &c : method) c = keel::to_ascii_lower(c);
+    method.to_ascii_lower_in_place();
     const bool exact = (method != "approximate");
 
     keel::ArenaTemp scratch = keel::get_scratch(mr);
@@ -880,7 +880,7 @@ ranksum(const Value &x, const Value &y, keel::f64 alpha, TestTail tail,
         keel::StringRef method_in, keel::Allocator *mr)
 {
     keel::String method = keel::String::from(method_in);
-    for (auto &c : method) c = keel::to_ascii_lower(c);
+    method.to_ascii_lower_in_place();
     keel::i32 method_mode = 0;
     if (method == "exact")            method_mode = 1;
     else if (method == "approximate") method_mode = 2;
@@ -914,7 +914,7 @@ signrank(const Value &x, const Value &y_or_m, keel::f64 alpha, TestTail tail,
     const keel::f64 m0 = (paired || y_or_m.isEmpty()) ? 0.0 : y_or_m.toScalar();
 
     keel::String method = keel::String::from(method_in);
-    for (auto &c : method) c = keel::to_ascii_lower(c);
+    method.to_ascii_lower_in_place();
     keel::i32 method_mode = 0;
     if (method == "exact")            method_mode = 1;
     else if (method == "approximate") method_mode = 2;

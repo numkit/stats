@@ -161,8 +161,7 @@ Value varStdDispatch(keel::ArrayRef<Value> args, bool sqrtIt, const char *fn,
         const Value &a = args[2];
         if (a.isChar() || a.isString()) {
             keel::String s = a.toString();
-            std::transform(s.begin(), s.end(), s.begin(),
-                           [](keel::u8 c) { return keel::to_ascii_lower(c); });
+            s.to_ascii_lower_in_place();
             if (s.as_ref() == "all") flattenAll = true;
             else throw Error(keel::format("{}: unknown dim flag '{}'", fn, s.as_ref()),
                               0, 0, fn, "", keel::format("numkit:{}:dim", fn));
@@ -377,8 +376,7 @@ void median_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
         const Value &a = args[1];
         if (a.isChar() || a.isString()) {
             keel::String s = a.toString();
-            std::transform(s.begin(), s.end(), s.begin(),
-                           [](keel::u8 c) { return keel::to_ascii_lower(c); });
+            s.to_ascii_lower_in_place();
             if (s.as_ref() == "all") isAll = true;
             else throw Error(keel::format("median: unknown option '{}'", s.as_ref()),
                               0, 0, "median", "", "numkit:median:unknownOption");
@@ -509,8 +507,7 @@ QArgs parseQArgs(keel::ArrayRef<Value> args, keel::usize start, const Value &x,
         ++i;
     } else if (i < args.size() && (args[i].isChar() || args[i].isString())) {
         keel::String s = args[i].toString();
-        std::transform(s.begin(), s.end(), s.begin(),
-                       [](keel::u8 c) { return keel::to_ascii_lower(c); });
+        s.to_ascii_lower_in_place();
         if (s.as_ref() == "all") {
             q.flatten = true;
             ++i;
@@ -523,15 +520,13 @@ QArgs parseQArgs(keel::ArrayRef<Value> args, keel::usize start, const Value &x,
             throw Error(keel::format("{}: expected Name-Value pair", fn),
                         0, 0, fn, "", keel::format("numkit:{}:nv", fn));
         keel::String name = args[i].toString();
-        std::transform(name.begin(), name.end(), name.begin(),
-                       [](keel::u8 c) { return keel::to_ascii_lower(c); });
+        name.to_ascii_lower_in_place();
         if (name.as_ref() == "method") {
             if (!args[i + 1].isChar() && !args[i + 1].isString())
                 throw Error(keel::format("{}: Method must be a string", fn),
                             0, 0, fn, "", keel::format("numkit:{}:method", fn));
             keel::String m = args[i + 1].toString();
-            std::transform(m.begin(), m.end(), m.begin(),
-                           [](keel::u8 c) { return keel::to_ascii_lower(c); });
+            m.to_ascii_lower_in_place();
             // MATLAB's documented values are 'exact' (default) and
             // 'approximate'. 'exact' is the linear-interpolation order-
             // statistic method, which is nk's Midpoint. The
@@ -637,8 +632,7 @@ void mode_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef
         const Value &a = args[1];
         if (a.isChar() || a.isString()) {
             keel::String s = a.toString();
-            std::transform(s.begin(), s.end(), s.begin(),
-                [](keel::u8 c){ return keel::to_ascii_lower(c); });
+            s.to_ascii_lower_in_place();
             if (s.as_ref() == "all") flatten = true;
             else throw Error(keel::format("mode: unknown flag '{}'", s.as_ref()),
                               0, 0, "mode", "", "numkit:mode:badFlag");

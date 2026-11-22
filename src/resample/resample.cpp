@@ -127,7 +127,7 @@ bool parseReplaceFlag(const Value &v, const char *fn, const char *tag)
         if (b == 0.0 || b == 1.0) return b != 0.0;
     } else if (v.isChar() || v.isString()) {
         keel::String t = v.toString();
-        for (char &c : t) c = keel::to_ascii_lower(c);
+        t.to_ascii_lower_in_place();
         if (t == "true") return true;
         if (t == "false") return false;
     }
@@ -304,8 +304,7 @@ Value datasample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
     for (keel::usize i = nvStart; i + 1 < args.size(); i += 2) {
         if (!(args[i].isChar() || args[i].isString())) continue;
         keel::String name = args[i].toString();
-        for (char &c : name)
-            c = keel::to_ascii_lower(c);
+        name.to_ascii_lower_in_place();
         if (name == "replace") {
             if (!args[i + 1].isLogical() || !args[i + 1].isScalar())
                 throw Error("datasample: REPLACE must be either true or "

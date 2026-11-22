@@ -32,7 +32,7 @@ void robustfit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     RobustWeight w = RobustWeight::Bisquare;
     if (args.size() >= 3 && args[2].isChar()) {
         keel::String s = args[2].toString();
-        for (char &c : s) c = keel::to_ascii_lower(c);
+        s.to_ascii_lower_in_place();
         if      (s == "andrews")  w = RobustWeight::Andrews;
         else if (s == "bisquare") w = RobustWeight::Bisquare;
         else if (s == "cauchy")   w = RobustWeight::Cauchy;
@@ -59,8 +59,8 @@ void robustfit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     bool addConst = true;
     if (args.size() >= 5 && args[4].isChar()) {
         const keel::String c = args[4].toString();
-        if (c == "off" || c == "Off" || c == "OFF")       addConst = false;
-        else if (c == "on" || c == "On" || c == "ON")     addConst = true;
+        if (c.equals_ignore_ascii_case("off") || c == "OFF")       addConst = false;
+        else if (c.equals_ignore_ascii_case("on") || c == "ON")     addConst = true;
         else
             throw Error("robustfit: const must be 'on' or 'off'",
                         0, 0, "robustfit", "", "numkit:robustfit:badConst");

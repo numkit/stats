@@ -169,7 +169,7 @@ void crossval_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
             throw Error("crossval: option name must be a string",
                         0, 0, "crossval", "", "numkit:crossval:badOption");
         const auto opt = args[i].toString();
-        if (opt == "kfold" || opt == "KFold")
+        if (opt.equals_ignore_ascii_case("kfold"))
             K = argcheck::expectedInteger(
                 argcheck::expectedReal(args[i + 1], keel::i32(i) + 2, "KFold", "crossval"),
                 keel::i32(i) + 2, "KFold", "crossval");
