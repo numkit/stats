@@ -140,7 +140,7 @@ Value detrendBP_of(const Value &x, keel::ArrayRef<keel::f64> bpUser, keel::Alloc
 Value filloutliers_of(const Value &x, const Value &fillArg, keel::StringRef detect, keel::f64 thresholdFactor, keel::f64 loP, keel::f64 hiP, keel::Allocator *mr);
 Value trimmean_of(const Value &x, keel::f64 pct, keel::i32 dim, bool useFloor, keel::Allocator *mr);
 EcdfFull ecdf_full(const Value &y, const Value *freq, keel::StringRef function_mode, keel::f64 alpha, bool want_bounds, keel::Allocator *mr);
-KsdensityFull ksdensity_full(const Value &x, const Value &pts, keel::f64 bw_user, keel::StringRef kernel_name, keel::StringRef function_mode, keel::usize numpoints, const Value *weights, keel::Allocator *mr);
+KsdensityFull ksdensity_full(const Value &x, const Value &pts, keel::f64 bw_user, keel::StringRef kernel_name, keel::StringRef function_mode, keel::usize numpoints, const Value *weights, keel::Allocator *mr, keel::f64 supportLo = -std::numeric_limits<keel::f64>::infinity(), keel::f64 supportHi = std::numeric_limits<keel::f64>::infinity(), keel::StringRef boundary_correction = "log");
 
 namespace {
 

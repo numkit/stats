@@ -66,6 +66,9 @@ void ksdensity_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     keel::f64 bw_user = 0.0;
     keel::String kernel = keel::String::from("normal");
     keel::String function_mode = keel::String::from("pdf");
+    keel::String boundary_correction = keel::String::from("log");
+    keel::f64 supportLo = -std::numeric_limits<keel::f64>::infinity();
+    keel::f64 supportHi =  std::numeric_limits<keel::f64>::infinity();
     keel::usize numpoints = 100;
     const Value *weights = nullptr;
     auto lower = [](keel::StringRef sv) {
@@ -102,8 +105,40 @@ void ksdensity_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         else if (name == "function")  function_mode = v.toString();
         else if (name == "numpoints") numpoints = (keel::usize)v.toScalar();
         else if (name == "weights")   { if (!v.isEmpty()) weights = &v; }
-        else if (name == "censoring" || name == "support"
-                 || name == "boundarycorrection") {
+        else if (name == "support") {
+            if (v.isChar() || v.isString()) {
+                const keel::String sStr = lower(v.toString().as_ref());
+                const keel::StringRef s = sStr.as_ref();
+                if (s == "unbounded") {
+                    supportLo = -std::numeric_limits<keel::f64>::infinity();
+                    supportHi =  std::numeric_limits<keel::f64>::infinity();
+                } else if (s == "positive") {
+                    supportLo = 0.0;
+                    supportHi = std::numeric_limits<keel::f64>::infinity();
+                } else {
+                    throw Error(keel::format("ksdensity: unknown Support '{}'", s),
+                                0, 0, "ksdensity", "", "numkit:ksdensity:support");
+                }
+            } else if (v.numel() == 2) {
+                supportLo = v.elemAsDouble(0);
+                supportHi = v.elemAsDouble(1);
+                if (!(supportLo < supportHi))
+                    throw Error("ksdensity: Support bounds must satisfy L < U",
+                                0, 0, "ksdensity", "", "numkit:ksdensity:support");
+            } else {
+                throw Error("ksdensity: Support must be 'unbounded', 'positive', or a 2-element [L U] vector",
+                            0, 0, "ksdensity", "", "numkit:ksdensity:support");
+            }
+        }
+        else if (name == "boundarycorrection") {
+            const keel::String sStr = lower(v.toString().as_ref());
+            const keel::StringRef s = sStr.as_ref();
+            if (s != "log" && s != "reflection")
+                throw Error(keel::format("ksdensity: unknown BoundaryCorrection '{}'", s),
+                            0, 0, "ksdensity", "", "numkit:ksdensity:boundaryCorrection");
+            boundary_correction = keel::String::from(s);
+        }
+        else if (name == "censoring") {
             if (!v.isEmpty())
                 throw Error(keel::format("ksdensity: '{}' is not yet supported", name),
                             0, 0, "ksdensity", "", "numkit:ksdensity:nyi");
@@ -111,7 +146,18 @@ void ksdensity_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         // 'PlotFcn' silently ignored (no-op headless).
         i += 2;
     }
-    auto R = ksdensity_full(args[0], pts, bw_user, kernel.as_ref(), function_mode.as_ref(), numpoints, weights, mr);
+    auto R = ksdensity_full(args[0], pts, bw_user, kernel.as_ref(), function_mode.as_ref(), numpoints, weights, mr,
+                            supportLo, supportHi, boundary_correction.as_ref());
+    if (nargout == 0) {
+        if (const ExternalFunc *plotFn = ctx.engine->findExternal("plot", ctx.env)) {
+            Value plotArgs[2] = {std::move(R.xi), std::move(R.f)};
+            Value plotOut[1];
+            (*plotFn)(keel::ArrayRef<Value>(plotArgs, 2), 0,
+                      keel::MutArrayRef<Value>(plotOut, 1), ctx);
+        }
+        outs[0] = Value();
+        return;
+    }
     outs[0] = std::move(R.f);
     if (nargout > 1) outs[1] = std::move(R.xi);
     if (nargout > 2) outs[2] = std::move(R.bw);

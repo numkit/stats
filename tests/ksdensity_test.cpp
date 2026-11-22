@@ -122,3 +122,46 @@ TEST_F(KsdensityTest, CensoringRejected)
     catch (const std::exception &) { threw = true; }
     EXPECT_TRUE(threw);
 }
+
+TEST_F(KsdensityTest, ZeroOutputsPlotsAndPreservesAns)
+{
+    eval("42; ksdensity(x);");
+    ASSERT_NE(engine.getVariable("ans"), nullptr);
+    EXPECT_DOUBLE_EQ(engine.getVariable("ans")->toScalar(), 42.0);
+}
+
+TEST_F(KsdensityTest, OutputShapeMatchesPtsAndSupportBoundaryCorrection)
+{
+    // Column pts produces column f and xi.
+    eval("pcol = [1; 3; 5; 7]; [fc, xic] = ksdensity(x, pcol);");
+    ASSERT_NE(engine.getVariable("fc"), nullptr);
+    EXPECT_EQ(engine.getVariable("fc")->dims().rows(), 4u);
+    EXPECT_EQ(engine.getVariable("fc")->dims().cols(), 1u);
+    EXPECT_EQ(engine.getVariable("xic")->dims().rows(), 4u);
+    EXPECT_EQ(engine.getVariable("xic")->dims().cols(), 1u);
+
+    // Positive support with reflection and log boundary correction.
+    eval("xp = [0.5 1.0 1.2 1.8 2.5 3.1]'; q = [0 0.5 1.0 2.0];");
+    eval("[fr, ~, bwr] = ksdensity(xp, q, 'Support', 'positive', 'BoundaryCorrection', 'reflection');");
+    EXPECT_NEAR(evalScalar("bwr"), 0.823070064834, 1e-9);
+    EXPECT_DOUBLE_EQ(evalScalar("fr(1)"), 0.0);
+    EXPECT_NEAR(evalScalar("fr(2)"), 0.29747574025, 1e-9);
+    EXPECT_NEAR(evalScalar("fr(3)"), 0.317322070687, 1e-9);
+    EXPECT_NEAR(evalScalar("fr(4)"), 0.283966917851, 1e-9);
+
+    eval("[fl, ~, bwl] = ksdensity(xp, q, 'Support', 'positive', 'BoundaryCorrection', 'log');");
+    EXPECT_NEAR(evalScalar("bwl"), 0.502780981394, 1e-9);
+    EXPECT_DOUBLE_EQ(evalScalar("fl(1)"), 0.0);
+    EXPECT_NEAR(evalScalar("fl(2)"), 0.437072173053, 1e-9);
+    EXPECT_NEAR(evalScalar("fl(3)"), 0.409619971529, 1e-9);
+    EXPECT_NEAR(evalScalar("fl(4)"), 0.236336389543, 1e-9);
+
+    // Two-sided [0 4] support with reflection.
+    eval("[fb, ~, bwb] = ksdensity(xp, [0 0.5 1.0 2.0 4.0], 'Support', [0 4], 'BoundaryCorrection', 'reflection');");
+    EXPECT_NEAR(evalScalar("bwb"), 0.823070064834, 1e-9);
+    EXPECT_DOUBLE_EQ(evalScalar("fb(1)"), 0.0);
+    EXPECT_NEAR(evalScalar("fb(2)"), 0.297475791351, 1e-9);
+    EXPECT_NEAR(evalScalar("fb(3)"), 0.317323173229, 1e-9);
+    EXPECT_NEAR(evalScalar("fb(4)"), 0.284139442736, 1e-9);
+    EXPECT_DOUBLE_EQ(evalScalar("fb(5)"), 0.0);
+}

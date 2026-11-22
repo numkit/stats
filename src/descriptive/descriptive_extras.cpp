@@ -1144,7 +1144,7 @@ Value trimmean_of(const Value &x, keel::f64 pct, keel::i32 dim, bool useFloor,
 // above the engine-adapter `ksdensity_reg` (in the outer namespace).
 
 KsdensityFull
-ksdensity_full(const Value &x, const Value &pts, keel::f64 bw_user, keel::StringRef kernel_name, keel::StringRef function_mode, keel::usize numpoints, const Value *weights, keel::Allocator *mr)
+ksdensity_full(const Value &x, const Value &pts, keel::f64 bw_user, keel::StringRef kernel_name, keel::StringRef function_mode, keel::usize numpoints, const Value *weights, keel::Allocator *mr, keel::f64 supportLo, keel::f64 supportHi, keel::StringRef boundary_correction)
 {
     const keel::usize N = x.numel();
     const keel::f64 nan = std::numeric_limits<keel::f64>::quiet_NaN();
@@ -1154,13 +1154,47 @@ ksdensity_full(const Value &x, const Value &pts, keel::f64 bw_user, keel::String
                 Value::scalar(nan, mr)};
 
     const KsKernel kernel = parse_ks_kernel(kernel_name);
+    const bool hasLo = std::isfinite(supportLo);
+    const bool hasHi = std::isfinite(supportHi);
+    const bool hasBounds = hasLo || hasHi;
+    const bool useReflection = hasBounds && boundary_correction.equals_ignore_ascii_case("reflection");
+    const bool useLogTransform = hasBounds && !useReflection;
+
+    // Transform helpers for 'log' boundary correction on bounded/semi-bounded support.
+    auto fwdTransform = [&](keel::f64 v) -> keel::f64 {
+        if (hasLo && hasHi) return std::log((v - supportLo) / (supportHi - v));
+        if (hasLo)          return std::log(v - supportLo);
+        return -std::log(supportHi - v);
+    };
+    auto invTransform = [&](keel::f64 y) -> keel::f64 {
+        if (hasLo && hasHi) {
+            const keel::f64 ey = std::exp(y);
+            return (supportLo + supportHi * ey) / (1.0 + ey);
+        }
+        if (hasLo) return supportLo + std::exp(y);
+        return supportHi - std::exp(-y);
+    };
+    auto jacTransform = [&](keel::f64 v) -> keel::f64 {
+        if (hasLo && hasHi) return (supportHi - supportLo) / ((v - supportLo) * (supportHi - v));
+        if (hasLo)          return 1.0 / (v - supportLo);
+        return 1.0 / (supportHi - v);
+    };
 
     keel::Array<keel::f64> xv(N);
     keel::Array<keel::f64> wv(N, 1.0);
     if (weights && weights->numel() == N)
         for (keel::usize i = 0; i < N; ++i) wv[i] = weights->elemAsDouble(i);
-    for (keel::usize i = 0; i < N; ++i) xv[i] = x.elemAsDouble(i);
-    // Normalize weights so Σw = 1 (matches MATLAB semantics).
+    for (keel::usize i = 0; i < N; ++i) {
+        const keel::f64 v = x.elemAsDouble(i);
+        if (hasLo && !(v > supportLo))
+            throw Error("ksdensity: data values must be strictly greater than lower Support bound",
+                        0, 0, "ksdensity", "", "numkit:ksdensity:support");
+        if (hasHi && !(v < supportHi))
+            throw Error("ksdensity: data values must be strictly less than upper Support bound",
+                        0, 0, "ksdensity", "", "numkit:ksdensity:support");
+        xv[i] = useLogTransform ? fwdTransform(v) : v;
+    }
+    // Normalize weights so Σw = 1.
     keel::f64 Wsum = 0.0;
     for (keel::f64 w : wv) Wsum += w;
     if (!(Wsum > 0.0)) Wsum = keel::f64(N);
@@ -1174,7 +1208,7 @@ ksdensity_full(const Value &x, const Value &pts, keel::f64 bw_user, keel::String
     keel::Array<keel::f64> xs(N), ws(N);
     for (keel::usize i = 0; i < N; ++i) { xs[i] = xv[idx[i]]; ws[i] = wv[idx[i]]; }
 
-    // MATLAB's default bandwidth for the normal kernel:
+    // Default bandwidth for the normal kernel:
     //   sigma = mad(x, 1) / 0.6745 if positive, else iqr(x) / 1.349
     //   bw    = sigma · (4 / (3·n))^(1/5)
     keel::f64 bw = bw_user;
@@ -1206,24 +1240,43 @@ ksdensity_full(const Value &x, const Value &pts, keel::f64 bw_user, keel::String
     }
 
     // Apply kernel-specific bandwidth scaling so h has consistent
-    // standard-deviation semantics across kernels (MATLAB convention).
+    // standard-deviation semantics across kernels.
     const keel::f64 h_eff = bw * ks_h_factor(kernel);
 
-    // Build evaluation grid.
+    // Build evaluation grid (in original x-space).
     keel::Array<keel::f64> grid;
+    keel::usize outRows = 1;
+    keel::usize outCols = 0;
     if (pts.isEmpty()) {
         const keel::usize M = (numpoints > 0) ? numpoints : 100;
-        const keel::f64 xmin = xs.front() - 3.0 * h_eff;
-        const keel::f64 xmax = xs.back()  + 3.0 * h_eff;
+        outRows = 1;
+        outCols = M;
         grid.resize(M);
-        if (M == 1) grid[0] = xmin;
-        else {
-            const keel::f64 step = (xmax - xmin) / keel::f64(M - 1);
-            for (keel::usize i = 0; i < M; ++i) grid[i] = xmin + step * keel::f64(i);
-            grid[M - 1] = xmax;
+        if (useLogTransform) {
+            const keel::f64 ymin = xs.front() - 3.0 * h_eff;
+            const keel::f64 ymax = xs.back()  + 3.0 * h_eff;
+            if (M == 1) grid[0] = invTransform(ymin);
+            else {
+                const keel::f64 step = (ymax - ymin) / keel::f64(M - 1);
+                for (keel::usize i = 0; i < M; ++i)
+                    grid[i] = invTransform((i + 1 == M) ? ymax : ymin + step * keel::f64(i));
+            }
+        } else {
+            keel::f64 xmin = xs.front() - 3.0 * h_eff;
+            keel::f64 xmax = xs.back()  + 3.0 * h_eff;
+            if (hasLo && xmin < supportLo) xmin = supportLo;
+            if (hasHi && xmax > supportHi) xmax = supportHi;
+            if (M == 1) grid[0] = xmin;
+            else {
+                const keel::f64 step = (xmax - xmin) / keel::f64(M - 1);
+                for (keel::usize i = 0; i < M; ++i) grid[i] = xmin + step * keel::f64(i);
+                grid[M - 1] = xmax;
+            }
         }
     } else {
         const keel::usize M = pts.numel();
+        outRows = pts.dims().rows();
+        outCols = pts.dims().cols();
         grid.resize(M);
         for (keel::usize i = 0; i < M; ++i) grid[i] = pts.elemAsDouble(i);
     }
@@ -1237,30 +1290,48 @@ ksdensity_full(const Value &x, const Value &pts, keel::f64 bw_user, keel::String
     const keel::String mode = function_mode.empty() ? keel::String::from("pdf")
                                                     : lower(function_mode);
     const keel::StringRef modeRef = mode.as_ref();
-    Value fv = Value::matrix(1, M, ValueType::DOUBLE, mr);
+    Value fv = Value::matrix(outRows, outCols, ValueType::DOUBLE, mr);
     keel::f64 *fd = fv.doubleDataMut();
     const keel::f64 inv_h = 1.0 / h_eff;
+
+    auto evalWindowedPdf = [&](keel::f64 q, bool useWindow, keel::f64 cutoff) -> keel::f64 {
+        keel::usize i0 = 0, i1 = N;
+        if (useWindow && N > 0) {
+            const keel::f64 lo = q - cutoff;
+            const keel::f64 hi = q + cutoff;
+            i0 = keel::as<keel::usize>(
+                std::lower_bound(xs.begin(), xs.end(), lo) - xs.begin());
+            if (i0 >= N) i0 = N - 1;
+            const keel::usize rIdx = keel::as<keel::usize>(
+                std::lower_bound(xs.begin(), xs.end(), hi) - xs.begin());
+            i1 = std::min(N, rIdx + 1);
+        }
+        keel::f64 sum = 0.0;
+        for (keel::usize i = i0; i < i1; ++i)
+            sum += ws[i] * ks_pdf((q - xs[i]) * inv_h, kernel);
+        return sum * inv_h * Winv;
+    };
 
     if (modeRef == "pdf") {
         const bool useWindow = (N * M > 30000);
         const keel::f64 cutoff = (kernel == KsKernel::Normal ? 4.0 : 1.0) * h_eff;
         for (keel::usize j = 0; j < M; ++j) {
-            keel::usize i0 = 0, i1 = N;
-            if (useWindow && N > 0) {
-                const keel::f64 lo = grid[j] - cutoff;
-                const keel::f64 hi = grid[j] + cutoff;
-                i0 = keel::as<keel::usize>(
-                    std::lower_bound(xs.begin(), xs.end(), lo) - xs.begin());
-                const keel::usize rIdx = keel::as<keel::usize>(
-                    std::lower_bound(xs.begin(), xs.end(), hi) - xs.begin());
-                i1 = std::min(N, rIdx + 1);
+            const keel::f64 xq = grid[j];
+            if (hasBounds && ((hasLo && !(xq > supportLo)) || (hasHi && !(xq < supportHi)))) {
+                fd[j] = 0.0;
+                continue;
             }
-            keel::f64 sum = 0.0;
-            for (keel::usize i = i0; i < i1; ++i) {
-                const keel::f64 u = (grid[j] - xs[i]) * inv_h;
-                sum += ws[i] * ks_pdf(u, kernel);
+            if (useLogTransform) {
+                const keel::f64 yq = fwdTransform(xq);
+                fd[j] = evalWindowedPdf(yq, useWindow, cutoff) * jacTransform(xq);
+            } else if (useReflection) {
+                keel::f64 val = evalWindowedPdf(xq, useWindow, cutoff);
+                if (hasLo) val += evalWindowedPdf(2.0 * supportLo - xq, useWindow, cutoff);
+                if (hasHi) val += evalWindowedPdf(2.0 * supportHi - xq, useWindow, cutoff);
+                fd[j] = val;
+            } else {
+                fd[j] = evalWindowedPdf(xq, useWindow, cutoff);
             }
-            fd[j] = sum * inv_h * Winv;
         }
     } else if (modeRef == "cdf" || modeRef == "survivor" || modeRef == "cumhazard"
                || modeRef == "cumulative hazard") {
@@ -1268,11 +1339,11 @@ ksdensity_full(const Value &x, const Value &pts, keel::f64 bw_user, keel::String
         keel::Array<keel::f64> w_prefix(N + 1, 0.0);
         for (keel::usize i = 0; i < N; ++i)
             w_prefix[i + 1] = w_prefix[i] + ws[i];
-        for (keel::usize j = 0; j < M; ++j) {
+        auto evalRawCdf = [&](keel::f64 q) -> keel::f64 {
             keel::usize i0 = 0, i1 = N;
             if (N > 0) {
-                const keel::f64 lo = grid[j] - cutoff;
-                const keel::f64 hi = grid[j] + cutoff;
+                const keel::f64 lo = q - cutoff;
+                const keel::f64 hi = q + cutoff;
                 i0 = keel::as<keel::usize>(
                     std::lower_bound(xs.begin(), xs.end(), lo) - xs.begin());
                 const keel::usize rIdx = keel::as<keel::usize>(
@@ -1280,11 +1351,27 @@ ksdensity_full(const Value &x, const Value &pts, keel::f64 bw_user, keel::String
                 i1 = std::min(N, rIdx + 1);
             }
             keel::f64 sum = w_prefix[i0];
-            for (keel::usize i = i0; i < i1; ++i) {
-                const keel::f64 u = (grid[j] - xs[i]) * inv_h;
-                sum += ws[i] * ks_cdf(u, kernel);
+            for (keel::usize i = i0; i < i1; ++i)
+                sum += ws[i] * ks_cdf((q - xs[i]) * inv_h, kernel);
+            return sum * Winv;
+        };
+        for (keel::usize j = 0; j < M; ++j) {
+            const keel::f64 xq = grid[j];
+            keel::f64 F = 0.0;
+            if (hasLo && xq <= supportLo) {
+                F = 0.0;
+            } else if (hasHi && xq >= supportHi) {
+                F = 1.0;
+            } else if (useLogTransform) {
+                F = evalRawCdf(fwdTransform(xq));
+            } else if (useReflection) {
+                F = evalRawCdf(xq);
+                if (hasLo) F -= evalRawCdf(2.0 * supportLo - xq);
+                if (hasHi) F += (1.0 - evalRawCdf(2.0 * supportHi - xq));
+                F = std::clamp(F, 0.0, 1.0);
+            } else {
+                F = evalRawCdf(xq);
             }
-            const keel::f64 F = sum * Winv;
             if      (modeRef == "cdf")      fd[j] = F;
             else if (modeRef == "survivor") fd[j] = 1.0 - F;
             else                            fd[j] = -std::log(std::max(1.0 - F, 1e-300));
@@ -1293,8 +1380,7 @@ ksdensity_full(const Value &x, const Value &pts, keel::f64 bw_user, keel::String
         // Inverse CDF: the `grid` values are PROBABILITIES p in [0, 1].
         // Solve F(x) = p via Newton's method on the smoothed cdf/pdf, seeded
         // by linear inverse-interpolation of a 100-point grid cdf over the
-        // data range — matching MATLAB R2025b's ksdensity icdf algorithm
-        // (compute_initial_icdf + Newton in statkscompute.m).
+        // data range.
         const keel::f64 infv = std::numeric_limits<keel::f64>::infinity();
         auto cdf_at = [&](keel::f64 xq) {
             keel::f64 s = 0.0;
@@ -1324,8 +1410,8 @@ ksdensity_full(const Value &x, const Value &pts, keel::f64 bw_user, keel::String
         for (keel::usize j = 0; j < M; ++j) {
             const keel::f64 p = grid[j];
             if (p < 0.0 || p > 1.0) { fd[j] = nan;   continue; }
-            if (p == 0.0)           { fd[j] = -infv; continue; }
-            if (p == 1.0)           { fd[j] =  infv; continue; }
+            if (p == 0.0)           { fd[j] = hasLo ? supportLo : -infv; continue; }
+            if (p == 1.0)           { fd[j] = hasHi ? supportHi :  infv; continue; }
             // Initial guess via linear inverse interpolation on (gF, gx).
             keel::f64 x0;
             if      (p <= gF.front()) x0 = gx.front();
@@ -1348,14 +1434,14 @@ ksdensity_full(const Value &x, const Value &pts, keel::f64 bw_user, keel::String
                 if (std::fabs(dx) <= 1e-6 * std::fabs(x0) || std::fabs(dp) <= 1e-8)
                     break;
             }
-            fd[j] = x0;
+            fd[j] = useLogTransform ? invTransform(x0) : x0;
         }
     } else {
         throw Error(keel::format("ksdensity: unknown Function '{}'", modeRef),
                     0, 0, "ksdensity", "", "numkit:ksdensity:badfn");
     }
 
-    Value xiV = Value::matrix(1, M, ValueType::DOUBLE, mr);
+    Value xiV = Value::matrix(outRows, outCols, ValueType::DOUBLE, mr);
     keel::f64 *xd = xiV.doubleDataMut();
     for (keel::usize i = 0; i < M; ++i) xd[i] = grid[i];
     return {std::move(fv), std::move(xiV), Value::scalar(bw, mr)};
