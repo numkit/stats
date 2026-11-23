@@ -21,8 +21,6 @@
 #include <numkit/builtin/polyfun.hpp>       // spline / pchip / makima
 
 #include <algorithm>
-#include <cstddef>
-#include <cstdint>
 #include <numeric>
 #include <tuple>
 #include <utility>

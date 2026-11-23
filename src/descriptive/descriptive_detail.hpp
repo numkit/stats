@@ -21,8 +21,6 @@
 #include <numkit/builtin/detail/datafun/var_reduction.hpp> // varianceTwoPass (engine-free)
 
 #include <algorithm>
-#include <cstddef>
-#include <cstdint>
 #include <numeric>
 #include <tuple>
 #include <utility>
@@ -73,7 +71,7 @@ Value narrowToSingle(Value d, keel::Allocator *mr)
     const keel::f64 *src = d.doubleData();
     const keel::usize n = d.numel();
     auto fill = [&](auto *dst) {
-        using T = std::remove_pointer_t<std::decay_t<decltype(dst)>>;
+        using T = keel::RemovePointer<keel::Decay<decltype(dst)>>;
         const keel::f64 lo = keel::as<keel::f64>(keel::Limits<T>::kMin);
         const keel::f64 hi = keel::as<keel::f64>(keel::Limits<T>::kMax);
         for (keel::usize i = 0; i < n; ++i) {
@@ -456,7 +454,7 @@ inline T readSrcAsT(const Value &x, keel::usize i, bool typeMatch)
 {
     if (typeMatch)
         return static_cast<const T *>(x.rawData())[i];
-    if constexpr (std::is_floating_point_v<T>) {
+    if constexpr (keel::IsFloatingPoint<T>) {
         return static_cast<T>(x.elemAsDouble(i));
     } else {
         const keel::f64 d = x.elemAsDouble(i);
@@ -481,7 +479,7 @@ inline Value makeScalarT(T v, ValueType outType, keel::Allocator *mr)
 template <typename T>
 inline T modeEmptyValue()
 {
-    if constexpr (std::is_floating_point_v<T>)
+    if constexpr (keel::IsFloatingPoint<T>)
         return keel::Limits<T>::quiet_nan();
     else
         return T{};
@@ -490,7 +488,7 @@ inline T modeEmptyValue()
 template <typename T>
 inline keel::usize compactNonNanT(T *data, keel::usize n)
 {
-    if constexpr (std::is_floating_point_v<T>) {
+    if constexpr (keel::IsFloatingPoint<T>) {
         keel::usize w = 0;
         for (keel::usize i = 0; i < n; ++i)
             if (!keel::is_nan(data[i])) {

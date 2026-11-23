@@ -18,8 +18,6 @@
 #include <numkit/ops/reductions.hpp>  // numkit::builtin::detail dim-infra (engine-free, ops re-export)
 
 #include <algorithm>
-#include <cstddef>
-#include <cstdint>
 #include <numeric>
 #include <tuple>
 #include <utility>

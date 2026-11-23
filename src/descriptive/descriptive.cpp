@@ -29,9 +29,6 @@
 #include <numkit/builtin/detail/datafun/var_reduction.hpp>
 
 #include <algorithm>
-#include <cstddef>
-#include <cstdint>
-#include <type_traits>
 #include <utility>
 
 #include "descriptive_detail.hpp"

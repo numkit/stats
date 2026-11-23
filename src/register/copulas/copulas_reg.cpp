@@ -19,7 +19,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <cstddef>
 #include <tuple>
 #include <utility>
 
