@@ -25,7 +25,6 @@
 #include "dist_helpers.hpp"
 
 #include <algorithm>
-#include <mutex>
 #include <keel/random.h>
 
 

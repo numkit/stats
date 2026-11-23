@@ -17,7 +17,6 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <mutex>
 #include <numeric>
 
 namespace numkit::stats {

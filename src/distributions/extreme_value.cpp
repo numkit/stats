@@ -12,7 +12,6 @@
 
 #include "dist_helpers.hpp"
 
-#include <mutex>
 
 #include "extreme_value_detail.hpp"
 

@@ -16,7 +16,6 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <mutex>
 #include <numeric>
 
 #include "resample_detail.hpp"

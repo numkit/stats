@@ -19,7 +19,6 @@
 
 #include "dist_helpers.hpp"
 
-#include <mutex>
 
 #include "gamma_dist_detail.hpp"
 

@@ -19,7 +19,6 @@
 #include "resample/resample_detail.hpp"
 
 #include <algorithm>
-#include <mutex>
 #include <keel/random.h>
 #include <numeric>
 

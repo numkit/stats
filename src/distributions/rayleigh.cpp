@@ -13,7 +13,6 @@
 
 #include "dist_helpers.hpp"
 
-#include <mutex>
 
 
 #include "rayleigh_detail.hpp"

@@ -16,7 +16,6 @@
 
 #include "dist_helpers.hpp"
 
-#include <mutex>
 
 #include "poisson_detail.hpp"
 

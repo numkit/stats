@@ -13,7 +13,6 @@
 
 #include "dist_helpers.hpp"
 
-#include <mutex>
 #include <keel/random.h>
 
 #include "ncx2_detail.hpp"

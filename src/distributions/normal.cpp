@@ -17,7 +17,6 @@
 
 #include "dist_helpers.hpp"            // stripUpperFlag / applyUpperInPlace
 
-#include <mutex>
 
 
 #include "normal_detail.hpp"

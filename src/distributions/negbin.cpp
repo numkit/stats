@@ -14,7 +14,6 @@
 
 #include "dist_helpers.hpp"
 
-#include <mutex>
 
 #include "negbin_detail.hpp"
 

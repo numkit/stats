@@ -12,7 +12,6 @@
 
 #include "dist_helpers.hpp"
 
-#include <mutex>
 
 #include "uniform_detail.hpp"
 
