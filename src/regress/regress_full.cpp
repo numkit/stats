@@ -404,7 +404,7 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
                     (Nv.isScalar() ? Nv.elemAsDouble(0) : Nv.elemAsDouble(r))
                     * invLink(eta);
             }
-        return { std::move(out), Value(), Value() };
+        return { keel::move(out), Value(), Value() };
     }
 
     Value yhat = Value::matrix(rows, 1, ValueType::DOUBLE, mr);
@@ -423,7 +423,7 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
     }
 
     if (!wantBounds)
-        return { std::move(yhat), Value(), Value() };
+        return { keel::move(yhat), Value(), Value() };
 
     // Extract covariance matrix C (wantCoef x wantCoef) from statsVal.
     keel::Array<keel::f64> covMat(wantCoef * wantCoef, 0.0);
@@ -495,7 +495,7 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
         dyhi.doubleDataMut()[r] = ymax - yh;
     }
 
-    return { std::move(yhat), std::move(dylo), std::move(dyhi) };
+    return { keel::move(yhat), keel::move(dylo), keel::move(dyhi) };
 }
 
 Value glmval_full(const Value &b, const Value &X, const Value &link,

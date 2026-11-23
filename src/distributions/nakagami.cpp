@@ -1,6 +1,7 @@
 // toolboxes/stats/src/distributions/nakagami.cpp
 
 #include <keel/core.h>
+#include <keel/tuple.h>
 #include <keel/math.h>
 #include <keel/memory.h>
 #include <numkit/stats/distributions/nakagami.hpp>
@@ -78,16 +79,16 @@ Value nakarnd(::numkit::ops::RngContext &rng, keel::f64 mu, keel::f64 omega, kee
     return out;
 }
 
-std::tuple<keel::f64, keel::f64> nakastat(keel::f64 mu, keel::f64 omega)
+keel::Tuple<keel::f64, keel::f64> nakastat(keel::f64 mu, keel::f64 omega)
 {
     if (mu <= 0.0 || omega <= 0.0) {
         const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
-        return std::make_tuple(nan, nan);
+        return keel::make_tuple(nan, nan);
     }
     const keel::f64 r = keel::tgamma(mu + 0.5) / keel::tgamma(mu);
     const keel::f64 mean = keel::sqrt(omega / mu) * r;
     const keel::f64 var  = omega * (1.0 - r * r / mu);
-    return std::make_tuple(mean, var);
+    return keel::make_tuple(mean, var);
 }
 
 } // namespace numkit::stats

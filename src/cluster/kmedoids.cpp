@@ -4,6 +4,7 @@
 // delegating numerical kernels to keel::stats.
 
 #include <keel/arena.h>
+#include <keel/tuple.h>
 #include <keel/algo.h>
 #include <keel/array.h>
 #include <keel/core.h>
@@ -144,16 +145,16 @@ kmedoids_full(::numkit::ops::RngContext &rng, const Value &X, keel::i32 K,
     return R;
 }
 
-std::tuple<Value, Value, Value>
+keel::Tuple<Value, Value, Value>
 kmedoids(::numkit::ops::RngContext &rng, const Value &X, keel::i32 K,
          keel::i32 max_iter, keel::i32 replicates, keel::StringRef metric_name,
          keel::Allocator *mr)
 {
     auto R = kmedoids_full(rng, X, K, max_iter, replicates, metric_name, mr);
-    return std::make_tuple(std::move(R.idx), std::move(R.C), std::move(R.sumd));
+    return keel::make_tuple(keel::move(R.idx), keel::move(R.C), keel::move(R.sumd));
 }
 
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 dbscan(const Value &X, keel::f64 eps, keel::i32 minpts,
        keel::StringRef metric_name, keel::f64 p, keel::Allocator *mr)
 {
@@ -184,10 +185,10 @@ dbscan(const Value &X, keel::f64 eps, keel::i32 minpts,
     Value idx = Value::matrix(N, 1, ValueType::DOUBLE, mr);
     keel::f64 *ip = idx.doubleDataMut();
     for (keel::usize i = 0; i < N; ++i) ip[i] = keel::as<keel::f64>(labels[i]);
-    return std::make_tuple(std::move(idx), std::move(core_v));
+    return keel::make_tuple(keel::move(idx), keel::move(core_v));
 }
 
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 dbscan(const Value &X, keel::f64 eps, keel::i32 minpts,
        keel::StringRef metric_name, keel::Allocator *mr)
 {

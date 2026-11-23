@@ -1,6 +1,7 @@
 // toolboxes/stats/src/distributions/gp.cpp
 
 #include <keel/core.h>
+#include <keel/tuple.h>
 #include <keel/math.h>
 #include <keel/memory.h>
 #include <numkit/stats/distributions/gp.hpp>
@@ -89,17 +90,17 @@ Value gprnd(::numkit::ops::RngContext &rng, keel::f64 k, keel::f64 sigma, keel::
     return out;
 }
 
-std::tuple<keel::f64, keel::f64> gpstat(keel::f64 k, keel::f64 sigma, keel::f64 theta)
+keel::Tuple<keel::f64, keel::f64> gpstat(keel::f64 k, keel::f64 sigma, keel::f64 theta)
 {
     const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
-    if (sigma <= 0.0) return std::make_tuple(nan, nan);
+    if (sigma <= 0.0) return keel::make_tuple(nan, nan);
     if (!(k < 1.0))
-        return std::make_tuple(keel::Limits<keel::f64>::infinity(), nan);
+        return keel::make_tuple(keel::Limits<keel::f64>::infinity(), nan);
     const keel::f64 mean = theta + sigma / (1.0 - k);
     if (!(k < 0.5))
-        return std::make_tuple(mean, keel::Limits<keel::f64>::infinity());
+        return keel::make_tuple(mean, keel::Limits<keel::f64>::infinity());
     const keel::f64 var = sigma * sigma / ((1.0 - k) * (1.0 - k) * (1.0 - 2.0 * k));
-    return std::make_tuple(mean, var);
+    return keel::make_tuple(mean, var);
 }
 
 } // namespace numkit::stats

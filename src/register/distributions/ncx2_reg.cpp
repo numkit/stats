@@ -17,8 +17,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -42,7 +40,7 @@ void ncx2cdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
                     0, 0, "ncx2cdf", "", "numkit:ncx2cdf:nargin");
     Value v = ncx2cdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->allocator());
     if (upper) applyUpperInPlace(v);
-    outs[0] = std::move(v);
+    outs[0] = keel::move(v);
 }
 
 void ncx2inv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,

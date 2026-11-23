@@ -16,7 +16,6 @@
 #include <numkit/ops/helpers.hpp>
 #include <numkit/ops/reductions.hpp>
 
-#include <utility>
 
 namespace numkit::stats {
 
@@ -122,7 +121,7 @@ Value dispatchMomentReduction(const Value &x, keel::i32 dim, keel::i32 normFlag,
             return fromSlice(slice, k, normFlag);
         }, mr);
     if (x.type() == ValueType::SINGLE)
-        r = narrowToSingle(std::move(r), mr);
+        r = narrowToSingle(keel::move(r), mr);
     return r;
 }
 

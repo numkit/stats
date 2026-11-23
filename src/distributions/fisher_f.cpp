@@ -5,6 +5,7 @@
 // independent χ²-distributed samples.
 
 #include <keel/core.h>
+#include <keel/tuple.h>
 #include <keel/memory.h>
 #include <keel/stats.h>
 #include <numkit/stats/distributions/fisher_f.hpp>
@@ -61,11 +62,11 @@ Value frnd(::numkit::ops::RngContext &rng, keel::f64 v1, keel::f64 v2, keel::usi
     return out;
 }
 
-std::tuple<keel::f64, keel::f64> fstat(keel::f64 v1, keel::f64 v2)
+keel::Tuple<keel::f64, keel::f64> fstat(keel::f64 v1, keel::f64 v2)
 {
     const keel::f64 NaN = keel::Limits<keel::f64>::quiet_nan();
     // Invalid params ⇒ NaN/NaN (matches MATLAB R2025b).
-    if (v1 <= 0.0 || v2 <= 0.0) return std::make_tuple(NaN, NaN);
+    if (v1 <= 0.0 || v2 <= 0.0) return keel::make_tuple(NaN, NaN);
     const keel::f64 mean = (v2 > 2.0) ? (v2 / (v2 - 2.0)) : NaN;
     keel::f64 var = NaN;
     if (v2 > 4.0) {
@@ -73,7 +74,7 @@ std::tuple<keel::f64, keel::f64> fstat(keel::f64 v1, keel::f64 v2)
         const keel::f64 den = v1 * (v2 - 2.0) * (v2 - 2.0) * (v2 - 4.0);
         var = num / den;
     }
-    return std::make_tuple(mean, var);
+    return keel::make_tuple(mean, var);
 }
 
 // ── Noncentral F ────────────────────────────────────────────────────
@@ -101,7 +102,7 @@ Value ncfinv(const Value &p, keel::f64 nu1, keel::f64 nu2, keel::f64 delta,
     return elementwise(p, [&](keel::f64 pi) { return ncfinv_one(pi, nu1, nu2, delta, mr); }, mr);
 }
 
-std::tuple<keel::f64, keel::f64> ncfstat(keel::f64 nu1, keel::f64 nu2, keel::f64 delta)
+keel::Tuple<keel::f64, keel::f64> ncfstat(keel::f64 nu1, keel::f64 nu2, keel::f64 delta)
 {
     const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
     if (!(nu1 > 0.0) || !(nu2 > 0.0) || delta < 0.0)

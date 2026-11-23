@@ -17,8 +17,6 @@
 
 #include <algorithm>
 #include <numeric>
-#include <tuple>
-#include <utility>
 
 
 namespace numkit::stats {
@@ -78,7 +76,7 @@ inline void invert_small(keel::f64 *A, keel::usize D,
                         0, 0, "pdist", "", "numkit:pdist:singular");
         if (piv != k) {
             for (keel::usize c = 0; c < 2 * D; ++c)
-                std::swap(aug[k * 2 * D + c], aug[piv * 2 * D + c]);
+                keel::swap(aug[k * 2 * D + c], aug[piv * 2 * D + c]);
         }
         const keel::f64 pivval = aug[k * 2 * D + k];
         const keel::f64 inv_pivval = 1.0 / pivval;

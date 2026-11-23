@@ -17,8 +17,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -56,7 +54,7 @@ void chi2cdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
         v = ::numkit::builtin::gammainc(xs, half_k, mr);
     }
     if (upper) applyUpperInPlace(v);
-    outs[0] = std::move(v);
+    outs[0] = keel::move(v);
 }
 
 void chi2inv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
@@ -90,7 +88,7 @@ void chi2inv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
         od[i] = (ki < 0.0) ? NaN
                            : (ki == 0.0 ? ((pi >= 0.0 && pi <= 1.0) ? 0.0 : NaN) : 2.0 * qi);
     }
-    outs[0] = std::move(out);
+    outs[0] = keel::move(out);
 }
 
 void chi2rnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)

@@ -30,7 +30,6 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -42,7 +41,7 @@ keel::f64 rankOneColumn(const keel::f64 *col, keel::usize N, keel::f64 *ranks)
 {
     // Build (value, original_index) pairs for non-NaN entries; NaN
     // gets NaN in the rank output and skipped in sorting.
-    keel::Array<std::pair<keel::f64, keel::usize>> nz;
+    keel::Array<keel::Pair<keel::f64, keel::usize>> nz;
     nz.reserve(N);
     for (keel::usize i = 0; i < N; ++i) {
         if (keel::is_nan(col[i])) {
@@ -95,7 +94,7 @@ void tiedrank_argcheck(const Value &x)
 
 } // namespace
 
-std::pair<Value, Value>
+keel::Pair<Value, Value>
 tiedrank(const Value &x, keel::Allocator *mr)
 {
     tiedrank_argcheck(x);
@@ -111,7 +110,7 @@ tiedrank(const Value &x, keel::Allocator *mr)
         const keel::f64 tieadj = rankOneColumn(col.data(), N,
                                             r.doubleDataMut());
         Value ta = Value::scalar(tieadj, mr);
-        return {std::move(r), std::move(ta)};
+        return {keel::move(r), keel::move(ta)};
     }
 
     // Matrix: column-wise, tieadj is 1-by-C row.
@@ -125,7 +124,7 @@ tiedrank(const Value &x, keel::Allocator *mr)
             col[i] = x.elemAsDouble(c * R + i);
         to[c] = rankOneColumn(col.data(), R, ro + c * R);
     }
-    return {std::move(r), std::move(ta)};
+    return {keel::move(r), keel::move(ta)};
 }
 
 } // namespace numkit::stats

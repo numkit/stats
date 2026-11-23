@@ -10,7 +10,7 @@
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
-#include <tuple>
+#include <keel/tuple.h>
 
 namespace numkit {
 
@@ -84,7 +84,7 @@ Value binornd(::numkit::ops::RngContext &rng, keel::f64 n, keel::f64 p, keel::us
 /// @param p  Success probability per trial.
 /// @return   `{mean, variance}` pair.
 /// @see binopdf
-std::tuple<keel::f64, keel::f64> binostat(keel::f64 n, keel::f64 p);
+keel::Tuple<keel::f64, keel::f64> binostat(keel::f64 n, keel::f64 p);
 
 
 /// @}

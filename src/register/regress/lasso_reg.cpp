@@ -15,8 +15,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -30,9 +28,9 @@ void lasso_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     if (args.size() >= 4 && !args[3].isEmpty())
         alpha = args[3].toScalar();
     auto r = lasso(args[0], args[1], args[2], alpha, ctx.engine->allocator());
-    outs[0] = std::move(r.B);
-    if (nargout > 1) outs[1] = std::move(r.Intercept);
-    if (nargout > 2) outs[2] = std::move(r.Lambda);
+    outs[0] = keel::move(r.B);
+    if (nargout > 1) outs[1] = keel::move(r.Intercept);
+    if (nargout > 2) outs[2] = keel::move(r.Lambda);
 }
 
 void lassoglm_reg(keel::ArrayRef<Value> args, keel::usize nargout,
@@ -55,9 +53,9 @@ void lassoglm_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     if (args.size() >= 5 && !args[4].isEmpty())
         alpha = args[4].toScalar();
     auto r = lassoglm(args[0], args[1], d, args[3], alpha, ctx.engine->allocator());
-    outs[0] = std::move(r.B);
-    if (nargout > 1) outs[1] = std::move(r.Intercept);
-    if (nargout > 2) outs[2] = std::move(r.Lambda);
+    outs[0] = keel::move(r.B);
+    if (nargout > 1) outs[1] = keel::move(r.Intercept);
+    if (nargout > 2) outs[2] = keel::move(r.Lambda);
 }
 
 } // namespace detail

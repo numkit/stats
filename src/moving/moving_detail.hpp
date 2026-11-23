@@ -19,8 +19,6 @@
 
 #include <algorithm>
 #include <numeric>
-#include <tuple>
-#include <utility>
 
 
 namespace numkit::stats {

@@ -4,6 +4,7 @@
 // kernels to keel::stats.
 
 #include <keel/arena.h>
+#include <keel/tuple.h>
 #include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
@@ -19,7 +20,7 @@
 
 namespace numkit::stats {
 
-std::tuple<keel::f64, keel::f64, keel::f64, keel::f64, keel::f64, keel::f64>
+keel::Tuple<keel::f64, keel::f64, keel::f64, keel::f64, keel::f64, keel::f64>
 anova1(const Value &y, const Value &group, keel::Allocator *mr)
 {
     auto buckets = bucket(y, group);
@@ -33,10 +34,10 @@ anova1(const Value &y, const Value &group, keel::Allocator *mr)
     }
     keel::stats::Anova1Result res;
     (void)keel::stats::anova1_grouped(vals.as_ref(), offsets.as_ref(), res);
-    return std::make_tuple(res.p, res.f, res.df_between, res.df_within, res.ss_between, res.ss_within);
+    return keel::make_tuple(res.p, res.f, res.df_between, res.df_within, res.ss_between, res.ss_within);
 }
 
-std::tuple<keel::f64, keel::f64, keel::f64, keel::f64,
+keel::Tuple<keel::f64, keel::f64, keel::f64, keel::f64,
            keel::f64, keel::f64, keel::f64,
            keel::f64, keel::f64, keel::f64>
 anova2(const Value &Y, keel::Allocator *mr)
@@ -54,12 +55,12 @@ anova2(const Value &Y, keel::Allocator *mr)
 
     keel::stats::Anova2Result res;
     (void)keel::stats::anova2(yv.as_ref(), m, n, res, scratch.allocator());
-    return std::make_tuple(res.p_cols, res.p_rows, res.f_cols, res.f_rows,
+    return keel::make_tuple(res.p_cols, res.p_rows, res.f_cols, res.f_rows,
                            res.df_cols, res.df_rows, res.df_err,
                            res.ss_cols, res.ss_rows, res.ss_err);
 }
 
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 kruskalwallis(const Value &y, const Value &group, keel::Allocator *mr)
 {
     auto buckets = bucket(y, group);
@@ -73,11 +74,11 @@ kruskalwallis(const Value &y, const Value &group, keel::Allocator *mr)
     }
     keel::stats::KruskalResult res;
     (void)keel::stats::kruskal_wallis(vals.as_ref(), offsets.as_ref(), res, scratch.allocator());
-    return std::make_tuple(Value::scalar(res.p, mr), Value::scalar(res.h, mr),
+    return keel::make_tuple(Value::scalar(res.p, mr), Value::scalar(res.h, mr),
                            Value::scalar(res.df, mr), Value::scalar(res.sum_r2_n, mr));
 }
 
-std::tuple<Value, Value, Value>
+keel::Tuple<Value, Value, Value>
 friedman(const Value &x, keel::i32 reps, keel::Allocator *mr)
 {
     if (reps < 1)
@@ -91,7 +92,7 @@ friedman(const Value &x, keel::i32 reps, keel::Allocator *mr)
 
     keel::stats::FriedmanResult res;
     (void)keel::stats::friedman(xv.as_ref(), nrows, ncols, reps, res, scratch.allocator());
-    return std::make_tuple(Value::scalar(res.p, mr), Value::scalar(res.q, mr),
+    return keel::make_tuple(Value::scalar(res.p, mr), Value::scalar(res.q, mr),
                            Value::scalar(res.df, mr));
 }
 

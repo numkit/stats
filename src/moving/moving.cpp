@@ -137,7 +137,7 @@ static void buildSGMatrix(keel::i32 F, keel::i32 deg, keel::Array<keel::f64> &B)
     for (keel::i32 col = 0; col < p1; ++col) {
         keel::i32 piv = col; keel::f64 best = keel::abs(aug[col * W + col]);
         for (keel::i32 r = col + 1; r < p1; ++r) { keel::f64 v = keel::abs(aug[r * W + col]); if (v > best) { best = v; piv = r; } }
-        if (piv != col) for (keel::i32 j = 0; j < W; ++j) std::swap(aug[col * W + j], aug[piv * W + j]);
+        if (piv != col) for (keel::i32 j = 0; j < W; ++j) keel::swap(aug[col * W + j], aug[piv * W + j]);
         const keel::f64 d = aug[col * W + col];
         for (keel::i32 j = 0; j < W; ++j) aug[col * W + j] /= d;
         for (keel::i32 r = 0; r < p1; ++r) {
@@ -277,7 +277,7 @@ static void localRegressSlice(const keel::f64 *src, keel::usize n, keel::isize s
             keel::i32 piv = col; keel::f64 best = keel::abs(M[col * P + col]);
             for (keel::i32 r = col + 1; r < P; ++r) { const keel::f64 v = keel::abs(M[r * P + col]); if (v > best) { best = v; piv = r; } }
             if (best < 1e-12) { ok = false; break; }
-            if (piv != col) { for (keel::i32 j = 0; j < P; ++j) std::swap(M[col * P + j], M[piv * P + j]); std::swap(b[col], b[piv]); }
+            if (piv != col) { for (keel::i32 j = 0; j < P; ++j) keel::swap(M[col * P + j], M[piv * P + j]); keel::swap(b[col], b[piv]); }
             const keel::f64 d = M[col * P + col];
             for (keel::i32 j = 0; j < P; ++j) M[col * P + j] /= d;
             b[col] /= d;

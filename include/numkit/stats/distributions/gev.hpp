@@ -10,7 +10,7 @@
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
-#include <tuple>
+#include <keel/tuple.h>
 
 namespace numkit {
 
@@ -88,7 +88,7 @@ Value gevrnd(::numkit::ops::RngContext &rng, keel::f64 k, keel::f64 sigma, keel:
 /// @param mu     Location parameter.
 /// @return       `{mean, variance}` pair.
 /// @see gevpdf
-std::tuple<keel::f64, keel::f64>
+keel::Tuple<keel::f64, keel::f64>
 gevstat(keel::f64 k, keel::f64 sigma, keel::f64 mu);
 
 /// @brief GEV MLE fit (`[parmhat, parmci] = gevfit(x, alpha)`).

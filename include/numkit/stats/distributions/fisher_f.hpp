@@ -10,7 +10,7 @@
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
-#include <tuple>
+#include <keel/tuple.h>
 
 namespace numkit {
 
@@ -82,7 +82,7 @@ Value frnd(::numkit::ops::RngContext &rng, keel::f64 v1, keel::f64 v2, keel::usi
 /// @param v2  Denominator degrees of freedom.
 /// @return    `{mean, variance}` pair.
 /// @see fpdf
-std::tuple<keel::f64, keel::f64> fstat(keel::f64 v1, keel::f64 v2);
+keel::Tuple<keel::f64, keel::f64> fstat(keel::f64 v1, keel::f64 v2);
 
 /// @brief Noncentral F pdf (`y = ncfpdf(x, nu1, nu2, delta)`).
 ///
@@ -152,7 +152,7 @@ Value ncfinv(const Value &p, keel::f64 nu1, keel::f64 nu2, keel::f64 delta,
 /// @param delta  Noncentrality parameter.
 /// @return       `{mean, variance}` (NaN where undefined).
 /// @see ncfpdf
-std::tuple<keel::f64, keel::f64> ncfstat(keel::f64 nu1, keel::f64 nu2, keel::f64 delta);
+keel::Tuple<keel::f64, keel::f64> ncfstat(keel::f64 nu1, keel::f64 nu2, keel::f64 delta);
 
 /// @brief Noncentral F random samples
 /// (`R = ncfrnd(nu1, nu2, delta, rows, cols)`).

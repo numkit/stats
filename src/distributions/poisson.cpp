@@ -1,6 +1,7 @@
 // toolboxes/stats/src/distributions/poisson.cpp
 
 #include <keel/core.h>
+#include <keel/tuple.h>
 #include <keel/math.h>
 #include <keel/memory.h>
 #include <keel/stats.h>
@@ -95,13 +96,13 @@ Value poissrnd(::numkit::ops::RngContext &rng, keel::f64 lambda, keel::usize row
     return out;
 }
 
-std::tuple<keel::f64, keel::f64> poisstat(keel::f64 lambda)
+keel::Tuple<keel::f64, keel::f64> poisstat(keel::f64 lambda)
 {
     if (lambda <= 0.0) {
         const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
-        return std::make_tuple(nan, nan);
+        return keel::make_tuple(nan, nan);
     }
-    return std::make_tuple(lambda, lambda);
+    return keel::make_tuple(lambda, lambda);
 }
 
 } // namespace numkit::stats

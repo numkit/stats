@@ -10,7 +10,7 @@
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
-#include <tuple>
+#include <keel/tuple.h>
 
 namespace numkit {
 
@@ -84,7 +84,7 @@ Value nbinrnd(::numkit::ops::RngContext &rng, keel::f64 r, keel::f64 p, keel::us
 /// @param p  Success probability per trial.
 /// @return   `{mean, variance}` pair.
 /// @see nbinpdf
-std::tuple<keel::f64, keel::f64> nbinstat(keel::f64 r, keel::f64 p);
+keel::Tuple<keel::f64, keel::f64> nbinstat(keel::f64 r, keel::f64 p);
 
 /// @brief Negative-binomial MLE fit (`[rhat, phat] = nbinfit(x)`).
 ///

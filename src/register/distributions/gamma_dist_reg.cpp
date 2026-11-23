@@ -17,8 +17,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -60,7 +58,7 @@ void gamcdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
         v = ::numkit::builtin::gammainc(xs, a, mr);
     }
     if (upper) applyUpperInPlace(v);
-    outs[0] = std::move(v);
+    outs[0] = keel::move(v);
 }
 
 void gaminv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
@@ -98,7 +96,7 @@ void gaminv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
                     ? NaN
                     : (ai == 0.0 ? ((pi >= 0.0 && pi <= 1.0) ? 0.0 : NaN) : bi * qi);
     }
-    outs[0] = std::move(out);
+    outs[0] = keel::move(out);
 }
 
 void gamrnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
@@ -122,7 +120,7 @@ void gamrnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
             Value sample = gamrnd(ctx.engine->rng(), ai, bi, 1, 1, mr);
             od[i] = sample.elemAsDouble(0);
         }
-        outs[0] = std::move(out);
+        outs[0] = keel::move(out);
         return;
     }
     const keel::f64 a = args[0].toScalar();

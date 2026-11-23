@@ -37,8 +37,8 @@ bool solveGauss(keel::f64 *M, keel::f64 *b, keel::usize p)
         if (pmax == 0.0) return false;
         if (piv != k) {
             for (keel::usize j = 0; j < p; ++j)
-                std::swap(M[k * p + j], M[piv * p + j]);
-            std::swap(b[k], b[piv]);
+                keel::swap(M[k * p + j], M[piv * p + j]);
+            keel::swap(b[k], b[piv]);
         }
         const keel::f64 pivVal = M[k * p + k];
         for (keel::usize r = k + 1; r < p; ++r) {
@@ -337,7 +337,7 @@ CanoncorrResult canoncorr(const Value &X, const Value &Y,
         }
     }
 
-    return { std::move(A), std::move(B), std::move(r) };
+    return { keel::move(A), keel::move(B), keel::move(r) };
 }
 
 } // namespace numkit::stats

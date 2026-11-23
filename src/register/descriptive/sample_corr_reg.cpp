@@ -14,8 +14,6 @@
 #include <numkit/value/value.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -65,9 +63,9 @@ void autocorr_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     parseCorrOpts(args, 1, numLags, numSTD, "autocorr");
 
     auto [acf, lags, bounds] = autocorr(args[0], numLags, numSTD, ctx.engine->allocator());
-    outs[0] = std::move(acf);
-    if (nargout > 1) outs[1] = std::move(lags);
-    if (nargout > 2) outs[2] = std::move(bounds);
+    outs[0] = keel::move(acf);
+    if (nargout > 1) outs[1] = keel::move(lags);
+    if (nargout > 2) outs[2] = keel::move(bounds);
 }
 
 void crosscorr_reg(keel::ArrayRef<Value> args, keel::usize nargout,
@@ -80,9 +78,9 @@ void crosscorr_reg(keel::ArrayRef<Value> args, keel::usize nargout,
 
     auto [xcf, lags, bounds] =
         crosscorr(args[0], args[1], numLags, numSTD, ctx.engine->allocator());
-    outs[0] = std::move(xcf);
-    if (nargout > 1) outs[1] = std::move(lags);
-    if (nargout > 2) outs[2] = std::move(bounds);
+    outs[0] = keel::move(xcf);
+    if (nargout > 1) outs[1] = keel::move(lags);
+    if (nargout > 2) outs[2] = keel::move(bounds);
 }
 
 void parcorr_reg(keel::ArrayRef<Value> args, keel::usize nargout,
@@ -94,9 +92,9 @@ void parcorr_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     parseCorrOpts(args, 1, numLags, numSTD, "parcorr");
 
     auto [pacf, lags, bounds] = parcorr(args[0], numLags, numSTD, ctx.engine->allocator());
-    outs[0] = std::move(pacf);
-    if (nargout > 1) outs[1] = std::move(lags);
-    if (nargout > 2) outs[2] = std::move(bounds);
+    outs[0] = keel::move(pacf);
+    if (nargout > 1) outs[1] = keel::move(lags);
+    if (nargout > 2) outs[2] = keel::move(bounds);
 }
 
 } // namespace detail

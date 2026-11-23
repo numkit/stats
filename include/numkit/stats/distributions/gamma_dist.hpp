@@ -10,7 +10,7 @@
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
-#include <tuple>
+#include <keel/tuple.h>
 
 namespace numkit {
 
@@ -79,7 +79,7 @@ Value gamrnd(::numkit::ops::RngContext &rng, keel::f64 a, keel::f64 b, keel::usi
 /// @param b  Scale parameter.
 /// @return   `{mean, variance}` pair.
 /// @see gampdf
-std::tuple<keel::f64, keel::f64> gamstat(keel::f64 a, keel::f64 b);
+keel::Tuple<keel::f64, keel::f64> gamstat(keel::f64 a, keel::f64 b);
 
 /// @brief Raw gamma(shape, 1) RNG (`r = randg(shape [, rows, cols])`).
 ///

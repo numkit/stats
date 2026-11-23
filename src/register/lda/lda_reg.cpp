@@ -14,8 +14,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -29,10 +27,10 @@ void classify_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     if (args.size() >= 4 && (args[3].isChar() || args[3].isString()))
         type = args[3].toString();
     auto [c, err, post, logp] = classify(args[0], args[1], args[2], type, ctx.engine->allocator());
-    outs[0] = std::move(c);
-    if (nargout > 1) outs[1] = std::move(err);
-    if (nargout > 2) outs[2] = std::move(post);
-    if (nargout > 3) outs[3] = std::move(logp);
+    outs[0] = keel::move(c);
+    if (nargout > 1) outs[1] = keel::move(err);
+    if (nargout > 2) outs[2] = keel::move(post);
+    if (nargout > 3) outs[3] = keel::move(logp);
 }
 
 } // namespace detail

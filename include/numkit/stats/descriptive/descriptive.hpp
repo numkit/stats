@@ -11,8 +11,7 @@
 #include <keel/string.h>
 #include <numkit/value/value.hpp>
 
-#include <tuple>
-#include <utility>
+#include <keel/tuple.h>
 
 namespace numkit::stats {
 
@@ -103,7 +102,7 @@ Value prctile(const Value &x, const Value &p, keel::i32 dim = 0, keel::Allocator
 /// @param dim  1-based dimension; 0 → first non-singleton dim.
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     `(mode_value, frequency)` along `dim`.
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 mode(const Value &x, keel::i32 dim = 0, keel::Allocator *mr = nullptr);
 
 // nan-aware reductions and higher moments moved to companion headers:
@@ -160,7 +159,7 @@ Value corrcoef(const Value &x, const Value &y, keel::Allocator *mr = nullptr);
 /// @param dim  1-based dimension; 0 → first non-singleton dim.
 /// @param mr   Memory resource (nullptr → process default).
 /// @return     `(min, max)` reduced along `dim`.
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 bounds(const Value &x, keel::i32 dim = 0, keel::Allocator *mr = nullptr);
 
 /// @brief Interquartile range (`r = iqr(X, dim)`).
@@ -496,7 +495,7 @@ Value trimmean_of(const Value &x, keel::f64 pct, keel::i32 dim = 0, bool useFloo
 /// @param w   Optional weights (pass `Value::Empty` to skip).
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Cleaned `(x, y, w)` columns.
-std::tuple<Value, Value, Value>
+keel::Tuple<Value, Value, Value>
 prepareCurveData(const Value &x, const Value &y, const Value &w, keel::Allocator *mr = nullptr);
 
 /// @brief Surface-data cleanup (`[xo, yo, zo] = prepareSurfaceData(x, y, z)`).
@@ -509,7 +508,7 @@ prepareCurveData(const Value &x, const Value &y, const Value &w, keel::Allocator
 /// @param z   z-coordinates.
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Cleaned `(x, y, z)` columns.
-std::tuple<Value, Value, Value>
+keel::Tuple<Value, Value, Value>
 prepareSurfaceData(const Value &x, const Value &y, const Value &z, keel::Allocator *mr = nullptr);
 
 /// @brief Dataset descriptive summary (`datastats(x)`).
@@ -520,7 +519,7 @@ prepareSurfaceData(const Value &x, const Value &y, const Value &z, keel::Allocat
 /// @param x   Input array.
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    `(num, max, min, mean, median, range, std)` tuple of scalars.
-std::tuple<Value, Value, Value, Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value, Value, Value, Value>
 datastats(const Value &x, keel::Allocator *mr = nullptr);
 
 /// @brief Empirical cumulative distribution function (`[f, x] = ecdf(y)`).
@@ -533,7 +532,7 @@ datastats(const Value &x, keel::Allocator *mr = nullptr);
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    `(f, x)` columns describing the step function.
 /// @see ecdfhist, ksdensity
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 ecdf(const Value &y, keel::Allocator *mr = nullptr);
 
 /// @brief Kernel density estimate (`[f, xi, bw] = ksdensity(x, pts, bw_user)`).
@@ -548,7 +547,7 @@ ecdf(const Value &y, keel::Allocator *mr = nullptr);
 /// @param mr       Memory resource (nullptr → process default).
 /// @return         `(f, xi, bw)` — densities, grid, chosen bandwidth.
 /// @see ecdf
-std::tuple<Value, Value, Value>
+keel::Tuple<Value, Value, Value>
 ksdensity(const Value &x, const Value &pts, keel::f64 bw_user, keel::Allocator *mr = nullptr);
 
 /// @brief Histogram from empirical CDF (`[n, c] = ecdfhist(f, x, m)`).
@@ -563,7 +562,7 @@ ksdensity(const Value &x, const Value &pts, keel::f64 bw_user, keel::Allocator *
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    `(n, c)` — bin heights, bin centres.
 /// @see ecdf
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 ecdfhist(const Value &f, const Value &x, keel::i32 m = 10, keel::Allocator *mr = nullptr);
 
 /// @brief Column-wise normalisation (`Y = normalize(A, method)`).
@@ -645,7 +644,7 @@ Value zscore(const Value &A, keel::Allocator *mr = nullptr);
 /// @param x   Input array.
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    `(ranks, tie_adjustment)` pair.
-std::pair<Value, Value>
+keel::Pair<Value, Value>
 tiedrank(const Value &x, keel::Allocator *mr = nullptr);
 
 /// @brief Sample autocorrelation function (`[acf, lags, bounds] = autocorr(y)`).
@@ -661,7 +660,7 @@ tiedrank(const Value &x, keel::Allocator *mr = nullptr);
 /// @return         `(acf, lags, bounds)` column vectors; `acf`/`lags` have
 ///                 `numLags+1` entries (lags `0..numLags`), `bounds` is `[+b; -b]`.
 /// @see crosscorr, xcorr
-std::tuple<Value, Value, Value>
+keel::Tuple<Value, Value, Value>
 autocorr(const Value &y, keel::i32 numLags = -1, keel::f64 numSTD = 2.0,
          keel::Allocator *mr = nullptr);
 
@@ -679,7 +678,7 @@ autocorr(const Value &y, keel::i32 numLags = -1, keel::f64 numSTD = 2.0,
 /// @return         `(xcf, lags, bounds)` column vectors; `xcf`/`lags` have
 ///                 `2·numLags+1` entries (lags `-numLags..numLags`).
 /// @see autocorr, xcorr
-std::tuple<Value, Value, Value>
+keel::Tuple<Value, Value, Value>
 crosscorr(const Value &y1, const Value &y2, keel::i32 numLags = -1, keel::f64 numSTD = 2.0,
           keel::Allocator *mr = nullptr);
 
@@ -698,7 +697,7 @@ crosscorr(const Value &y1, const Value &y2, keel::i32 numLags = -1, keel::f64 nu
 /// @param mr       Memory resource (nullptr → process default).
 /// @return         `(pacf, lags, bounds)` column vectors (`numLags+1` entries).
 /// @see autocorr, crosscorr
-std::tuple<Value, Value, Value>
+keel::Tuple<Value, Value, Value>
 parcorr(const Value &y, keel::i32 numLags = -1, keel::f64 numSTD = 2.0,
         keel::Allocator *mr = nullptr);
 
@@ -712,7 +711,7 @@ parcorr(const Value &y, keel::i32 numLags = -1, keel::f64 numSTD = 2.0,
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    `(R, sigma)` pair.
 /// @throws Error  Negative diagonal entry (`m:corrcov:negDiag`).
-std::pair<Value, Value>
+keel::Pair<Value, Value>
 corrcov(const Value &C, keel::Allocator *mr = nullptr);
 
 /// @brief Frequency table (`T = tabulate(x)`).
@@ -738,7 +737,7 @@ Value tabulate(const Value &x, keel::Allocator *mr = nullptr);
 /// @param SIGMA  Symmetric covariance matrix.
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(T, p)` pair.
-std::pair<Value, Value>
+keel::Pair<Value, Value>
 cholcov(const Value &SIGMA, keel::Allocator *mr = nullptr);
 
 /// @brief Contingency table (`[T, chi2, p] = crosstab(x, y_opt)`).
@@ -753,7 +752,7 @@ cholcov(const Value &SIGMA, keel::Allocator *mr = nullptr);
 /// @param y_opt  Second column (`Value::Empty` for single-arg form).
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(T, chi2, p)` — table, χ² statistic, p-value.
-std::tuple<Value, keel::f64, keel::f64>
+keel::Tuple<Value, keel::f64, keel::f64>
 crosstab(const Value &x, const Value &y_opt = Value::Empty,
          keel::Allocator *mr = nullptr);
 

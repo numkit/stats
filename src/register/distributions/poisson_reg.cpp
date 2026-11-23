@@ -18,8 +18,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -75,7 +73,7 @@ void poisscdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mut
         }
     }
     if (upper) applyUpperInPlace(v);
-    outs[0] = std::move(v);
+    outs[0] = keel::move(v);
 }
 
 void poissinv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
@@ -103,7 +101,7 @@ void poissinv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mut
         const keel::f64 pi = p.elemAsDouble(np == 1 ? 0 : i);
         od[i] = (li < 0.0) ? NaN : poiss_inv_scalar(pi, li);
     }
-    outs[0] = std::move(out);
+    outs[0] = keel::move(out);
 }
 
 void poissrnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)

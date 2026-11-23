@@ -11,8 +11,6 @@
 
 #include <algorithm>
 #include <numeric>
-#include <tuple>
-#include <utility>
 
 
 namespace numkit::stats {
@@ -32,8 +30,8 @@ namespace {
         if (pmax == 0.0) return false;
         if (piv != k) {
             for (keel::usize j = 0; j < p; ++j)
-                std::swap(M[k * p + j], M[piv * p + j]);
-            std::swap(b[k], b[piv]);
+                keel::swap(M[k * p + j], M[piv * p + j]);
+            keel::swap(b[k], b[piv]);
         }
         const keel::f64 pv = M[k * p + k];
         for (keel::usize rr = k + 1; rr < p; ++rr) {

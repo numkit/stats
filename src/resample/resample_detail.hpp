@@ -17,8 +17,6 @@
 
 #include <algorithm>
 #include <numeric>
-#include <tuple>
-#include <utility>
 
 
 namespace numkit::stats {
@@ -61,7 +59,7 @@ namespace {
             // Each positive-weight item i receives key k_i = u_i^(1/w_i), or
             // equivalently log(u_i)/w_i = -Exp(1)/w_i; the top K keys are drawn
             // in descending key order. Exact O(N log N) with zero rejection risk.
-            keel::Array<std::pair<keel::f64, keel::i32>> keyed;
+            keel::Array<keel::Pair<keel::f64, keel::i32>> keyed;
             keyed.reserve(N);
             for (keel::i32 i = 0; i < N; ++i) {
                 const keel::f64 w = weights[keel::as<keel::usize>(i)];

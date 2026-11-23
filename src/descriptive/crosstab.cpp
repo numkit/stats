@@ -21,6 +21,7 @@
 // total N.
 
 #include <keel/array.h>
+#include <keel/tuple.h>
 #include <keel/math.h>
 #include <keel/core.h>
 #include <keel/memory.h>
@@ -32,7 +33,6 @@
 
 #include <algorithm>
 #include <cstdio>
-#include <utility>
 
 #include "crosstab_detail.hpp"
 
@@ -49,7 +49,7 @@ void crosstab_argcheck(const Value &x, const Value &y_opt)
 
 } // namespace
 
-std::tuple<Value, keel::f64, keel::f64>
+keel::Tuple<Value, keel::f64, keel::f64>
 crosstab(const Value &x, const Value &y_opt, keel::Allocator *mr)
 {
     crosstab_argcheck(x, y_opt);
@@ -70,7 +70,7 @@ crosstab(const Value &x, const Value &y_opt, keel::Allocator *mr)
         Value T = Value::matrix(R, 1, ValueType::DOUBLE, mr);
         keel::f64 *o = T.doubleDataMut();
         for (keel::usize i = 0; i < R; ++i) o[i] = keel::as<keel::f64>(count[i]);
-        return {std::move(T), 0.0, 1.0};
+        return {keel::move(T), 0.0, 1.0};
     }
 
     // Two-arg form.
@@ -120,7 +120,7 @@ crosstab(const Value &x, const Value &y_opt, keel::Allocator *mr)
         Value cdf_v  = chi2cdf(chi2_v, df, mr);
         p = 1.0 - cdf_v.toScalar();
     }
-    return {std::move(T), chi2, p};
+    return {keel::move(T), chi2, p};
 }
 
 } // namespace numkit::stats

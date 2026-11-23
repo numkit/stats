@@ -11,7 +11,7 @@
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
-#include <tuple>
+#include <keel/tuple.h>
 
 namespace numkit {
 
@@ -77,7 +77,7 @@ Value geornd(::numkit::ops::RngContext &rng, keel::f64 p, keel::usize rows = 1, 
 /// @param p  Success probability per trial.
 /// @return   `{mean, variance}` pair.
 /// @see geopdf
-std::tuple<keel::f64, keel::f64> geostat(keel::f64 p);
+keel::Tuple<keel::f64, keel::f64> geostat(keel::f64 p);
 
 
 /// @}

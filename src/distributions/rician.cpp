@@ -1,6 +1,7 @@
 // toolboxes/stats/src/distributions/rician.cpp
 
 #include <keel/core.h>
+#include <keel/tuple.h>
 #include <keel/memory.h>
 #include <numkit/stats/distributions/rician.hpp>
 
@@ -98,14 +99,14 @@ Value ricernd(::numkit::ops::RngContext &rng, keel::f64 s, keel::f64 sigma, keel
     return out;
 }
 
-std::tuple<keel::f64, keel::f64> ricestat(keel::f64 s, keel::f64 sigma, keel::Allocator *mr)
+keel::Tuple<keel::f64, keel::f64> ricestat(keel::f64 s, keel::f64 sigma, keel::Allocator *mr)
 {
     if (sigma <= 0.0 || s < 0.0) {
         const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
-        return std::make_tuple(nan, nan);
+        return keel::make_tuple(nan, nan);
     }
     if (s == 0.0) {
-        return std::make_tuple(sigma * keel::sqrt(keel::kPi / 2.0),
+        return keel::make_tuple(sigma * keel::sqrt(keel::kPi / 2.0),
                                sigma * sigma * (2.0 - keel::kPi / 2.0));
     }
     const keel::f64 s2 = s * s;
@@ -117,7 +118,7 @@ std::tuple<keel::f64, keel::f64> ricestat(keel::f64 s, keel::f64 sigma, keel::Al
     const keel::f64 L = keel::exp(z / 2.0) * ((1.0 - z) * i0 - z * i1);
     const keel::f64 mean = sigma * keel::sqrt(keel::kPi / 2.0) * L;
     const keel::f64 var  = 2.0 * sg2 + s2 - mean * mean;
-    return std::make_tuple(mean, var);
+    return keel::make_tuple(mean, var);
 }
 
 } // namespace numkit::stats

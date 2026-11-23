@@ -4,6 +4,7 @@
 // population of M with K successes. f(k; M, K, N) = C(K, k)·C(M-K, N-k)/C(M, N).
 
 #include <keel/core.h>
+#include <keel/tuple.h>
 #include <keel/memory.h>
 #include <numkit/stats/distributions/hypergeom.hpp>
 
@@ -61,16 +62,16 @@ Value hygernd(::numkit::ops::RngContext &rng, keel::f64 M, keel::f64 K, keel::f6
     return out;
 }
 
-std::tuple<keel::f64, keel::f64> hygestat(keel::f64 M, keel::f64 K, keel::f64 N)
+keel::Tuple<keel::f64, keel::f64> hygestat(keel::f64 M, keel::f64 K, keel::f64 N)
 {
     if (!params_valid(M, K, N) || M < 1.0) {
         const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
-        return std::make_tuple(nan, nan);
+        return keel::make_tuple(nan, nan);
     }
     const keel::f64 mean = N * K / M;
-    if (M < 2.0) return std::make_tuple(mean, keel::Limits<keel::f64>::quiet_nan());
+    if (M < 2.0) return keel::make_tuple(mean, keel::Limits<keel::f64>::quiet_nan());
     const keel::f64 var = N * K * (M - K) * (M - N) / (M * M * (M - 1.0));
-    return std::make_tuple(mean, var);
+    return keel::make_tuple(mean, var);
 }
 
 } // namespace numkit::stats

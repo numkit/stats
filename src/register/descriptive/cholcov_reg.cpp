@@ -16,8 +16,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -29,8 +27,8 @@ void cholcov_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     argcheck::checkNargin(args.size(), 1, 2, "cholcov");
     auto *mr = ctx.engine->allocator();
     auto [T, p] = cholcov(args[0], mr);
-    outs[0] = std::move(T);
-    if (nargout > 1) outs[1] = std::move(p);
+    outs[0] = keel::move(T);
+    if (nargout > 1) outs[1] = keel::move(p);
 }
 
 } // namespace detail

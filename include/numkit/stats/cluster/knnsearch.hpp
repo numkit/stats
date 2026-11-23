@@ -11,7 +11,7 @@
 #include <keel/ref.h>
 #include <numkit/value/value.hpp>
 
-#include <tuple>
+#include <keel/tuple.h>
 
 namespace numkit::stats {
 
@@ -36,7 +36,7 @@ namespace numkit::stats {
 ///                  - `D`   : M_Y × K matching distances.
 ///
 /// @see rangesearch, pdist
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 knnsearch(const Value &X, const Value &Y, keel::i32 K = 1,
           keel::StringRef metric = "euclidean", keel::f64 p = 2.0,
           keel::Allocator *mr = nullptr);
@@ -58,7 +58,7 @@ knnsearch(const Value &X, const Value &Y, keel::i32 K = 1,
 ///                  - `D`   : M_Y × 1 cell array of distances.
 ///
 /// @see knnsearch
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 rangesearch(const Value &X, const Value &Y, keel::f64 r,
             keel::StringRef metric = "euclidean", keel::f64 p = 2.0,
             keel::Allocator *mr = nullptr);

@@ -10,7 +10,7 @@
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
-#include <tuple>
+#include <keel/tuple.h>
 
 namespace numkit {
 
@@ -76,7 +76,7 @@ Value raylrnd(::numkit::ops::RngContext &rng, keel::f64 b, keel::usize rows = 1,
 /// @param b  Scale parameter.
 /// @return   `{mean, variance}` pair.
 /// @see raylpdf
-std::tuple<keel::f64, keel::f64> raylstat(keel::f64 b);
+keel::Tuple<keel::f64, keel::f64> raylstat(keel::f64 b);
 
 
 /// @}

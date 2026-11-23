@@ -14,13 +14,12 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 
-#include <utility>
 
 namespace numkit::stats {
 
 namespace {
 
-std::pair<keel::usize, keel::usize>
+keel::Pair<keel::usize, keel::usize>
 copula_U_argcheck(const Value &U, keel::usize d_expected, const char *fn)
 {
     keel::usize n = 0, d = 0;

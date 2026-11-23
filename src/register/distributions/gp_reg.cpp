@@ -16,8 +16,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -41,7 +39,7 @@ void gpcdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
                     0, 0, "gpcdf", "", "numkit:gpcdf:nargin");
     Value v = gpcdf(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), ctx.engine->allocator());
     if (upper) applyUpperInPlace(v);
-    outs[0] = std::move(v);
+    outs[0] = keel::move(v);
 }
 
 void gpinv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,

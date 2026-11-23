@@ -1,6 +1,7 @@
 // toolboxes/stats/src/distributions/ncx2.cpp
 
 #include <keel/core.h>
+#include <keel/tuple.h>
 #include <keel/math.h>
 #include <keel/memory.h>
 #include <numkit/stats/distributions/ncx2.hpp>
@@ -101,13 +102,13 @@ Value ncx2rnd(::numkit::ops::RngContext &rng, keel::f64 k, keel::f64 lambda, kee
     return out;
 }
 
-std::tuple<keel::f64, keel::f64> ncx2stat(keel::f64 k, keel::f64 lambda)
+keel::Tuple<keel::f64, keel::f64> ncx2stat(keel::f64 k, keel::f64 lambda)
 {
     if (k <= 0.0 || lambda < 0.0) {
         const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
-        return std::make_tuple(nan, nan);
+        return keel::make_tuple(nan, nan);
     }
-    return std::make_tuple(k + lambda, 2.0 * (k + 2.0 * lambda));
+    return keel::make_tuple(k + lambda, 2.0 * (k + 2.0 * lambda));
 }
 
 } // namespace numkit::stats

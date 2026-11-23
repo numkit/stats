@@ -13,8 +13,6 @@
 
 #include <algorithm>
 #include <numeric>
-#include <tuple>
-#include <utility>
 
 
 namespace numkit { namespace ops { class RngContext; } }
@@ -92,7 +90,7 @@ struct LloydResult {
 {
     LloydResult res(scratch_mr);
     res.idx.assign(N, 0);
-    res.C    = std::move(C0);
+    res.C    = keel::move(C0);
     res.sumd.assign(K, 0.0);
     res.total = 0.0;
 

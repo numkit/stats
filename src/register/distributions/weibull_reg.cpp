@@ -16,8 +16,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -60,7 +58,7 @@ void wblcdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
                   ? wblcdf(s[0], a.toScalar(), b.toScalar(), mr)
                   : broadcast_dist3(s[0], a, b, mr, "wblcdf", wblcdfK);
     if (upper) applyUpperInPlace(v);
-    outs[0] = std::move(v);
+    outs[0] = keel::move(v);
 }
 
 void wblinv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)

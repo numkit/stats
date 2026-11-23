@@ -4,6 +4,7 @@
 // cdf is betainc(x, a, b); icdf is betaincinv(p, a, b); rnd via two Gamma draws.
 
 #include <keel/core.h>
+#include <keel/tuple.h>
 #include <keel/memory.h>
 #include <keel/stats.h>
 #include <numkit/stats/distributions/beta.hpp>
@@ -58,16 +59,16 @@ Value betarnd(::numkit::ops::RngContext &rng, keel::f64 a, keel::f64 b, keel::us
     return out;
 }
 
-std::tuple<keel::f64, keel::f64> betastat(keel::f64 a, keel::f64 b)
+keel::Tuple<keel::f64, keel::f64> betastat(keel::f64 a, keel::f64 b)
 {
     if (a <= 0.0 || b <= 0.0) {
         const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
-        return std::make_tuple(nan, nan);
+        return keel::make_tuple(nan, nan);
     }
     const keel::f64 s = a + b;
     const keel::f64 mean = a / s;
     const keel::f64 var = (a * b) / (s * s * (s + 1.0));
-    return std::make_tuple(mean, var);
+    return keel::make_tuple(mean, var);
 }
 
 } // namespace numkit::stats

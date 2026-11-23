@@ -36,7 +36,7 @@ void buildOneLhs(keel::f64 *od, keel::usize n, keel::usize p, bool smooth,
         std::iota(perm.begin(), perm.end(), keel::usize(1));
         for (keel::usize i = n - 1; i > 0; --i) {
             const keel::usize k = keel::random::uniform_usize(gen, 0, i);
-            std::swap(perm[i], perm[k]);
+            keel::swap(perm[i], perm[k]);
         }
         if (smooth) {
             for (keel::usize i = 0; i < n; ++i)

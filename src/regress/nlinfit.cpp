@@ -4,6 +4,7 @@
 // prediction confidence intervals.
 
 #include <keel/array.h>
+#include <keel/tuple.h>
 #include <keel/algo.h>
 #include <keel/core.h>
 #include <keel/memory.h>
@@ -121,8 +122,8 @@ keel::Array<keel::f64> lmStep(keel::ArrayRef<keel::f64> J,
         }
         if (piv != k) {
             for (keel::usize j = 0; j < p; ++j)
-                std::swap(M[k * p + j], M[piv * p + j]);
-            std::swap(g[k], g[piv]);
+                keel::swap(M[k * p + j], M[piv * p + j]);
+            keel::swap(g[k], g[piv]);
         }
         const keel::f64 pv = M[k * p + k];
         for (keel::usize rr = k + 1; rr < p; ++rr) {
@@ -173,7 +174,7 @@ keel::Array<keel::f64> invJtJ(keel::ArrayRef<keel::f64> J,
         }
         if (piv != k) {
             for (keel::usize j = 0; j < 2 * p; ++j)
-                std::swap(A[k * 2 * p + j], A[piv * 2 * p + j]);
+                keel::swap(A[k * 2 * p + j], A[piv * 2 * p + j]);
         }
         const keel::f64 pv = A[k * 2 * p + k];
         for (keel::usize j = 0; j < 2 * p; ++j)
@@ -322,7 +323,7 @@ Value nlparci(const Value &beta, const Value &R, const Value &J,
     return out;
 }
 
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 nlpredci(FnHandle model, const Value &X, const Value &beta,
          const Value &R, const Value &J,
          keel::f64 alpha,
@@ -387,7 +388,7 @@ nlpredci(FnHandle model, const Value &X, const Value &beta,
                 var += Jq[a * m + i] * Inv[a * p + b] * Jq[b * m + i];
         dd[i] = tcrit * keel::sqrt(mse * var);
     }
-    return { std::move(ypred), std::move(delta) };
+    return { keel::move(ypred), keel::move(delta) };
 }
 
 } // namespace numkit::stats

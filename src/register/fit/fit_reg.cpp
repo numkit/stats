@@ -23,8 +23,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -43,10 +41,10 @@ void normfit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     const Value &cens = (args.size() > 2) ? args[2] : Value::Empty;
     const Value &freq = (args.size() > 3) ? args[3] : Value::Empty;
     auto [mu, sd, muci, sdci] = normfit(args[0], alpha, cens, freq, ctx.engine->allocator());
-    outs[0] = std::move(mu);
-    if (nargout > 1) outs[1] = std::move(sd);
-    if (nargout > 2) outs[2] = std::move(muci);
-    if (nargout > 3) outs[3] = std::move(sdci);
+    outs[0] = keel::move(mu);
+    if (nargout > 1) outs[1] = keel::move(sd);
+    if (nargout > 2) outs[2] = keel::move(muci);
+    if (nargout > 3) outs[3] = keel::move(sdci);
 }
 
 void poissfit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
@@ -55,8 +53,8 @@ void poissfit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     argcheck::checkNargin(args.size(), 1, 2, "poissfit");
     const keel::f64 alpha = parse_alpha_arg(args, 1, 0.05);
     auto [lam, ci] = poissfit(args[0], alpha, ctx.engine->allocator());
-    outs[0] = std::move(lam);
-    if (nargout > 1) outs[1] = std::move(ci);
+    outs[0] = keel::move(lam);
+    if (nargout > 1) outs[1] = keel::move(ci);
 }
 
 void expfit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
@@ -67,8 +65,8 @@ void expfit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     const Value &cens = (args.size() > 2) ? args[2] : Value::Empty;
     const Value &freq = (args.size() > 3) ? args[3] : Value::Empty;
     auto [mu, ci] = expfit(args[0], alpha, cens, freq, ctx.engine->allocator());
-    outs[0] = std::move(mu);
-    if (nargout > 1) outs[1] = std::move(ci);
+    outs[0] = keel::move(mu);
+    if (nargout > 1) outs[1] = keel::move(ci);
 }
 
 void unifit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
@@ -77,10 +75,10 @@ void unifit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     argcheck::checkNargin(args.size(), 1, 2, "unifit");
     const keel::f64 alpha = parse_alpha_arg(args, 1, 0.05);
     auto [a, b, aci, bci] = unifit(args[0], alpha, ctx.engine->allocator());
-    outs[0] = std::move(a);
-    if (nargout > 1) outs[1] = std::move(b);
-    if (nargout > 2) outs[2] = std::move(aci);
-    if (nargout > 3) outs[3] = std::move(bci);
+    outs[0] = keel::move(a);
+    if (nargout > 1) outs[1] = keel::move(b);
+    if (nargout > 2) outs[2] = keel::move(aci);
+    if (nargout > 3) outs[3] = keel::move(bci);
 }
 
 void lognfit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
@@ -93,8 +91,8 @@ void lognfit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     const Value &cens = (args.size() > 2) ? args[2] : Value::Empty;
     const Value &freq = (args.size() > 3) ? args[3] : Value::Empty;
     auto [parm, pci] = lognfit(args[0], alpha, cens, freq, ctx.engine->allocator());
-    outs[0] = std::move(parm);
-    if (nargout > 1) outs[1] = std::move(pci);
+    outs[0] = keel::move(parm);
+    if (nargout > 1) outs[1] = keel::move(pci);
 }
 
 void binofit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
@@ -103,8 +101,8 @@ void binofit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     argcheck::checkNargin(args.size(), 2, 3, "binofit");
     const keel::f64 alpha = parse_alpha_arg(args, 2, 0.05);
     auto [phat, pci] = binofit(args[0], args[1], alpha, ctx.engine->allocator());
-    outs[0] = std::move(phat);
-    if (nargout > 1) outs[1] = std::move(pci);
+    outs[0] = keel::move(phat);
+    if (nargout > 1) outs[1] = keel::move(pci);
 }
 
 void raylfit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
@@ -113,8 +111,8 @@ void raylfit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     argcheck::checkNargin(args.size(), 1, 2, "raylfit");
     const keel::f64 alpha = parse_alpha_arg(args, 1, 0.05);
     auto [shat, sci] = raylfit(args[0], alpha, ctx.engine->allocator());
-    outs[0] = std::move(shat);
-    if (nargout > 1) outs[1] = std::move(sci);
+    outs[0] = keel::move(shat);
+    if (nargout > 1) outs[1] = keel::move(sci);
 }
 
 // ─── *like adapters ───────────────────────────────────────────────────
@@ -315,7 +313,7 @@ void normlike_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                 p[3] =  I00 * inv;
             }
         }
-        outs[1] = std::move(av);
+        outs[1] = keel::move(av);
     }
 }
 
@@ -336,7 +334,7 @@ void lognlike_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     const keel::f64 nL = lognlike_full(mu, sigma, args[1], cens, freq,
                                     nargout >= 2 ? av.doubleDataMut() : nullptr);
     outs[0] = Value::scalar(nL, mr);
-    if (nargout >= 2) outs[1] = std::move(av);
+    if (nargout >= 2) outs[1] = keel::move(av);
 }
 
 void gamlike_reg(keel::ArrayRef<Value> args, keel::usize nargout,
@@ -359,7 +357,7 @@ void gamlike_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         Value av = Value::matrix(2, 2, ValueType::DOUBLE, mr);
         fill_fd_avar2(av.doubleDataMut(), a, b, nL,
                       [&](keel::f64 aa, keel::f64 bb) { return gamlike(aa, bb, x, mr); });
-        outs[1] = std::move(av);
+        outs[1] = keel::move(av);
     }
 }
 
@@ -417,7 +415,7 @@ void betalike_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                 p[3] =  Iaa * inv;
             }
         }
-        outs[1] = std::move(av);
+        outs[1] = keel::move(av);
     }
 }
 
@@ -494,7 +492,7 @@ void gevlike_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                       [&](keel::f64 kk, keel::f64 ss, keel::f64 mm) {
                           return gevlike(kk, ss, mm, x, mr);
                       });
-        outs[1] = std::move(ac);
+        outs[1] = keel::move(ac);
     }
 }
 
@@ -515,7 +513,7 @@ void gplike_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         Value ac = Value::matrix(2, 2, ValueType::DOUBLE, mr);
         fill_fd_avar2(ac.doubleDataMut(), k, sigma, nL,
                       [&](keel::f64 kk, keel::f64 ss) { return gplike(kk, ss, x, mr); });
-        outs[1] = std::move(ac);
+        outs[1] = keel::move(ac);
     }
 }
 
@@ -590,13 +588,13 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         keel::f64 *p = pci.doubleDataMut();
         p[0] = ci1.elemAsDouble(0); p[1] = ci1.elemAsDouble(1);   // col 1
         p[2] = ci2.elemAsDouble(0); p[3] = ci2.elemAsDouble(1);   // col 2
-        outs[1] = std::move(pci);
+        outs[1] = keel::move(pci);
     };
     auto emitPci1 = [&](const Value &ci) {
         Value pci = Value::matrix(2, 1, ValueType::DOUBLE, mr);
         keel::f64 *p = pci.doubleDataMut();
         p[0] = ci.elemAsDouble(0); p[1] = ci.elemAsDouble(1);
-        outs[1] = std::move(pci);
+        outs[1] = keel::move(pci);
     };
 
     if (!custom_kind.empty()) {
@@ -752,7 +750,7 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
 
         Value out = Value::matrix(1, K, ValueType::DOUBLE, mr);
         for (keel::usize k = 0; k < K; ++k) out.doubleDataMut()[k] = phat[k];
-        outs[0] = std::move(out);
+        outs[0] = keel::move(out);
 
         if (nargout >= 2) {
             // Finite-difference Hessian of NLL at phat for Wald CIs.
@@ -792,7 +790,7 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                 if (keel::abs(aug[piv * (2 * K) + col]) < 1e-14) { invOk = false; break; }
                 if (piv != col)
                     for (keel::usize c = 0; c < 2 * K; ++c)
-                        std::swap(aug[col * (2 * K) + c], aug[piv * (2 * K) + c]);
+                        keel::swap(aug[col * (2 * K) + c], aug[piv * (2 * K) + c]);
                 const keel::f64 d = aug[col * (2 * K) + col];
                 for (keel::usize c = 0; c < 2 * K; ++c) aug[col * (2 * K) + c] /= d;
                 for (keel::usize r = 0; r < K; ++r) {
@@ -812,7 +810,7 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                 pd[0 + k * 2] = phat[k] - zCrit * se;
                 pd[1 + k * 2] = phat[k] + zCrit * se;
             }
-            outs[1] = std::move(pci);
+            outs[1] = keel::move(pci);
         }
         return;
     }
@@ -832,7 +830,7 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         auto out = Value::matrix(1, 2, ValueType::DOUBLE, mr);
         out.doubleDataMut()[0] = mean;
         out.doubleDataMut()[1] = sigma;
-        outs[0] = std::move(out);
+        outs[0] = keel::move(out);
         if (nargout >= 2) {
             auto [m, s, muci, sdci] = normfit(x, alpha, Value::Empty, Value::Empty, mr);
             (void)m; (void)s;
@@ -850,7 +848,7 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         }
         auto out = Value::matrix(1, 1, ValueType::DOUBLE, mr);
         out.doubleDataMut()[0] = sum / keel::as<keel::f64>(N);
-        outs[0] = std::move(out);
+        outs[0] = keel::move(out);
         if (nargout >= 2) {
             auto [m, ci] = expfit(x, alpha, Value::Empty, Value::Empty, mr);
             (void)m;
@@ -868,7 +866,7 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         }
         auto out = Value::matrix(1, 1, ValueType::DOUBLE, mr);
         out.doubleDataMut()[0] = sum / keel::as<keel::f64>(N);
-        outs[0] = std::move(out);
+        outs[0] = keel::move(out);
         if (nargout >= 2) {
             auto [lam, ci] = poissfit(x, alpha, mr);
             (void)lam;
@@ -894,7 +892,7 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         auto out = Value::matrix(1, 2, ValueType::DOUBLE, mr);
         out.doubleDataMut()[0] = mu;
         out.doubleDataMut()[1] = sigma;
-        outs[0] = std::move(out);
+        outs[0] = keel::move(out);
         if (nargout >= 2) {
             // CI on (mu, sigma) of log(x) — matches MATLAB's lognormal pci.
             Value logx = Value::matrix(1, N, ValueType::DOUBLE, mr);
@@ -939,7 +937,7 @@ void fitdist_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
         Value cell = Value::cell(nDists, 1, mr);
         for (keel::usize i = 0; i < nDists; ++i)
             cell.cellAt(i) = Value::fromString(kDistNames[i], mr);
-        outs[0] = std::move(cell);
+        outs[0] = keel::move(cell);
         return;
     }
     argcheck::checkNargin(args.size(), 1, "fitdist");  // no max: name-value tail in the reference
@@ -1017,19 +1015,19 @@ void fitdist_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
         Value mle_out[1];
         mle_reg(keel::ArrayRef<Value>(mle_args, 3), 1,
                 keel::MutArrayRef<Value>(mle_out, 1), ctx);
-        params = std::move(mle_out[0]);
+        params = keel::move(mle_out[0]);
     }
 
     // Build the result struct.
     Value pd = Value::structure(mr);
     pd.field("DistributionName")  = Value::fromString(canonical, mr);
-    pd.field("ParameterValues")   = std::move(params);
+    pd.field("ParameterValues")   = keel::move(params);
     Value names_cell = Value::cell(1, param_names.size(), mr);
     for (keel::usize i = 0; i < param_names.size(); ++i)
         names_cell.cellAt(i) = Value::fromString(param_names[i], mr);
-    pd.field("ParameterNames")    = std::move(names_cell);
+    pd.field("ParameterNames")    = keel::move(names_cell);
     pd.field("NumObservations")   = Value::scalar(keel::as<keel::f64>(N), mr);
-    outs[0] = std::move(pd);
+    outs[0] = keel::move(pd);
 }
 
 } // namespace detail

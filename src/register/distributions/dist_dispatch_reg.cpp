@@ -182,7 +182,7 @@ void dispatchDistStruct(const char *fnName, const char *suffix,
                 (*fn)(keel::ArrayRef<Value>(callArgs.data(), callArgs.size()), 1, keel::MutArrayRef<Value>(&out, 1), ctx);
                 for (keel::usize i = 0; i < out.numel(); ++i)
                     out.doubleDataMut()[i] = p1 + p2 * out.doubleDataMut()[i];
-                outs[0] = std::move(out);
+                outs[0] = keel::move(out);
                 return;
             }
             const keel::StringRef prefix = lookupDistPrefix(dist);
@@ -217,7 +217,7 @@ void dispatchDistStruct(const char *fnName, const char *suffix,
         for (keel::usize i = 0; i < n; ++i)
             ud[i] = pl + Z * rng.nextUniform();
         Value out = evalDistStructBase(pd, "inv", u, ctx);
-        outs[0] = reshape_rng_nd(std::move(out), args, 1, mr, "random");
+        outs[0] = reshape_rng_nd(keel::move(out), args, 1, mr, "random");
         return;
     }
 
@@ -242,7 +242,7 @@ void dispatchDistStruct(const char *fnName, const char *suffix,
             if (xi < tLo || xi > tHi) od[i] = 0.0;
             else od[i] /= Z;
         }
-        outs[0] = std::move(out);
+        outs[0] = keel::move(out);
         return;
     }
     if (sfx == "cdf") {
@@ -255,7 +255,7 @@ void dispatchDistStruct(const char *fnName, const char *suffix,
             else if (xi >= tHi) od[i] = 1.0;
             else od[i] = std::clamp((od[i] - pl) / Z, 0.0, 1.0);
         }
-        outs[0] = std::move(out);
+        outs[0] = keel::move(out);
         return;
     }
     if (sfx == "inv") {
@@ -391,7 +391,7 @@ void makedist_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mut
     pd.setFieldAll("IsTruncated", Value::logicalScalar(false, mr));
     pd.setFieldAll("TruncLower", Value::scalar(-keel::Limits<keel::f64>::infinity(), mr));
     pd.setFieldAll("TruncUpper", Value::scalar(keel::Limits<keel::f64>::infinity(), mr));
-    outs[0] = std::move(pd);
+    outs[0] = keel::move(pd);
 }
 
 void truncate_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
@@ -410,7 +410,7 @@ void truncate_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::Mut
     pd.setFieldAll("IsTruncated", Value::logicalScalar(true, mr));
     pd.setFieldAll("TruncLower", Value::scalar(lo, mr));
     pd.setFieldAll("TruncUpper", Value::scalar(hi, mr));
-    outs[0] = std::move(pd);
+    outs[0] = keel::move(pd);
 }
 
 void cdf_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs, CallContext &ctx)

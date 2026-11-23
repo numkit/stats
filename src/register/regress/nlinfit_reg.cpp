@@ -30,15 +30,15 @@ void nlinfit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     auto model = [&ctx, &fun](keel::ArrayRef<Value> a, keel::MutArrayRef<Value> o,
                               keel::Allocator * /*mr*/) {
         Value r = ctx.engine->callFunctionHandle(fun, a);
-        if (!o.empty()) o[0] = std::move(r);
+        if (!o.empty()) o[0] = keel::move(r);
     };
     auto res = nlinfit(args[0], args[1], model, args[3],
                        ctx.engine->allocator());
-    outs[0] = std::move(res.beta);
-    if (nargout > 1) outs[1] = std::move(res.R);
-    if (nargout > 2) outs[2] = std::move(res.J);
-    if (nargout > 3) outs[3] = std::move(res.CovB);
-    if (nargout > 4) outs[4] = std::move(res.MSE);
+    outs[0] = keel::move(res.beta);
+    if (nargout > 1) outs[1] = keel::move(res.R);
+    if (nargout > 2) outs[2] = keel::move(res.J);
+    if (nargout > 3) outs[3] = keel::move(res.CovB);
+    if (nargout > 4) outs[4] = keel::move(res.MSE);
 }
 
 void nlparci_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
@@ -66,13 +66,13 @@ void nlpredci_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     auto model = [&ctx, &fun](keel::ArrayRef<Value> a, keel::MutArrayRef<Value> o,
                               keel::Allocator * /*mr*/) {
         Value r = ctx.engine->callFunctionHandle(fun, a);
-        if (!o.empty()) o[0] = std::move(r);
+        if (!o.empty()) o[0] = keel::move(r);
     };
     auto [ypred, delta] = nlpredci(model, args[1], args[2],
                                     args[3], args[4], alpha,
                                     ctx.engine->allocator());
-    outs[0] = std::move(ypred);
-    if (nargout > 1) outs[1] = std::move(delta);
+    outs[0] = keel::move(ypred);
+    if (nargout > 1) outs[1] = keel::move(delta);
 }
 
 } // namespace detail

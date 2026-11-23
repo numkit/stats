@@ -17,8 +17,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -45,7 +43,7 @@ void normcdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
     const Value &sig = dist_param(a, 2, 1.0, mr, hsig);
     Value v = broadcast_dist3(a[0], mu, sig, mr, "normcdf", normcdfK);
     if (upper) applyUpperInPlace(v);
-    outs[0] = std::move(v);
+    outs[0] = keel::move(v);
 }
 
 void norminv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
@@ -98,16 +96,16 @@ void normrnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
                           : (m + s * rng.nextNormal());
     }
     if (args.size() > 2) {
-        outs[0] = reshape_rng_nd(std::move(out), args, 2, mr, "normrnd");
+        outs[0] = reshape_rng_nd(keel::move(out), args, 2, mr, "normrnd");
     } else {
         const Value &ref = (nmu >= nsig) ? muVal : sigVal;
         if (ref.dims().ndim() > 2) {
             keel::Array<keel::usize> shape(ref.dims().ndim());
             for (keel::i32 d = 0; d < ref.dims().ndim(); ++d)
                 shape[d] = ref.dims().dim(d);
-            outs[0] = builtin::reshape(std::move(out), keel::ArrayRef<keel::usize>(shape.data(), shape.size()), mr);
+            outs[0] = builtin::reshape(keel::move(out), keel::ArrayRef<keel::usize>(shape.data(), shape.size()), mr);
         } else {
-            outs[0] = std::move(out);
+            outs[0] = keel::move(out);
         }
     }
 }

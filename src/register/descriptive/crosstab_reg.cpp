@@ -16,8 +16,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -30,7 +28,7 @@ void crosstab_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     auto *mr = ctx.engine->allocator();
     const Value &y_opt = (args.size() >= 2) ? args[1] : Value::Empty;
     auto [T, chi2, p] = crosstab(args[0], y_opt, mr);
-    outs[0] = std::move(T);
+    outs[0] = keel::move(T);
     if (nargout > 1) outs[1] = Value::scalar(chi2, mr);
     if (nargout > 2) outs[2] = Value::scalar(p, mr);
     if (nargout > 3) {
@@ -55,7 +53,7 @@ void crosstab_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                            : Value::Empty;
             }
         }
-        outs[3] = std::move(labels);
+        outs[3] = keel::move(labels);
     }
 }
 

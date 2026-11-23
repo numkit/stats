@@ -1,6 +1,7 @@
 // toolboxes/stats/src/distributions/unid.cpp
 
 #include <keel/core.h>
+#include <keel/tuple.h>
 #include <keel/math.h>
 #include <keel/memory.h>
 #include <numkit/stats/distributions/unid.hpp>
@@ -75,13 +76,13 @@ Value unidrnd(::numkit::ops::RngContext &rng, keel::f64 N, keel::usize rows, kee
     return out;
 }
 
-std::tuple<keel::f64, keel::f64> unidstat(keel::f64 N)
+keel::Tuple<keel::f64, keel::f64> unidstat(keel::f64 N)
 {
     if (N < 1.0 || keel::floor(N) != N) {
         const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
-        return std::make_tuple(nan, nan);
+        return keel::make_tuple(nan, nan);
     }
-    return std::make_tuple(0.5 * (N + 1.0), (N * N - 1.0) / 12.0);
+    return keel::make_tuple(0.5 * (N + 1.0), (N * N - 1.0) / 12.0);
 }
 
 } // namespace numkit::stats

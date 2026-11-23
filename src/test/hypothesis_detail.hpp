@@ -15,8 +15,7 @@
 
 #include <algorithm>
 #include <numeric>
-#include <tuple>
-#include <utility>
+#include <keel/tuple.h>
 
 
 namespace numkit::stats {
@@ -428,28 +427,28 @@ inline keel::f64 log_binom(keel::f64 n, keel::f64 k) {
 } // anonymous
 
 // vartestn_full: vartestn worker -> [p, stat, df1, df2]. Def in hypothesis.cpp.
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 vartestn_full(const Value &x, const Value &group, keel::i32 test,
               keel::Allocator *mr);
 
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 ttest_dim(const Value &x, keel::f64 m, keel::f64 alpha, TestTail tail, keel::i32 dim,
           keel::Allocator *mr);
 
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 ttest2_dim(const Value &x, const Value &y, keel::f64 alpha, TestTail tail,
            keel::StringRef vartype, keel::i32 dim,
            keel::Allocator *mr);
 
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 ztest_dim(const Value &x, keel::f64 m, keel::f64 sigma, keel::f64 alpha, TestTail tail,
           keel::i32 dim, keel::Allocator *mr);
 
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 vartest_dim(const Value &x, keel::f64 v, keel::f64 alpha, TestTail tail, keel::i32 dim,
             keel::Allocator *mr);
 
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 vartest2_dim(const Value &x, const Value &y, keel::f64 alpha, TestTail tail,
              keel::i32 dim, keel::Allocator *mr);
 

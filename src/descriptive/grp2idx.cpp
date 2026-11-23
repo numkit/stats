@@ -75,7 +75,7 @@ Grp2idxResult grp2idx(const Value &s, keel::Allocator *mr)
             keel::i32 idx = -1;
             for (keel::usize k = 0; k < names.size(); ++k)
                 if (names[k] == str) { idx = keel::as<keel::i32>(k); break; }
-            if (idx < 0) { names.push_back(std::move(str)); idx = keel::as<keel::i32>(names.size()) - 1; }
+            if (idx < 0) { names.push_back(keel::move(str)); idx = keel::as<keel::i32>(names.size()) - 1; }
             g.push_back(keel::as<keel::f64>(idx + 1));
         }
     } else if (s.isChar() || s.isString()) {

@@ -13,8 +13,6 @@
 #include <algorithm>
 #include <cstdio>
 #include <numeric>
-#include <tuple>
-#include <utility>
 
 
 namespace numkit::stats {

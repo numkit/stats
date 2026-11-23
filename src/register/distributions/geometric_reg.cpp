@@ -16,8 +16,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -46,7 +44,7 @@ void geocdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
     Value v = p.isScalar() ? geocdf(a[0], p.toScalar(), mr)
                            : broadcast_dist2(a[0], p, mr, "geocdf", geocdfK);
     if (upper) applyUpperInPlace(v);
-    outs[0] = std::move(v);
+    outs[0] = keel::move(v);
 }
 
 void geoinv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)

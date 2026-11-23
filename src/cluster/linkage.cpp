@@ -4,6 +4,7 @@
 // cophenet, inconsistent) delegating numerical kernels to keel::stats.
 
 #include <keel/arena.h>
+#include <keel/tuple.h>
 #include <keel/array.h>
 #include <keel/core.h>
 #include <keel/math.h>
@@ -143,7 +144,7 @@ Value clusterdata(const Value &X, keel::i32 maxclust, keel::f64 cutoff,
     return clusterdata(X, maxclust, cutoff, linkage_method, criterion, 2, mr);
 }
 
-std::tuple<Value, Value> cophenet_full(const Value &Z, const Value &Y, keel::Allocator *mr)
+keel::Tuple<Value, Value> cophenet_full(const Value &Z, const Value &Y, keel::Allocator *mr)
 {
     const keel::usize M = Z.dims().rows();
     const keel::usize N = M + 1;
@@ -162,7 +163,7 @@ std::tuple<Value, Value> cophenet_full(const Value &Z, const Value &Y, keel::All
     (void)keel::stats::cophenet(zv.as_ref(), M, yv.as_ref(),
                                 keel::MutArrayRef<keel::f64>(dv.doubleDataMut(), Yn), corr,
                                 scratch.allocator());
-    return {Value::scalar(corr, mr), std::move(dv)};
+    return {Value::scalar(corr, mr), keel::move(dv)};
 }
 
 Value cophenet(const Value &Z, const Value &Y, keel::Allocator *mr)

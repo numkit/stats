@@ -18,8 +18,6 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 
 namespace numkit::stats {
@@ -258,7 +256,7 @@ inline keel::f64 genzSovCdf(const keel::f64 *L, keel::usize d,
 namespace {
 
 // Validate C square, infer d. Return (d, n).
-[[maybe_unused]] std::pair<keel::usize, keel::usize>
+[[maybe_unused]] keel::Pair<keel::usize, keel::usize>
 mvtcdf_shape_check(const Value &X, const Value &C, const char *fn)
 {
     if (C.dims().rows() != C.dims().cols())

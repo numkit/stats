@@ -19,8 +19,6 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -52,8 +50,8 @@ void mvnrnd_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     }
     auto r = mvnrnd_full(ctx.engine->rng(), args[0], args[1], cases,
                          nargout >= 2, ctx.engine->allocator());
-    outs[0] = std::move(r.r);
-    if (nargout >= 2) outs[1] = std::move(r.T);
+    outs[0] = keel::move(r.r);
+    if (nargout >= 2) outs[1] = keel::move(r.T);
 }
 
 void mvtrnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
@@ -90,8 +88,8 @@ void wishrnd_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     const keel::f64 df = args[1].toScalar();
     const Value D_in = (args.size() > 2) ? args[2] : Value::Empty;
     auto [W, D] = wishrnd_factor(ctx.engine->rng(), args[0], df, D_in, ctx.engine->allocator());
-    outs[0] = std::move(W);
-    if (nargout >= 2) outs[1] = std::move(D);
+    outs[0] = keel::move(W);
+    if (nargout >= 2) outs[1] = keel::move(D);
 }
 
 void iwishrnd_reg(keel::ArrayRef<Value> args, keel::usize nargout,
@@ -101,8 +99,8 @@ void iwishrnd_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     const keel::f64 df = args[1].toScalar();
     const Value DI_in = (args.size() > 2) ? args[2] : Value::Empty;
     auto [W, DI] = iwishrnd_factor(ctx.engine->rng(), args[0], df, DI_in, ctx.engine->allocator());
-    outs[0] = std::move(W);
-    if (nargout >= 2) outs[1] = std::move(DI);
+    outs[0] = keel::move(W);
+    if (nargout >= 2) outs[1] = keel::move(DI);
 }
 
 void mvtcdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)

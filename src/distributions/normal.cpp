@@ -8,6 +8,7 @@
 //   stat: [mean=μ, var=σ²]
 
 #include <keel/core.h>
+#include <keel/tuple.h>
 #include <keel/memory.h>
 #include <numkit/stats/distributions/normal.hpp>
 
@@ -55,13 +56,13 @@ Value normrnd(::numkit::ops::RngContext &rng, keel::f64 mu, keel::f64 sigma, kee
     return out;
 }
 
-std::tuple<keel::f64, keel::f64> normstat(keel::f64 mu, keel::f64 sigma)
+keel::Tuple<keel::f64, keel::f64> normstat(keel::f64 mu, keel::f64 sigma)
 {
     if (!norm_argcheck(sigma)) {
         const keel::f64 NaN = keel::Limits<keel::f64>::quiet_nan();
-        return std::make_tuple(NaN, NaN);
+        return keel::make_tuple(NaN, NaN);
     }
-    return std::make_tuple(mu, sigma * sigma);
+    return keel::make_tuple(mu, sigma * sigma);
 }
 
 } // namespace numkit::stats

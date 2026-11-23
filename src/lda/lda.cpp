@@ -3,6 +3,7 @@
 // Discriminant analysis (classify), delegating numerical kernels to keel::stats.
 
 #include <keel/arena.h>
+#include <keel/tuple.h>
 #include <keel/algo.h>
 #include <keel/array.h>
 #include <keel/core.h>
@@ -45,7 +46,7 @@ keel::stats::DiscrimType classify_argcheck(const Value &sample, const Value &tra
 
 } // namespace
 
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 classify(const Value &sample, const Value &training, const Value &group,
          keel::StringRef type_in, keel::Allocator *mr)
 {
@@ -77,7 +78,7 @@ classify(const Value &sample, const Value &training, const Value &group,
         keel::copy_n(postV.doubleDataMut(), res.posterior.data(), Nsamp * res.num_classes);
         keel::copy_n(logpV.doubleDataMut(), res.logp.data(), Nsamp);
     }
-    return {std::move(cV), Value::scalar(res.train_error, mr), std::move(postV), std::move(logpV)};
+    return {keel::move(cV), Value::scalar(res.train_error, mr), keel::move(postV), keel::move(logpV)};
 }
 
 } // namespace numkit::stats

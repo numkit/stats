@@ -14,8 +14,6 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -44,8 +42,8 @@ void pdist2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     auto r = pdist2_full(args[0], args[1],
                          keel::ArrayRef<Value>(args.data() + 2, args.size() - 2),
                          ctx.engine->allocator());
-    outs[0] = std::move(r.D);
-    if (nargout >= 2) outs[1] = std::move(r.I);
+    outs[0] = keel::move(r.D);
+    if (nargout >= 2) outs[1] = keel::move(r.I);
 }
 
 void squareform_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,

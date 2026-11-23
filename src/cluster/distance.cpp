@@ -15,7 +15,6 @@
 #include <numkit/value/value.hpp>
 
 #include <algorithm>
-#include <utility>
 
 #include "distance_detail.hpp"
 
@@ -146,7 +145,7 @@ void pdist2_topk(const Value &X, const Value &Y, keel::StringRef metric, keel::f
     const keel::f64 *fd = full.doubleData();
 
     keel::ArenaTemp scratch = keel::get_scratch(mr);
-    keel::Array<std::pair<keel::f64, keel::usize>> col(Mx, scratch.allocator());
+    keel::Array<keel::Pair<keel::f64, keel::usize>> col(Mx, scratch.allocator());
     for (keel::usize j = 0; j < My; ++j) {
         for (keel::usize i = 0; i < Mx; ++i) {
             col[i].first = fd[j * Mx + i];

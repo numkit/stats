@@ -12,8 +12,7 @@
 
 #include <algorithm>
 #include <numeric>
-#include <tuple>
-#include <utility>
+#include <keel/tuple.h>
 
 
 namespace numkit::stats {
@@ -44,7 +43,7 @@ keel::Array<Group> bucket(const Value &y, const Value &group)
         if (!found) {
             Group ng{li, keel::Array<keel::f64>{}};
             ng.values.push_back(yi);
-            g.push_back(std::move(ng));
+            g.push_back(keel::move(ng));
         }
     }
     // Sort by label ascending — matches MATLAB's anova1 default ordering.
@@ -57,7 +56,7 @@ keel::Array<Group> bucket(const Value &y, const Value &group)
 
 // anova2: two-way ANOVA core (10-tuple of doubles: pCols,pRows,Fc,Fr,dfC,dfR,
 // dfE,ssC,ssR,ssE). Def in anova.cpp (external).
-std::tuple<keel::f64, keel::f64, keel::f64, keel::f64, keel::f64,
+keel::Tuple<keel::f64, keel::f64, keel::f64, keel::f64, keel::f64,
            keel::f64, keel::f64, keel::f64, keel::f64, keel::f64>
 anova2(const Value &Y, keel::Allocator *mr);
 

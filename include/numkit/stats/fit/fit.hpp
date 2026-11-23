@@ -8,7 +8,7 @@
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
-#include <tuple>
+#include <keel/tuple.h>
 
 namespace numkit::stats {
 
@@ -36,7 +36,7 @@ namespace numkit::stats {
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(muhat, sigmahat, muci, sigmaci)`.
 /// @see normlike
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 normfit(const Value &x, keel::f64 alpha,
         keel::Allocator *mr = nullptr);
 
@@ -53,7 +53,7 @@ normfit(const Value &x, keel::f64 alpha,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(muhat, sigmahat, muci, sigmaci)`.
 /// @see normfit(x, alpha, mr)
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 normfit(const Value &x, keel::f64 alpha, const Value &cens, const Value &freq,
         keel::Allocator *mr = nullptr);
 
@@ -66,7 +66,7 @@ normfit(const Value &x, keel::f64 alpha, const Value &cens, const Value &freq,
 /// @param alpha  Significance level.
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(lhat, lci)`.
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 poissfit(const Value &x, keel::f64 alpha,
          keel::Allocator *mr = nullptr);
 
@@ -83,7 +83,7 @@ poissfit(const Value &x, keel::f64 alpha,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(muhat, muci)`.
 /// @see explike
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 expfit(const Value &x, keel::f64 alpha,
        const Value &cens = Value::Empty, const Value &freq = Value::Empty,
        keel::Allocator *mr = nullptr);
@@ -97,7 +97,7 @@ expfit(const Value &x, keel::f64 alpha,
 /// @param alpha  Significance level.
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(ahat, bhat, aci, bci)`.
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 unifit(const Value &x, keel::f64 alpha,
        keel::Allocator *mr = nullptr);
 
@@ -113,7 +113,7 @@ unifit(const Value &x, keel::f64 alpha,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(parm, pci)`.
 /// @see lognlike
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 lognfit(const Value &x, keel::f64 alpha,
         keel::Allocator *mr = nullptr);
 
@@ -130,7 +130,7 @@ lognfit(const Value &x, keel::f64 alpha,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(parm, pci)`.
 /// @see lognfit(x, alpha, mr)
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 lognfit(const Value &x, keel::f64 alpha, const Value &cens, const Value &freq,
         keel::Allocator *mr = nullptr);
 
@@ -144,7 +144,7 @@ lognfit(const Value &x, keel::f64 alpha, const Value &cens, const Value &freq,
 /// @param alpha  Significance level.
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(phat, pci)`.
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 binofit(const Value &x, const Value &n, keel::f64 alpha,
         keel::Allocator *mr = nullptr);
 
@@ -157,7 +157,7 @@ binofit(const Value &x, const Value &n, keel::f64 alpha,
 /// @param alpha  Significance level.
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(shat, sci)`.
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 raylfit(const Value &x, keel::f64 alpha,
         keel::Allocator *mr = nullptr);
 

@@ -16,8 +16,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -30,11 +28,11 @@ void regress_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     const keel::f64 alpha = (args.size() >= 3 && !args[2].isEmpty())
                          ? args[2].toScalar() : 0.05;
     auto [b, bint, r, rint, stats] = regress_full(args[0], args[1], alpha, ctx.engine->allocator());
-    outs[0] = std::move(b);
-    if (nargout > 1) outs[1] = std::move(bint);
-    if (nargout > 2) outs[2] = std::move(r);
-    if (nargout > 3) outs[3] = std::move(rint);
-    if (nargout > 4) outs[4] = std::move(stats);
+    outs[0] = keel::move(b);
+    if (nargout > 1) outs[1] = keel::move(bint);
+    if (nargout > 2) outs[2] = keel::move(r);
+    if (nargout > 3) outs[3] = keel::move(rint);
+    if (nargout > 4) outs[4] = keel::move(stats);
 }
 
 void ridge_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
@@ -56,10 +54,10 @@ void lscov_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     Value w_empty = Value::matrix(0, 0, ValueType::DOUBLE, mr);
     const Value &w = (args.size() >= 3) ? args[2] : w_empty;
     auto [x, stdx, mse, S] = lscov(args[0], args[1], w, mr);
-    outs[0] = std::move(x);
-    if (nargout > 1) outs[1] = std::move(stdx);
-    if (nargout > 2) outs[2] = std::move(mse);
-    if (nargout > 3) outs[3] = std::move(S);
+    outs[0] = keel::move(x);
+    if (nargout > 1) outs[1] = keel::move(stdx);
+    if (nargout > 2) outs[2] = keel::move(mse);
+    if (nargout > 3) outs[3] = keel::move(S);
 }
 
 } // namespace detail

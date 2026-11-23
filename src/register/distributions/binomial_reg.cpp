@@ -17,8 +17,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -72,7 +70,7 @@ void binocdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
         }
     }
     if (upper) applyUpperInPlace(v);
-    outs[0] = std::move(v);
+    outs[0] = keel::move(v);
 }
 
 void binoinv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
@@ -102,7 +100,7 @@ void binoinv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
         const keel::f64 qi = pin.elemAsDouble(nq == 1 ? 0 : i);
         od[i] = bino_params_ok(ni, pi) ? bino_inv_scalar(qi, ni, pi) : NaN;
     }
-    outs[0] = std::move(out);
+    outs[0] = keel::move(out);
 }
 
 void binornd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)

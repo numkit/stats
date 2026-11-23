@@ -10,7 +10,7 @@
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
-#include <tuple>
+#include <keel/tuple.h>
 
 namespace numkit {
 
@@ -83,7 +83,7 @@ Value hygernd(::numkit::ops::RngContext &rng, keel::f64 M, keel::f64 K, keel::f6
 /// @param N  Sample size.
 /// @return   `{mean, variance}` pair.
 /// @see hygepdf
-std::tuple<keel::f64, keel::f64> hygestat(keel::f64 M, keel::f64 K, keel::f64 N);
+keel::Tuple<keel::f64, keel::f64> hygestat(keel::f64 M, keel::f64 K, keel::f64 N);
 
 
 /// @}

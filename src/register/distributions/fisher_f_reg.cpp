@@ -17,8 +17,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -69,7 +67,7 @@ void fcdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArra
         }
     }
     if (upper) applyUpperInPlace(v);
-    outs[0] = std::move(v);
+    outs[0] = keel::move(v);
 }
 
 void finv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
@@ -108,7 +106,7 @@ void finv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArra
         if (zi >= 1.0) { od[i] = keel::Limits<keel::f64>::infinity(); continue; }
         od[i] = (d2 / d1) * zi / (1.0 - zi);
     }
-    outs[0] = std::move(out);
+    outs[0] = keel::move(out);
 }
 
 void frnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)

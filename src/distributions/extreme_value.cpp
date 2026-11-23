@@ -1,6 +1,7 @@
 // toolboxes/stats/src/distributions/extreme_value.cpp
 
 #include <keel/core.h>
+#include <keel/tuple.h>
 #include <keel/math.h>
 #include <keel/memory.h>
 #include <numkit/stats/distributions/extreme_value.hpp>
@@ -81,13 +82,13 @@ Value evrnd(::numkit::ops::RngContext &rng, keel::f64 mu, keel::f64 sigma, keel:
     return out;
 }
 
-std::tuple<keel::f64, keel::f64> evstat(keel::f64 mu, keel::f64 sigma)
+keel::Tuple<keel::f64, keel::f64> evstat(keel::f64 mu, keel::f64 sigma)
 {
     if (sigma <= 0.0) {
         const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
-        return std::make_tuple(nan, nan);
+        return keel::make_tuple(nan, nan);
     }
-    return std::make_tuple(mu - sigma * kEulerGamma,
+    return keel::make_tuple(mu - sigma * kEulerGamma,
                            sigma * sigma * kPi2Over6);
 }
 

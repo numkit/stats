@@ -23,8 +23,6 @@
 #include <numkit/value/value.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats::detail {
 
@@ -99,8 +97,8 @@ inline void emit_vec_stat_1arg(keel::ArrayRef<Value> args, keel::usize nargout,
         pm[i] = m;
         pv[i] = v;
     }
-    outs[0] = std::move(out_m);
-    if (nargout > 1) outs[1] = std::move(out_v);
+    outs[0] = keel::move(out_m);
+    if (nargout > 1) outs[1] = keel::move(out_v);
 }
 
 template <class Stat2>
@@ -142,8 +140,8 @@ inline void emit_vec_stat_2arg(keel::ArrayRef<Value> args, keel::usize nargout,
         pm[i] = m;
         pv[i] = v;
     }
-    outs[0] = std::move(out_m);
-    if (nargout > 1) outs[1] = std::move(out_v);
+    outs[0] = keel::move(out_m);
+    if (nargout > 1) outs[1] = keel::move(out_v);
 }
 
 template <class Stat3>
@@ -187,8 +185,8 @@ inline void emit_vec_stat_3arg(keel::ArrayRef<Value> args, keel::usize nargout,
         pm[i] = m;
         pv[i] = v;
     }
-    outs[0] = std::move(out_m);
-    if (nargout > 1) outs[1] = std::move(out_v);
+    outs[0] = keel::move(out_m);
+    if (nargout > 1) outs[1] = keel::move(out_v);
 }
 
 // ── *pdf / *cdf / *inv parameter-broadcast helpers ───────────────────
@@ -416,7 +414,7 @@ inline Value reshape_rng_nd(Value v, keel::ArrayRef<Value> args, keel::usize sta
         shape.pop_back();
     if (shape.size() <= 2)
         return v;
-    return builtin::reshape(std::move(v), keel::ArrayRef<keel::usize>(shape.data(), shape.size()), mr);
+    return builtin::reshape(keel::move(v), keel::ArrayRef<keel::usize>(shape.data(), shape.size()), mr);
 }
 
 } // namespace numkit::stats::detail

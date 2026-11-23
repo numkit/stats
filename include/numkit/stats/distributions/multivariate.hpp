@@ -9,7 +9,7 @@
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <keel/ref.h>
-#include <tuple>
+#include <keel/tuple.h>
 #include <numkit/value/value.hpp>
 
 namespace numkit {
@@ -205,7 +205,7 @@ Value iwishrnd(::numkit::ops::RngContext &rng, const Value &Tau, keel::f64 df,
 /// @param D      Pre-computed `chol(Sigma, 'upper')`, or `Value::Empty`.
 /// @param mr     Memory resource.
 /// @return       `{W, D}` — Wishart draw and the upper-Cholesky factor.
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 wishrnd_factor(::numkit::ops::RngContext &rng, const Value &Sigma, keel::f64 df,
                const Value &D, keel::Allocator *mr = nullptr);
 
@@ -220,7 +220,7 @@ wishrnd_factor(::numkit::ops::RngContext &rng, const Value &Sigma, keel::f64 df,
 /// identical Inv-Wishart draws; the numerical orientation differs.)
 ///
 /// @return  `{W, DI}` — Inv-Wishart draw and the lower-Cholesky of inv(Tau).
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, keel::f64 df,
                 const Value &DI, keel::Allocator *mr = nullptr);
 

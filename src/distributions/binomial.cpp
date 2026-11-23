@@ -1,6 +1,7 @@
 // toolboxes/stats/src/distributions/binomial.cpp
 
 #include <keel/core.h>
+#include <keel/tuple.h>
 #include <keel/math.h>
 #include <keel/memory.h>
 #include <keel/stats.h>
@@ -66,13 +67,13 @@ Value binornd(::numkit::ops::RngContext &rng, keel::f64 n, keel::f64 p, keel::us
     return out;
 }
 
-std::tuple<keel::f64, keel::f64> binostat(keel::f64 n, keel::f64 p)
+keel::Tuple<keel::f64, keel::f64> binostat(keel::f64 n, keel::f64 p)
 {
     if (n < 0.0 || keel::floor(n) != n || p < 0.0 || p > 1.0) {
         const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
-        return std::make_tuple(nan, nan);
+        return keel::make_tuple(nan, nan);
     }
-    return std::make_tuple(n * p, n * p * (1.0 - p));
+    return keel::make_tuple(n * p, n * p * (1.0 - p));
 }
 
 } // namespace numkit::stats

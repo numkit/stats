@@ -16,8 +16,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -75,12 +73,12 @@ void robustfit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         for (keel::usize j = 0; j < p; ++j)
             for (keel::usize i = 0; i < n; ++i)
                 xa[(j + 1) * n + i] = Xin.elemAsDouble(j * n + i);
-        Xin = std::move(Xaug);
+        Xin = keel::move(Xaug);
     }
 
     auto r = robustfit(Xin, args[1], w, tune, ctx.engine->allocator());
-    outs[0] = std::move(r.b);
-    if (nargout > 1) outs[1] = std::move(r.s);
+    outs[0] = keel::move(r.b);
+    if (nargout > 1) outs[1] = keel::move(r.s);
 }
 
 void robustcov_reg(keel::ArrayRef<Value> args, keel::usize nargout,
@@ -88,8 +86,8 @@ void robustcov_reg(keel::ArrayRef<Value> args, keel::usize nargout,
 {
     argcheck::checkNargin(args.size(), 1, "robustcov");  // no max: name-value tail in the reference
     auto r = robustcov(args[0], ctx.engine->allocator());
-    outs[0] = std::move(r.sigma);
-    if (nargout > 1) outs[1] = std::move(r.mu);
+    outs[0] = keel::move(r.sigma);
+    if (nargout > 1) outs[1] = keel::move(r.mu);
 }
 
 } // namespace detail

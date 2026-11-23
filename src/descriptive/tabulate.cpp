@@ -77,7 +77,7 @@ Value tabulate(const Value &x, keel::Allocator *mr)
                     keel::String s = x.charRow(r);
                     while (!s.empty() && s.back() == ' ')
                         s.pop_back();
-                    items.push_back(std::move(s));
+                    items.push_back(keel::move(s));
                 }
             }
         }

@@ -10,7 +10,7 @@
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
-#include <tuple>
+#include <keel/tuple.h>
 
 namespace numkit {
 
@@ -84,7 +84,7 @@ Value evrnd(::numkit::ops::RngContext &rng, keel::f64 mu, keel::f64 sigma, keel:
 /// @param sigma  Scale parameter.
 /// @return       `{mean, variance}` pair.
 /// @see evpdf
-std::tuple<keel::f64, keel::f64> evstat(keel::f64 mu, keel::f64 sigma);
+keel::Tuple<keel::f64, keel::f64> evstat(keel::f64 mu, keel::f64 sigma);
 
 /// @brief Type-I EV (Gumbel-min) MLE fit (`[muhat, sigmahat] = evfit(x)`).
 ///

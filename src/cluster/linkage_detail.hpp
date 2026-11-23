@@ -6,11 +6,11 @@
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
-#include <tuple>
+#include <keel/tuple.h>
 
 namespace numkit::stats {
 
-std::tuple<Value, Value> cophenet_full(const Value &Z, const Value &Y,
+keel::Tuple<Value, Value> cophenet_full(const Value &Z, const Value &Y,
                                        keel::Allocator *mr);
 
 } // namespace numkit::stats

@@ -13,8 +13,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -26,8 +24,8 @@ void corrcov_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     argcheck::checkNargin(args.size(), 1, 2, "corrcov");
     auto *mr = ctx.engine->allocator();
     auto [Rv, Sv] = corrcov(args[0], mr);
-    outs[0] = std::move(Rv);
-    if (nargout > 1) outs[1] = std::move(Sv);
+    outs[0] = keel::move(Rv);
+    if (nargout > 1) outs[1] = keel::move(Sv);
 }
 
 } // namespace detail

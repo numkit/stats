@@ -100,7 +100,7 @@ RobustfitResult robustfit(const Value &X, const Value &y,
     // Pack outputs.
     auto bv = Value::matrix(p, 1, ValueType::DOUBLE, mr);
     keel::copy_n(bv.doubleDataMut(), beta.data(), p);
-    return { std::move(bv), Value::scalar(s, mr) };
+    return { keel::move(bv), Value::scalar(s, mr) };
 }
 
 
@@ -129,7 +129,7 @@ RobustcovResult robustcov(const Value &X, keel::Allocator *mr)
         if (!invertSPD(C.as_ref(), d, invC)) break;
         auto dist = mahalanobisDist(Xv.data(), n, d, mu.data(), invC.data());
         // Pick h rows with smallest distance.
-        keel::Array<std::pair<keel::f64, keel::usize>> pairs(n);
+        keel::Array<keel::Pair<keel::f64, keel::usize>> pairs(n);
         for (keel::usize i = 0; i < n; ++i) pairs[i] = { dist[i], i };
         std::nth_element(pairs.begin(), pairs.begin() + h, pairs.end());
         keel::Array<keel::usize> newKeep(h);
@@ -165,7 +165,7 @@ RobustcovResult robustcov(const Value &X, keel::Allocator *mr)
             sd[j * d + i] = C[i * d + j];
     auto muV = Value::matrix(1, d, ValueType::DOUBLE, mr);
     keel::copy_n(muV.doubleDataMut(), mu.data(), d);
-    return { std::move(sigma), std::move(muV) };
+    return { keel::move(sigma), keel::move(muV) };
 }
 
 } // namespace numkit::stats

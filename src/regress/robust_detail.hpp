@@ -13,8 +13,6 @@
 
 #include <algorithm>
 #include <numeric>
-#include <tuple>
-#include <utility>
 
 
 namespace numkit::stats {
@@ -35,8 +33,8 @@ bool gaussSolve(keel::f64 *M, keel::f64 *b, keel::usize p)
         if (pmax == 0.0) return false;
         if (piv != k) {
             for (keel::usize j = 0; j < p; ++j)
-                std::swap(M[k * p + j], M[piv * p + j]);
-            std::swap(b[k], b[piv]);
+                keel::swap(M[k * p + j], M[piv * p + j]);
+            keel::swap(b[k], b[piv]);
         }
         const keel::f64 pv = M[k * p + k];
         for (keel::usize rr = k + 1; rr < p; ++rr) {
@@ -183,8 +181,8 @@ constexpr keel::f64 kSqrtEps = 1.4901161193847656e-08;  // sqrt(eps)
         }
         if (piv != col)
             for (keel::usize c = 0; c < p; ++c) {
-                std::swap(XtX[col * p + c], XtX[piv * p + c]);
-                std::swap(inv[col * p + c], inv[piv * p + c]);
+                keel::swap(XtX[col * p + c], XtX[piv * p + c]);
+                keel::swap(inv[col * p + c], inv[piv * p + c]);
             }
         const keel::f64 d = XtX[col * p + col];
         const keel::f64 invd = (d != 0.0) ? 1.0 / d : 0.0;
@@ -285,7 +283,7 @@ namespace {
         if (pmax == 0.0) return false;
         if (piv != k) {
             for (keel::usize j = 0; j < 2 * d; ++j)
-                std::swap(A[k * 2 * d + j], A[piv * 2 * d + j]);
+                keel::swap(A[k * 2 * d + j], A[piv * 2 * d + j]);
         }
         const keel::f64 pv = A[k * 2 * d + k];
         for (keel::usize j = 0; j < 2 * d; ++j) A[k * 2 * d + j] /= pv;

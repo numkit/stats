@@ -97,14 +97,14 @@ GlmfitResult glmfit(const Value &X, const Value &y,
     stats.field("sfit")      = Value::scalar(fit.sfit, mr);
     stats.field("s")         = Value::scalar(fit.s, mr);
     stats.field("estdisp")   = Value::scalar(fit.estdisp ? 1.0 : 0.0, mr);
-    stats.field("covb")      = std::move(covb);
-    stats.field("se")        = std::move(se);
-    stats.field("coeffcorr") = std::move(coeffcorr);
-    stats.field("t")         = std::move(tStat);
-    stats.field("resid")     = std::move(resid);
-    stats.field("wts")       = std::move(wts);
+    stats.field("covb")      = keel::move(covb);
+    stats.field("se")        = keel::move(se);
+    stats.field("coeffcorr") = keel::move(coeffcorr);
+    stats.field("t")         = keel::move(tStat);
+    stats.field("resid")     = keel::move(resid);
+    stats.field("wts")       = keel::move(wts);
 
-    return {std::move(bv), Value::scalar(fit.deviance, mr), std::move(stats)};
+    return {keel::move(bv), Value::scalar(fit.deviance, mr), keel::move(stats)};
 }
 
 Value glmval(const Value &b, const Value &X, GlmLink link, keel::Allocator *mr)

@@ -1,6 +1,7 @@
 // toolboxes/stats/src/distributions/geometric.cpp
 
 #include <keel/core.h>
+#include <keel/tuple.h>
 #include <keel/math.h>
 #include <keel/memory.h>
 #include <numkit/stats/distributions/geometric.hpp>
@@ -86,14 +87,14 @@ Value geornd(::numkit::ops::RngContext &rng, keel::f64 p, keel::usize rows, keel
     return out;
 }
 
-std::tuple<keel::f64, keel::f64> geostat(keel::f64 p)
+keel::Tuple<keel::f64, keel::f64> geostat(keel::f64 p)
 {
     if (p <= 0.0 || p > 1.0) {
         const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
-        return std::make_tuple(nan, nan);
+        return keel::make_tuple(nan, nan);
     }
     const keel::f64 q = 1.0 - p;
-    return std::make_tuple(q / p, q / (p * p));
+    return keel::make_tuple(q / p, q / (p * p));
 }
 
 } // namespace numkit::stats

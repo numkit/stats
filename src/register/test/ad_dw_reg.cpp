@@ -18,8 +18,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -33,10 +31,10 @@ void adtest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     if (args.size() >= 2 && !args[1].isEmpty())
         alpha = args[1].toScalar();
     auto [h, p, stat, cv] = adtest(args[0], alpha, ctx.engine->allocator());
-    outs[0] = std::move(h);
-    if (nargout > 1) outs[1] = std::move(p);
-    if (nargout > 2) outs[2] = std::move(stat);
-    if (nargout > 3) outs[3] = std::move(cv);
+    outs[0] = keel::move(h);
+    if (nargout > 1) outs[1] = keel::move(p);
+    if (nargout > 2) outs[2] = keel::move(stat);
+    if (nargout > 3) outs[3] = keel::move(cv);
 }
 
 void dwtest_reg(keel::ArrayRef<Value> args, keel::usize nargout,

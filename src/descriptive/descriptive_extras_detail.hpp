@@ -22,8 +22,6 @@
 
 #include <algorithm>
 #include <numeric>
-#include <tuple>
-#include <utility>
 
 
 namespace numkit::stats {
@@ -333,8 +331,8 @@ namespace {
         if (pmax == 0.0) { singular = true; break; }
         if (piv != kc) {
             for (keel::usize j = 0; j < pC; ++j)
-                std::swap(Mc[kc + j * pC], Mc[piv + j * pC]);
-            std::swap(b[kc], b[piv]);
+                keel::swap(Mc[kc + j * pC], Mc[piv + j * pC]);
+            keel::swap(b[kc], b[piv]);
         }
         const keel::f64 pivVal = Mc[kc + kc * pC];
         for (keel::usize r = kc + 1; r < pC; ++r) {
@@ -430,8 +428,8 @@ keel::Array<keel::f64> fitPolyLS(const keel::f64 *xidx, keel::usize n, const kee
         }
         if (piv != kc) {
             for (keel::usize j = 0; j < k; ++j)
-                std::swap(M[kc + j * k], M[piv + j * k]);
-            std::swap(b[kc], b[piv]);
+                keel::swap(M[kc + j * k], M[piv + j * k]);
+            keel::swap(b[kc], b[piv]);
         }
         const keel::f64 pivVal = M[kc + kc * k];
         for (keel::usize r = kc + 1; r < k; ++r) {
@@ -484,8 +482,8 @@ bool solveSmallDense(keel::f64 *G, keel::f64 *rhs, keel::usize k)
         if (best == 0.0) return false;
         if (piv != col) {
             for (keel::usize j = 0; j < k; ++j)
-                std::swap(G[col * k + j], G[piv * k + j]);
-            std::swap(rhs[col], rhs[piv]);
+                keel::swap(G[col * k + j], G[piv * k + j]);
+            keel::swap(rhs[col], rhs[piv]);
         }
         const keel::f64 d = G[col * k + col];
         for (keel::usize r = col + 1; r < k; ++r) {

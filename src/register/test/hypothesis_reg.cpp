@@ -24,8 +24,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -68,7 +66,7 @@ void ttest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         keel::f64 *dst = diff.doubleDataMut();
         for (keel::usize i = 0; i < y.numel(); ++i)
             dst[i] = args[0].elemAsDouble(i) - y.elemAsDouble(i);
-        xData = std::move(diff);
+        xData = keel::move(diff);
         pairedConsumed = true;
     }
 
@@ -107,10 +105,10 @@ void ttest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         }
     }
     auto [h, p, ci, t] = ttest_dim(xData, m, alpha, tail, dim, mr);
-    outs[0] = std::move(h);
-    if (nargout > 1) outs[1] = std::move(p);
-    if (nargout > 2) outs[2] = std::move(ci);
-    if (nargout > 3) outs[3] = std::move(t);   // stats struct {tstat, df, sd}
+    outs[0] = keel::move(h);
+    if (nargout > 1) outs[1] = keel::move(p);
+    if (nargout > 2) outs[2] = keel::move(ci);
+    if (nargout > 3) outs[3] = keel::move(t);   // stats struct {tstat, df, sd}
 }
 
 void ttest2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
@@ -137,10 +135,10 @@ void ttest2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         }
     }
     auto [h, p, ci, t] = ttest2_dim(args[0], args[1], alpha, tail, vartype.as_ref(), dim, ctx.engine->allocator());
-    outs[0] = std::move(h);
-    if (nargout > 1) outs[1] = std::move(p);
-    if (nargout > 2) outs[2] = std::move(ci);
-    if (nargout > 3) outs[3] = std::move(t);
+    outs[0] = keel::move(h);
+    if (nargout > 1) outs[1] = keel::move(p);
+    if (nargout > 2) outs[2] = keel::move(ci);
+    if (nargout > 3) outs[3] = keel::move(t);
 }
 
 void ztest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
@@ -173,10 +171,10 @@ void ztest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         } else { alpha = a.toScalar(); ++i; }
     }
     auto [h, p, ci, z] = ztest_dim(args[0], m, sigma, alpha, tail, dim, ctx.engine->allocator());
-    outs[0] = std::move(h);
-    if (nargout > 1) outs[1] = std::move(p);
-    if (nargout > 2) outs[2] = std::move(ci);
-    if (nargout > 3) outs[3] = std::move(z);
+    outs[0] = keel::move(h);
+    if (nargout > 1) outs[1] = keel::move(p);
+    if (nargout > 2) outs[2] = keel::move(ci);
+    if (nargout > 3) outs[3] = keel::move(z);
 }
 
 void vartest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
@@ -208,10 +206,10 @@ void vartest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         } else { alpha = a.toScalar(); ++i; }
     }
     auto [h, p, ci, T] = vartest_dim(args[0], v, alpha, tail, dim, ctx.engine->allocator());
-    outs[0] = std::move(h);
-    if (nargout > 1) outs[1] = std::move(p);
-    if (nargout > 2) outs[2] = std::move(ci);
-    if (nargout > 3) outs[3] = std::move(T);
+    outs[0] = keel::move(h);
+    if (nargout > 1) outs[1] = keel::move(p);
+    if (nargout > 2) outs[2] = keel::move(ci);
+    if (nargout > 3) outs[3] = keel::move(T);
 }
 
 void vartest2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
@@ -242,10 +240,10 @@ void vartest2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         } else { alpha = a.toScalar(); ++i; }
     }
     auto [h, p, ci, F] = vartest2_dim(args[0], args[1], alpha, tail, dim, ctx.engine->allocator());
-    outs[0] = std::move(h);
-    if (nargout > 1) outs[1] = std::move(p);
-    if (nargout > 2) outs[2] = std::move(ci);
-    if (nargout > 3) outs[3] = std::move(F);
+    outs[0] = keel::move(h);
+    if (nargout > 1) outs[1] = keel::move(p);
+    if (nargout > 2) outs[2] = keel::move(ci);
+    if (nargout > 3) outs[3] = keel::move(F);
 }
 
 void kstest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
@@ -283,10 +281,10 @@ void kstest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         }
     }
     auto [h, p, D, cv] = kstest(args[0], cdf, alpha, tail, ctx.engine->allocator());
-    outs[0] = std::move(h);
-    if (nargout > 1) outs[1] = std::move(p);
-    if (nargout > 2) outs[2] = std::move(D);
-    if (nargout > 3) outs[3] = std::move(cv);
+    outs[0] = keel::move(h);
+    if (nargout > 1) outs[1] = keel::move(p);
+    if (nargout > 2) outs[2] = keel::move(D);
+    if (nargout > 3) outs[3] = keel::move(cv);
 }
 
 void kstest2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
@@ -314,10 +312,10 @@ void kstest2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         }
     }
     auto [h, p, D, cv] = kstest2(args[0], args[1], alpha, tail, ctx.engine->allocator());
-    outs[0] = std::move(h);
-    if (nargout > 1) outs[1] = std::move(p);
-    if (nargout > 2) outs[2] = std::move(D);
-    if (nargout > 3) outs[3] = std::move(cv);
+    outs[0] = keel::move(h);
+    if (nargout > 1) outs[1] = keel::move(p);
+    if (nargout > 2) outs[2] = keel::move(D);
+    if (nargout > 3) outs[3] = keel::move(cv);
 }
 
 void jbtest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
@@ -330,10 +328,10 @@ void jbtest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                          ? args[2].toScalar()
                          : keel::Limits<keel::f64>::quiet_nan();
     auto [h, p, JB, cv] = jbtest(args[0], alpha, mctol, ctx.engine->allocator());
-    outs[0] = std::move(h);
-    if (nargout > 1) outs[1] = std::move(p);
-    if (nargout > 2) outs[2] = std::move(JB);
-    if (nargout > 3) outs[3] = std::move(cv);
+    outs[0] = keel::move(h);
+    if (nargout > 1) outs[1] = keel::move(p);
+    if (nargout > 2) outs[2] = keel::move(JB);
+    if (nargout > 3) outs[3] = keel::move(cv);
 }
 
 void fishertest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
@@ -352,8 +350,8 @@ void fishertest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         else if (name == "tail")  { keel::String tv = v.toString(); tail = parse_tail(tv.as_ref(), TestTail::Both); }
     }
     auto [h, p, OR, lo, hi] = fishertest(args[0], alpha, tail, mr);
-    outs[0] = std::move(h);
-    if (nargout > 1) outs[1] = std::move(p);
+    outs[0] = keel::move(h);
+    if (nargout > 1) outs[1] = keel::move(p);
     if (nargout > 2) {
         Value s = Value::structure(mr);
         s.field("OddsRatio") = OR;
@@ -361,8 +359,8 @@ void fishertest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         keel::f64 *cd = ci.doubleDataMut();
         cd[0] = lo.toScalar();
         cd[1] = hi.toScalar();
-        s.field("ConfidenceInterval") = std::move(ci);
-        outs[2] = std::move(s);
+        s.field("ConfidenceInterval") = keel::move(ci);
+        outs[2] = keel::move(s);
     }
 }
 
@@ -413,8 +411,8 @@ void chi2gof_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     if (freq_set && expected_set) {
         const keel::i32 np = nparams_set ? nparams : 0;
         auto [p, h, chi2, df] = chi2gof(freq, expected, np, alpha, mr);
-        outs[0] = std::move(h);
-        if (nargout > 1) outs[1] = std::move(p);
+        outs[0] = keel::move(h);
+        if (nargout > 1) outs[1] = keel::move(p);
         if (nargout > 2) {
             const keel::usize K = freq.numel();
             Value s = Value::structure(mr);
@@ -432,7 +430,7 @@ void chi2gof_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             s.field("edges") = edges_out;
             s.field("O")     = freq;
             s.field("E")     = expected;
-            outs[2] = std::move(s);
+            outs[2] = keel::move(s);
         }
         return;
     }
@@ -590,7 +588,7 @@ void chi2gof_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         Value E_out = Value::matrix(1, E.size(), ValueType::DOUBLE, mr);
         std::copy(E.begin(), E.end(), E_out.doubleDataMut());
         s.field("E") = E_out;
-        outs[2] = std::move(s);
+        outs[2] = keel::move(s);
     }
     (void)nbins_set;  // documented arg, no separate code path needed
     (void)ctrs_set;
@@ -659,12 +657,12 @@ void vartestn_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         Value Vg = Value::matrix(R * C, 1, ValueType::DOUBLE, mr);
         std::copy(vv.begin(), vv.end(), Vx.doubleDataMut());
         std::copy(gg.begin(), gg.end(), Vg.doubleDataMut());
-        X = std::move(Vx);
-        G = std::move(Vg);
+        X = keel::move(Vx);
+        G = keel::move(Vg);
     }
 
     auto [p, stat, df1, df2] = vartestn_full(X, G, test, mr);
-    outs[0] = std::move(p);
+    outs[0] = keel::move(p);
     if (nargout > 1) {
         Value s = Value::structure(mr);
         if (test == 0) {
@@ -679,7 +677,7 @@ void vartestn_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             dp[1] = df2.toScalar();
             s.field("df") = dfv;
         }
-        outs[1] = std::move(s);
+        outs[1] = keel::move(s);
     }
 }
 
@@ -728,7 +726,7 @@ void runstest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         const keel::usize Nx = x.numel();
         if (Nx < 2) {
             Value diffSign = Value::matrix(0, 0, ValueType::DOUBLE, mr);
-            xUsed = std::move(diffSign);
+            xUsed = keel::move(diffSign);
         } else {
             keel::Array<keel::f64> diffs;
             diffs.reserve(Nx - 1);
@@ -741,21 +739,21 @@ void runstest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             Value sgn = Value::matrix(1, diffs.size(), ValueType::DOUBLE, mr);
             if (!diffs.empty())
                 std::copy(diffs.begin(), diffs.end(), sgn.doubleDataMut());
-            xUsed = std::move(sgn);
+            xUsed = keel::move(sgn);
         }
         v = 0.0;       // reference value for the sign sequence
     }
 
     auto [p, h, R, n1, n0, z] = runstest(xUsed, v, alpha, tail, method.as_ref(), mr);
-    outs[0] = std::move(h);
-    if (nargout > 1) outs[1] = std::move(p);
+    outs[0] = keel::move(h);
+    if (nargout > 1) outs[1] = keel::move(p);
     if (nargout > 2) {
         Value s = Value::structure(mr);
         s.field("nruns") = R;
         s.field("n1")    = n1;
         s.field("n0")    = n0;
         if (!keel::is_nan(z.toScalar())) s.field("z") = z;
-        outs[2] = std::move(s);
+        outs[2] = keel::move(s);
     }
 }
 
@@ -786,13 +784,13 @@ void ranksum_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     }
 
     auto [p, h, rs, z] = ranksum(args[0], args[1], alpha, tail, method.as_ref(), mr);
-    outs[0] = std::move(p);
-    if (nargout > 1) outs[1] = std::move(h);
+    outs[0] = keel::move(p);
+    if (nargout > 1) outs[1] = keel::move(h);
     if (nargout > 2) {
         Value s = Value::structure(mr);
         if (!keel::is_nan(z.toScalar())) s.field("zval") = z;
         s.field("ranksum") = rs;
-        outs[2] = std::move(s);
+        outs[2] = keel::move(s);
     }
 }
 
@@ -829,14 +827,14 @@ void signrank_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     }
 
     auto [p, h, sr, z] = signrank(args[0], y_or_m, alpha, tail, method.as_ref(), mr);
-    outs[0] = std::move(p);
-    if (nargout > 1) outs[1] = std::move(h);
+    outs[0] = keel::move(p);
+    if (nargout > 1) outs[1] = keel::move(h);
     if (nargout > 2) {
         Value s = Value::structure(mr);
         s.field("signedrank") = sr;
         // zval only present for approximate method (NaN otherwise).
         if (!keel::is_nan(z.toScalar())) s.field("zval") = z;
-        outs[2] = std::move(s);
+        outs[2] = keel::move(s);
     }
 }
 
@@ -875,8 +873,8 @@ void signtest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     }
 
     auto [p, h, sig] = signtest(args[0], y_or_m, alpha, tail, mr);
-    outs[0] = std::move(p);
-    if (nargout > 1) outs[1] = std::move(h);
+    outs[0] = keel::move(p);
+    if (nargout > 1) outs[1] = keel::move(h);
     if (nargout > 2) {
         Value s = Value::structure(mr);
         // MATLAB R2025b stats struct shape: {zval, sign}. zval is NaN
@@ -884,7 +882,7 @@ void signtest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         // 'approximate' would populate zval with the normal-approx z.
         s.field("zval") = Value::scalar(keel::Limits<keel::f64>::quiet_nan(), mr);
         s.field("sign") = sig;
-        outs[2] = std::move(s);
+        outs[2] = keel::move(s);
     }
 }
 
@@ -901,10 +899,10 @@ void lillietest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     if (args.size() >= 2 && !args[1].isEmpty()) alpha = args[1].toScalar();
     auto [h, p, kstat, critval] =
         lillietest(args[0], alpha, ctx.engine->allocator());
-    outs[0] = std::move(h);
-    if (nargout > 1) outs[1] = std::move(p);
-    if (nargout > 2) outs[2] = std::move(kstat);
-    if (nargout > 3) outs[3] = std::move(critval);
+    outs[0] = keel::move(h);
+    if (nargout > 1) outs[1] = keel::move(p);
+    if (nargout > 2) outs[2] = keel::move(kstat);
+    if (nargout > 3) outs[3] = keel::move(critval);
 }
 
 void ansaribradley_reg(keel::ArrayRef<Value> args, keel::usize nargout,
@@ -932,13 +930,13 @@ void ansaribradley_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     }
 
     auto [h, p, W, Wstar] = ansaribradley(args[0], args[1], alpha, tail, mr);
-    outs[0] = std::move(h);
-    if (nargout > 1) outs[1] = std::move(p);
+    outs[0] = keel::move(h);
+    if (nargout > 1) outs[1] = keel::move(p);
     if (nargout > 2) {
         Value s = Value::structure(mr);
         s.field("W")     = W;
         s.field("Wstar") = Wstar;
-        outs[2] = std::move(s);
+        outs[2] = keel::move(s);
     }
 }
 

@@ -18,8 +18,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -80,7 +78,7 @@ void tcdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArra
         }
     }
     if (upper) applyUpperInPlace(v);
-    outs[0] = std::move(v);
+    outs[0] = keel::move(v);
 }
 
 void tinv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
@@ -125,7 +123,7 @@ void tinv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArra
         const keel::f64 mag = keel::sqrt(nui * (1.0 / zi - 1.0));
         od[i] = (pi >= 0.5) ? mag : -mag;
     }
-    outs[0] = std::move(out);
+    outs[0] = keel::move(out);
 }
 
 void trnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)

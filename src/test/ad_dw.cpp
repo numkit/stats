@@ -4,6 +4,7 @@
 // test (dwtest), delegating numerical kernels to keel::stats.
 
 #include <keel/arena.h>
+#include <keel/tuple.h>
 #include <keel/math.h>
 #include <keel/array.h>
 #include <keel/core.h>
@@ -46,7 +47,7 @@ void dwtest_argcheck(const Value &r, const Value &X)
 
 } // namespace
 
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 adtest(const Value &x, keel::f64 alpha, keel::Allocator *mr)
 {
     adtest_argcheck(alpha);
@@ -109,7 +110,7 @@ keel::f64 dwStatAndPLeft(const Value &r, const Value &X, bool exact,
     return res.p_left;
 }
 
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 dwtest(const Value &r, const Value &X, keel::Allocator *mr)
 {
     keel::f64 dw = 0.0;

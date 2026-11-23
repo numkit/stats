@@ -1,6 +1,7 @@
 // toolboxes/stats/src/distributions/negbin.cpp
 
 #include <keel/core.h>
+#include <keel/tuple.h>
 #include <keel/memory.h>
 #include <numkit/stats/distributions/negbin.hpp>
 #include <numkit/stats/distributions/gamma_dist.hpp>
@@ -68,15 +69,15 @@ Value nbinrnd(::numkit::ops::RngContext &rng, keel::f64 r, keel::f64 p, keel::us
     return out;
 }
 
-std::tuple<keel::f64, keel::f64> nbinstat(keel::f64 r, keel::f64 p)
+keel::Tuple<keel::f64, keel::f64> nbinstat(keel::f64 r, keel::f64 p)
 {
     if (r <= 0.0 || p <= 0.0 || p > 1.0) {
         const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
-        return std::make_tuple(nan, nan);
+        return keel::make_tuple(nan, nan);
     }
     const keel::f64 mean = r * (1.0 - p) / p;
     const keel::f64 var  = mean / p;
-    return std::make_tuple(mean, var);
+    return keel::make_tuple(mean, var);
 }
 
 } // namespace numkit::stats

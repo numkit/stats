@@ -10,7 +10,7 @@
 #include <keel/ref.h>
 #include <numkit/value/value.hpp>
 
-#include <tuple>
+#include <keel/tuple.h>
 
 namespace numkit::stats {
 
@@ -42,7 +42,7 @@ namespace numkit::stats {
 ///                  - `posterior` : `N_samp × K` posterior probabilities.
 ///                  - `logp`      : `N_samp × 1` log unconditional density.
 /// @see pca
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 classify(const Value &sample, const Value &training, const Value &group,
          keel::StringRef type,
          keel::Allocator *mr = nullptr);

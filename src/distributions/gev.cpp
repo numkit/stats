@@ -1,6 +1,7 @@
 // toolboxes/stats/src/distributions/gev.cpp
 
 #include <keel/core.h>
+#include <keel/tuple.h>
 #include <keel/math.h>
 #include <keel/memory.h>
 #include <keel/stats.h>
@@ -58,21 +59,21 @@ Value gevrnd(::numkit::ops::RngContext &rng, keel::f64 k, keel::f64 sigma, keel:
     return out;
 }
 
-std::tuple<keel::f64, keel::f64> gevstat(keel::f64 k, keel::f64 sigma, keel::f64 mu)
+keel::Tuple<keel::f64, keel::f64> gevstat(keel::f64 k, keel::f64 sigma, keel::f64 mu)
 {
     const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
-    if (sigma <= 0.0) return std::make_tuple(nan, nan);
+    if (sigma <= 0.0) return keel::make_tuple(nan, nan);
     if (k == 0.0)
-        return std::make_tuple(mu + sigma * kEulerGamma, sigma * sigma * kPi2Over6);
+        return keel::make_tuple(mu + sigma * kEulerGamma, sigma * sigma * kPi2Over6);
     if (!(k < 1.0))
-        return std::make_tuple(keel::Limits<keel::f64>::infinity(), nan);
+        return keel::make_tuple(keel::Limits<keel::f64>::infinity(), nan);
     const keel::f64 g1 = keel::tgamma(1.0 - k);
     const keel::f64 mean = mu + sigma * (g1 - 1.0) / k;
     if (!(k < 0.5))
-        return std::make_tuple(mean, keel::Limits<keel::f64>::infinity());
+        return keel::make_tuple(mean, keel::Limits<keel::f64>::infinity());
     const keel::f64 g2 = keel::tgamma(1.0 - 2.0 * k);
     const keel::f64 var = (sigma * sigma / (k * k)) * (g2 - g1 * g1);
-    return std::make_tuple(mean, var);
+    return keel::make_tuple(mean, var);
 }
 
 } // namespace numkit::stats

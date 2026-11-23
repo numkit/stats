@@ -16,8 +16,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -46,7 +44,7 @@ void raylcdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
     Value v = b.isScalar() ? raylcdf(a[0], b.toScalar(), mr)
                            : broadcast_dist2(a[0], b, mr, "raylcdf", raylcdfK);
     if (upper) applyUpperInPlace(v);
-    outs[0] = std::move(v);
+    outs[0] = keel::move(v);
 }
 
 void raylinv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)

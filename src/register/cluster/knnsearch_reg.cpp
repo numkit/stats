@@ -18,8 +18,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -30,8 +28,8 @@ void knnsearch_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArr
     argcheck::checkNargin(args.size(), 2, "knnsearch");  // no max: name-value tail in the reference
     KnnOpts o = parse_knn_args(args, "knnsearch");
     auto [Idx, D] = knnsearch(args[0], args[1], o.K, o.metric, o.p, ctx.engine->allocator());
-    outs[0] = std::move(Idx);
-    if (nargout > 1) outs[1] = std::move(D);
+    outs[0] = keel::move(Idx);
+    if (nargout > 1) outs[1] = keel::move(D);
 }
 
 void rangesearch_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs, CallContext &ctx)
@@ -67,8 +65,8 @@ void rangesearch_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutA
         }
     }
     auto [Idx, D] = rangesearch(args[0], args[1], r, o.metric, o.p, ctx.engine->allocator());
-    outs[0] = std::move(Idx);
-    if (nargout > 1) outs[1] = std::move(D);
+    outs[0] = keel::move(Idx);
+    if (nargout > 1) outs[1] = keel::move(D);
 }
 
 } // namespace detail

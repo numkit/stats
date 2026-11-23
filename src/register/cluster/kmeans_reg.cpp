@@ -18,8 +18,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -61,10 +59,10 @@ void kmeans_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         // accepted (no-op).
     }
     auto R = kmeans_full(ctx.engine->rng(), args[0], K, max_iter, replicates, ctx.engine->allocator());
-    outs[0] = std::move(R.idx);
-    if (nargout > 1) outs[1] = std::move(R.C);
-    if (nargout > 2) outs[2] = std::move(R.sumd);
-    if (nargout > 3) outs[3] = std::move(R.D);
+    outs[0] = keel::move(R.idx);
+    if (nargout > 1) outs[1] = keel::move(R.C);
+    if (nargout > 2) outs[2] = keel::move(R.sumd);
+    if (nargout > 3) outs[3] = keel::move(R.D);
 }
 
 } // namespace detail

@@ -10,7 +10,7 @@
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
-#include <tuple>
+#include <keel/tuple.h>
 
 namespace numkit {
 
@@ -85,7 +85,7 @@ Value ricernd(::numkit::ops::RngContext &rng, keel::f64 s, keel::f64 sigma, keel
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `{mean, variance}` pair.
 /// @see ricepdf
-std::tuple<keel::f64, keel::f64>
+keel::Tuple<keel::f64, keel::f64>
 ricestat(keel::f64 s, keel::f64 sigma,
          keel::Allocator *mr = nullptr);
 

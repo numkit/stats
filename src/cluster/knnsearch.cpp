@@ -3,6 +3,7 @@
 // knnsearch / rangesearch — brute-force NN search via stats::pdist2.
 
 #include <keel/array.h>
+#include <keel/tuple.h>
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <keel/ref.h>
@@ -42,7 +43,7 @@ void rangesearch_argcheck(const Value &X, const Value &Y, keel::f64 r)
 
 } // namespace
 
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 knnsearch(const Value &X, const Value &Y, keel::i32 K, keel::StringRef metric, keel::f64 p, keel::Allocator *mr)
 {
     knnsearch_argcheck(X, Y, K);
@@ -56,7 +57,7 @@ knnsearch(const Value &X, const Value &Y, keel::i32 K, keel::StringRef metric, k
     Value Dout = Value::matrix(Ny, keel::as<keel::usize>(K), ValueType::DOUBLE, mr);
     keel::f64 *id = Idx.doubleDataMut();
     keel::f64 *dd_out = Dout.doubleDataMut();
-    if (Nx == 0 || Ny == 0) return {std::move(Idx), std::move(Dout)};
+    if (Nx == 0 || Ny == 0) return {keel::move(Idx), keel::move(Dout)};
 
     // pdist2 returns Nx × Ny distance matrix (rows = X, cols = Y) per
     // its doc note "rows of X, rows of Y", but check by fingerprinting:
@@ -69,7 +70,7 @@ knnsearch(const Value &X, const Value &Y, keel::i32 K, keel::StringRef metric, k
                     0, 0, "knnsearch", "", "numkit:knnsearch:internal");
     const keel::f64 *dd = D.doubleData();
 
-    keel::Array<std::pair<keel::f64, keel::usize>> heap;
+    keel::Array<keel::Pair<keel::f64, keel::usize>> heap;
     heap.reserve(Nx);
     for (keel::usize q = 0; q < Ny; ++q) {
         // Collect (dist, index) for query q.
@@ -97,10 +98,10 @@ knnsearch(const Value &X, const Value &Y, keel::i32 K, keel::StringRef metric, k
                 keel::Limits<keel::f64>::quiet_nan();
         }
     }
-    return {std::move(Idx), std::move(Dout)};
+    return {keel::move(Idx), keel::move(Dout)};
 }
 
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 rangesearch(const Value &X, const Value &Y, keel::f64 r, keel::StringRef metric, keel::f64 p, keel::Allocator *mr)
 {
     rangesearch_argcheck(X, Y, r);
@@ -111,12 +112,12 @@ rangesearch(const Value &X, const Value &Y, keel::f64 r, keel::StringRef metric,
 
     Value IdxCells = Value::cell(Ny, 1, mr);
     Value DCells   = Value::cell(Ny, 1, mr);
-    if (Nx == 0 || Ny == 0) return {std::move(IdxCells), std::move(DCells)};
+    if (Nx == 0 || Ny == 0) return {keel::move(IdxCells), keel::move(DCells)};
 
     Value D = pdist2(X, Y, metric, p, mr);
     const keel::f64 *dd = D.doubleData();
 
-    keel::Array<std::pair<keel::f64, keel::usize>> hits;
+    keel::Array<keel::Pair<keel::f64, keel::usize>> hits;
     for (keel::usize q = 0; q < Ny; ++q) {
         hits.clear();
         for (keel::usize i = 0; i < Nx; ++i) {
@@ -139,10 +140,10 @@ rangesearch(const Value &X, const Value &Y, keel::f64 r, keel::StringRef metric,
                 rd[k] = hits[k].first;
             }
         }
-        IdxCells.cellAt(q) = std::move(rowIdx);
-        DCells.cellAt(q)   = std::move(rowD);
+        IdxCells.cellAt(q) = keel::move(rowIdx);
+        DCells.cellAt(q)   = keel::move(rowD);
     }
-    return {std::move(IdxCells), std::move(DCells)};
+    return {keel::move(IdxCells), keel::move(DCells)};
 }
 
 } // namespace numkit::stats

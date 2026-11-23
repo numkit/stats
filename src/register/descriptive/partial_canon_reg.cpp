@@ -14,8 +14,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -34,9 +32,9 @@ void canoncorr_reg(keel::ArrayRef<Value> args, keel::usize nargout,
 {
     argcheck::checkNargin(args.size(), 2, 2, "canoncorr");
     auto res = canoncorr(args[0], args[1], ctx.engine->allocator());
-    outs[0] = std::move(res.A);
-    if (nargout > 1) outs[1] = std::move(res.B);
-    if (nargout > 2) outs[2] = std::move(res.r);
+    outs[0] = keel::move(res.A);
+    if (nargout > 1) outs[1] = keel::move(res.B);
+    if (nargout > 2) outs[2] = keel::move(res.r);
 }
 
 } // namespace detail

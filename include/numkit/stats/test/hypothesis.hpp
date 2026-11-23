@@ -9,7 +9,7 @@
 #include <keel/ref.h>
 #include <numkit/value/value.hpp>
 
-#include <tuple>
+#include <keel/tuple.h>
 
 namespace numkit::stats {
 
@@ -43,7 +43,7 @@ enum class TestTail {
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(h, p, ci, tstat)`.
 /// @see ttest2, ztest
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 ttest(const Value &x, keel::f64 m, keel::f64 alpha, TestTail tail,
       keel::Allocator *mr = nullptr);
 
@@ -59,7 +59,7 @@ ttest(const Value &x, keel::f64 m, keel::f64 alpha, TestTail tail,
 /// @param mr       Memory resource (nullptr → process default).
 /// @return         `(h, p, ci, tstat)`.
 /// @see ttest, vartest2
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 ttest2(const Value &x, const Value &y, keel::f64 alpha, TestTail tail,
        keel::StringRef vartype, keel::Allocator *mr = nullptr);
 
@@ -75,7 +75,7 @@ ttest2(const Value &x, const Value &y, keel::f64 alpha, TestTail tail,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(h, p, ci, zstat)`.
 /// @see ttest
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 ztest(const Value &x, keel::f64 m, keel::f64 sigma, keel::f64 alpha, TestTail tail,
       keel::Allocator *mr = nullptr);
 
@@ -91,7 +91,7 @@ ztest(const Value &x, keel::f64 m, keel::f64 sigma, keel::f64 alpha, TestTail ta
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(h, p, ci, chisqstat)`.
 /// @see vartest2
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 vartest(const Value &x, keel::f64 v, keel::f64 alpha, TestTail tail,
         keel::Allocator *mr = nullptr);
 
@@ -107,7 +107,7 @@ vartest(const Value &x, keel::f64 v, keel::f64 alpha, TestTail tail,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(h, p, ci, Fstat)`.
 /// @see vartest
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 vartest2(const Value &x, const Value &y, keel::f64 alpha, TestTail tail,
          keel::Allocator *mr = nullptr);
 
@@ -124,7 +124,7 @@ vartest2(const Value &x, const Value &y, keel::f64 alpha, TestTail tail,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(h, p, ksstat, cv)` — h, p-value, KS statistic, critical value.
 /// @see kstest2
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 kstest(const Value &x, const Value &cdf, keel::f64 alpha, TestTail tail,
        keel::Allocator *mr = nullptr);
 
@@ -140,7 +140,7 @@ kstest(const Value &x, const Value &cdf, keel::f64 alpha, TestTail tail,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(h, p, ksstat, cv)`.
 /// @see kstest
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 kstest2(const Value &x, const Value &y, keel::f64 alpha, TestTail tail,
         keel::Allocator *mr = nullptr);
 
@@ -156,7 +156,7 @@ kstest2(const Value &x, const Value &y, keel::f64 alpha, TestTail tail,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(h, p, jbstat, cv)`.
 /// @see jbtest(x, alpha, mctol, mr)
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 jbtest(const Value &x, keel::f64 alpha, keel::Allocator *mr = nullptr);
 
 /// @brief Anderson-Darling test for normality
@@ -176,7 +176,7 @@ jbtest(const Value &x, keel::f64 alpha, keel::Allocator *mr = nullptr);
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(h, p, adstat, cv)` — decision, p-value, A²*, 5%
 ///               critical value (0.752 for estimated parameters).
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 adtest(const Value &x, keel::f64 alpha = 0.05,
        keel::Allocator *mr = nullptr);
 
@@ -198,7 +198,7 @@ adtest(const Value &x, keel::f64 alpha = 0.05,
 /// @param X       Design matrix (n × k) used to fit the residuals.
 /// @param mr      Memory resource (nullptr → process default).
 /// @return        `(p, dw)` — two-sided p-value, DW statistic.
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 dwtest(const Value &r, const Value &X,
        keel::Allocator *mr = nullptr);
 
@@ -212,7 +212,7 @@ dwtest(const Value &r, const Value &X,
 ///               even for small `n`.
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(h, p, jbstat, cv)`.
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 jbtest(const Value &x, keel::f64 alpha, keel::f64 mctol,
        keel::Allocator *mr = nullptr);
 
@@ -229,7 +229,7 @@ jbtest(const Value &x, keel::f64 alpha, keel::f64 mctol,
 /// @param mr       Memory resource (nullptr → process default).
 /// @return         `(p, h, sign)` — p-value, decision, # positive differences.
 /// @see signrank
-std::tuple<Value, Value, Value>
+keel::Tuple<Value, Value, Value>
 signtest(const Value &x, const Value &y_or_m, keel::f64 alpha, TestTail tail,
          keel::Allocator *mr = nullptr);
 
@@ -243,7 +243,7 @@ signtest(const Value &x, const Value &y_or_m, keel::f64 alpha, TestTail tail,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(p, chisqstat, df)`.
 /// @see vartestn_full
-std::tuple<Value, Value, Value>
+keel::Tuple<Value, Value, Value>
 vartestn(const Value &x, const Value &group, keel::f64 alpha,
          keel::Allocator *mr = nullptr);
 
@@ -264,7 +264,7 @@ vartestn(const Value &x, const Value &group, keel::f64 alpha,
 /// @param test   Statistic selector (0..4).
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(p, stat, df1, df2)`.
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 vartestn_full(const Value &x, const Value &group, keel::i32 test,
               keel::Allocator *mr = nullptr);
 
@@ -279,7 +279,7 @@ vartestn_full(const Value &x, const Value &group, keel::i32 test,
 /// @param tail   Direction of the alternative.
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(h, p, OR, ci_lo, ci_hi)`.
-std::tuple<Value, Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value, Value>
 fishertest(const Value &T, keel::f64 alpha, TestTail tail,
            keel::Allocator *mr = nullptr);
 
@@ -296,7 +296,7 @@ fishertest(const Value &T, keel::f64 alpha, TestTail tail,
 /// @param alpha     Significance level.
 /// @param mr        Memory resource (nullptr → process default).
 /// @return          `(h, p, chi2stat, df)`.
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 chi2gof(const Value &observed, const Value &expected, keel::i32 nparams,
         keel::f64 alpha, keel::Allocator *mr = nullptr);
 
@@ -313,7 +313,7 @@ chi2gof(const Value &observed, const Value &expected, keel::i32 nparams,
 /// @param method  Computation method.
 /// @param mr      Memory resource (nullptr → process default).
 /// @return        `(p, h, nruns, n1, n0, zval)`.
-std::tuple<Value, Value, Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value, Value, Value>
 runstest(const Value &x, keel::f64 v, keel::f64 alpha, TestTail tail,
          keel::StringRef method, keel::Allocator *mr = nullptr);
 
@@ -332,7 +332,7 @@ runstest(const Value &x, keel::f64 v, keel::f64 alpha, TestTail tail,
 /// @param mr      Memory resource (nullptr → process default).
 /// @return        `(p, h, ranksum_x, zval)`.
 /// @see signrank
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 ranksum(const Value &x, const Value &y, keel::f64 alpha, TestTail tail,
         keel::StringRef method, keel::Allocator *mr = nullptr);
 
@@ -351,7 +351,7 @@ ranksum(const Value &x, const Value &y, keel::f64 alpha, TestTail tail,
 /// @param mr       Memory resource (nullptr → process default).
 /// @return         `(p, h, signedrank, zval)`.
 /// @see ranksum, signtest
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 signrank(const Value &x, const Value &y_or_m, keel::f64 alpha, TestTail tail,
          keel::StringRef method, keel::Allocator *mr = nullptr);
 
@@ -380,7 +380,7 @@ signrank(const Value &x, const Value &y_or_m, keel::f64 alpha, TestTail tail,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(h, p, W, Wstar)`.
 /// @see vartest2, ranksum
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 ansaribradley(const Value &x, const Value &y, keel::f64 alpha, TestTail tail,
               keel::Allocator *mr = nullptr);
 
@@ -400,7 +400,7 @@ ansaribradley(const Value &x, const Value &y, keel::f64 alpha, TestTail tail,
 ///               p-value, KS statistic `D`, and critical `D` at `alpha`.
 /// @throws Error if `numel(x) < 4`, `alpha` is not in `(0, 1)`, or the
 ///         sample has zero variance.
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 lillietest(const Value &x, keel::f64 alpha = 0.05,
            keel::Allocator *mr = nullptr);
 

@@ -10,7 +10,7 @@
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
-#include <tuple>
+#include <keel/tuple.h>
 
 namespace numkit {
 
@@ -85,7 +85,7 @@ Value ncx2rnd(::numkit::ops::RngContext &rng, keel::f64 k, keel::f64 lambda, kee
 /// @param lambda  Noncentrality parameter.
 /// @return        `{mean, variance}` pair.
 /// @see ncx2pdf
-std::tuple<keel::f64, keel::f64> ncx2stat(keel::f64 k, keel::f64 lambda);
+keel::Tuple<keel::f64, keel::f64> ncx2stat(keel::f64 k, keel::f64 lambda);
 
 
 /// @}

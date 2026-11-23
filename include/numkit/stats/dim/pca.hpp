@@ -9,7 +9,7 @@
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
-#include <tuple>
+#include <keel/tuple.h>
 
 namespace numkit::stats {
 
@@ -33,7 +33,7 @@ namespace numkit::stats {
 ///            - `explained` : `D × 1` percent variance per component.
 ///            - `mu`        : `1 × D` column means that were subtracted.
 /// @see pcacov, pcares
-std::tuple<Value, Value, Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value, Value, Value>
 pca(const Value &X, keel::Allocator *mr = nullptr);
 
 /// @brief PCA from a precomputed covariance matrix
@@ -45,7 +45,7 @@ pca(const Value &X, keel::Allocator *mr = nullptr);
 /// @param mr  Memory resource (nullptr → process default).
 /// @return    Tuple `(coeff, latent, explained)`.
 /// @see pca
-std::tuple<Value, Value, Value>
+keel::Tuple<Value, Value, Value>
 pcacov(const Value &C, keel::Allocator *mr = nullptr);
 
 /// @brief PCA residuals (`res = pcares(X, ndim)`).

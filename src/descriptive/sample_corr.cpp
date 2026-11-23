@@ -12,6 +12,7 @@
 // bugs/stats/autocorr.md.
 
 #include <keel/array.h>
+#include <keel/tuple.h>
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <keel/math.h>
@@ -71,8 +72,8 @@ bool solveDense(keel::Array<keel::f64> &A, keel::Array<keel::f64> &b, keel::usiz
         }
         if (best < 1e-294) return false;
         if (piv != col) {
-            for (keel::usize c = 0; c < n; ++c) std::swap(A[col * n + c], A[piv * n + c]);
-            std::swap(b[col], b[piv]);
+            for (keel::usize c = 0; c < n; ++c) keel::swap(A[col * n + c], A[piv * n + c]);
+            keel::swap(b[col], b[piv]);
         }
         const keel::f64 d = A[col * n + col];
         for (keel::usize r = col + 1; r < n; ++r) {
@@ -99,7 +100,7 @@ void crosscorr_argcheck(const Value &y1, const Value &y2)
 
 } // namespace
 
-std::tuple<Value, Value, Value>
+keel::Tuple<Value, Value, Value>
 autocorr(const Value &y, keel::i32 numLags, keel::f64 numSTD, keel::Allocator *mr)
 {
     const keel::usize N = y.numel();
@@ -121,10 +122,10 @@ autocorr(const Value &y, keel::i32 numLags, keel::f64 numSTD, keel::Allocator *m
 
     const keel::f64 b = (N > 0) ? numSTD / keel::sqrt(keel::as<keel::f64>(N)) : 0.0;
     keel::Array<keel::f64> bounds = { b, -b };
-    return std::make_tuple(colVec(acf, mr), colVec(lags, mr), colVec(bounds, mr));
+    return keel::make_tuple(colVec(acf, mr), colVec(lags, mr), colVec(bounds, mr));
 }
 
-std::tuple<Value, Value, Value>
+keel::Tuple<Value, Value, Value>
 crosscorr(const Value &y1, const Value &y2, keel::i32 numLags, keel::f64 numSTD,
           keel::Allocator *mr)
 {
@@ -154,10 +155,10 @@ crosscorr(const Value &y1, const Value &y2, keel::i32 numLags, keel::f64 numSTD,
 
     const keel::f64 b = (N > 0) ? numSTD / keel::sqrt(keel::as<keel::f64>(N)) : 0.0;
     keel::Array<keel::f64> bounds = { b, -b };
-    return std::make_tuple(colVec(xcf, mr), colVec(lags, mr), colVec(bounds, mr));
+    return keel::make_tuple(colVec(xcf, mr), colVec(lags, mr), colVec(bounds, mr));
 }
 
-std::tuple<Value, Value, Value>
+keel::Tuple<Value, Value, Value>
 parcorr(const Value &y, keel::i32 numLags, keel::f64 numSTD, keel::Allocator *mr)
 {
     const keel::usize N = y.numel();
@@ -193,7 +194,7 @@ parcorr(const Value &y, keel::i32 numLags, keel::f64 numSTD, keel::Allocator *mr
 
     const keel::f64 bnd = (N > 0) ? numSTD / keel::sqrt(keel::as<keel::f64>(N)) : 0.0;
     keel::Array<keel::f64> bounds = { bnd, -bnd };
-    return std::make_tuple(colVec(pacf, mr), colVec(lags, mr), colVec(bounds, mr));
+    return keel::make_tuple(colVec(pacf, mr), colVec(lags, mr), colVec(bounds, mr));
 }
 
 } // namespace numkit::stats

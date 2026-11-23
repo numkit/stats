@@ -1,6 +1,7 @@
 // toolboxes/stats/src/distributions/uniform.cpp
 
 #include <keel/core.h>
+#include <keel/tuple.h>
 #include <keel/memory.h>
 #include <keel/stats.h>
 #include <numkit/stats/distributions/uniform.hpp>
@@ -51,14 +52,14 @@ Value unifrnd(::numkit::ops::RngContext &rng, keel::f64 a, keel::f64 b, keel::us
     return out;
 }
 
-std::tuple<keel::f64, keel::f64> unifstat(keel::f64 a, keel::f64 b)
+keel::Tuple<keel::f64, keel::f64> unifstat(keel::f64 a, keel::f64 b)
 {
     if (b <= a) {
         const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
-        return std::make_tuple(nan, nan);
+        return keel::make_tuple(nan, nan);
     }
     const keel::f64 w = b - a;
-    return std::make_tuple(0.5 * (a + b), (w * w) / 12.0);
+    return keel::make_tuple(0.5 * (a + b), (w * w) / 12.0);
 }
 
 } // namespace numkit::stats

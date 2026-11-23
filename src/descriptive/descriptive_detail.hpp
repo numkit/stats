@@ -22,8 +22,7 @@
 
 #include <algorithm>
 #include <numeric>
-#include <tuple>
-#include <utility>
+#include <keel/tuple.h>
 
 
 namespace numkit::stats {
@@ -576,7 +575,7 @@ void modeAlongDim(const Value &x, keel::i32 redDim, T *dst, keel::f64 *dstC, boo
     }
 }
 
-inline std::pair<Value, Value>
+inline keel::Pair<Value, Value>
 allocModeOutputs(const Value &x, keel::i32 redDim, ValueType outType, keel::Allocator *mr)
 {
     if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
@@ -591,12 +590,12 @@ allocModeOutputs(const Value &x, keel::i32 redDim, ValueType outType, keel::Allo
 }
 
 template <typename T>
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 modeAllT(const Value &x, ValueType outType, keel::Allocator *mr)
 {
     const bool typeMatch = (x.type() == outType);
     if (x.isEmpty() && x.dims().ndim() < 4) {
-        return std::make_tuple(Value::matrix(0, 0, outType, mr),
+        return keel::make_tuple(Value::matrix(0, 0, outType, mr),
                                Value::matrix(0, 0, ValueType::DOUBLE, mr));
     }
     keel::ArenaTemp scratch = keel::get_scratch(mr);
@@ -606,22 +605,22 @@ modeAllT(const Value &x, ValueType outType, keel::Allocator *mr)
             buf[i] = readSrcAsT<T>(x, i, typeMatch);
         T v; keel::f64 c;
         modeFromSliceT<T>(buf.data(), x.numel(), v, c);
-        return std::make_tuple(makeScalarT<T>(v, outType, mr),
+        return keel::make_tuple(makeScalarT<T>(v, outType, mr),
                                Value::scalar(c, mr));
     }
     const keel::i32 redDim = firstNonSingletonDim(x);
     auto [out, outC] = allocModeOutputs(x, redDim, outType, mr);
     modeAlongDim<T>(x, redDim, static_cast<T *>(out.rawDataMut()), outC.doubleDataMut(), typeMatch, scratch.allocator());
-    return std::make_tuple(std::move(out), std::move(outC));
+    return keel::make_tuple(keel::move(out), keel::move(outC));
 }
 
 template <typename T>
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 modeAlongDimT(const Value &x, keel::i32 dim, ValueType outType, keel::Allocator *mr)
 {
     const bool typeMatch = (x.type() == outType);
     if (x.isEmpty() && x.dims().ndim() < 4) {
-        return std::make_tuple(Value::matrix(0, 0, outType, mr),
+        return keel::make_tuple(Value::matrix(0, 0, outType, mr),
                                Value::matrix(0, 0, ValueType::DOUBLE, mr));
     }
     if (x.isScalar() || x.dims().isVector()) {
@@ -635,7 +634,7 @@ modeAlongDimT(const Value &x, keel::i32 dim, ValueType outType, keel::Allocator 
             } else {
                 out  = makeScalarT<T>(readSrcAsT<T>(x, 0, typeMatch), outType, mr);
                 outC = Value::scalar(1.0, mr);
-                return std::make_tuple(std::move(out), std::move(outC));
+                return keel::make_tuple(keel::move(out), keel::move(outC));
             }
             T *dst = static_cast<T *>(out.rawDataMut());
             keel::f64 *dstC = outC.doubleDataMut();
@@ -643,20 +642,20 @@ modeAlongDimT(const Value &x, keel::i32 dim, ValueType outType, keel::Allocator 
                 dst[i]  = readSrcAsT<T>(x, i, typeMatch);
                 dstC[i] = 1.0;
             }
-            return std::make_tuple(std::move(out), std::move(outC));
+            return keel::make_tuple(keel::move(out), keel::move(outC));
         }
         return modeAllT<T>(x, outType, mr);
     }
     auto [out, outC] = allocModeOutputs(x, dim, outType, mr);
     keel::ArenaTemp scratch = keel::get_scratch(mr);
     modeAlongDim<T>(x, dim, static_cast<T *>(out.rawDataMut()), outC.doubleDataMut(), typeMatch, scratch.allocator());
-    return std::make_tuple(std::move(out), std::move(outC));
+    return keel::make_tuple(keel::move(out), keel::move(outC));
 }
 
 // Dispatch on x.type(). LOGICAL maps to T=uint8_t (storage type) and
 // outType=LOGICAL so the result preserves logical class. CHAR uses
 // T=char. COMPLEX has no defined order â†’ throw.
-[[maybe_unused]] std::tuple<Value, Value>
+[[maybe_unused]] keel::Tuple<Value, Value>
 dispatchMode(const Value &x, keel::i32 dim, keel::Allocator *mr, const char *fn)
 {
     const bool useDimReducer = (dim > 0);

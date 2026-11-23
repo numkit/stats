@@ -13,8 +13,6 @@
 #include <numkit/value/value.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -129,8 +127,8 @@ void knt2brk_reg(keel::ArrayRef<Value> args, keel::usize nargout,
 {
     argcheck::checkNargin(args.size(), 1, 1, "knt2brk");
     auto [b, m] = knt2brk(args[0], ctx.engine->allocator());
-    outs[0] = std::move(b);
-    if (nargout > 1) outs[1] = std::move(m);
+    outs[0] = keel::move(b);
+    if (nargout > 1) outs[1] = keel::move(m);
 }
 
 } // namespace detail

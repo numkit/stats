@@ -17,8 +17,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -71,7 +69,7 @@ void nbincdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
         }
     }
     if (upper) applyUpperInPlace(v);
-    outs[0] = std::move(v);
+    outs[0] = keel::move(v);
 }
 
 void nbininv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
@@ -101,7 +99,7 @@ void nbininv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
         const keel::f64 qi = q.elemAsDouble(nq == 1 ? 0 : i);
         od[i] = nbin_params_ok(ri, pi) ? nbin_inv_scalar(qi, ri, pi) : NaN;
     }
-    outs[0] = std::move(out);
+    outs[0] = keel::move(out);
 }
 
 void nbinrnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)

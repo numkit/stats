@@ -1,6 +1,7 @@
 // toolboxes/stats/src/distributions/rayleigh.cpp
 
 #include <keel/core.h>
+#include <keel/tuple.h>
 #include <keel/memory.h>
 #include <keel/stats.h>
 #include <keel/math.h>
@@ -65,15 +66,15 @@ Value raylrnd(::numkit::ops::RngContext &rng, keel::f64 b, keel::usize rows, kee
     return out;
 }
 
-std::tuple<keel::f64, keel::f64> raylstat(keel::f64 b)
+keel::Tuple<keel::f64, keel::f64> raylstat(keel::f64 b)
 {
     if (b <= 0.0) {
         const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
-        return std::make_tuple(nan, nan);
+        return keel::make_tuple(nan, nan);
     }
     const keel::f64 mean = b * keel::sqrt(0.5 * keel::kPi);
     const keel::f64 var  = (2.0 - 0.5 * keel::kPi) * b * b;
-    return std::make_tuple(mean, var);
+    return keel::make_tuple(mean, var);
 }
 
 } // namespace numkit::stats

@@ -10,7 +10,7 @@
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
-#include <tuple>
+#include <keel/tuple.h>
 
 namespace numkit {
 
@@ -74,7 +74,7 @@ Value unidrnd(::numkit::ops::RngContext &rng, keel::f64 N, keel::usize rows = 1,
 /// @param N  Upper bound of support.
 /// @return   `{mean, variance}` pair.
 /// @see unidpdf
-std::tuple<keel::f64, keel::f64> unidstat(keel::f64 N);
+keel::Tuple<keel::f64, keel::f64> unidstat(keel::f64 N);
 
 
 /// @}

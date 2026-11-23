@@ -4,6 +4,7 @@
 // portable implementation; SIMD / parallel variants planned later.
 
 #include <keel/core.h>
+#include <keel/tuple.h>
 #include <keel/memory.h>
 #include <keel/arena.h>
 #include <keel/array.h>
@@ -62,10 +63,10 @@ kmeans_full(::numkit::ops::RngContext &rng, const Value &X, keel::i32 K, keel::i
         {
             C0 = kmeanspp_init(Xv, N, D, K, gen.engine(), scratch.allocator());
         }
-        LloydResult res = lloyd(Xv, N, D, K, std::move(C0), max_iter, scratch.allocator());
+        LloydResult res = lloyd(Xv, N, D, K, keel::move(C0), max_iter, scratch.allocator());
         if (res.total < best_total) {
             best_total = res.total;
-            best = std::move(res);
+            best = keel::move(res);
         }
     }
 
@@ -104,12 +105,12 @@ kmeans_full(::numkit::ops::RngContext &rng, const Value &X, keel::i32 K, keel::i
 }
 
 // Backward-compat 3-output wrapper.
-std::tuple<Value, Value, Value>
+keel::Tuple<Value, Value, Value>
 kmeans(::numkit::ops::RngContext &rng, const Value &X, keel::i32 K, keel::i32 max_iter, keel::i32 replicates, keel::Allocator *mr)
 {
     auto R = kmeans_full(rng, X, K, max_iter, replicates, mr);
-    return std::make_tuple(std::move(R.idx), std::move(R.C),
-                           std::move(R.sumd));
+    return keel::make_tuple(keel::move(R.idx), keel::move(R.C),
+                           keel::move(R.sumd));
 }
 
 } // namespace numkit::stats

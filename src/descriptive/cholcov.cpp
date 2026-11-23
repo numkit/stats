@@ -33,7 +33,6 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -73,14 +72,14 @@ bool tryCholesky(const Value &SIGMA, keel::Array<keel::f64> &out, keel::usize n)
 
 } // namespace
 
-std::pair<Value, Value>
+keel::Pair<Value, Value>
 cholcov(const Value &SIGMA, keel::Allocator *mr)
 {
     cholcov_argcheck(SIGMA);
     const keel::usize R = SIGMA.dims().rows();
     if (R == 0) {
         Value T = Value::matrix(0, 0, ValueType::DOUBLE, mr);
-        return {std::move(T), Value::scalar(0.0, mr)};
+        return {keel::move(T), Value::scalar(0.0, mr)};
     }
 
     // 1. Try positive-definite Cholesky.
@@ -88,7 +87,7 @@ cholcov(const Value &SIGMA, keel::Allocator *mr)
     if (tryCholesky(SIGMA, chol_out, R)) {
         Value T = Value::matrix(R, R, ValueType::DOUBLE, mr);
         std::copy(chol_out.begin(), chol_out.end(), T.doubleDataMut());
-        return {std::move(T), Value::scalar(0.0, mr)};
+        return {keel::move(T), Value::scalar(0.0, mr)};
     }
 
     // 2. Fall back to eigendecomposition. Treat SIGMA as symmetric;
@@ -111,7 +110,7 @@ cholcov(const Value &SIGMA, keel::Allocator *mr)
     for (keel::f64 v : d) if (v <= -tol) ++p;
     if (p > 0) {
         Value T = Value::matrix(0, 0, ValueType::DOUBLE, mr);
-        return {std::move(T), Value::scalar(keel::as<keel::f64>(p), mr)};
+        return {keel::move(T), Value::scalar(keel::as<keel::f64>(p), mr)};
     }
 
     // 4. PSD: keep eigvals > tol, rebuild T = sqrt(d_keep) .* V_keep'.
@@ -129,7 +128,7 @@ cholcov(const Value &SIGMA, keel::Allocator *mr)
         for (keel::usize j = 0; j < R; ++j)
             o[k + j * r] = s * vd[j + col * R];
     }
-    return {std::move(T), Value::scalar(0.0, mr)};
+    return {keel::move(T), Value::scalar(0.0, mr)};
 }
 
 } // namespace numkit::stats

@@ -16,8 +16,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -60,7 +58,7 @@ void logncdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
                   ? logncdf(s[0], mu.toScalar(), sig.toScalar(), mr)
                   : broadcast_dist3(s[0], mu, sig, mr, "logncdf", logncdfK);
     if (upper) applyUpperInPlace(v);
-    outs[0] = std::move(v);
+    outs[0] = keel::move(v);
 }
 
 void logninv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)

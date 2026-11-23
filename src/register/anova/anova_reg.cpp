@@ -19,8 +19,7 @@
 
 #include <algorithm>
 #include <cstdio>
-#include <tuple>
-#include <utility>
+#include <keel/tuple.h>
 
 namespace numkit::stats {
 
@@ -102,7 +101,7 @@ void anova1_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         setCell(3, 3, numV(nan));
         setCell(3, 4, numV(nan));
         setCell(3, 5, numV(nan));
-        outs[1] = std::move(tbl);
+        outs[1] = keel::move(tbl);
     }
     if (nargout > 2) {
         // Re-bucket to populate the full stats struct expected by
@@ -142,12 +141,12 @@ void anova1_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         Value s = Value::structure(mr);
         s.field("F")      = Value::scalar(F, mr);
         s.field("df")     = Value::scalar(dfW, mr);
-        s.field("means")  = std::move(meansV);
-        s.field("n")      = std::move(nV);
-        s.field("gnames") = std::move(gnamesV);
+        s.field("means")  = keel::move(meansV);
+        s.field("n")      = keel::move(nV);
+        s.field("gnames") = keel::move(gnamesV);
         s.field("s")      = Value::scalar(sPooled, mr);
         s.field("source") = Value::fromString("anova1", mr);
-        outs[2] = std::move(s);
+        outs[2] = keel::move(s);
     }
 }
 
@@ -182,15 +181,15 @@ void kruskalwallis_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                 yp[c * R + r] = args[0].elemAsDouble(c * R + r);
                 gp[c * R + r] = keel::as<keel::f64>(c + 1);
             }
-        yArg = std::move(yFlat);
-        gArg = std::move(gFlat);
+        yArg = keel::move(yFlat);
+        gArg = keel::move(gFlat);
     } else if (!haveExplicitGroup) {
         throw Error("kruskalwallis: vector y requires explicit group argument",
                     0, 0, "kruskalwallis", "", "numkit:kruskalwallis:noGroup");
     }
     (void)flagPos;   // 'off'/'on' display flag accepted but ignored
     auto [p, H, df, sumR2] = kruskalwallis(yArg, gArg, mr);
-    outs[0] = std::move(p);
+    outs[0] = keel::move(p);
     if (nargout > 1) {
         // 4×6 cell table { Source, SS, df, MS, Chi-sq, Prob>Chi-sq } —
         // mirror MATLAB shape; SS / MS pieces aren't strictly defined for
@@ -218,7 +217,7 @@ void kruskalwallis_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         for (keel::usize c = 1; c < 6; ++c) setCell(2, c, numV(nan));
         setCell(3, 0, strV("Total"));
         for (keel::usize c = 1; c < 6; ++c) setCell(3, c, numV(nan));
-        outs[1] = std::move(tbl);
+        outs[1] = keel::move(tbl);
     }
     if (nargout > 2) {
         // Compute per-group n[] and meanRanks[] for the documented stats
@@ -282,15 +281,15 @@ void kruskalwallis_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             gnames.cellAt(k) = Value::fromString(buf, mr);
         }
         Value s = Value::structure(mr);
-        s.field("gnames")    = std::move(gnames);
-        s.field("n")         = std::move(nVec);
+        s.field("gnames")    = keel::move(gnames);
+        s.field("n")         = keel::move(nVec);
         s.field("source")    = Value::fromString("kruskalwallis", mr);
-        s.field("meanranks") = std::move(mrVec);
+        s.field("meanranks") = keel::move(mrVec);
         s.field("sumt")      = Value::scalar(sumt, mr);
         // Keep legacy fields for callers that already used them.
         s.field("chi2stat")  = H;
         s.field("df")        = df;
-        outs[2] = std::move(s);
+        outs[2] = keel::move(s);
     }
 }
 
@@ -350,7 +349,7 @@ void anova2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         colMean[j] /= keel::as<keel::f64>(r * R);
 
     if (R == 1) {
-        std::tie(pCols, pRows, Fc, Fr, dfC, dfR, dfE, ssC, ssR, ssE) =
+        keel::tie(pCols, pRows, Fc, Fr, dfC, dfR, dfE, ssC, ssR, ssE) =
             anova2(Y, mr);
     } else {
         keel::Array<keel::f64> cellMean(r * c, 0.0);
@@ -407,7 +406,7 @@ void anova2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     pd[0] = pCols;
     pd[1] = pRows;
     pd[2] = pInter;
-    outs[0] = std::move(pV);
+    outs[0] = keel::move(pV);
 
     if (nargout > 1) {
         const keel::usize tblRows = (R > 1) ? 6 : 5;
@@ -457,7 +456,7 @@ void anova2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         setCell(errRow + 1, 3, numV(nan));
         setCell(errRow + 1, 4, numV(nan));
         setCell(errRow + 1, 5, numV(nan));
-        outs[1] = std::move(tbl);
+        outs[1] = keel::move(tbl);
     }
     if (nargout > 2) {
         Value colMeansV = Value::matrix(1, c, ValueType::DOUBLE, mr);
@@ -469,14 +468,14 @@ void anova2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         Value s = Value::structure(mr);
         s.field("source")   = Value::fromString("anova2", mr);
         s.field("sigmasq")  = Value::scalar(dfE > 0 ? ssE / dfE : nan, mr);
-        s.field("colmeans") = std::move(colMeansV);
+        s.field("colmeans") = keel::move(colMeansV);
         s.field("coln")     = Value::scalar(keel::as<keel::f64>(r * R), mr);
-        s.field("rowmeans") = std::move(rowMeansV);
+        s.field("rowmeans") = keel::move(rowMeansV);
         s.field("rown")     = Value::scalar(keel::as<keel::f64>(c * R), mr);
         s.field("inter")    = Value::logicalScalar(R > 1, mr);
         s.field("pval")     = Value::scalar(pInter, mr);
         s.field("df")       = Value::scalar(dfE, mr);
-        outs[2] = std::move(s);
+        outs[2] = keel::move(s);
     }
 }
 
@@ -495,9 +494,9 @@ void friedman_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             argcheck::expectedReal(args[1], 2, "reps", "friedman"), 2, "reps", "friedman");
 
     auto [p, Q, df] = friedman(args[0], reps, mr);
-    outs[0] = std::move(p);
-    if (nargout > 1) outs[1] = std::move(Q);    // chi-square statistic (not MATLAB's tbl)
-    if (nargout > 2) outs[2] = std::move(df);   // degrees of freedom (k-1)
+    outs[0] = keel::move(p);
+    if (nargout > 1) outs[1] = keel::move(Q);    // chi-square statistic (not MATLAB's tbl)
+    if (nargout > 2) outs[2] = keel::move(df);   // degrees of freedom (k-1)
 }
 
 } // namespace detail

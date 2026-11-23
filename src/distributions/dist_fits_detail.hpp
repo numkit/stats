@@ -17,8 +17,6 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 
 namespace numkit::stats {
@@ -164,7 +162,7 @@ Value wald_ci_2d(NllFn &&nll, keel::f64 t1, keel::f64 t2,
     };
     const keel::f64 z = z_alpha(alpha);
 
-    auto apply_ci = [z](keel::f64 t, keel::f64 se, CITransform tr) -> std::pair<keel::f64, keel::f64> {
+    auto apply_ci = [z](keel::f64 t, keel::f64 se, CITransform tr) -> keel::Pair<keel::f64, keel::f64> {
         switch (tr) {
             case CITransform::LINEAR:
                 return {t - z * se, t + z * se};
@@ -334,7 +332,7 @@ namespace {
         }
         return (q < 0.0) ? -v : v;
     }(alpha);
-    auto apply_ci = [z](keel::f64 t, keel::f64 se, CITransform tr) -> std::pair<keel::f64, keel::f64> {
+    auto apply_ci = [z](keel::f64 t, keel::f64 se, CITransform tr) -> keel::Pair<keel::f64, keel::f64> {
         switch (tr) {
             case CITransform::LINEAR:
                 return {t - z * se, t + z * se};

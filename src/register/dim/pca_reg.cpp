@@ -14,8 +14,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -27,12 +25,12 @@ void pca_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     argcheck::checkNargin(args.size(), 1, "pca");  // no max: name-value tail in the reference
     auto [coeff, score, latent, tsq, explained, mu] =
         pca(args[0], ctx.engine->allocator());
-    outs[0] = std::move(coeff);
-    if (nargout > 1) outs[1] = std::move(score);
-    if (nargout > 2) outs[2] = std::move(latent);
-    if (nargout > 3) outs[3] = std::move(tsq);
-    if (nargout > 4) outs[4] = std::move(explained);
-    if (nargout > 5) outs[5] = std::move(mu);
+    outs[0] = keel::move(coeff);
+    if (nargout > 1) outs[1] = keel::move(score);
+    if (nargout > 2) outs[2] = keel::move(latent);
+    if (nargout > 3) outs[3] = keel::move(tsq);
+    if (nargout > 4) outs[4] = keel::move(explained);
+    if (nargout > 5) outs[5] = keel::move(mu);
 }
 
 void pcacov_reg(keel::ArrayRef<Value> args, keel::usize nargout,
@@ -40,9 +38,9 @@ void pcacov_reg(keel::ArrayRef<Value> args, keel::usize nargout,
 {
     argcheck::checkNargin(args.size(), 1, 1, "pcacov");
     auto [coeff, latent, explained] = pcacov(args[0], ctx.engine->allocator());
-    outs[0] = std::move(coeff);
-    if (nargout > 1) outs[1] = std::move(latent);
-    if (nargout > 2) outs[2] = std::move(explained);
+    outs[0] = keel::move(coeff);
+    if (nargout > 1) outs[1] = keel::move(latent);
+    if (nargout > 2) outs[2] = keel::move(explained);
 }
 
 void pcares_reg(keel::ArrayRef<Value> args, keel::usize nargout,
@@ -50,8 +48,8 @@ void pcares_reg(keel::ArrayRef<Value> args, keel::usize nargout,
 {
     argcheck::checkNargin(args.size(), 2, 2, "pcares");
     auto [res, recon] = pcares_full(args[0], (keel::i32)args[1].toScalar(), ctx.engine->allocator());
-    outs[0] = std::move(res);
-    if (nargout > 1) outs[1] = std::move(recon);
+    outs[0] = keel::move(res);
+    if (nargout > 1) outs[1] = keel::move(recon);
 }
 
 } // namespace detail

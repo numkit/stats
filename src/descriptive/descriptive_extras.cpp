@@ -3,6 +3,7 @@
 // Descriptive stats extras (B2): bounds, iqr, maxk, mink, rmse.
 
 #include <keel/core.h>
+#include <keel/tuple.h>
 #include <keel/memory.h>
 #include <keel/ref.h>
 #include <keel/arena.h>
@@ -33,7 +34,7 @@ namespace numkit::stats {
 
 
 // ── bounds ────────────────────────────────────────────────────────────
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 bounds(const Value &x, keel::i32 dim, keel::Allocator *mr)
 {
     const keel::i32 d = resolveDim(x, dim, "bounds");
@@ -41,7 +42,7 @@ bounds(const Value &x, keel::i32 dim, keel::Allocator *mr)
         [](keel::usize, const keel::f64 *s, keel::usize n) { return sliceMin(s, n); }, mr);
     auto hi = applyAlongDim(x, d,
         [](keel::usize, const keel::f64 *s, keel::usize n) { return sliceMax(s, n); }, mr);
-    return std::make_tuple(std::move(lo), std::move(hi));
+    return keel::make_tuple(keel::move(lo), keel::move(hi));
 }
 
 // ── iqr ───────────────────────────────────────────────────────────────
@@ -244,8 +245,8 @@ Value partialcorr_of(const Value &X, const Value &Y, const Value &Z, keel::Alloc
                 if (pmax == 0.0) { singular = true; break; }
                 if (piv != kc) {
                     for (keel::usize j = 0; j < pZ1; ++j)
-                        std::swap(Mcopy[kc + j * pZ1], Mcopy[piv + j * pZ1]);
-                    std::swap(coef[kc], coef[piv]);
+                        keel::swap(Mcopy[kc + j * pZ1], Mcopy[piv + j * pZ1]);
+                    keel::swap(coef[kc], coef[piv]);
                 }
                 const keel::f64 pivVal = Mcopy[kc + kc * pZ1];
                 for (keel::usize r = kc + 1; r < pZ1; ++r) {
@@ -701,7 +702,7 @@ ErrorMetricOpts parseErrorMetricOpts(keel::ArrayRef<Value> tail,
             if (lref.size() <= list[i].size() && list[i].substr(0, lref.size()) == lref) {
                 ++cnt; hit = keel::as<keel::i32>(i);
             }
-        return std::pair<keel::i32, keel::i32>(hit, cnt);   // (index, match count)
+        return keel::Pair<keel::i32, keel::i32>(hit, cnt);   // (index, match count)
     };
     keel::usize i = start;
     // Up to two positional flags (mape only; rmse takes one). A string
@@ -896,7 +897,7 @@ Value rmse(const Value &f, const Value &a, keel::i32 dim, const ErrorMetricOpts 
         keel::f64 v = reduceMetricRun(run.data(), wd, runLen, omit, false);
         rd[k] = keel::sqrt(v);
     }
-    if (single) R = narrowToSingle(std::move(R), mr);
+    if (single) R = narrowToSingle(keel::move(R), mr);
     return R;
 }
 
@@ -980,7 +981,7 @@ Value mape(const Value &f, const Value &a, keel::i32 dim, const ErrorMetricOpts 
         }
         rd[k] = v * 100.0;
     }
-    if (single) R = narrowToSingle(std::move(R), mr);
+    if (single) R = narrowToSingle(keel::move(R), mr);
     return R;
 }
 
@@ -1441,22 +1442,22 @@ ksdensity_full(const Value &x, const Value &pts, keel::f64 bw_user, keel::String
     Value xiV = Value::matrix(outRows, outCols, ValueType::DOUBLE, mr);
     keel::f64 *xd = xiV.doubleDataMut();
     for (keel::usize i = 0; i < M; ++i) xd[i] = grid[i];
-    return {std::move(fv), std::move(xiV), Value::scalar(bw, mr)};
+    return {keel::move(fv), keel::move(xiV), Value::scalar(bw, mr)};
 }
 
 // Backward-compat 4-arg form: pdf with normal kernel, default
 // numpoints=100, no weights.
-std::tuple<Value, Value, Value>
+keel::Tuple<Value, Value, Value>
 ksdensity(const Value &x, const Value &pts, keel::f64 bw_user, keel::Allocator *mr)
 {
     auto R = ksdensity_full(x, pts, bw_user, "normal", "pdf", 100, nullptr, mr);
-    return std::make_tuple(std::move(R.f), std::move(R.xi), std::move(R.bw));
+    return keel::make_tuple(keel::move(R.f), keel::move(R.xi), keel::move(R.bw));
 }
 
 // ── prepareCurveData / prepareSurfaceData ─────────────────────────────
 
 
-std::tuple<Value, Value, Value>
+keel::Tuple<Value, Value, Value>
 prepareCurveData(const Value &x, const Value &y, const Value &w, keel::Allocator *mr)
 {
     const keel::usize Nx = x.numel();
@@ -1483,10 +1484,10 @@ prepareCurveData(const Value &x, const Value &y, const Value &w, keel::Allocator
     Value yo = pack_filtered(yv, keep, mr);
     Value wo = hasW ? pack_filtered(wv, keep, mr)
                     : Value::matrix(0, 1, ValueType::DOUBLE, mr);
-    return {std::move(xo), std::move(yo), std::move(wo)};
+    return {keel::move(xo), keel::move(yo), keel::move(wo)};
 }
 
-std::tuple<Value, Value, Value>
+keel::Tuple<Value, Value, Value>
 prepareSurfaceData(const Value &x, const Value &y, const Value &z, keel::Allocator *mr)
 {
     // For surface fits MATLAB lets x and y be either vectors of length
@@ -1539,12 +1540,12 @@ prepareSurfaceData(const Value &x, const Value &y, const Value &z, keel::Allocat
     Value yo = pack_filtered(yv, keep, mr);
     Value zo = pack_filtered(zv, keep, mr);
     (void)Nx; (void)Ny;
-    return {std::move(xo), std::move(yo), std::move(zo)};
+    return {keel::move(xo), keel::move(yo), keel::move(zo)};
 }
 
 // ── datastats ─────────────────────────────────────────────────────────
 
-std::tuple<Value, Value, Value, Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value, Value, Value, Value>
 datastats(const Value &x, keel::Allocator *mr)
 {
     const keel::usize N = x.numel();
@@ -1554,7 +1555,7 @@ datastats(const Value &x, keel::Allocator *mr)
 
     const auto nan = keel::Limits<keel::f64>::quiet_nan();
     if (N == 0) {
-        return std::make_tuple(Value::scalar(0.0, mr),
+        return keel::make_tuple(Value::scalar(0.0, mr),
                                Value::scalar(nan, mr),
                                Value::scalar(nan, mr),
                                Value::scalar(nan, mr),
@@ -1585,7 +1586,7 @@ datastats(const Value &x, keel::Allocator *mr)
     }
     const keel::f64 range = mx - mn;
 
-    return std::make_tuple(Value::scalar(keel::as<keel::f64>(N), mr),
+    return keel::make_tuple(Value::scalar(keel::as<keel::f64>(N), mr),
                            Value::scalar(mx,     mr),
                            Value::scalar(mn,     mr),
                            Value::scalar(mean,   mr),
@@ -1633,7 +1634,7 @@ Value filloutliers(const Value &A, const Value &fillMethod,
 // Algorithm: probs[k] = f[k+1] - f[k]; vals[k] = x[k+1] (the unique
 // data values). Bin into m equal-width bins over [min(x), max(x)],
 // each height = sum(probs in bin) / bin_width.
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 ecdfhist(const Value &f, const Value &x, keel::i32 m, keel::Allocator *mr)
 {
     if (m < 1)
@@ -1647,7 +1648,7 @@ ecdfhist(const Value &f, const Value &x, keel::i32 m, keel::Allocator *mr)
     if (Lf < 2) {
         Value n_empty = Value::matrix(1, keel::as<keel::usize>(m), ValueType::DOUBLE, mr);
         Value c_empty = Value::matrix(1, keel::as<keel::usize>(m), ValueType::DOUBLE, mr);
-        return {std::move(n_empty), std::move(c_empty)};
+        return {keel::move(n_empty), keel::move(c_empty)};
     }
 
     // Build (vals, probs) from the ecdf step structure.
@@ -1676,7 +1677,7 @@ ecdfhist(const Value &f, const Value &x, keel::i32 m, keel::Allocator *mr)
     if (xmax <= xmin) {
         // All-equal data: drop full mass into the centre bin.
         nd[m / 2] = 1.0 / width;
-        return {std::move(n_out), std::move(c_out)};
+        return {keel::move(n_out), keel::move(c_out)};
     }
 
     // MATLAB convention: a value v at an edge belongs to the LOWER bin,
@@ -1692,7 +1693,7 @@ ecdfhist(const Value &f, const Value &x, keel::i32 m, keel::Allocator *mr)
         nd[bin] += probs[k];
     }
     for (keel::i32 k = 0; k < m; ++k) nd[k] /= width;
-    return {std::move(n_out), std::move(c_out)};
+    return {keel::move(n_out), keel::move(c_out)};
 }
 
 // ── ecdf ─────────────────────────────────────────────────────────────
@@ -1715,7 +1716,7 @@ EcdfFull ecdf_full(const Value &y, const Value *freq, keel::StringRef function_m
                     0, 0, "ecdf", "", "numkit:ecdf:freqsize");
 
     // Collect (value, weight) pairs, dropping NaNs. Sort by value.
-    keel::Array<std::pair<keel::f64, keel::f64>> vw;
+    keel::Array<keel::Pair<keel::f64, keel::f64>> vw;
     vw.reserve(n);
     keel::f64 Wtotal = 0.0;
     for (keel::usize i = 0; i < n; ++i) {
@@ -1843,11 +1844,11 @@ EcdfFull ecdf_full(const Value &y, const Value *freq, keel::StringRef function_m
 }
 
 // Backward-compat 1-arg form.
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 ecdf(const Value &y, keel::Allocator *mr)
 {
     auto R = ecdf_full(y, nullptr, "cdf", 0.05, false, mr);
-    return {std::move(R.f), std::move(R.x)};
+    return {keel::move(R.f), keel::move(R.x)};
 }
 
 } // namespace numkit::stats

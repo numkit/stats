@@ -4,6 +4,7 @@
 // delegating numerical kernels to keel::stats.
 
 #include <keel/arena.h>
+#include <keel/tuple.h>
 #include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
@@ -30,7 +31,7 @@ void pca_argcheck(const Value &X)
 
 } // namespace
 
-std::tuple<Value, Value, Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value, Value, Value>
 pca(const Value &X, keel::Allocator *mr)
 {
     pca_argcheck(X);
@@ -58,12 +59,12 @@ pca(const Value &X, keel::Allocator *mr)
         keel::MutArrayRef<keel::f64>(mu_v.doubleDataMut(), D),
         scratch.allocator());
 
-    return std::make_tuple(std::move(coeff_v), std::move(score_v),
-                           std::move(latent_v), std::move(tsq_v),
-                           std::move(explained_v), std::move(mu_v));
+    return keel::make_tuple(keel::move(coeff_v), keel::move(score_v),
+                           keel::move(latent_v), keel::move(tsq_v),
+                           keel::move(explained_v), keel::move(mu_v));
 }
 
-std::tuple<Value, Value, Value>
+keel::Tuple<Value, Value, Value>
 pcacov(const Value &C, keel::Allocator *mr)
 {
     const keel::usize D = C.dims().rows();
@@ -86,11 +87,11 @@ pcacov(const Value &C, keel::Allocator *mr)
         keel::MutArrayRef<keel::f64>(explained_v.doubleDataMut(), D),
         scratch.allocator());
 
-    return std::make_tuple(std::move(coeff_v), std::move(latent_v),
-                           std::move(explained_v));
+    return keel::make_tuple(keel::move(coeff_v), keel::move(latent_v),
+                           keel::move(explained_v));
 }
 
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 pcares_full(const Value &X, keel::i32 ndim, keel::Allocator *mr)
 {
     pca_argcheck(X);
@@ -111,7 +112,7 @@ pcares_full(const Value &X, keel::i32 ndim, keel::Allocator *mr)
         keel::MutArrayRef<keel::f64>(res.doubleDataMut(), N * D),
         keel::MutArrayRef<keel::f64>(recon.doubleDataMut(), N * D),
         scratch.allocator());
-    return {std::move(res), std::move(recon)};
+    return {keel::move(res), keel::move(recon)};
 }
 
 Value pcares(const Value &X, keel::i32 ndim, keel::Allocator *mr)

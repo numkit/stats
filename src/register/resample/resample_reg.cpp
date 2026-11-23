@@ -132,7 +132,7 @@ void bootstrp_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
         for (keel::usize j = 0; j < K; ++j)
             od[b + j * nboot] = stat.elemAsDouble(j);
     }
-    outs[0] = std::move(out);
+    outs[0] = keel::move(out);
 }
 
 // crossval(predfun, X, Y[, 'kfold', K]) — k-fold cross-validation.
@@ -224,7 +224,7 @@ void crossval_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
                         0, 0, "crossval", "", "numkit:crossval:badPredfun");
         od[k] = res.toScalar();
     }
-    outs[0] = std::move(out);
+    outs[0] = keel::move(out);
 }
 
 // bootci(nboot, bootfun, X[, alpha]) — percentile bootstrap CI.
@@ -256,7 +256,7 @@ void bootci_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
         Value local_outs[1];
         bootstrp_reg(keel::ArrayRef<Value>(pseudo_args, 3), 1,
                      keel::MutArrayRef<Value>(local_outs, 1), ctx);
-        boot_stats = std::move(local_outs[0]);
+        boot_stats = keel::move(local_outs[0]);
     }
 
     const keel::usize K = keel::as<keel::usize>(boot_stats.dims().dim(1));
@@ -282,7 +282,7 @@ void bootci_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
         cd[0 + j * 2] = qFn(alpha / 2.0);
         cd[1 + j * 2] = qFn(1.0 - alpha / 2.0);
     }
-    outs[0] = std::move(ci);
+    outs[0] = keel::move(ci);
 }
 
 // jackknife(jackfun, X): leave-one-out resampling. Row i of the n x K output is
@@ -345,7 +345,7 @@ void jackknife_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
             od[keel::as<keel::usize>(s) + j * keel::as<keel::usize>(n)] =
                 stat.elemAsDouble(j);
     }
-    outs[0] = std::move(out);
+    outs[0] = keel::move(out);
 }
 
 void combnk_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,

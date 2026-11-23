@@ -17,8 +17,6 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -45,9 +43,9 @@ void normalize_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     NormalizeResult r = normalize(args[0], method,
                                   param ? *param : Value::Empty,
                                   ctx.engine->allocator());
-    outs[0] = std::move(r.n);
-    if (nargout >= 2 && outs.size() >= 2) outs[1] = std::move(r.c);
-    if (nargout >= 3 && outs.size() >= 3) outs[2] = std::move(r.s);
+    outs[0] = keel::move(r.n);
+    if (nargout >= 2 && outs.size() >= 2) outs[1] = keel::move(r.c);
+    if (nargout >= 3 && outs.size() >= 3) outs[2] = keel::move(r.s);
 }
 
 void rescale_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
@@ -106,9 +104,9 @@ void zscore_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         Value zc = zscoreCore(c, flag, lastd,
                               nargout >= 2 ? &mu : nullptr,
                               nargout >= 3 ? &sigma : nullptr, mr);
-        outs[0] = vecdim::uncollapseFull(std::move(zc), args[0], vecdimSet, mr);
-        if (nargout >= 2) outs[1] = vecdim::expandReduced(std::move(mu), args[0], vecdimSet, mr);
-        if (nargout >= 3) outs[2] = vecdim::expandReduced(std::move(sigma), args[0], vecdimSet, mr);
+        outs[0] = vecdim::uncollapseFull(keel::move(zc), args[0], vecdimSet, mr);
+        if (nargout >= 2) outs[1] = vecdim::expandReduced(keel::move(mu), args[0], vecdimSet, mr);
+        if (nargout >= 3) outs[2] = vecdim::expandReduced(keel::move(sigma), args[0], vecdimSet, mr);
         return;
     }
     outs[0] = zscoreCore(args[0], flag, dim,

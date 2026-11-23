@@ -11,7 +11,7 @@
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
-#include <tuple>
+#include <keel/tuple.h>
 
 namespace numkit {
 
@@ -76,7 +76,7 @@ Value chi2rnd(::numkit::ops::RngContext &rng, keel::f64 k, keel::usize rows = 1,
 /// @param k  Degrees of freedom.
 /// @return   `{mean, variance}` pair.
 /// @see chi2pdf
-std::tuple<keel::f64, keel::f64> chi2stat(keel::f64 k);
+keel::Tuple<keel::f64, keel::f64> chi2stat(keel::f64 k);
 
 
 /// @}

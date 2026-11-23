@@ -4,6 +4,7 @@
 // gammaincinv on (k/2, x/2) for cdf / icdf.
 
 #include <keel/core.h>
+#include <keel/tuple.h>
 #include <keel/memory.h>
 #include <keel/stats.h>
 #include <numkit/stats/distributions/chi2.hpp>
@@ -57,14 +58,14 @@ Value chi2rnd(::numkit::ops::RngContext &rng, keel::f64 k, keel::usize rows, kee
     return out;
 }
 
-std::tuple<keel::f64, keel::f64> chi2stat(keel::f64 k)
+keel::Tuple<keel::f64, keel::f64> chi2stat(keel::f64 k)
 {
     // MATLAB convention: k <= 0 ⇒ moments NaN (degenerate distribution).
     if (k <= 0.0) {
         const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
-        return std::make_tuple(nan, nan);
+        return keel::make_tuple(nan, nan);
     }
-    return std::make_tuple(k, 2.0 * k);
+    return keel::make_tuple(k, 2.0 * k);
 }
 
 } // namespace numkit::stats

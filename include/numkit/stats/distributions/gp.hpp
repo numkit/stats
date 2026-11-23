@@ -10,7 +10,7 @@
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
-#include <tuple>
+#include <keel/tuple.h>
 
 namespace numkit {
 
@@ -85,7 +85,7 @@ Value gprnd(::numkit::ops::RngContext &rng, keel::f64 k, keel::f64 sigma, keel::
 /// @param theta  Threshold parameter.
 /// @return       `{mean, variance}` pair.
 /// @see gppdf
-std::tuple<keel::f64, keel::f64>
+keel::Tuple<keel::f64, keel::f64>
 gpstat(keel::f64 k, keel::f64 sigma, keel::f64 theta);
 
 /// @brief Generalised Pareto MLE fit (`[khat, sigmahat] = gpfit(x)`).

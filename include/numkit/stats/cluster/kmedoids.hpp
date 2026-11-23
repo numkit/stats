@@ -9,7 +9,7 @@
 #include <keel/ref.h>
 #include <numkit/value/value.hpp>
 
-#include <tuple>
+#include <keel/tuple.h>
 
 namespace numkit {
 
@@ -34,7 +34,7 @@ namespace numkit::stats {
 /// @return            `(idx, medoids, sumd)` — analogous to @ref kmeans.
 ///
 /// @see kmeans, dbscan
-std::tuple<Value, Value, Value>
+keel::Tuple<Value, Value, Value>
 kmedoids(::numkit::ops::RngContext &rng, const Value &X, keel::i32 K, keel::i32 max_iter, keel::i32 replicates,
          keel::StringRef metric,
          keel::Allocator *mr = nullptr);
@@ -58,14 +58,14 @@ kmedoids(::numkit::ops::RngContext &rng, const Value &X, keel::i32 K, keel::i32 
 ///                   - `corepts` : N×1 LOGICAL marking core points.
 ///
 /// @see kmedoids, kmeans
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 dbscan(const Value &X, keel::f64 eps, keel::i32 minpts, keel::StringRef metric,
        keel::Allocator *mr = nullptr);
 
 /// DBSCAN with explicit Minkowski exponent `p` (for `metric = "minkowski"`).
 ///
 /// @see dbscan(X, eps, minpts, metric, mr)
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 dbscan(const Value &X, keel::f64 eps, keel::i32 minpts, keel::StringRef metric,
        keel::f64 p,
        keel::Allocator *mr = nullptr);

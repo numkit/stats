@@ -69,7 +69,6 @@
 #include <numkit/value/value.hpp>
 
 #include <algorithm>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -505,7 +504,7 @@ PairwisePearsonOut corrPairwisePearson(const Value &X, const Value &Y,
                 nd[j + i * p] = nd[i + j * p];
             }
     }
-    return { std::move(out), std::move(nij) };
+    return { keel::move(out), keel::move(nij) };
 }
 
 // Pairwise Kendall tau-b with per-pair NaN removal and optional weights.
@@ -561,7 +560,7 @@ PairwisePearsonOut corrPairwiseKendall(const Value &X, const Value &Y,
                 nd[j + i * p] = nd[i + j * p];
             }
     }
-    return { std::move(out), std::move(nij) };
+    return { keel::move(out), keel::move(nij) };
 }
 
 // ── p-values ──────────────────────────────────────────────────────────
@@ -615,7 +614,7 @@ keel::f64 rankTailFromLU(CorrTail tail, keel::f64 lower, keel::f64 upper)
 // (probabilities, so no factorial overflow). D = #discordant pairs. The DP
 // ping-pongs two arena buffers sized to the max support (Dmax+1) — no
 // per-iteration allocation.
-std::pair<keel::f64, keel::f64> corrKendallExactLU(keel::f64 tau, keel::usize n,
+keel::Pair<keel::f64, keel::f64> corrKendallExactLU(keel::f64 tau, keel::usize n,
                                              keel::Allocator *mr)
 {
     if (n < 2 || keel::is_nan(tau)) return { kNaN, kNaN };
@@ -648,7 +647,7 @@ std::pair<keel::f64, keel::f64> corrKendallExactLU(keel::f64 tau, keel::usize n,
 
 // Exact Spearman {lower, upper} by enumerating permutations (small n).
 // D = Σ(rankX_i - rankY_i)²; under H0 it is the displacement of a random perm.
-std::pair<keel::f64, keel::f64> corrSpearmanExactLU(keel::f64 rho, keel::usize n,
+keel::Pair<keel::f64, keel::f64> corrSpearmanExactLU(keel::f64 rho, keel::usize n,
                                               keel::Allocator *mr)
 {
     const keel::f64 scale = keel::as<keel::f64>(n) * (keel::as<keel::f64>(n) * n - 1.0) / 6.0;
@@ -727,7 +726,7 @@ keel::f64 corrSpearmanNoTiesTailP(CorrTail tail, keel::f64 rho, keel::usize n,
 
 // Exact {lower, upper} tail by enumerating all n! permutations of the y
 // MIDRANKS against a fixed x midrank column (the tied-data exact form).
-std::pair<keel::f64, keel::f64> spearmanExactMidrankLU(const keel::f64 *xr,
+keel::Pair<keel::f64, keel::f64> spearmanExactMidrankLU(const keel::f64 *xr,
                                                  const keel::f64 *yr,
                                                  keel::usize n, keel::f64 Dobs,
                                                  keel::Allocator *mr)
@@ -1072,7 +1071,7 @@ void dropNaNRowsAny(keel::Array<Value> &M, keel::Allocator *mr)
         for (keel::usize c = 0; c < p; ++c)
             for (keel::usize r = 0, w = 0; r < nn; ++r)
                 if (keep[r]) od[w++ + c * m] = Mt.elemAsDouble(r + c * nn);
-        Mt = std::move(out);
+        Mt = keel::move(out);
     }
 }
 
@@ -1244,9 +1243,9 @@ CorrOut corr_full(const Value &x, const Value *Y, keel::ArrayRef<Value> nv,
                     keep[k] = 0;
             gatherRows(xD, Yin, &wts, keep, mr, Xo, Yin ? &Yo : nullptr, Wo);
         }
-        Xe = std::move(Xo);
-        if (Yin) Ye = std::move(Yo);
-        wEff = std::move(Wo);
+        Xe = keel::move(Xo);
+        if (Yin) Ye = keel::move(Yo);
+        wEff = keel::move(Wo);
     }
     const bool wActive = weighted;
     const keel::usize nn = corrRowsOf(Xe);
@@ -1303,14 +1302,14 @@ CorrOut corr_full(const Value &x, const Value *Y, keel::ArrayRef<Value> nv,
             auto pw = corrPairwisePearson(Xe, corrXX ? Xe : Ye,
                                           wActive ? &wEff : nullptr, corrXX,
                                           complexData, mr);
-            r = std::move(pw.coef);
-            nijStore = std::move(pw.nij);
+            r = keel::move(pw.coef);
+            nijStore = keel::move(pw.nij);
             nij = &nijStore;
         } else if (ct == CorrType::Kendall) {
             auto pw = corrPairwiseKendall(Xe, corrXX ? Xe : Ye,
                                           wActive ? &wEff : nullptr, corrXX, mr);
-            r = std::move(pw.coef);
-            nijStore = std::move(pw.nij);
+            r = keel::move(pw.coef);
+            nijStore = keel::move(pw.nij);
             nij = &nijStore;
         } else {
             corrPairwiseSpearman(Xe, corrXX ? Xe : Ye,
@@ -1352,8 +1351,8 @@ CorrOut corr_full(const Value &x, const Value *Y, keel::ArrayRef<Value> nv,
             pmat = corrPValueMatrix(r, nij, nn, ct, tail, corrXX, mr);
         }
     }
-    out.rho = std::move(r);
-    out.p = std::move(pmat);
+    out.rho = keel::move(r);
+    out.p = keel::move(pmat);
     if (anySingle && !out.rho.isComplex()) out.rho = castToSingle(out.rho, mr);
     if (anySingle && !out.p.isEmpty() && !out.p.isComplex())
         out.p = castToSingle(out.p, mr);
@@ -1636,9 +1635,9 @@ CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
             if (y) M.push_back(yD);
             M.push_back(zD);
             dropNaNRowsAny(M, mr);
-            Xv = std::move(M[0]);
-            if (y) Yv = std::move(M[1]);
-            Zv = std::move(M.back());
+            Xv = keel::move(M[0]);
+            if (y) Yv = keel::move(M[1]);
+            Zv = keel::move(M.back());
         }
         const keel::usize m = keel::as<keel::usize>(Zv.dims().dim(0));
         if (!allFinite(Zv) || m < 2)
@@ -1658,8 +1657,8 @@ CorrOut partialcorr_full(const Value &x, const Value *y, const Value *z,
     }
 
     CorrOut out;
-    out.rho = wantSingle ? castToSingle(R, mr) : std::move(R);
-    if (wantP) out.p = wantSingle ? castToSingle(P, mr) : std::move(P);
+    out.rho = wantSingle ? castToSingle(R, mr) : keel::move(R);
+    if (wantP) out.p = wantSingle ? castToSingle(P, mr) : keel::move(P);
     return out;
 }
 

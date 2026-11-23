@@ -10,7 +10,7 @@
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
-#include <tuple>
+#include <keel/tuple.h>
 
 namespace numkit {
 
@@ -85,7 +85,7 @@ Value betarnd(::numkit::ops::RngContext &rng, keel::f64 a, keel::f64 b, keel::us
 /// @param b  Second shape parameter.
 /// @return   `{mean, variance}` pair.
 /// @see betapdf
-std::tuple<keel::f64, keel::f64> betastat(keel::f64 a, keel::f64 b);
+keel::Tuple<keel::f64, keel::f64> betastat(keel::f64 a, keel::f64 b);
 
 /// @brief Beta(a, b) MLE fit (`[ahat, bhat] = betafit(x)`).
 ///

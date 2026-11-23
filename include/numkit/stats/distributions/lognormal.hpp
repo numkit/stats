@@ -10,7 +10,7 @@
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
-#include <tuple>
+#include <keel/tuple.h>
 
 namespace numkit {
 
@@ -86,7 +86,7 @@ Value lognrnd(::numkit::ops::RngContext &rng, keel::f64 mu, keel::f64 sigma, kee
 /// @param sigma  Standard deviation of the underlying normal.
 /// @return       `{mean, variance}` pair (of the lognormal RV `X`, not the log).
 /// @see lognpdf
-std::tuple<keel::f64, keel::f64> lognstat(keel::f64 mu, keel::f64 sigma);
+keel::Tuple<keel::f64, keel::f64> lognstat(keel::f64 mu, keel::f64 sigma);
 
 
 /// @}

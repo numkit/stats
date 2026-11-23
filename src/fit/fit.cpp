@@ -2,6 +2,7 @@
 // Distribution MLE fitters with confidence intervals.
 
 #include <keel/core.h>
+#include <keel/tuple.h>
 #include <keel/memory.h>
 #include <keel/arena.h>
 #include <keel/array.h>
@@ -22,7 +23,7 @@
 namespace numkit::stats {
 
 
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 normfit(const Value &x, keel::f64 alpha, const Value &cens, const Value &freq, keel::Allocator *mr)
 {
     const keel::usize N = x.numel();
@@ -31,7 +32,7 @@ normfit(const Value &x, keel::f64 alpha, const Value &cens, const Value &freq, k
     // CI Values are MATLAB-style 2x1 column vectors (rowCI is misnamed
     // — preserved for compat with existing callers).
     auto fail = [&]() {
-        return std::make_tuple(Value::scalar(nan, mr),
+        return keel::make_tuple(Value::scalar(nan, mr),
                                Value::scalar(nan, mr),
                                rowCI(nan, nan, mr),
                                rowCI(nan, nan, mr));
@@ -39,7 +40,7 @@ normfit(const Value &x, keel::f64 alpha, const Value &cens, const Value &freq, k
     if (N == 0) return fail();
     if (N == 1) {
         const keel::f64 v = x.elemAsDouble(0);
-        return std::make_tuple(Value::scalar(v, mr),
+        return keel::make_tuple(Value::scalar(v, mr),
                                Value::scalar(0.0, mr),
                                rowCI(nan, nan, mr),
                                rowCI(nan, nan, mr));
@@ -60,20 +61,20 @@ normfit(const Value &x, keel::f64 alpha, const Value &cens, const Value &freq, k
     }
     auto R = normal_fit_mle(y, fr, cn, alpha, mr);
     if (!R.ok) return fail();
-    return std::make_tuple(Value::scalar(R.mu, mr),
+    return keel::make_tuple(Value::scalar(R.mu, mr),
                            Value::scalar(R.sd, mr),
                            rowCI(R.mu_lo, R.mu_hi, mr),
                            rowCI(R.sd_lo, R.sd_hi, mr));
 }
 
 // Backward-compat 2-arg form.
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 normfit(const Value &x, keel::f64 alpha, keel::Allocator *mr)
 {
     return normfit(x, alpha, Value::Empty, Value::Empty, mr);
 }
 
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 poissfit(const Value &x, keel::f64 alpha, keel::Allocator *mr)
 {
     const keel::usize N = x.numel();
@@ -89,7 +90,7 @@ poissfit(const Value &x, keel::f64 alpha, keel::Allocator *mr)
     return {Value::scalar(lambda, mr), rowCI(lo, hi, mr)};
 }
 
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 expfit(const Value &x, keel::f64 alpha, const Value &cens, const Value &freq, keel::Allocator *mr)
 {
     const keel::usize N = x.numel();
@@ -123,7 +124,7 @@ expfit(const Value &x, keel::f64 alpha, const Value &cens, const Value &freq, ke
     return {Value::scalar(mu, mr), rowCI(lo, hi, mr)};
 }
 
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 unifit(const Value &x, keel::f64 alpha, keel::Allocator *mr)
 {
     const keel::usize N = x.numel();
@@ -148,7 +149,7 @@ unifit(const Value &x, keel::f64 alpha, keel::Allocator *mr)
 
 // ── lognfit ───────────────────────────────────────────────────────────
 
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 lognfit(const Value &x, keel::f64 alpha, const Value &cens, const Value &freq, keel::Allocator *mr)
 {
     const keel::usize N = x.numel();
@@ -160,7 +161,7 @@ lognfit(const Value &x, keel::f64 alpha, const Value &cens, const Value &freq, k
     auto fail = [&]() {
         for (keel::i32 i = 0; i < 2; ++i) pd[i] = nan;
         for (keel::i32 i = 0; i < 4; ++i) cd[i] = nan;
-        return std::make_tuple(std::move(parm), std::move(pci));
+        return keel::make_tuple(keel::move(parm), keel::move(pci));
     };
     if (N < 2) return fail();
     if (!cens.isEmpty() && cens.numel() != N) return fail();
@@ -185,11 +186,11 @@ lognfit(const Value &x, keel::f64 alpha, const Value &cens, const Value &freq, k
     pd[0] = R.mu;     pd[1] = R.sd;
     cd[0] = R.mu_lo;  cd[1] = R.mu_hi;
     cd[2] = R.sd_lo;  cd[3] = R.sd_hi;
-    return {std::move(parm), std::move(pci)};
+    return {keel::move(parm), keel::move(pci)};
 }
 
 // Backward-compat 2-arg form.
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 lognfit(const Value &x, keel::f64 alpha, keel::Allocator *mr)
 {
     return lognfit(x, alpha, Value::Empty, Value::Empty, mr);
@@ -207,7 +208,7 @@ void binofit_argcheck(keel::usize Nx, keel::usize Nn, bool scalarN)
 }
 } // namespace
 
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 binofit(const Value &x, const Value &n, keel::f64 alpha, keel::Allocator *mr)
 {
     const keel::usize Nx = x.numel();
@@ -245,12 +246,12 @@ binofit(const Value &x, const Value &n, keel::f64 alpha, keel::Allocator *mr)
         // Collapse phat to a true scalar to match MATLAB's [phat,pci] = binofit(x,n).
         phat = Value::scalar(pd[0], mr);
     }
-    return {std::move(phat), std::move(pci)};
+    return {keel::move(phat), keel::move(pci)};
 }
 
 // ── raylfit ───────────────────────────────────────────────────────────
 
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 raylfit(const Value &x, keel::f64 alpha, keel::Allocator *mr)
 {
     const keel::usize N = x.numel();

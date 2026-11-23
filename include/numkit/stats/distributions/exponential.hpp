@@ -11,7 +11,7 @@
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
-#include <tuple>
+#include <keel/tuple.h>
 
 namespace numkit {
 
@@ -74,7 +74,7 @@ Value exprnd(::numkit::ops::RngContext &rng, keel::f64 mu, keel::usize rows = 1,
 /// @param mu  Mean parameter.
 /// @return    `{mean, variance}` pair.
 /// @see exppdf
-std::tuple<keel::f64, keel::f64> expstat(keel::f64 mu);
+keel::Tuple<keel::f64, keel::f64> expstat(keel::f64 mu);
 
 
 /// @}

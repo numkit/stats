@@ -10,7 +10,7 @@
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
-#include <tuple>
+#include <keel/tuple.h>
 
 namespace numkit {
 
@@ -80,7 +80,7 @@ Value poissrnd(::numkit::ops::RngContext &rng, keel::f64 lambda, keel::usize row
 /// @param lambda  Rate parameter.
 /// @return        `{mean, variance}` pair.
 /// @see poisspdf
-std::tuple<keel::f64, keel::f64> poisstat(keel::f64 lambda);
+keel::Tuple<keel::f64, keel::f64> poisstat(keel::f64 lambda);
 
 
 /// @}

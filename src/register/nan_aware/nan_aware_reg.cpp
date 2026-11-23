@@ -17,8 +17,6 @@
 #include <numkit/ops/reductions.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 #include "support/reduce_vecdim.hpp"
 

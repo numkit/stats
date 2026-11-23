@@ -1,6 +1,7 @@
 // toolboxes/stats/src/spline/spline.cpp
 
 #include <keel/array.h>
+#include <keel/tuple.h>
 #include <keel/core.h>
 #include <keel/format.h>
 #include <keel/math.h>
@@ -12,7 +13,6 @@
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -89,7 +89,7 @@ Value brk2knt(const Value &breaks, const Value &mults, keel::Allocator *mr)
     return out;
 }
 
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 knt2brk(const Value &knots, keel::Allocator *mr)
 {
     const keel::usize N = knots.numel();
@@ -98,7 +98,7 @@ knt2brk(const Value &knots, keel::Allocator *mr)
     if (N == 0) {
         Value bv = Value::matrix(0, 0, ValueType::DOUBLE, mr);
         Value mv = Value::matrix(0, 0, ValueType::DOUBLE, mr);
-        return {std::move(bv), std::move(mv)};
+        return {keel::move(bv), keel::move(mv)};
     }
     keel::f64 cur = knots.elemAsDouble(0);
     keel::usize cnt = 1;
@@ -122,7 +122,7 @@ knt2brk(const Value &knots, keel::Allocator *mr)
     keel::f64 *bd = bv.doubleDataMut();
     keel::f64 *md = mv.doubleDataMut();
     for (keel::usize i = 0; i < K; ++i) { bd[i] = b[i]; md[i] = keel::f64(m[i]); }
-    return {std::move(bv), std::move(mv)};
+    return {keel::move(bv), keel::move(mv)};
 }
 
 Value ppmak(const Value &breaks, const Value &coefs, keel::i32 d, keel::Allocator *mr)
@@ -183,8 +183,8 @@ Value ppmak(const Value &breaks, const Value &coefs, keel::i32 d, keel::Allocato
 
     Value s = Value::structure(mr);
     s.field("form")   = Value::fromString("pp", mr);
-    s.field("breaks") = std::move(bv);
-    s.field("coefs")  = std::move(cv);
+    s.field("breaks") = keel::move(bv);
+    s.field("coefs")  = keel::move(cv);
     s.field("pieces") = Value::scalar(keel::f64(L),    mr);
     s.field("order")  = Value::scalar(keel::f64(effK), mr);
     s.field("dim")    = Value::scalar(keel::f64(effD), mr);
@@ -281,8 +281,8 @@ Value buildPP(const Value &breaks, keel::ArrayRef<keel::f64> coefsCM, keel::usiz
     }
     Value s = Value::structure(mr);
     s.field("form")   = Value::fromString("pp", mr);
-    s.field("breaks") = std::move(bv);
-    s.field("coefs")  = std::move(cv);
+    s.field("breaks") = keel::move(bv);
+    s.field("coefs")  = keel::move(cv);
     s.field("pieces") = Value::scalar(keel::f64(L), mr);
     s.field("order")  = Value::scalar(keel::f64(cC), mr);
     s.field("dim")    = Value::scalar(keel::f64(d), mr);
@@ -419,8 +419,8 @@ Value csapi(const Value &x, const Value &y, keel::Allocator *mr)
                         0, 0, "csapi", "", "numkit:csapi:singular");
         if (piv != k) {
             for (keel::usize j = 0; j < N; ++j)
-                std::swap(A[k + j * N], A[piv + j * N]);
-            std::swap(perm[k], perm[piv]);
+                keel::swap(A[k + j * N], A[piv + j * N]);
+            keel::swap(perm[k], perm[piv]);
         }
         const keel::f64 pv = A[k + k * N];
         for (keel::usize i = k + 1; i < N; ++i) {

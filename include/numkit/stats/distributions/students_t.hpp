@@ -10,7 +10,7 @@
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
-#include <tuple>
+#include <keel/tuple.h>
 
 namespace numkit {
 
@@ -77,7 +77,7 @@ Value trnd(::numkit::ops::RngContext &rng, keel::f64 nu, keel::usize rows = 1, k
 /// @param nu  Degrees of freedom.
 /// @return    `{mean, variance}` pair (returns NaN for variance when `nu <= 2`).
 /// @see tpdf
-std::tuple<keel::f64, keel::f64> tstat(keel::f64 nu);
+keel::Tuple<keel::f64, keel::f64> tstat(keel::f64 nu);
 
 /// @brief Noncentral Student's t pdf (`y = nctpdf(x, nu, delta)`).
 ///
@@ -146,7 +146,7 @@ Value nctinv(const Value &p, keel::f64 nu, keel::f64 delta,
 /// @param delta  Noncentrality parameter.
 /// @return       `{mean, variance}` (NaN where undefined).
 /// @see nctpdf
-std::tuple<keel::f64, keel::f64> nctstat(keel::f64 nu, keel::f64 delta);
+keel::Tuple<keel::f64, keel::f64> nctstat(keel::f64 nu, keel::f64 delta);
 
 /// @brief Noncentral Student's t random samples
 /// (`r = nctrnd(nu, delta, rows, cols)`).

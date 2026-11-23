@@ -17,8 +17,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -42,7 +40,7 @@ void ricecdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
                     0, 0, "ricecdf", "", "numkit:ricecdf:nargin");
     Value v = ricecdf(args[0], args[1].toScalar(), args[2].toScalar(), ctx.engine->allocator());
     if (upper) applyUpperInPlace(v);
-    outs[0] = std::move(v);
+    outs[0] = keel::move(v);
 }
 
 void riceinv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,

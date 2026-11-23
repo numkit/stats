@@ -11,6 +11,7 @@
 // compat.* lives in toolboxes/stats/src/library.cpp.
 
 #include <keel/core.h>
+#include <keel/tuple.h>
 #include <keel/math.h>
 #include <keel/memory.h>
 #include <keel/arena.h>
@@ -29,7 +30,6 @@
 #include <numkit/builtin/detail/datafun/var_reduction.hpp>
 
 #include <algorithm>
-#include <utility>
 
 #include "descriptive_detail.hpp"
 
@@ -98,7 +98,7 @@ Value var(const Value &x, keel::i32 normFlag, keel::i32 dim, keel::Allocator *mr
             return varianceTwoPass(slice, n, normFlag);
         }, mr);
     if (x.type() == ValueType::SINGLE)
-        r = narrowToSingle(std::move(r), mr);
+        r = narrowToSingle(keel::move(r), mr);
     return r;
 }
 
@@ -118,7 +118,7 @@ Value stdev(const Value &x, keel::i32 normFlag, keel::i32 dim, keel::Allocator *
             return keel::sqrt(varianceTwoPass(slice, n, normFlag));
         }, mr);
     if (x.type() == ValueType::SINGLE)
-        r = narrowToSingle(std::move(r), mr);
+        r = narrowToSingle(keel::move(r), mr);
     return r;
 }
 
@@ -143,7 +143,7 @@ Value median(const Value &x, keel::i32 dim, keel::Allocator *mr)
             return medianFromSlice(slice, n);
         }, mr);
     if (x.type() == ValueType::SINGLE)
-        r = narrowToSingle(std::move(r), mr);
+        r = narrowToSingle(keel::move(r), mr);
     else if (isIntegerType(x.type()))
         // MATLAB preserves the integer class: round half-away + saturate.
         r = narrowToInteger(r, x.type(), mr);
@@ -213,7 +213,7 @@ Value quantileWithOpts(const Value &x, const Value &p, keel::i32 dim, bool flatt
 // comparison so the first run achieving the max count wins.
 
 
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 mode(const Value &x, keel::i32 dim, keel::Allocator *mr)
 {
     // MATLAB: mode of an empty array -> NaN-shaped value, 0-shaped count.

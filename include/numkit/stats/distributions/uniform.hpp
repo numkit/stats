@@ -11,7 +11,7 @@
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
-#include <tuple>
+#include <keel/tuple.h>
 
 namespace numkit {
 
@@ -80,7 +80,7 @@ Value unifrnd(::numkit::ops::RngContext &rng, keel::f64 a, keel::f64 b, keel::us
 /// @param b  Upper bound.
 /// @return   `{mean, variance}` pair.
 /// @see unifpdf
-std::tuple<keel::f64, keel::f64> unifstat(keel::f64 a, keel::f64 b);
+keel::Tuple<keel::f64, keel::f64> unifstat(keel::f64 a, keel::f64 b);
 
 
 /// @}

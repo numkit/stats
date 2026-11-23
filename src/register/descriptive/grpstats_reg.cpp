@@ -15,8 +15,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -62,7 +60,7 @@ void grpstats_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     const keel::usize emit = std::min<keel::usize>(results.size(),
                                          std::max<keel::usize>(nargout, 1));
     for (keel::usize i = 0; i < emit; ++i)
-        outs[i] = std::move(results[i]);
+        outs[i] = keel::move(results[i]);
 }
 
 } // namespace detail

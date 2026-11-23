@@ -10,7 +10,7 @@
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
-#include <tuple>
+#include <keel/tuple.h>
 
 namespace numkit::stats {
 
@@ -31,7 +31,7 @@ namespace numkit::stats {
 /// @return       `(p, F, df_between, df_within, ss_between, ss_within)`.
 ///
 /// @see kruskalwallis
-std::tuple<keel::f64, keel::f64, keel::f64, keel::f64, keel::f64, keel::f64>
+keel::Tuple<keel::f64, keel::f64, keel::f64, keel::f64, keel::f64, keel::f64>
 anova1(const Value &y, const Value &group,
        keel::Allocator *mr = nullptr);
 
@@ -47,7 +47,7 @@ anova1(const Value &y, const Value &group,
 /// @return       `(p, H, df, ssRanks)`.
 ///
 /// @see anova1
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 kruskalwallis(const Value &y, const Value &group,
               keel::Allocator *mr = nullptr);
 
@@ -70,7 +70,7 @@ kruskalwallis(const Value &y, const Value &group,
 /// @return      `(p, Q, df)`.
 ///
 /// @see kruskalwallis, anova1
-std::tuple<Value, Value, Value>
+keel::Tuple<Value, Value, Value>
 friedman(const Value &x, keel::i32 reps = 1, keel::Allocator *mr = nullptr);
 
 /// @brief Convert categorical labels to indicator columns

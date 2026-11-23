@@ -9,6 +9,7 @@
 // trivially if needed.
 
 #include <keel/core.h>
+#include <keel/tuple.h>
 #include <keel/algo.h>
 #include <keel/math.h>
 #include <keel/memory.h>
@@ -146,7 +147,7 @@ Value mvncdf(const Value &X, const Value &mu, const Value &Sigma,
             for (keel::usize j = 0; j < d; ++j)
                 S[i * d + j] = Sigma.elemAsDouble(j * d + i);
         choleskyLowerInPlace(S.data(), d);
-        L = std::move(S);
+        L = keel::move(S);
     }
 
     auto out = Value::matrix(n, 1, ValueType::DOUBLE, mr);
@@ -305,7 +306,7 @@ static void invertLowerTriInPlace(keel::f64 *L, keel::usize d)
     keel::copy_n(L, Linv.data(), d * d);
 }
 
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 wishrnd_factor(::numkit::ops::RngContext &rng, const Value &Sigma, keel::f64 df, const Value &D_in,
                keel::Allocator *mr)
 {
@@ -371,7 +372,7 @@ wishrnd_factor(::numkit::ops::RngContext &rng, const Value &Sigma, keel::f64 df,
         for (keel::usize i = 0; i < d; ++i)
             for (keel::usize j = 0; j < d; ++j)
                 dd[j * d + i] = (j >= i) ? L[j * d + i] : 0.0;
-        return {std::move(W), std::move(D)};
+        return {keel::move(W), keel::move(D)};
     }
     auto &gen = rng;
 
@@ -413,16 +414,16 @@ wishrnd_factor(::numkit::ops::RngContext &rng, const Value &Sigma, keel::f64 df,
     for (keel::usize i = 0; i < d; ++i)
         for (keel::usize j = 0; j < d; ++j)
             dd[j * d + i] = (j >= i) ? L[j * d + i] : 0.0;
-    return {std::move(W), std::move(D)};
+    return {keel::move(W), keel::move(D)};
 }
 
 Value wishrnd(::numkit::ops::RngContext &rng, const Value &Sigma, keel::f64 df,
               keel::Allocator *mr)
 {
-    return std::get<0>(wishrnd_factor(rng, Sigma, df, Value::Empty, mr));
+    return keel::get<0>(wishrnd_factor(rng, Sigma, df, Value::Empty, mr));
 }
 
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, keel::f64 df, const Value &DI_in,
                 keel::Allocator *mr)
 {
@@ -471,7 +472,7 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, keel::f64 df, 
                 if (i != j) invTau[j * d + i] = s;
             }
         }
-        L = std::move(invTau);
+        L = keel::move(invTau);
         choleskyLowerInPlace(L.data(), d);
     }
 
@@ -577,13 +578,13 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, keel::f64 df, 
     for (keel::usize i = 0; i < d; ++i)
         for (keel::usize j = 0; j < d; ++j)
             dd[j * d + i] = (j <= i) ? L[i * d + j] : 0.0;
-    return {std::move(W), std::move(DI)};
+    return {keel::move(W), keel::move(DI)};
 }
 
 Value iwishrnd(::numkit::ops::RngContext &rng, const Value &Tau, keel::f64 df,
                keel::Allocator *mr)
 {
-    return std::get<0>(iwishrnd_factor(rng, Tau, df, Value::Empty, mr));
+    return keel::get<0>(iwishrnd_factor(rng, Tau, df, Value::Empty, mr));
 }
 
 // ── mvtcdf ──────────────────────────────────────────────────────────
@@ -628,7 +629,7 @@ Value mvtcdf(const Value &X, const Value &C, keel::f64 df, keel::f64 tol,
     const keel::usize nRows = n;   // plain local: capturing a structured
                                    // binding directly in a lambda is C++20.
     for (keel::usize row = 0; row < nRows; ++row) {
-        auto fetch = [&](keel::usize j) -> std::pair<keel::f64, keel::f64> {
+        auto fetch = [&](keel::usize j) -> keel::Pair<keel::f64, keel::f64> {
             const keel::f64 xj = X.isScalar() ? X.toScalar()
                                            : X.elemAsDouble(j * nRows + row);
             return {NEG_INF, xj};
@@ -687,7 +688,7 @@ Value mvtcdf_box(const Value &Lb, const Value &Ub, const Value &C, keel::f64 df,
     const keel::usize nRows = n;   // plain local (see mvtcdf above): avoid
                                    // capturing a structured binding in a lambda.
     for (keel::usize row = 0; row < nRows; ++row) {
-        auto fetch = [&](keel::usize j) -> std::pair<keel::f64, keel::f64> {
+        auto fetch = [&](keel::usize j) -> keel::Pair<keel::f64, keel::f64> {
             const keel::f64 lj = Lb.isScalar() ? Lb.toScalar()
                                             : Lb.elemAsDouble(j * nRows + row);
             const keel::f64 uj = Ub.isScalar() ? Ub.toScalar()

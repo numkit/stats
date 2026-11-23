@@ -707,14 +707,14 @@ IsOutlierOut isoutlier_full(const Value &A, keel::ArrayRef<Value> in,
             lod[k] = st.lo; hid[k] = st.hi; ced[k] = st.center;
         }
     }
-    out.tf = std::move(mask);
-    out.lo = std::move(loM);
-    out.hi = std::move(hiM);
-    out.center = std::move(ceM);
+    out.tf = keel::move(mask);
+    out.lo = keel::move(loM);
+    out.hi = keel::move(hiM);
+    out.center = keel::move(ceM);
     if (wantThresholds && A.type() == ValueType::SINGLE) {
-        out.lo = narrowToSingle(std::move(out.lo), mr);
-        out.hi = narrowToSingle(std::move(out.hi), mr);
-        out.center = narrowToSingle(std::move(out.center), mr);
+        out.lo = narrowToSingle(keel::move(out.lo), mr);
+        out.hi = narrowToSingle(keel::move(out.hi), mr);
+        out.center = narrowToSingle(keel::move(out.center), mr);
     }
     return out;
 }
@@ -772,7 +772,7 @@ RmOutliersOut rmoutliers_full(const Value &A, keel::ArrayRef<Value> in,
             detect = filtered.as_ref();
         }
         iso = isoutlier_full(A, detect, true, mr);
-        map = std::move(iso.tf);
+        map = keel::move(iso.tf);
     }
     const keel::u8 *m = map.logicalData();
 
@@ -803,12 +803,12 @@ RmOutliersOut rmoutliers_full(const Value &A, keel::ArrayRef<Value> in,
         Value ind = colOrient ? Value::matrix(n, 1, ValueType::LOGICAL, mr)
                               : Value::matrix(1, n, ValueType::LOGICAL, mr);
         std::copy(m, m + n, ind.logicalDataMut());
-        out.B = std::move(B);
-        out.ind = std::move(ind);
-        out.tf = std::move(map);
-        out.lo = std::move(iso.lo);
-        out.hi = std::move(iso.hi);
-        out.center = std::move(iso.center);
+        out.B = keel::move(B);
+        out.ind = keel::move(ind);
+        out.tf = keel::move(map);
+        out.lo = keel::move(iso.lo);
+        out.hi = keel::move(iso.hi);
+        out.center = keel::move(iso.center);
         return out;
     }
 
@@ -834,12 +834,12 @@ RmOutliersOut rmoutliers_full(const Value &A, keel::ArrayRef<Value> in,
         }
         Value ind = Value::matrix(r, 1, ValueType::LOGICAL, mr);
         std::copy(rm.begin(), rm.end(), ind.logicalDataMut());
-        out.B = std::move(B);
-        out.ind = std::move(ind);
-        out.tf = std::move(map);
-        out.lo = std::move(iso.lo);
-        out.hi = std::move(iso.hi);
-        out.center = std::move(iso.center);
+        out.B = keel::move(B);
+        out.ind = keel::move(ind);
+        out.tf = keel::move(map);
+        out.lo = keel::move(iso.lo);
+        out.hi = keel::move(iso.hi);
+        out.center = keel::move(iso.center);
         return out;
     }
     // dim == 2: remove columns.
@@ -863,12 +863,12 @@ RmOutliersOut rmoutliers_full(const Value &A, keel::ArrayRef<Value> in,
     }
     Value ind = Value::matrix(1, c, ValueType::LOGICAL, mr);
     std::copy(rm.begin(), rm.end(), ind.logicalDataMut());
-    out.B = std::move(B);
-    out.ind = std::move(ind);
-    out.tf = std::move(map);
-    out.lo = std::move(iso.lo);
-    out.hi = std::move(iso.hi);
-    out.center = std::move(iso.center);
+    out.B = keel::move(B);
+    out.ind = keel::move(ind);
+    out.tf = keel::move(map);
+    out.lo = keel::move(iso.lo);
+    out.hi = keel::move(iso.hi);
+    out.center = keel::move(iso.center);
     return out;
 }
 
@@ -949,7 +949,7 @@ RmMissingOut rmmissing_full(const Value &A, keel::ArrayRef<Value> in,
             : ((dim == 2) ? Value::matrix(1, c, ValueType::LOGICAL, mr)
                           : Value::matrix(r, 1, ValueType::LOGICAL, mr));
         std::fill_n(ind.logicalDataMut(), ind.numel(), keel::u8{0});
-        out.ind = std::move(ind);
+        out.ind = keel::move(ind);
         return out;
     }
 
@@ -994,8 +994,8 @@ RmMissingOut rmmissing_full(const Value &A, keel::ArrayRef<Value> in,
         Value ind = colOrient ? Value::matrix(n, 1, ValueType::LOGICAL, mr)
                               : Value::matrix(1, n, ValueType::LOGICAL, mr);
         std::copy(miss.begin(), miss.end(), ind.logicalDataMut());
-        out.B = std::move(B);
-        out.ind = std::move(ind);
+        out.B = keel::move(B);
+        out.ind = keel::move(ind);
         return out;
     }
 
@@ -1016,8 +1016,8 @@ RmMissingOut rmmissing_full(const Value &A, keel::ArrayRef<Value> in,
                 copyIn(col * r + keep[w], B, col * keep.size() + w);
         Value ind = Value::matrix(r, 1, ValueType::LOGICAL, mr);
         std::copy(rm.begin(), rm.end(), ind.logicalDataMut());
-        out.B = std::move(B);
-        out.ind = std::move(ind);
+        out.B = keel::move(B);
+        out.ind = keel::move(ind);
         return out;
     }
     keel::Array<keel::usize> cnt(c, 0);
@@ -1036,8 +1036,8 @@ RmMissingOut rmmissing_full(const Value &A, keel::ArrayRef<Value> in,
             copyIn(keep[w] * r + i, B, w * r + i);
     Value ind = Value::matrix(1, c, ValueType::LOGICAL, mr);
     std::copy(rm.begin(), rm.end(), ind.logicalDataMut());
-    out.B = std::move(B);
-    out.ind = std::move(ind);
+    out.B = keel::move(B);
+    out.ind = keel::move(ind);
     return out;
 }
 
@@ -1413,7 +1413,7 @@ FillMissingOut fillmissing_full(
         if (wantFilled) {
             Value f = Value::matrix(r, c, ValueType::LOGICAL, mr);
             std::fill_n(f.logicalDataMut(), f.numel(), keel::u8{0});
-            out.filled = std::move(f);
+            out.filled = keel::move(f);
         }
         return out;
     }
@@ -1456,8 +1456,8 @@ FillMissingOut fillmissing_full(
             }
         }
         if (dim > 2) {
-            out.B = std::move(B);
-            out.filled = std::move(filledMap);
+            out.B = keel::move(B);
+            out.filled = keel::move(filledMap);
             return out;
         }
         // When dim == 1, vectors are rows (M = r, N = c); when dim == 2,
@@ -1545,7 +1545,7 @@ FillMissingOut fillmissing_full(
                         M2.logicalDataMut()[0 + col * 2] = missMap[linAt(ii, col)];
                         M2.logicalDataMut()[1 + col * 2] = missMap[linAt(jj, col)];
                     }
-                    Value fargs[2] = {std::move(X2), std::move(M2)};
+                    Value fargs[2] = {keel::move(X2), keel::move(M2)};
                     Value dv = callFn(*distFnVal, keel::ArrayRef<Value>(fargs, 2));
                     if (!dv.isNumeric() || dv.isComplex() || dv.numel() != 1)
                         throw Error(keel::format("{}: custom distance function "
@@ -1610,8 +1610,8 @@ FillMissingOut fillmissing_full(
                 }
             }
         }
-        out.B = std::move(B);
-        out.filled = std::move(filledMap);
+        out.B = keel::move(B);
+        out.filled = keel::move(filledMap);
         return out;
     }
 
@@ -1683,7 +1683,7 @@ FillMissingOut fillmissing_full(
                     Value tq = Value::matrix(runLen, 1, ValueType::DOUBLE, mr);
                     for (keel::usize j = 0; j < runLen; ++j)
                         tq.doubleDataMut()[j] = sVec[j];
-                    Value fargs[3] = {std::move(xs), std::move(ts), std::move(tq)};
+                    Value fargs[3] = {keel::move(xs), keel::move(ts), keel::move(tq)};
                     Value ytmp = callFn(*fhVal, keel::ArrayRef<Value>(fargs, 3));
                     if (ytmp.numel() == 1 || (ytmp.dims().isVector() && ytmp.numel() == runLen)) {
                         for (keel::usize j = 0; j < runLen; ++j) {
@@ -1793,7 +1793,7 @@ FillMissingOut fillmissing_full(
                 }
                 for (keel::usize q = 0; q < gapLen; ++q)
                     tq.doubleDataMut()[q] = sVec[j0 + q];
-                Value fargs[3] = {std::move(xs), std::move(ts), std::move(tq)};
+                Value fargs[3] = {keel::move(xs), keel::move(ts), keel::move(tq)};
                 Value ytmp = callFn(*fhVal, keel::ArrayRef<Value>(fargs, 3));
                 if (!(ytmp.numel() == 1 ||
                       (ytmp.dims().isVector() && ytmp.numel() == gapLen)))
@@ -1952,8 +1952,8 @@ FillMissingOut fillmissing_full(
             }
         }
     }
-    out.B = std::move(B);
-    out.filled = std::move(filledMap);
+    out.B = keel::move(B);
+    out.filled = keel::move(filledMap);
     return out;
 }
 
@@ -1994,8 +1994,8 @@ void detrendDesignFit(const keel::f64 *W, keel::usize n, keel::usize k,
         if (best <= 0.0) { freeVar[col] = 1; continue; }
         if (piv != col) {
             for (keel::usize j = 0; j < k; ++j)
-                std::swap(G[col * k + j], G[piv * k + j]);
-            std::swap(rhs[col], rhs[piv]);
+                keel::swap(G[col * k + j], G[piv * k + j]);
+            keel::swap(rhs[col], rhs[piv]);
         }
         const keel::f64 d = G[col * k + col];
         for (keel::usize r2 = col + 1; r2 < k; ++r2) {
@@ -2162,7 +2162,7 @@ Value detrend_full(const Value &x, keel::ArrayRef<Value> in,
             keel::Array<keel::f64> keep;
             for (keel::f64 v : knots)
                 if (v >= 0.0 && v < sVec[n - 1]) keep.push_back(v);
-            knots = std::move(keep);
+            knots = keel::move(keep);
         }
         std::sort(knots.begin(), knots.end());
         knots.resize(std::unique(knots.begin(), knots.end()) - knots.begin());

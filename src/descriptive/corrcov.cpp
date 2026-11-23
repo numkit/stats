@@ -39,7 +39,7 @@ void corrcov_argcheck(const Value &C)
 
 } // namespace
 
-std::pair<Value, Value>
+keel::Pair<Value, Value>
 corrcov(const Value &C, keel::Allocator *mr)
 {
     corrcov_argcheck(C);
@@ -72,7 +72,7 @@ corrcov(const Value &C, keel::Allocator *mr)
     keel::f64 *s = Sv.doubleDataMut();
     for (keel::usize i = 0; i < R; ++i) s[i] = sigma[i];
 
-    return {std::move(Rv), std::move(Sv)};
+    return {keel::move(Rv), keel::move(Sv)};
 }
 
 } // namespace numkit::stats

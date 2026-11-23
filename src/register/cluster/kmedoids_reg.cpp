@@ -18,8 +18,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -53,11 +51,11 @@ void kmedoids_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         // 'OnlinePhase' / 'Options' / 'PercentNeighbors' silently accepted.
     }
     auto R = kmedoids_full(ctx.engine->rng(), args[0], K, max_iter, replicates, metric, ctx.engine->allocator());
-    outs[0] = std::move(R.idx);
-    if (nargout > 1) outs[1] = std::move(R.C);
-    if (nargout > 2) outs[2] = std::move(R.sumd);
-    if (nargout > 3) outs[3] = std::move(R.D);
-    if (nargout > 4) outs[4] = std::move(R.midx);
+    outs[0] = keel::move(R.idx);
+    if (nargout > 1) outs[1] = keel::move(R.C);
+    if (nargout > 2) outs[2] = keel::move(R.sumd);
+    if (nargout > 3) outs[3] = keel::move(R.D);
+    if (nargout > 4) outs[4] = keel::move(R.midx);
     if (nargout > 5) {
         keel::Allocator *mr = ctx.engine->allocator();
         Value info = Value::structure(mr);
@@ -66,7 +64,7 @@ void kmedoids_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         info.field("distance")      = Value::fromString(metric, mr);
         info.field("iterations")    = Value::scalar(keel::f64(R.iters), mr);
         info.field("bestReplicate") = Value::scalar(keel::f64(R.best_rep), mr);
-        outs[5] = std::move(info);
+        outs[5] = keel::move(info);
     }
 }
 
@@ -89,7 +87,7 @@ void dbscan_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     if (i < args.size() && (args[i].isChar() || args[i].isString())) {
         keel::String s = lower(args[i].toString());
         if (s != "distance" && s != "p" && s != "cov" && s != "scale") {
-            metric = std::move(s);
+            metric = keel::move(s);
             ++i;
         }
     }
@@ -103,8 +101,8 @@ void dbscan_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         // for mahalanobis / seuclidean which dbscan() doesn't yet wire up.
     }
     auto [idx, core] = dbscan(args[0], eps, minpts, metric, p, ctx.engine->allocator());
-    outs[0] = std::move(idx);
-    if (nargout > 1) outs[1] = std::move(core);
+    outs[0] = keel::move(idx);
+    if (nargout > 1) outs[1] = keel::move(core);
 }
 
 } // namespace detail

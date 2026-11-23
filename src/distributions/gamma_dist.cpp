@@ -6,6 +6,7 @@
 // rnd uses MATLAB-exact Marsaglia-Tsang on RngContext.
 
 #include <keel/core.h>
+#include <keel/tuple.h>
 #include <keel/math.h>
 #include <keel/memory.h>
 #include <keel/stats.h>
@@ -108,13 +109,13 @@ Value randg(::numkit::ops::RngContext &rng, const Value &shapeArray, keel::Alloc
     return out;
 }
 
-std::tuple<keel::f64, keel::f64> gamstat(keel::f64 a, keel::f64 b)
+keel::Tuple<keel::f64, keel::f64> gamstat(keel::f64 a, keel::f64 b)
 {
     if (a <= 0.0 || b <= 0.0) {
         const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
-        return std::make_tuple(nan, nan);
+        return keel::make_tuple(nan, nan);
     }
-    return std::make_tuple(a * b, a * b * b);
+    return keel::make_tuple(a * b, a * b * b);
 }
 
 } // namespace numkit::stats

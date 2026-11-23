@@ -3,8 +3,8 @@
 #pragma once
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
-#include <tuple>
+#include <keel/tuple.h>
 namespace numkit::stats {
-std::tuple<Value, Value> pcares_full(const Value &X, keel::i32 ndim,
+keel::Tuple<Value, Value> pcares_full(const Value &X, keel::i32 ndim,
                                      keel::Allocator *mr);
 } // namespace numkit::stats

@@ -180,7 +180,7 @@ NormalizeResult normalize(const Value &A, keel::StringRef method,
                 keel::Array<keel::f64> tmp(keel::ArrayRef<keel::f64>(col, n));
                 const keel::f64 med = colMedian(tmp.clone());
                 for (keel::f64 &v : tmp) v = keel::abs(v - med);
-                const keel::f64 mad = colMedian(std::move(tmp));
+                const keel::f64 mad = colMedian(keel::move(tmp));
                 const keel::f64 inv = (mad != 0.0) ? 1.0 / mad : 0.0;
                 cVal = med; sVal = mad;
                 for (keel::usize i = 0; i < n; ++i) y[i] = (col[i] - med) * inv;
@@ -196,7 +196,7 @@ NormalizeResult normalize(const Value &A, keel::StringRef method,
             keel::f64 c;
             if (hasParam && !paramIsStr)              c = paramNum;
             else if (paramIsStr && paramStr == "median") {
-                keel::Array<keel::f64> tmp(keel::ArrayRef<keel::f64>(col, n)); c = colMedian(std::move(tmp));
+                keel::Array<keel::f64> tmp(keel::ArrayRef<keel::f64>(col, n)); c = colMedian(keel::move(tmp));
             } else                                     c = colMean(col, n);
             cVal = c; sVal = 1.0;
             for (keel::usize i = 0; i < n; ++i) y[i] = col[i] - c;
@@ -206,12 +206,12 @@ NormalizeResult normalize(const Value &A, keel::StringRef method,
             if (hasParam && !paramIsStr)               sc = paramNum;
             else if (paramIsStr && paramStr == "first") sc = col[0];
             else if (paramIsStr && paramStr == "iqr") {
-                keel::Array<keel::f64> tmp(keel::ArrayRef<keel::f64>(col, n));  sc = colIQR(std::move(tmp));
+                keel::Array<keel::f64> tmp(keel::ArrayRef<keel::f64>(col, n));  sc = colIQR(keel::move(tmp));
             } else if (paramIsStr && paramStr == "mad") {
                 keel::Array<keel::f64> tmp(keel::ArrayRef<keel::f64>(col, n));
                 const keel::f64 med = colMedian(tmp.clone());
                 for (keel::f64 &v : tmp) v = keel::abs(v - med);
-                sc = colMedian(std::move(tmp));
+                sc = colMedian(keel::move(tmp));
             } else                                      sc = colStdSample(col, n);
             const keel::f64 inv = (sc != 0.0) ? 1.0 / sc : 0.0;
             cVal = 0.0; sVal = sc;
@@ -261,7 +261,7 @@ NormalizeResult normalize(const Value &A, keel::StringRef method,
         } else if (methodMatches(m, "medianiqr")) {
             keel::Array<keel::f64> tmp(keel::ArrayRef<keel::f64>(col, n));
             const keel::f64 med = colMedian(tmp.clone());
-            const keel::f64 iqr = colIQR(std::move(tmp));
+            const keel::f64 iqr = colIQR(keel::move(tmp));
             const keel::f64 inv = (iqr != 0.0) ? 1.0 / iqr : 0.0;
             cVal = med; sVal = iqr;
             for (keel::usize i = 0; i < n; ++i) y[i] = (col[i] - med) * inv;

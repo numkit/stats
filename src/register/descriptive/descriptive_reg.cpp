@@ -29,8 +29,6 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -178,7 +176,7 @@ Value varStdDispatch(keel::ArrayRef<Value> args, bool sqrtIt, const char *fn,
                                              "dimension set is supported for 2-D inputs "
                                              "only (N-D deferred)", fn),
                                 0, 0, fn, "", keel::format("numkit:{}:wND", fn));
-                vecdimSet = std::move(set);
+                vecdimSet = keel::move(set);
             }
         }
     }
@@ -203,7 +201,7 @@ Value varStdDispatch(keel::ArrayRef<Value> args, bool sqrtIt, const char *fn,
             Value wv = Value::matrix(1, wLen, ValueType::DOUBLE, mr);
             keel::f64 *wd = wv.doubleDataMut();
             for (keel::usize i = 0; i < wLen; ++i) wd[i] = 1.0;
-            *wOut = std::move(wv);
+            *wOut = keel::move(wv);
         }
     }
 
@@ -278,12 +276,12 @@ Value varStdDispatch(keel::ArrayRef<Value> args, bool sqrtIt, const char *fn,
                         ? ::numkit::stats::nanstdev(c, normFlag, lastd, mr)
                         : ::numkit::stats::nanvar  (c, normFlag, lastd, mr);
             if (x.type() == ValueType::SINGLE)
-                r = narrowToSingle(std::move(r), mr);
-            return vecdim::expandReduced(std::move(r), x, vecdimSet, mr);
+                r = narrowToSingle(keel::move(r), mr);
+            return vecdim::expandReduced(keel::move(r), x, vecdimSet, mr);
         }
         Value r = sqrtIt ? stdev(c, normFlag, lastd, mr)
                          : var(c, normFlag, lastd, mr);
-        return vecdim::expandReduced(std::move(r), x, vecdimSet, mr);
+        return vecdim::expandReduced(keel::move(r), x, vecdimSet, mr);
     }
 
     // â”€â”€ Flatten 'all' / vecdim path â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -303,7 +301,7 @@ Value varStdDispatch(keel::ArrayRef<Value> args, bool sqrtIt, const char *fn,
                     ? ::numkit::stats::nanstdev(x, normFlag, dim, mr)
                     : ::numkit::stats::nanvar  (x, normFlag, dim, mr);
         if (x.type() == ValueType::SINGLE)
-            r = narrowToSingle(std::move(r), mr);
+            r = narrowToSingle(keel::move(r), mr);
         return r;
     }
     return sqrtIt ? stdev(x, normFlag, dim, mr) : var(x, normFlag, dim, mr);
@@ -316,7 +314,7 @@ void var_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<
     Value wOut;
     outs[0] = varStdDispatch(args, /*sqrtIt=*/false, "var", ctx.engine->allocator(),
                              (nargout >= 2) ? &wOut : nullptr);
-    if (nargout >= 2) outs[1] = std::move(wOut);
+    if (nargout >= 2) outs[1] = keel::move(wOut);
 }
 
 void std_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs,
@@ -326,7 +324,7 @@ void std_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<
     Value wOut;
     outs[0] = varStdDispatch(args, /*sqrtIt=*/true, "std", ctx.engine->allocator(),
                              (nargout >= 2) ? &wOut : nullptr);
-    if (nargout >= 2) outs[1] = std::move(wOut);
+    if (nargout >= 2) outs[1] = keel::move(wOut);
 }
 
 void median_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs,
@@ -343,7 +341,7 @@ void median_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
         ~NarrowGuard()
         {
             if (v->isComplex())
-                *v = numkit::narrowComplex(std::move(*v), mr);
+                *v = numkit::narrowComplex(keel::move(*v), mr);
         }
     } narrowGuard{&outs[0], ctx.engine->allocator()};
     // Probed R2025b: median preserves the LOGICAL class (result is the
@@ -362,7 +360,7 @@ void median_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
                 for (keel::usize i = 0; i < v->numel(); ++i)
                     lg.logicalDataMut()[i] =
                         v->doubleData()[i] != 0.0 ? 1 : 0;
-                *v = std::move(lg);
+                *v = keel::move(lg);
             }
         }
     } logicalGuard{&outs[0], args[0].type() == ValueType::LOGICAL};
@@ -388,7 +386,7 @@ void median_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
             if (vecdim::coversAllDims(set, args[0]))
                 isAll = true;
             else
-                vecdimSet = std::move(set);
+                vecdimSet = keel::move(set);
         }
     }
     if (!vecdimSet.empty()) {
@@ -401,8 +399,8 @@ void median_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
             rejectComplexOmitNan(args[0], "median");
             Value r = ::numkit::stats::nanmedian(c, lastd, ctx.engine->allocator());
             if (args[0].type() == ValueType::SINGLE)
-                r = narrowToSingle(std::move(r), ctx.engine->allocator());
-            outs[0] = vecdim::expandReduced(std::move(r), args[0], vecdimSet,
+                r = narrowToSingle(keel::move(r), ctx.engine->allocator());
+            outs[0] = vecdim::expandReduced(keel::move(r), args[0], vecdimSet,
                                             ctx.engine->allocator());
             return;
         }
@@ -440,16 +438,16 @@ void median_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
         keel::f64 v = medianFromSlice(buf.data(), k);
         Value r = Value::scalar(v, ctx.engine->allocator());
         if (args[0].type() == ValueType::SINGLE)
-            r = narrowToSingle(std::move(r), ctx.engine->allocator());
-        outs[0] = std::move(r);
+            r = narrowToSingle(keel::move(r), ctx.engine->allocator());
+        outs[0] = keel::move(r);
         return;
     }
     if (omitNan) {
         rejectComplexOmitNan(args[0], "median");
         Value r = ::numkit::stats::nanmedian(args[0], dim, ctx.engine->allocator());
         if (args[0].type() == ValueType::SINGLE)
-            r = narrowToSingle(std::move(r), ctx.engine->allocator());
-        outs[0] = std::move(r);
+            r = narrowToSingle(keel::move(r), ctx.engine->allocator());
+        outs[0] = keel::move(r);
         return;
     }
     outs[0] = median(args[0], dim, ctx.engine->allocator());
@@ -644,7 +642,7 @@ void mode_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef
             if (vecdim::coversAllDims(set, args[0]))
                 flatten = true;
             else
-                vecdimSet = std::move(set);
+                vecdimSet = keel::move(set);
         }
     }
     auto *mr = ctx.engine->allocator();
@@ -655,9 +653,9 @@ void mode_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef
         Value c = vecdim::collapseDims(args[0], vecdimSet, mr);
         const keel::i32 lastd = keel::as<keel::i32>(c.dims().ndim());
         auto [v, cnt] = mode(c, lastd, mr);
-        outs[0] = vecdim::expandReduced(std::move(v), args[0], vecdimSet, mr);
+        outs[0] = vecdim::expandReduced(keel::move(v), args[0], vecdimSet, mr);
         if (nargout > 1)
-            outs[1] = vecdim::expandReduced(std::move(cnt), args[0], vecdimSet, mr);
+            outs[1] = vecdim::expandReduced(keel::move(cnt), args[0], vecdimSet, mr);
         if (nargout > 2)
             outs[2] = vecdim::expandReduced(computeModeCell(c, lastd, false, mr),
                                             args[0], vecdimSet, mr);
@@ -670,15 +668,15 @@ void mode_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef
             std::copy(src, src + args[0].numel(), flat.doubleDataMut());
         }
         auto [v, c] = mode(flat, 2, mr);
-        outs[0] = std::move(v);
-        if (nargout > 1) outs[1] = std::move(c);
+        outs[0] = keel::move(v);
+        if (nargout > 1) outs[1] = keel::move(c);
         if (nargout > 2) outs[2] = computeModeCell(args[0], 0, true, mr);
         return;
     }
     auto [v, c] = mode(args[0], dim, mr);
-    outs[0] = std::move(v);
+    outs[0] = keel::move(v);
     if (nargout > 1)
-        outs[1] = std::move(c);
+        outs[1] = keel::move(c);
     if (nargout > 2)
         outs[2] = computeModeCell(args[0], dim, false, mr);
 }
@@ -807,9 +805,9 @@ void corrcoef_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArra
             if (nargout >= 2) {
                 outs[1] = corrcoefPValues(R, n, mr);
             }
-            outs[0] = std::move(R);
+            outs[0] = keel::move(R);
             if (!outs[0].isComplex() && x.type() == ValueType::SINGLE)
-                outs[0] = narrowToSingle(std::move(outs[0]), mr);
+                outs[0] = narrowToSingle(keel::move(outs[0]), mr);
         } else {
             n = keel::as<keel::f64>(args[0].numel());         // corrcoef(x, y)
             Value x0 = (!args[0].isComplex() && args[0].type() == ValueType::SINGLE)
@@ -820,16 +818,16 @@ void corrcoef_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArra
             if (nargout >= 2) {
                 outs[1] = corrcoefPValues(R, n, mr);
             }
-            outs[0] = std::move(R);
+            outs[0] = keel::move(R);
             if (!outs[0].isComplex() &&
                 (args[0].type() == ValueType::SINGLE || args[1].type() == ValueType::SINGLE))
-                outs[0] = narrowToSingle(std::move(outs[0]), mr);
+                outs[0] = narrowToSingle(keel::move(outs[0]), mr);
         }
         if (nargout >= 3) {
             Value RL, RU;
             corrcoefConfBounds(outs[0], n, alpha, RL, RU, mr);
-            outs[2] = std::move(RL);
-            if (nargout >= 4) outs[3] = std::move(RU);
+            outs[2] = keel::move(RL);
+            if (nargout >= 4) outs[3] = keel::move(RU);
         }
         return;
     }
@@ -849,8 +847,8 @@ void corrcoef_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArra
             if (nargout >= 3) {
                 Value RL, RU;
                 corrcoefConfBounds(outs[0], keel::as<keel::f64>(nValid), alpha, RL, RU, mr);
-                outs[2] = std::move(RL);
-                if (nargout >= 4) outs[3] = std::move(RU);
+                outs[2] = keel::move(RL);
+                if (nargout >= 4) outs[3] = keel::move(RU);
             }
             return;
         }
@@ -861,8 +859,8 @@ void corrcoef_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArra
             if (nargout >= 3) {
                 Value RL, RU;
                 corrcoefConfBoundsPairwise(outs[0], MCounts, alpha, RL, RU, mr);
-                outs[2] = std::move(RL);
-                if (nargout >= 4) outs[3] = std::move(RU);
+                outs[2] = keel::move(RL);
+                if (nargout >= 4) outs[3] = keel::move(RU);
             }
         }
         return;
@@ -878,8 +876,8 @@ void corrcoef_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArra
         if (nargout >= 3) {
             Value RL, RU;
             corrcoefConfBounds(outs[0], keel::as<keel::f64>(nValid), alpha, RL, RU, mr);
-            outs[2] = std::move(RL);
-            if (nargout >= 4) outs[3] = std::move(RU);
+            outs[2] = keel::move(RL);
+            if (nargout >= 4) outs[3] = keel::move(RU);
         }
         return;
     }
@@ -890,8 +888,8 @@ void corrcoef_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArra
         if (nargout >= 3) {
             Value RL, RU;
             corrcoefConfBounds(outs[0], n, alpha, RL, RU, mr);
-            outs[2] = std::move(RL);
-            if (nargout >= 4) outs[3] = std::move(RU);
+            outs[2] = keel::move(RL);
+            if (nargout >= 4) outs[3] = keel::move(RU);
         }
     }
 }

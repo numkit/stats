@@ -63,7 +63,7 @@ LassoResult lasso(const Value &X, const Value &y, const Value &lambdas,
                              keel::MutArrayRef<keel::f64>(Bout.doubleDataMut(), p * nL),
                              keel::MutArrayRef<keel::f64>(intOut.doubleDataMut(), nL),
                              scratch.allocator());
-    return {std::move(Bout), std::move(intOut), std::move(lambdaOut)};
+    return {keel::move(Bout), keel::move(intOut), keel::move(lambdaOut)};
 }
 
 LassoResult lassoglm(const Value &X, const Value &y, GlmDistribution distr,
@@ -97,7 +97,7 @@ LassoResult lassoglm(const Value &X, const Value &y, GlmDistribution distr,
                                 keel::MutArrayRef<keel::f64>(Bout.doubleDataMut(), p * nL),
                                 keel::MutArrayRef<keel::f64>(intOut.doubleDataMut(), nL),
                                 scratch.allocator());
-    return {std::move(Bout), std::move(intOut), std::move(lambdaOut)};
+    return {keel::move(Bout), keel::move(intOut), keel::move(lambdaOut)};
 }
 
 } // namespace numkit::stats

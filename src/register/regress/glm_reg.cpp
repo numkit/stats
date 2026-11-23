@@ -17,8 +17,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -63,9 +61,9 @@ void glmfit_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         link = parseLink(linkStr.as_ref(), "glmfit");
     }
     auto r = glmfit(args[0], args[1], d, link, ctx.engine->allocator());
-    outs[0] = std::move(r.b);
-    if (nargout > 1) outs[1] = std::move(r.dev);
-    if (nargout > 2) outs[2] = std::move(r.stats);
+    outs[0] = keel::move(r.b);
+    if (nargout > 1) outs[1] = keel::move(r.dev);
+    if (nargout > 2) outs[2] = keel::move(r.stats);
 }
 
 void glmval_reg(keel::ArrayRef<Value> args, keel::usize nargout,
@@ -82,7 +80,7 @@ void glmval_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     auto customInvCb = [&ctx, &invHandle](keel::ArrayRef<Value> a, keel::MutArrayRef<Value> o,
                                           keel::Allocator * /*mr*/) {
         Value r = ctx.engine->callFunctionHandle(invHandle, a);
-        if (!o.empty()) o[0] = std::move(r);
+        if (!o.empty()) o[0] = keel::move(r);
     };
     FnHandle customInvLink;
     if (invHandle.isFuncHandle())
@@ -91,9 +89,9 @@ void glmval_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         args[0], args[1], args[2],
         keel::ArrayRef<Value>(args.data() + 3, args.size() - 3),
         nargout >= 2, customInvLink, ctx.engine->allocator());
-    outs[0] = std::move(res.yhat);
-    if (nargout > 1) outs[1] = std::move(res.dylo);
-    if (nargout > 2) outs[2] = std::move(res.dyhi);
+    outs[0] = keel::move(res.yhat);
+    if (nargout > 1) outs[1] = keel::move(res.dylo);
+    if (nargout > 2) outs[2] = keel::move(res.dyhi);
 }
 
 } // namespace detail

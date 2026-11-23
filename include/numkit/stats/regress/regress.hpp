@@ -12,7 +12,7 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/fn_handle.hpp>
 
-#include <tuple>
+#include <keel/tuple.h>
 
 
 namespace numkit::stats {
@@ -39,7 +39,7 @@ namespace numkit::stats {
 ///               The `rint` output (outlier intervals on residuals)
 ///               is not provided in this revision.
 /// @see ridge, lscov
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 regress(const Value &y, const Value &X, keel::f64 alpha,
         keel::Allocator *mr = nullptr);
 
@@ -85,7 +85,7 @@ Value ridge_full(const Value &y, const Value &X, const Value &kVec,
 ///            - `mse`  : mean squared error
 ///            - `S`    : coefficient covariance matrix.
 /// @see regress
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 lscov(const Value &A, const Value &b, const Value &w,
       keel::Allocator *mr = nullptr);
 
@@ -163,7 +163,7 @@ Value nlparci_full(const Value &beta, const Value &resid,
 /// @param engine Engine pointer (adapter passes `ctx.engine`).
 /// @param mr     Memory resource.
 /// @return       Tuple `(ypred, delta)` — predictions and CI half-widths.
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 nlpredci(FnHandle model, const Value &X, const Value &beta,
          const Value &R, const Value &J,
          keel::f64 alpha,

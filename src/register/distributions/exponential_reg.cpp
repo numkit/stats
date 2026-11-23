@@ -16,8 +16,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -46,7 +44,7 @@ void expcdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
     const Value &mu = dist_param(a, 1, 1.0, mr, hmu);
     Value v = broadcast_dist2(a[0], mu, mr, "expcdf", expcdfK);
     if (upper) applyUpperInPlace(v);
-    outs[0] = std::move(v);
+    outs[0] = keel::move(v);
 }
 
 void expinv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)

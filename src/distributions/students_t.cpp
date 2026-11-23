@@ -4,6 +4,7 @@
 // icdf; rnd uses Z / sqrt(X/ν) with Z ~ N(0,1), X ~ χ²(ν).
 
 #include <keel/core.h>
+#include <keel/tuple.h>
 #include <keel/math.h>
 #include <keel/memory.h>
 #include <keel/stats.h>
@@ -60,14 +61,14 @@ Value trnd(::numkit::ops::RngContext &rng, keel::f64 nu, keel::usize rows, keel:
     return out;
 }
 
-std::tuple<keel::f64, keel::f64> tstat(keel::f64 nu)
+keel::Tuple<keel::f64, keel::f64> tstat(keel::f64 nu)
 {
     const keel::f64 NaN = keel::Limits<keel::f64>::quiet_nan();
-    if (nu <= 0.0) return std::make_tuple(NaN, NaN);
+    if (nu <= 0.0) return keel::make_tuple(NaN, NaN);
     // mean defined only for nu > 1; variance only for nu > 2.
     const keel::f64 m = (nu > 1.0) ? 0.0 : NaN;
     const keel::f64 v = (nu > 2.0) ? (nu / (nu - 2.0)) : NaN;
-    return std::make_tuple(m, v);
+    return keel::make_tuple(m, v);
 }
 
 // ── Noncentral t ────────────────────────────────────────────────────
@@ -95,7 +96,7 @@ Value nctinv(const Value &p, keel::f64 nu, keel::f64 delta,
     return elementwise(p, [&](keel::f64 pi) { return nctinv_one(pi, nu, delta, mr); }, mr);
 }
 
-std::tuple<keel::f64, keel::f64> nctstat(keel::f64 nu, keel::f64 delta)
+keel::Tuple<keel::f64, keel::f64> nctstat(keel::f64 nu, keel::f64 delta)
 {
     const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
     if (!(nu > 0.0)) return {nan, nan};

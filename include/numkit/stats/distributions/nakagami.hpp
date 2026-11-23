@@ -10,7 +10,7 @@
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
-#include <tuple>
+#include <keel/tuple.h>
 
 namespace numkit {
 
@@ -84,7 +84,7 @@ Value nakarnd(::numkit::ops::RngContext &rng, keel::f64 mu, keel::f64 omega, kee
 /// @param omega  Spread parameter.
 /// @return       `{mean, variance}` pair.
 /// @see nakapdf
-std::tuple<keel::f64, keel::f64> nakastat(keel::f64 mu, keel::f64 omega);
+keel::Tuple<keel::f64, keel::f64> nakastat(keel::f64 mu, keel::f64 omega);
 
 
 /// @}

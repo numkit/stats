@@ -17,8 +17,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -103,8 +101,8 @@ void cophenet_reg(keel::ArrayRef<Value> args, keel::usize nargout,
 {
     argcheck::checkNargin(args.size(), 2, 2, "cophenet");
     auto [c, d] = cophenet_full(args[0], args[1], ctx.engine->allocator());
-    outs[0] = std::move(c);
-    if (nargout > 1) outs[1] = std::move(d);
+    outs[0] = keel::move(c);
+    if (nargout > 1) outs[1] = keel::move(d);
 }
 
 } // namespace detail

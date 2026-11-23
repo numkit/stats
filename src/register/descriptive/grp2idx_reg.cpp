@@ -13,8 +13,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -25,9 +23,9 @@ void grp2idx_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArray
 {
     argcheck::checkNargin(args.size(), 1, 1, "grp2idx");
     Grp2idxResult r = grp2idx(args[0], ctx.engine->allocator());
-    outs[0] = std::move(r.G);
-    if (nargout >= 2) outs[1] = std::move(r.GN);
-    if (nargout >= 3) outs[2] = std::move(r.GL);
+    outs[0] = keel::move(r.G);
+    if (nargout >= 2) outs[1] = keel::move(r.GN);
+    if (nargout >= 3) outs[2] = keel::move(r.GL);
 }
 
 } // namespace detail

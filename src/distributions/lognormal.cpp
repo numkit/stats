@@ -1,6 +1,7 @@
 // toolboxes/stats/src/distributions/lognormal.cpp
 
 #include <keel/core.h>
+#include <keel/tuple.h>
 #include <keel/math.h>
 #include <keel/memory.h>
 #include <keel/stats.h>
@@ -54,16 +55,16 @@ Value lognrnd(::numkit::ops::RngContext &rng, keel::f64 mu, keel::f64 sigma, kee
     return out;
 }
 
-std::tuple<keel::f64, keel::f64> lognstat(keel::f64 mu, keel::f64 sigma)
+keel::Tuple<keel::f64, keel::f64> lognstat(keel::f64 mu, keel::f64 sigma)
 {
     if (sigma <= 0.0) {
         const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
-        return std::make_tuple(nan, nan);
+        return keel::make_tuple(nan, nan);
     }
     const keel::f64 s2 = sigma * sigma;
     const keel::f64 mean = keel::exp(mu + 0.5 * s2);
     const keel::f64 var = keel::expm1(s2) * keel::exp(2.0 * mu + s2);
-    return std::make_tuple(mean, var);
+    return keel::make_tuple(mean, var);
 }
 
 } // namespace numkit::stats

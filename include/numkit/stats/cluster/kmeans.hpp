@@ -7,7 +7,7 @@
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
-#include <tuple>
+#include <keel/tuple.h>
 
 namespace numkit {
 
@@ -34,7 +34,7 @@ namespace numkit::stats {
 ///                      - `sumd` : K×1 within-cluster sum of squared distances.
 ///
 /// @see kmedoids, linkage
-std::tuple<Value, Value, Value>
+keel::Tuple<Value, Value, Value>
 kmeans(::numkit::ops::RngContext &rng, const Value &X, keel::i32 K, keel::i32 max_iter, keel::i32 replicates,
        keel::Allocator *mr = nullptr);
 

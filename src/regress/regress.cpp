@@ -4,6 +4,7 @@
 // regression, delegating numerical kernels to keel::stats.
 
 #include <keel/arena.h>
+#include <keel/tuple.h>
 #include <keel/array.h>
 #include <keel/core.h>
 #include <keel/memory.h>
@@ -65,7 +66,7 @@ void ridge_argcheck(const Value &y, const Value &X, const Value &kVec)
 
 } // namespace
 
-std::tuple<Value, Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value, Value>
 regress_full(const Value &y, const Value &X, keel::f64 alpha, keel::Allocator *mr)
 {
     regress_full_argcheck(y, X);
@@ -100,18 +101,18 @@ regress_full(const Value &y, const Value &X, keel::f64 alpha, keel::Allocator *m
     sd[1] = rs.f;
     sd[2] = rs.p_f;
     sd[3] = rs.sigma2;
-    return {std::move(bV), std::move(bintV), std::move(rV), std::move(rintV), std::move(statsV)};
+    return {keel::move(bV), keel::move(bintV), keel::move(rV), keel::move(rintV), keel::move(statsV)};
 }
 
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 regress(const Value &y, const Value &X, keel::f64 alpha, keel::Allocator *mr)
 {
     auto [b, bint, r, rint, stats] = regress_full(y, X, alpha, mr);
     (void)rint;
-    return {std::move(b), std::move(bint), std::move(r), std::move(stats)};
+    return {keel::move(b), keel::move(bint), keel::move(r), keel::move(stats)};
 }
 
-std::tuple<Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value>
 lscov(const Value &A, const Value &b, const Value &w, keel::Allocator *mr)
 {
     lscov_argcheck(A, b, w);
@@ -145,7 +146,7 @@ lscov(const Value &A, const Value &b, const Value &w, keel::Allocator *mr)
         throw Error("lscov: design matrix is rank-deficient",
                     0, 0, "lscov", "", "numkit:lscov:rank");
 
-    return {std::move(xV), std::move(stdxV), Value::scalar(mse, mr), std::move(SV)};
+    return {keel::move(xV), keel::move(stdxV), Value::scalar(mse, mr), keel::move(SV)};
 }
 
 Value ridge(const Value &y, const Value &X, const Value &kVec, bool scaled, keel::Allocator *mr)

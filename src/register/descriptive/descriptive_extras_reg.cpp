@@ -22,8 +22,6 @@
 #include <numkit/value/error.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -37,9 +35,9 @@ void prepareCurveData_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     Value w_empty = Value::matrix(0, 0, ValueType::DOUBLE, mr);
     const Value &w = (args.size() >= 3) ? args[2] : w_empty;
     auto [xo, yo, wo] = prepareCurveData(args[0], args[1], w, mr);
-    outs[0] = std::move(xo);
-    if (nargout > 1) outs[1] = std::move(yo);
-    if (nargout > 2) outs[2] = std::move(wo);
+    outs[0] = keel::move(xo);
+    if (nargout > 1) outs[1] = keel::move(yo);
+    if (nargout > 2) outs[2] = keel::move(wo);
 }
 
 void prepareSurfaceData_reg(keel::ArrayRef<Value> args, keel::usize nargout,
@@ -47,9 +45,9 @@ void prepareSurfaceData_reg(keel::ArrayRef<Value> args, keel::usize nargout,
 {
     argcheck::checkNargin(args.size(), 3, 4, "prepareSurfaceData");
     auto [xo, yo, zo] = prepareSurfaceData(args[0], args[1], args[2], ctx.engine->allocator());
-    outs[0] = std::move(xo);
-    if (nargout > 1) outs[1] = std::move(yo);
-    if (nargout > 2) outs[2] = std::move(zo);
+    outs[0] = keel::move(xo);
+    if (nargout > 1) outs[1] = keel::move(yo);
+    if (nargout > 2) outs[2] = keel::move(zo);
 }
 
 void ksdensity_reg(keel::ArrayRef<Value> args, keel::usize nargout,
@@ -145,7 +143,7 @@ void ksdensity_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                             supportLo, supportHi, boundary_correction.as_ref());
     if (nargout == 0) {
         if (const ExternalFunc *plotFn = ctx.engine->findExternal("plot", ctx.env)) {
-            Value plotArgs[2] = {std::move(R.xi), std::move(R.f)};
+            Value plotArgs[2] = {keel::move(R.xi), keel::move(R.f)};
             Value plotOut[1];
             (*plotFn)(keel::ArrayRef<Value>(plotArgs, 2), 0,
                       keel::MutArrayRef<Value>(plotOut, 1), ctx);
@@ -153,9 +151,9 @@ void ksdensity_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         outs[0] = Value();
         return;
     }
-    outs[0] = std::move(R.f);
-    if (nargout > 1) outs[1] = std::move(R.xi);
-    if (nargout > 2) outs[2] = std::move(R.bw);
+    outs[0] = keel::move(R.f);
+    if (nargout > 1) outs[1] = keel::move(R.xi);
+    if (nargout > 2) outs[2] = keel::move(R.bw);
 }
 
 void datastats_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
@@ -206,7 +204,7 @@ void bounds_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayR
             if (vecdim::coversAllDims(set, args[0]))
                 flatten = true;
             else
-                vecdimSet = std::move(set);
+                vecdimSet = keel::move(set);
         }
     }
     auto *mr = ctx.engine->allocator();
@@ -215,9 +213,9 @@ void bounds_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayR
         Value c = vecdim::collapseDims(args[0], vecdimSet, mr);
         const keel::i32 lastd = keel::as<keel::i32>(c.dims().ndim());
         auto [lo, hi] = bounds(c, lastd, mr);
-        outs[0] = vecdim::expandReduced(std::move(lo), args[0], vecdimSet, mr);
+        outs[0] = vecdim::expandReduced(keel::move(lo), args[0], vecdimSet, mr);
         if (nargout > 1)
-            outs[1] = vecdim::expandReduced(std::move(hi), args[0], vecdimSet, mr);
+            outs[1] = vecdim::expandReduced(keel::move(hi), args[0], vecdimSet, mr);
         return;
     }
     if (flatten) {
@@ -227,12 +225,12 @@ void bounds_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayR
             std::copy(src, src + args[0].numel(), flat.doubleDataMut());
         }
         auto [lo, hi] = bounds(flat, 2, mr);
-        outs[0] = std::move(lo);
-        if (nargout > 1) outs[1] = std::move(hi);
+        outs[0] = keel::move(lo);
+        if (nargout > 1) outs[1] = keel::move(hi);
     } else {
         auto [lo, hi] = bounds(args[0], dim, mr);
-        outs[0] = std::move(lo);
-        if (nargout > 1) outs[1] = std::move(hi);
+        outs[0] = keel::move(lo);
+        if (nargout > 1) outs[1] = keel::move(hi);
     }
 }
 
@@ -259,7 +257,7 @@ void iqr_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArray
             if (vecdim::coversAllDims(set, args[0]))
                 flatten = true;
             else
-                vecdimSet = std::move(set);
+                vecdimSet = keel::move(set);
         }
     }
     auto *mr = ctx.engine->allocator();
@@ -324,7 +322,7 @@ void maxk_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef
     Value idx;
     Value *idxPtr = (nargout >= 2) ? &idx : nullptr;
     outs[0] = topKAlongDim(args[0], dim, k, /*ascending=*/false, "maxk", mr, idxPtr, byAbs);
-    if (nargout >= 2) outs[1] = std::move(idx);
+    if (nargout >= 2) outs[1] = keel::move(idx);
 }
 
 void mink_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs, CallContext &ctx)
@@ -363,7 +361,7 @@ void mink_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef
     Value idx;
     Value *idxPtr = (nargout >= 2) ? &idx : nullptr;
     outs[0] = topKAlongDim(args[0], dim, k, /*ascending=*/true, "mink", mr, idxPtr, byAbs);
-    if (nargout >= 2) outs[1] = std::move(idx);
+    if (nargout >= 2) outs[1] = keel::move(idx);
 }
 
 // Common parser for mape/rmse trailing args: optional dim ('all', vecdim,
@@ -393,7 +391,7 @@ void parseDimOrAll(const Value &x, keel::ArrayRef<Value> args, keel::usize pos,
     if (vecdim::coversAllDims(set, x))
         flatten = true;
     else
-        vecdimSet = std::move(set);
+        vecdimSet = keel::move(set);
 }
 
 Value flattenToRow(const Value &x, keel::Allocator *mr)
@@ -514,10 +512,10 @@ void ecdf_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef
     }
     const bool want_bounds = (nargout > 2);
     auto R = ecdf_full(args[0], freq, function_mode.as_ref(), alpha, want_bounds, mr);
-    outs[0] = std::move(R.f);
-    if (nargout > 1) outs[1] = std::move(R.x);
-    if (nargout > 2) outs[2] = std::move(R.flo);
-    if (nargout > 3) outs[3] = std::move(R.fup);
+    outs[0] = keel::move(R.f);
+    if (nargout > 1) outs[1] = keel::move(R.x);
+    if (nargout > 2) outs[2] = keel::move(R.flo);
+    if (nargout > 3) outs[3] = keel::move(R.fup);
 }
 
 void ecdfhist_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs, CallContext &ctx)
@@ -527,8 +525,8 @@ void ecdfhist_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArra
     if (args.size() >= 3 && !args[2].isEmpty())
         m = keel::as<keel::i32>(argcheck::roundLength(args[2], 3, "m", "ecdfhist"));
     auto [n, c] = ecdfhist(args[0], args[1], m, ctx.engine->allocator());
-    outs[0] = std::move(n);
-    if (nargout > 1) outs[1] = std::move(c);
+    outs[0] = keel::move(n);
+    if (nargout > 1) outs[1] = keel::move(c);
 }
 
 // ── partialcorr adapter ──────────────────────────────────────────────
@@ -557,8 +555,8 @@ void partialcorr_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         args[0], y, z,
         keel::ArrayRef<Value>(args.data() + posN, args.size() - posN),
         nargout >= 2, ctx.engine->allocator());
-    outs[0] = std::move(r.rho);
-    if (nargout >= 2) outs[1] = std::move(r.p);
+    outs[0] = keel::move(r.rho);
+    if (nargout >= 2) outs[1] = keel::move(r.p);
 }
 
 // ── corr / detrend adapters ──────────────────────────────────────────
@@ -578,8 +576,8 @@ void corr_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef
                           keel::ArrayRef<Value>(args.data() + nvStart,
                                             args.size() - nvStart),
                           nargout >= 2, ctx.engine->allocator());
-    outs[0] = std::move(r.rho);
-    if (nargout >= 2) outs[1] = std::move(r.p);
+    outs[0] = keel::move(r.rho);
+    if (nargout >= 2) outs[1] = keel::move(r.p);
 }
 
 // detrend(A, ...) — marshalling only; the full parse+validate+
@@ -610,10 +608,10 @@ void isoutlier_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArr
     IsOutlierOut r = isoutlier_full(args[0],
                                     keel::ArrayRef<Value>(args.data() + 1, args.size() - 1),
                                     nargout > 1, mr);
-    outs[0] = std::move(r.tf);
-    if (nargout > 1) outs[1] = std::move(r.lo);
-    if (nargout > 2) outs[2] = std::move(r.hi);
-    if (nargout > 3) outs[3] = std::move(r.center);
+    outs[0] = keel::move(r.tf);
+    if (nargout > 1) outs[1] = keel::move(r.lo);
+    if (nargout > 2) outs[2] = keel::move(r.hi);
+    if (nargout > 3) outs[3] = keel::move(r.center);
 }
 
 void rmoutliers_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs, CallContext &ctx)
@@ -622,12 +620,12 @@ void rmoutliers_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutAr
     auto *mr = ctx.engine->allocator();
     RmOutliersOut r = rmoutliers_full(args[0],
                                       keel::ArrayRef<Value>(args.data() + 1, args.size() - 1), mr);
-    outs[0] = std::move(r.B);
-    if (nargout > 1) outs[1] = std::move(r.ind);
-    if (nargout > 2) outs[2] = std::move(r.tf);
-    if (nargout > 3) outs[3] = std::move(r.lo);
-    if (nargout > 4) outs[4] = std::move(r.hi);
-    if (nargout > 5) outs[5] = std::move(r.center);
+    outs[0] = keel::move(r.B);
+    if (nargout > 1) outs[1] = keel::move(r.ind);
+    if (nargout > 2) outs[2] = keel::move(r.tf);
+    if (nargout > 3) outs[3] = keel::move(r.lo);
+    if (nargout > 4) outs[4] = keel::move(r.hi);
+    if (nargout > 5) outs[5] = keel::move(r.center);
 }
 
 // fillmissing / rmmissing / standardizeMissing — marshalling only;
@@ -644,8 +642,8 @@ void fillmissing_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutA
     FillMissingOut r = fillmissing_full(args[0],
                                         keel::ArrayRef<Value>(args.data() + 1, args.size() - 1),
                                         nargout > 1, mr, callFn);
-    outs[0] = std::move(r.B);
-    if (nargout > 1) outs[1] = std::move(r.filled);
+    outs[0] = keel::move(r.B);
+    if (nargout > 1) outs[1] = keel::move(r.filled);
 }
 
 void rmmissing_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef<Value> outs, CallContext &ctx)
@@ -654,8 +652,8 @@ void rmmissing_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArr
     auto *mr = ctx.engine->allocator();
     RmMissingOut r = rmmissing_full(args[0],
                                     keel::ArrayRef<Value>(args.data() + 1, args.size() - 1), mr);
-    outs[0] = std::move(r.B);
-    if (nargout > 1) outs[1] = std::move(r.ind);
+    outs[0] = keel::move(r.B);
+    if (nargout > 1) outs[1] = keel::move(r.ind);
 }
 
 void standardizeMissing_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
@@ -692,7 +690,7 @@ void filloutliers_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
             sr == "samplepoints"    || sr == "outlierlocations") {
             // fall through — handled by NV loop below.
         } else {
-            detect = std::move(s);
+            detect = keel::move(s);
             const keel::StringRef detRef = detect.as_ref();
             if (detRef == "median" || detRef == "mean" || detRef == "quartiles") {
                 ++i;

@@ -11,7 +11,7 @@
 #include <keel/ref.h>
 #include <numkit/value/value.hpp>
 
-#include <tuple>
+#include <keel/tuple.h>
 
 namespace numkit::stats {
 
@@ -66,7 +66,7 @@ Value brk2knt(const Value &breaks, const Value &mults,
 /// @param mr     Memory resource (nullptr → process default).
 /// @return       `(breaks, mults)` pair.
 /// @see brk2knt
-std::tuple<Value, Value>
+keel::Tuple<Value, Value>
 knt2brk(const Value &knots, keel::Allocator *mr = nullptr);
 
 /// @brief Piecewise-polynomial constructor (`pp = ppmak(breaks, coefs, d)`).

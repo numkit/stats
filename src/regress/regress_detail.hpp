@@ -12,8 +12,7 @@
 
 #include <algorithm>
 #include <numeric>
-#include <tuple>
-#include <utility>
+#include <keel/tuple.h>
 
 
 namespace numkit::stats {
@@ -64,7 +63,7 @@ namespace {
 
 // regress_full: full regress() worker -> [b, bint, r, rint, stats]. Def in
 // regress.cpp (external).
-std::tuple<Value, Value, Value, Value, Value>
+keel::Tuple<Value, Value, Value, Value, Value>
 regress_full(const Value &y, const Value &X, keel::f64 alpha,
              keel::Allocator *mr);
 

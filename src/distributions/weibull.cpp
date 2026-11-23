@@ -1,6 +1,7 @@
 // toolboxes/stats/src/distributions/weibull.cpp
 
 #include <keel/core.h>
+#include <keel/tuple.h>
 #include <keel/math.h>
 #include <keel/memory.h>
 #include <keel/stats.h>
@@ -55,17 +56,17 @@ Value wblrnd(::numkit::ops::RngContext &rng, keel::f64 a, keel::f64 b, keel::usi
     return out;
 }
 
-std::tuple<keel::f64, keel::f64> wblstat(keel::f64 a, keel::f64 b)
+keel::Tuple<keel::f64, keel::f64> wblstat(keel::f64 a, keel::f64 b)
 {
     if (a <= 0.0 || b <= 0.0) {
         const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
-        return std::make_tuple(nan, nan);
+        return keel::make_tuple(nan, nan);
     }
     const keel::f64 g1 = keel::tgamma(1.0 + 1.0 / b);
     const keel::f64 g2 = keel::tgamma(1.0 + 2.0 / b);
     const keel::f64 mean = a * g1;
     const keel::f64 var  = a * a * (g2 - g1 * g1);
-    return std::make_tuple(mean, var);
+    return keel::make_tuple(mean, var);
 }
 
 } // namespace numkit::stats

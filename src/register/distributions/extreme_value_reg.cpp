@@ -16,8 +16,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -45,7 +43,7 @@ void evcdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     const keel::f64 sigma = (n >= 3) ? args[2].toScalar() : 1.0;
     Value v = evcdf(args[0], mu, sigma, ctx.engine->allocator());
     if (upper) applyUpperInPlace(v);
-    outs[0] = std::move(v);
+    outs[0] = keel::move(v);
 }
 
 void evinv_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,

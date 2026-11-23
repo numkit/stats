@@ -12,7 +12,7 @@
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 
-#include <tuple>
+#include <keel/tuple.h>
 
 namespace numkit {
 
@@ -85,7 +85,7 @@ Value wblrnd(::numkit::ops::RngContext &rng, keel::f64 a, keel::f64 b, keel::usi
 /// @param b  Shape parameter.
 /// @return   `{mean, variance}` pair.
 /// @see wblpdf
-std::tuple<keel::f64, keel::f64> wblstat(keel::f64 a, keel::f64 b);
+keel::Tuple<keel::f64, keel::f64> wblstat(keel::f64 a, keel::f64 b);
 
 /// @brief Weibull MLE fit (`[ahat, bhat] = wblfit(x)`).
 ///

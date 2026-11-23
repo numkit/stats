@@ -13,8 +13,6 @@
 #include <numkit/value/argcheck.hpp>
 
 #include <algorithm>
-#include <tuple>
-#include <utility>
 
 namespace numkit::stats {
 
@@ -26,8 +24,8 @@ void tiedrank_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     argcheck::checkNargin(args.size(), 1, 5, "tiedrank");
     auto *mr = ctx.engine->allocator();
     auto [r, ta] = tiedrank(args[0], mr);
-    outs[0] = std::move(r);
-    if (nargout > 1) outs[1] = std::move(ta);
+    outs[0] = keel::move(r);
+    if (nargout > 1) outs[1] = keel::move(ta);
 }
 
 } // namespace detail
