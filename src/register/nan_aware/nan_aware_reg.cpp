@@ -16,7 +16,6 @@
 #include "nan_aware/nan_aware_detail.hpp"
 #include <numkit/ops/reductions.hpp>
 
-#include <algorithm>
 
 #include "support/reduce_vecdim.hpp"
 

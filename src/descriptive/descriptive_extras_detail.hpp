@@ -4,6 +4,7 @@
 #pragma once
 
 #include <keel/core.h>
+#include <keel/algo.h>
 #include <keel/memory.h>
 #include <keel/ref.h>
 #include <keel/arena.h>
@@ -20,8 +21,6 @@
 #include <numkit/ops/quantile_select.hpp>   // ops::sliceQuantile (visible via the using-directive below)
 #include <numkit/builtin/polyfun.hpp>       // spline / pchip / makima
 
-#include <algorithm>
-#include <numeric>
 
 
 namespace numkit::stats {
@@ -186,11 +185,11 @@ namespace {
     // Vector / scalar — single-slice fast path.
     if (x.dims().isVector() || x.isScalar()) {
         const keel::usize n = x.numel();
-        const keel::usize k = std::min<keel::usize>(keel::as<keel::usize>(kReq), n);
+        const keel::usize k = keel::min<keel::usize>(keel::as<keel::usize>(kReq), n);
         keel::Array<keel::f64> vals(n);
         keel::Array<keel::usize> ord(n);
         for (keel::usize i = 0; i < n; ++i) { vals[i] = x.elemAsDouble(i); ord[i] = i; }
-        std::stable_sort(ord.begin(), ord.end(),
+        keel::stable_sort(ord.begin(), ord.end(),
                   [&](keel::usize ia, keel::usize ib) {
                       const keel::f64 a = byAbs ? keel::abs(vals[ia]) : vals[ia];
                       const keel::f64 b = byAbs ? keel::abs(vals[ib]) : vals[ib];
@@ -224,9 +223,9 @@ namespace {
     const keel::usize pageStride = R * C;
     keel::usize Ro = R, Co = C, Po = P;
     keel::usize sliceLen = 0;
-    if (d == 1)      { sliceLen = R; Ro = std::min<keel::usize>(keel::as<keel::usize>(kReq), R); }
-    else if (d == 2) { sliceLen = C; Co = std::min<keel::usize>(keel::as<keel::usize>(kReq), C); }
-    else if (d == 3) { sliceLen = P; Po = std::min<keel::usize>(keel::as<keel::usize>(kReq), P); }
+    if (d == 1)      { sliceLen = R; Ro = keel::min<keel::usize>(keel::as<keel::usize>(kReq), R); }
+    else if (d == 2) { sliceLen = C; Co = keel::min<keel::usize>(keel::as<keel::usize>(kReq), C); }
+    else if (d == 3) { sliceLen = P; Po = keel::min<keel::usize>(keel::as<keel::usize>(kReq), P); }
     else {
         // Out-of-rank → identity copy.
         return createLike(x, ValueType::DOUBLE, mr);
@@ -249,7 +248,7 @@ namespace {
     // lower position), leaving the sorted order in `ord`.
     auto sortSlice = [&]() {
         for (keel::usize i = 0; i < sliceLen; ++i) ord[i] = i;
-        std::stable_sort(ord.begin(), ord.end(),
+        keel::stable_sort(ord.begin(), ord.end(),
             [&](keel::usize ia, keel::usize ib) {
                 const keel::f64 a = byAbs ? keel::abs(buf[ia]) : buf[ia];
                 const keel::f64 b = byAbs ? keel::abs(buf[ib]) : buf[ib];
@@ -343,7 +342,7 @@ namespace {
         }
     }
     if (singular) {
-        std::fill(b.begin(), b.end(), 0.0);
+        keel::fill(b.begin(), b.end(), 0.0);
     } else {
         for (keel::usize kk = pC; kk-- > 0;) {
             keel::f64 s = b[kk];
@@ -566,7 +565,7 @@ struct FoDetect {
         if (k < 2) return r;
         const keel::f64 m = s / keel::f64(k);
         const keel::f64 v = (ss - keel::f64(k) * m * m) / keel::f64(k - 1);
-        const keel::f64 sd = keel::sqrt(std::max(0.0, v));
+        const keel::f64 sd = keel::sqrt(keel::max(0.0, v));
         const keel::f64 t = tf * sd;
         r.center = m; r.lo = m - t; r.hi = m + t;
     } else if (method == "quartiles") {
@@ -575,14 +574,14 @@ struct FoDetect {
         for (keel::usize i = 0; i < n; ++i)
             if (!keel::is_nan(x[i])) buf.push_back(x[i]);
         if (buf.size() < 4) return r;
-        std::sort(buf.begin(), buf.end());
+        keel::sort(buf.begin(), buf.end());
         // The reference engine uses the linear-interpolation 'lower'
         // definition for quartiles by default (R-default '7' percentile rule).
         auto quant = [&](keel::f64 p) {
             const keel::f64 h = (keel::f64(buf.size()) - 1.0) * p;
             const keel::usize f = keel::as<keel::usize>(keel::floor(h));
             const keel::f64 frac = h - keel::f64(f);
-            const keel::usize g = std::min(f + 1, buf.size() - 1);
+            const keel::usize g = keel::min(f + 1, buf.size() - 1);
             return buf[f] + frac * (buf[g] - buf[f]);
         };
         const keel::f64 q1 = quant(0.25);
@@ -597,7 +596,7 @@ struct FoDetect {
         for (keel::usize i = 0; i < n; ++i)
             if (!keel::is_nan(x[i])) buf.push_back(x[i]);
         if (buf.empty()) return r;
-        std::sort(buf.begin(), buf.end());
+        keel::sort(buf.begin(), buf.end());
         auto medOf = [](const keel::Array<keel::f64> &v) {
             const keel::usize k = v.size();
             return (k % 2 == 1) ? v[k / 2]
@@ -607,7 +606,7 @@ struct FoDetect {
         keel::Array<keel::f64> dev;
         dev.reserve(buf.size());
         for (keel::f64 v : buf) dev.push_back(keel::abs(v - med));
-        std::sort(dev.begin(), dev.end());
+        keel::sort(dev.begin(), dev.end());
         const keel::f64 mad = medOf(dev);
         // Normal-consistency constant: 1/norminv(0.75)
         // = -1/(sqrt(2)*erfcinv(3/2)) ≈ 1.4826022185056.
@@ -654,12 +653,12 @@ struct FoDetect {
         keel::f64 center, scale;
         if (isMedian) {
             keel::Array<keel::f64> w = win.clone();
-            std::sort(w.begin(), w.end());
+            keel::sort(w.begin(), w.end());
             center = medOf(w);
             keel::Array<keel::f64> dev;
             dev.reserve(win.size());
             for (keel::f64 v : win) dev.push_back(keel::abs(v - center));
-            std::sort(dev.begin(), dev.end());
+            keel::sort(dev.begin(), dev.end());
             scale = 1.4826022185056 * medOf(dev);
         } else {
             keel::f64 s = 0.0;
@@ -695,7 +694,7 @@ struct FoDetect {
     for (keel::usize i = 0; i < n; ++i)
         if (!keel::is_nan(x[i])) buf.push_back(x[i]);
     if (buf.empty()) return r;
-    std::sort(buf.begin(), buf.end());
+    keel::sort(buf.begin(), buf.end());
     auto prc = [&](keel::f64 p) {
         const keel::f64 q = p / 100.0 * keel::f64(buf.size()) - 0.5;
         if (q <= 0.0) return buf.front();

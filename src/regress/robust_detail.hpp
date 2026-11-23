@@ -4,6 +4,7 @@
 #pragma once
 
 #include <keel/array.h>
+#include <keel/algo.h>
 #include <keel/core.h>
 #include <keel/ref.h>
 #include <keel/math.h>
@@ -11,8 +12,6 @@
 #include <numkit/value/error.hpp>
 #include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
 
-#include <algorithm>
-#include <numeric>
 
 
 namespace numkit::stats {
@@ -73,7 +72,7 @@ bool gaussSolve(keel::f64 *M, keel::f64 *b, keel::usize p)
         b[i] = s;
     }
     if (!gaussSolve(M.data(), b.data(), p))
-        std::fill(b.begin(), b.end(), keel::Limits<keel::f64>::quiet_nan());
+        keel::fill(b.begin(), b.end(), keel::Limits<keel::f64>::quiet_nan());
     return b;
 }
 
@@ -89,7 +88,7 @@ constexpr keel::f64 kSqrtEps = 1.4901161193847656e-08;  // sqrt(eps)
     const keel::f64 a = keel::abs(u);
     switch (wt) {
         case RobustWeight::Andrews: {
-            const keel::f64 r = std::max(kSqrtEps, a);
+            const keel::f64 r = keel::max(kSqrtEps, a);
             return (r < keel::kPi) ? keel::sin(r) / r : 0.0;
         }
         case RobustWeight::Bisquare: {
@@ -99,9 +98,9 @@ constexpr keel::f64 kSqrtEps = 1.4901161193847656e-08;  // sqrt(eps)
         }
         case RobustWeight::Cauchy:   return 1.0 / (1.0 + u * u);
         case RobustWeight::Fair:     return 1.0 / (1.0 + a);
-        case RobustWeight::Huber:    return 1.0 / std::max(1.0, a);
+        case RobustWeight::Huber:    return 1.0 / keel::max(1.0, a);
         case RobustWeight::Logistic: {
-            const keel::f64 r = std::max(kSqrtEps, a);
+            const keel::f64 r = keel::max(kSqrtEps, a);
             return keel::tanh(r) / r;
         }
         case RobustWeight::Ols:      return 1.0;
@@ -134,7 +133,7 @@ constexpr keel::f64 kSqrtEps = 1.4901161193847656e-08;  // sqrt(eps)
     const keel::usize n = r_in.size();
     keel::Array<keel::f64> r(n);
     for (keel::usize i = 0; i < n; ++i) r[i] = keel::abs(r_in[i]);
-    std::sort(r.begin(), r.end());
+    keel::sort(r.begin(), r.end());
     const keel::usize start = (p >= 1) ? (p - 1) : 0;   // 0-based first kept
     const keel::usize m = (start < n) ? (n - start) : 0;
     if (m == 0) return 0.0;
@@ -209,7 +208,7 @@ constexpr keel::f64 kSqrtEps = 1.4901161193847656e-08;  // sqrt(eps)
                 t += inv[j * p + k] * X[k * n + i];
             s += X[j * n + i] * t;
         }
-        h[i] = std::min(0.9999, s);
+        h[i] = keel::min(0.9999, s);
     }
     return h;
 }

@@ -15,7 +15,6 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
-#include <algorithm>
 
 
 namespace numkit::stats {
@@ -78,7 +77,7 @@ inline keel::f64 nbin_inv_scalar(keel::f64 qival, keel::f64 r, keel::f64 p) {
     const keel::f64 q1m = 1.0 - p;
     keel::f64 pmf = keel::pow(p, r);   // pmf(0)
     keel::f64 cdf = pmf;
-    const keel::f64 tol = std::max(1e-13, qival * 1e-13);
+    const keel::f64 tol = keel::max(1e-13, qival * 1e-13);
     if (cdf >= qival - tol) return 0.0;
     for (keel::f64 k = 0.0; k < 1e12; k += 1.0) {
         pmf *= (k + r) / (k + 1.0) * q1m;

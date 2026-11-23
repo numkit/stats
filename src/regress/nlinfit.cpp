@@ -19,7 +19,6 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/fn_handle.hpp>
 
-#include <algorithm>
 #include <keel/static_array.h>
 
 namespace numkit::stats {
@@ -67,10 +66,10 @@ keel::Array<keel::f64> numericalJacobian(FnHandle model,
 {
     keel::Array<keel::f64> J(n * p);
     keel::Array<keel::f64> bplus(beta.size()), bminus(beta.size());
-    std::copy(beta.begin(), beta.end(), bplus.begin());
-    std::copy(beta.begin(), beta.end(), bminus.begin());
+    keel::copy(beta.begin(), beta.end(), bplus.begin());
+    keel::copy(beta.begin(), beta.end(), bminus.begin());
     for (keel::usize j = 0; j < p; ++j) {
-        const keel::f64 scale = std::max(keel::abs(beta[j]), 1.0);
+        const keel::f64 scale = keel::max(keel::abs(beta[j]), 1.0);
         const keel::f64 h = 1e-7 * scale;
         bplus[j]  = beta[j] + h;
         bminus[j] = beta[j] - h;
@@ -360,7 +359,7 @@ nlpredci(FnHandle model, const Value &X, const Value &beta,
     auto bplus = betaFlat.clone();
     auto bminus = betaFlat.clone();
     for (keel::usize j = 0; j < p; ++j) {
-        const keel::f64 scale = std::max(keel::abs(betaFlat[j]), 1.0);
+        const keel::f64 scale = keel::max(keel::abs(betaFlat[j]), 1.0);
         const keel::f64 h = 1e-7 * scale;
         bplus[j]  = betaFlat[j] + h;
         bminus[j] = betaFlat[j] - h;

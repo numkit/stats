@@ -3,6 +3,7 @@
 // Descriptive stats extras (B2): bounds, iqr, maxk, mink, rmse.
 
 #include <keel/core.h>
+#include <keel/algo.h>
 #include <keel/tuple.h>
 #include <keel/memory.h>
 #include <keel/ref.h>
@@ -25,7 +26,6 @@
 #include <numkit/ops/helpers.hpp>
 #include <numkit/ops/reductions.hpp>
 
-#include <algorithm>
 
 #include "descriptive_extras_detail.hpp"
 #include "descriptive_detail.hpp"   // narrowToSingle
@@ -113,7 +113,7 @@ Value rmse(const Value &f, const Value &a, keel::i32 dim, keel::Allocator *mr)
 {
     rmse_argcheck(f, a);
     // Build the squared-difference array, then reduce.
-    const keel::usize n = std::max(f.numel(), a.numel());
+    const keel::usize n = keel::max(f.numel(), a.numel());
     auto diff = (f.numel() >= a.numel())
                   ? createLike(f, ValueType::DOUBLE, mr)
                   : createLike(a, ValueType::DOUBLE, mr);
@@ -151,7 +151,7 @@ Value rmse(const Value &f, const Value &a, keel::i32 dim, keel::Allocator *mr)
 Value mape(const Value &f, const Value &a, keel::i32 dim, keel::Allocator *mr)
 {
     mape_argcheck(f, a);
-    const keel::usize n = std::max(f.numel(), a.numel());
+    const keel::usize n = keel::max(f.numel(), a.numel());
     auto pct = (f.numel() >= a.numel())
                   ? createLike(f, ValueType::DOUBLE, mr)
                   : createLike(a, ValueType::DOUBLE, mr);
@@ -257,7 +257,7 @@ Value partialcorr_of(const Value &X, const Value &Y, const Value &Z, keel::Alloc
                 }
             }
             if (singular) {
-                std::fill(coef.begin(), coef.end(), 0.0);
+                keel::fill(coef.begin(), coef.end(), 0.0);
             } else {
                 // Back-substitute.
                 for (keel::usize kk = pZ1; kk-- > 0;) {
@@ -356,7 +356,7 @@ Value partialcorr_xx(const Value &X, keel::Allocator *mr)
     for (keel::usize i = 0; i < p; ++i) {
         for (keel::usize j = i + 1; j < p; ++j) {
             // Build C column-major: col 0 = intercept, then X cols ≠ i, j.
-            std::fill(C.begin(), C.end(), 0.0);
+            keel::fill(C.begin(), C.end(), 0.0);
             for (keel::usize k = 0; k < m; ++k) C[k + 0 * m] = 1.0;
             keel::usize cidx = 1;
             for (keel::usize k = 0; k < p; ++k) {
@@ -366,7 +366,7 @@ Value partialcorr_xx(const Value &X, keel::Allocator *mr)
                 ++cidx;
             }
             // MM = C' · C  (column-major pC × pC).
-            std::fill(MM.begin(), MM.end(), 0.0);
+            keel::fill(MM.begin(), MM.end(), 0.0);
             for (keel::usize a = 0; a < pC; ++a)
                 for (keel::usize b = 0; b < pC; ++b) {
                     keel::f64 s = 0.0;
@@ -520,8 +520,8 @@ Value detrendBP_of(const Value &x, keel::ArrayRef<keel::f64> bpUser,
         if (off > 0.0 && off < keel::as<keel::f64>(N - 1)) bps.push_back(off);
     }
     bps.push_back(keel::as<keel::f64>(N - 1));
-    std::sort(bps.begin(), bps.end());
-    bps.resize(std::unique(bps.begin(), bps.end()) - bps.begin());
+    keel::sort(bps.begin(), bps.end());
+    bps.resize(keel::unique(bps.begin(), bps.end()) - bps.begin());
     const keel::usize lb = bps.size() - 1;
     const keel::usize k = lb + 1;
 
@@ -597,7 +597,7 @@ Value filloutliers_of(const Value &x,
                             ? keel::as<keel::usize>(x.dims().dim(1)) : 1;
     auto out = Value::matrix(r, c, ValueType::DOUBLE, mr);
     keel::f64 *od = out.doubleDataMut();
-    std::copy(xd, xd + n, od);
+    keel::copy(xd, xd + n, od);
 
     // Parse fill arg: scalar numeric → constant fill; string → method.
     bool fill_is_constant = false;
@@ -767,7 +767,7 @@ ErrorMetricOpts parseErrorMetricOpts(keel::ArrayRef<Value> tail,
                                 0, 0, fn, "",
                                 keel::format("numkit:{}:invalidWeight", fn));
             }
-            const keel::usize dn = std::max(F.numel(), A.numel());
+            const keel::usize dn = keel::max(F.numel(), A.numel());
             const bool okSize =
                 (w.numel() == dn) ||
                 (w.dims().isVector() && w.numel() == dimLen) ||
@@ -833,7 +833,7 @@ Value rmse(const Value &f, const Value &a, keel::i32 dim, const ErrorMetricOpts 
                          a.type() == ValueType::SINGLE);
     // Per-element metric on the (scalar-expanded) difference: |A-F|^2
     // (complex: real^2 + imag^2 — real result, probe71 E07).
-    const keel::usize n = std::max(f.numel(), a.numel());
+    const keel::usize n = keel::max(f.numel(), a.numel());
     keel::ArenaTemp sc = keel::get_scratch(mr);
     keel::Array<keel::f64> X(n, 0.0, sc.allocator());
     const bool fCpx = f.type() == ValueType::COMPLEX;
@@ -859,7 +859,7 @@ Value rmse(const Value &f, const Value &a, keel::i32 dim, const ErrorMetricOpts 
     const auto &fd = f.dims();
     const keel::usize r = keel::as<keel::usize>(fd.dim(0));
     const keel::usize c = (fd.ndim() >= 2)
-        ? keel::as<keel::usize>(fd.numel() / std::max<keel::usize>(r, 1)) : 1;
+        ? keel::as<keel::usize>(fd.numel() / keel::max<keel::usize>(r, 1)) : 1;
     // Treat the inputs in the (dim-1 columns) layout like the rest of
     // the family: flatten when the shapes are vectors (the old
     // behaviour) — the reg normalizes vecdim/'all' away.
@@ -918,7 +918,7 @@ Value mape(const Value &f, const Value &a, keel::i32 dim, const ErrorMetricOpts 
         fn, "A");
     const bool single = (f.type() == ValueType::SINGLE ||
                          a.type() == ValueType::SINGLE);
-    const keel::usize n = std::max(f.numel(), a.numel());
+    const keel::usize n = keel::max(f.numel(), a.numel());
     keel::ArenaTemp sc = keel::get_scratch(mr);
     keel::Array<keel::f64> X(n, 0.0, sc.allocator());
     keel::Array<char> madeNaN(n, 0, sc.allocator());
@@ -946,7 +946,7 @@ Value mape(const Value &f, const Value &a, keel::i32 dim, const ErrorMetricOpts 
     const auto &fd = f.dims();
     const keel::usize r = keel::as<keel::usize>(fd.dim(0));
     const keel::usize c = (fd.ndim() >= 2)
-        ? keel::as<keel::usize>(fd.numel() / std::max<keel::usize>(r, 1)) : 1;
+        ? keel::as<keel::usize>(fd.numel() / keel::max<keel::usize>(r, 1)) : 1;
     const bool along2 = (d == 2);
     const keel::usize runLen = along2 ? c : r;
     const keel::usize nRuns = along2 ? r : c;
@@ -1125,10 +1125,10 @@ Value trimmean_of(const Value &x, keel::f64 pct, keel::i32 dim, bool useFloor,
             const keel::f64 kf = keel::as<keel::f64>(n) * p / 200.0;
             const keel::usize k = useFloor
                 ? keel::as<keel::usize>(keel::floor(kf))
-                : keel::as<keel::usize>(std::max(0.0, keel::ceil(kf - 0.5)));
+                : keel::as<keel::usize>(keel::max(0.0, keel::ceil(kf - 0.5)));
             if (2 * k >= n) return keel::Limits<keel::f64>::quiet_nan();
             keel::Array<keel::f64> buf(keel::ArrayRef<keel::f64>(s, n));
-            std::sort(buf.begin(), buf.end());
+            keel::sort(buf.begin(), buf.end());
             keel::f64 sum = 0.0;
             for (keel::usize i = k; i < n - k; ++i) sum += buf[i];
             return sum / keel::as<keel::f64>(n - 2 * k);
@@ -1201,7 +1201,7 @@ ksdensity_full(const Value &x, const Value &pts, keel::f64 bw_user, keel::String
     // Sort xv and wv jointly.
     keel::Array<keel::usize> idx(N);
     for (keel::usize i = 0; i < N; ++i) idx[i] = i;
-    std::sort(idx.begin(), idx.end(),
+    keel::sort(idx.begin(), idx.end(),
               [&](keel::usize a, keel::usize b) { return xv[a] < xv[b]; });
     keel::Array<keel::f64> xs(N), ws(N);
     for (keel::usize i = 0; i < N; ++i) { xs[i] = xv[idx[i]]; ws[i] = wv[idx[i]]; }
@@ -1217,7 +1217,7 @@ ksdensity_full(const Value &x, const Value &pts, keel::f64 bw_user, keel::String
                                         : 0.5 * (tmp[N / 2 - 1] + tmp[N / 2]);
         keel::Array<keel::f64> dev(N);
         for (keel::usize i = 0; i < N; ++i) dev[i] = keel::abs(xs[i] - med);
-        std::sort(dev.begin(), dev.end());
+        keel::sort(dev.begin(), dev.end());
         const keel::f64 mad = (N % 2 == 1) ? dev[N / 2]
                                         : 0.5 * (dev[N / 2 - 1] + dev[N / 2]);
         keel::f64 sigma = (mad > 0.0) ? mad / 0.6745 : 0.0;
@@ -1298,11 +1298,11 @@ ksdensity_full(const Value &x, const Value &pts, keel::f64 bw_user, keel::String
             const keel::f64 lo = q - cutoff;
             const keel::f64 hi = q + cutoff;
             i0 = keel::as<keel::usize>(
-                std::lower_bound(xs.begin(), xs.end(), lo) - xs.begin());
+                keel::lower_bound(xs.begin(), xs.end(), lo) - xs.begin());
             if (i0 >= N) i0 = N - 1;
             const keel::usize rIdx = keel::as<keel::usize>(
-                std::lower_bound(xs.begin(), xs.end(), hi) - xs.begin());
-            i1 = std::min(N, rIdx + 1);
+                keel::lower_bound(xs.begin(), xs.end(), hi) - xs.begin());
+            i1 = keel::min(N, rIdx + 1);
         }
         keel::f64 sum = 0.0;
         for (keel::usize i = i0; i < i1; ++i)
@@ -1343,10 +1343,10 @@ ksdensity_full(const Value &x, const Value &pts, keel::f64 bw_user, keel::String
                 const keel::f64 lo = q - cutoff;
                 const keel::f64 hi = q + cutoff;
                 i0 = keel::as<keel::usize>(
-                    std::lower_bound(xs.begin(), xs.end(), lo) - xs.begin());
+                    keel::lower_bound(xs.begin(), xs.end(), lo) - xs.begin());
                 const keel::usize rIdx = keel::as<keel::usize>(
-                    std::lower_bound(xs.begin(), xs.end(), hi) - xs.begin());
-                i1 = std::min(N, rIdx + 1);
+                    keel::lower_bound(xs.begin(), xs.end(), hi) - xs.begin());
+                i1 = keel::min(N, rIdx + 1);
             }
             keel::f64 sum = w_prefix[i0];
             for (keel::usize i = i0; i < i1; ++i)
@@ -1366,13 +1366,13 @@ ksdensity_full(const Value &x, const Value &pts, keel::f64 bw_user, keel::String
                 F = evalRawCdf(xq);
                 if (hasLo) F -= evalRawCdf(2.0 * supportLo - xq);
                 if (hasHi) F += (1.0 - evalRawCdf(2.0 * supportHi - xq));
-                F = std::clamp(F, 0.0, 1.0);
+                F = keel::clamp(F, 0.0, 1.0);
             } else {
                 F = evalRawCdf(xq);
             }
             if      (modeRef == "cdf")      fd[j] = F;
             else if (modeRef == "survivor") fd[j] = 1.0 - F;
-            else                            fd[j] = -keel::log(std::max(1.0 - F, 1e-300));
+            else                            fd[j] = -keel::log(keel::max(1.0 - F, 1e-300));
         }
     } else if (modeRef == "icdf") {
         // Inverse CDF: the `grid` values are PROBABILITIES p in [0, 1].
@@ -1573,7 +1573,7 @@ datastats(const Value &x, keel::Allocator *mr)
     const keel::f64 mean = sum / keel::as<keel::f64>(N);
 
     keel::Array<keel::f64> sorted = v.clone();
-    std::sort(sorted.begin(), sorted.end());
+    keel::sort(sorted.begin(), sorted.end());
     keel::f64 median;
     if (N % 2 == 1) median = sorted[N / 2];
     else            median = 0.5 * (sorted[N / 2 - 1] + sorted[N / 2]);
@@ -1735,7 +1735,7 @@ EcdfFull ecdf_full(const Value &y, const Value *freq, keel::StringRef function_m
         R.fup = Value::matrix(0, 1, ValueType::DOUBLE, mr);
         return R;
     }
-    std::sort(vw.begin(), vw.end(),
+    keel::sort(vw.begin(), vw.end(),
               [](const auto &a, const auto &b) { return a.first < b.first; });
 
     const keel::f64 N = Wtotal;

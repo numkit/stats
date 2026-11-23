@@ -4,6 +4,7 @@
 #pragma once
 
 #include <keel/core.h>
+#include <keel/algo.h>
 #include <keel/memory.h>
 #include <keel/ref.h>
 #include <keel/arena.h>
@@ -17,8 +18,6 @@
 #include <numkit/value/error.hpp>
 #include <numkit/ops/reductions.hpp>  // numkit::builtin::detail dim-infra (engine-free, ops re-export)
 
-#include <algorithm>
-#include <numeric>
 
 
 namespace numkit::stats {
@@ -326,7 +325,7 @@ Value movingDriverDim(const Value &x, const Window &w, keel::i32 dim, const MovO
         const keel::f64 kb = opt.sp_kb;
         const keel::f64 kf = opt.sp_kf;
         const keel::f64 span = (n > 1) ? keel::abs(t[n - 1] - t[0]) : 1.0;
-        const keel::f64 tol = 1e-12 * std::max(1.0, span);
+        const keel::f64 tol = 1e-12 * keel::max(1.0, span);
         auto buf = keel::Array<keel::f64>(n + 2, scratch.allocator());
         keel::usize outI = 0;
         for (keel::usize i = 0; i < n; ++i) {
@@ -397,7 +396,7 @@ Value movingDriverDim(const Value &x, const Window &w, keel::i32 dim, const MovO
             if (L == 0) return 0;
             const auto &t = opt.sample_points;
             const keel::f64 span = (L > 1) ? keel::abs(t[L - 1] - t[0]) : 1.0;
-            const keel::f64 tol = 1e-12 * std::max(1.0, span);
+            const keel::f64 tol = 1e-12 * keel::max(1.0, span);
             keel::usize cnt = 0;
             for (keel::usize i = 0; i < L; ++i) {
                 if (t[i] - opt.sp_kb >= t[0] - tol && t[i] + opt.sp_kf <= t[L - 1] + tol)
@@ -492,7 +491,7 @@ Value movingDriverDim(const Value &x, const Window &w, keel::i32 dim, const MovO
             }
     } else {
         // Trailing-singleton or out-of-rank: identity copy (legacy behaviour).
-        std::copy(src, src + x.numel(), dst);
+        keel::copy(src, src + x.numel(), dst);
     }
     return out;
 }
@@ -545,7 +544,7 @@ keel::f64 winMedianInPlace(keel::f64 *w, keel::usize n)
     if (n == 0) return keel::Limits<keel::f64>::quiet_nan();
     if (n == 1) return w[0];
     const keel::usize mid = n / 2;
-    std::nth_element(w, w + mid, w + n);
+    keel::nth_element(w, w + mid, w + n);
     if (n % 2 == 1)
         return w[mid];
     const keel::f64 upper = w[mid];
@@ -581,7 +580,7 @@ keel::f64 winMadInPlace(keel::f64 *w, keel::usize n, const keel::ArenaTemp &scra
 {
     if (n == 0) return keel::Limits<keel::f64>::quiet_nan();
     auto copy = keel::Array<keel::f64>(n, scratch.allocator());
-    std::copy(w, w + n, copy.data());
+    keel::copy(w, w + n, copy.data());
     const keel::f64 med = winMedianInPlace(copy.data(), n);
     auto devs = keel::Array<keel::f64>(n, scratch.allocator());
     for (keel::usize i = 0; i < n; ++i) devs[i] = keel::abs(w[i] - med);
@@ -715,11 +714,11 @@ Value movmedian_impl(const Value &x, keel::ArrayRef<keel::usize> k, const MovOpt
     Value out = movingDriverDim(xd, w, d, opt, [](const keel::f64 *win, keel::usize n) {
             keel::f64 tmp[1024];   // typical k <= a few hundred
             if (n <= sizeof(tmp) / sizeof(tmp[0])) {
-                std::copy(win, win + n, tmp);
+                keel::copy(win, win + n, tmp);
                 return winMedianInPlace(tmp, n);
             }
             keel::Array<keel::f64> heap(n);
-            std::copy(win, win + n, heap.data());
+            keel::copy(win, win + n, heap.data());
             return winMedianInPlace(heap.data(), n);
         }, mr);
     if (isIntegerType(ot)) {
@@ -762,7 +761,7 @@ Value movmad_impl(const Value &x, keel::ArrayRef<keel::usize> k, const MovOpts &
     return movingDriverDim(x, w, d, opt, [mr](const keel::f64 *win, keel::usize n) -> keel::f64 {
             keel::ArenaTemp local = keel::get_scratch(mr);
             auto buf = keel::Array<keel::f64>(n, local.allocator());
-            std::copy(win, win + n, buf.data());
+            keel::copy(win, win + n, buf.data());
             return winMadInPlace(buf.data(), n, local);
         }, mr);
 }

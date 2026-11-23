@@ -3,6 +3,7 @@
 // mvnpdf / mvtpdf / mnpdf — closed-form multivariate PDFs/PMFs.
 
 #include <keel/arena.h>
+#include <keel/algo.h>
 #include <keel/array.h>
 #include <keel/core.h>
 #include <keel/format.h>
@@ -14,7 +15,6 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 
-#include <algorithm>
 
 namespace numkit::stats {
 
@@ -256,7 +256,7 @@ Value mvtpdfCompute(const Value &X, const Value &C, const Value &df,
     keel::ArenaTemp scratch = keel::get_scratch(mr);
     keel::Array<keel::f64> dfv(n, scratch.allocator());
     if (df.isScalar()) {
-        std::fill(dfv.begin(), dfv.end(), df.elemAsDouble(0));
+        keel::fill(dfv.begin(), dfv.end(), df.elemAsDouble(0));
     } else if (df.dims().isVector() && df.numel() == n) {
         for (keel::usize r = 0; r < n; ++r) dfv[r] = df.elemAsDouble(r);
     } else {

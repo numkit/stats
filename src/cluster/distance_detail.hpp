@@ -4,6 +4,7 @@
 #pragma once
 
 #include <keel/core.h>
+#include <keel/algo.h>
 #include <keel/math.h>
 #include <keel/format.h>
 #include <keel/memory.h>
@@ -15,8 +16,6 @@
 #include <numkit/value/error.hpp>
 #include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
 
-#include <algorithm>
-#include <numeric>
 
 
 namespace numkit::stats {
@@ -106,7 +105,7 @@ inline void invert_small(keel::f64 *A, keel::usize D,
         for (keel::usize r = 0; r < M; ++r) mean[c] += X.elemAsDouble(c * M + r);
         mean[c] /= keel::as<keel::f64>(M);
     }
-    std::fill(cov_out, cov_out + D * D, 0.0);
+    keel::fill(cov_out, cov_out + D * D, 0.0);
     keel::Array<keel::f64> dev(D, scratch_mr);
     for (keel::usize r = 0; r < M; ++r) {
         for (keel::usize c = 0; c < D; ++c)
@@ -131,7 +130,7 @@ inline keel::f64 mahal_distance(const keel::f64 *u, const keel::f64 *v, keel::us
         for (keel::usize b = 0; b < D; ++b) row += Cinv[a * D + b] * diff[b];
         s += diff[a] * row;
     }
-    return keel::sqrt(std::max(0.0, s));
+    return keel::sqrt(keel::max(0.0, s));
 }
 
 // Standardized-euclidean distance: √Σ((xₖ−yₖ)·inv_scaleₖ)². `inv_scale[k]`
@@ -276,7 +275,7 @@ inline void tiedrank_row(const keel::f64 *v, keel::usize D, keel::f64 *r,
 {
     keel::Array<keel::usize> idx(D, scratch_mr);
     for (keel::usize k = 0; k < D; ++k) idx[k] = k;
-    std::sort(idx.begin(), idx.end(),
+    keel::sort(idx.begin(), idx.end(),
               [&](keel::usize a, keel::usize b) { return v[a] < v[b]; });
     keel::usize i = 0;
     while (i < D) {

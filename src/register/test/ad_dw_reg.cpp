@@ -17,7 +17,6 @@
 #include "test/ad_dw_detail.hpp"
 #include <numkit/value/argcheck.hpp>
 
-#include <algorithm>
 
 namespace numkit::stats {
 
@@ -86,7 +85,7 @@ void dwtest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     keel::f64 p;
     if (tail == 1)      p = pLeft;                  // 'right': positive autocorrelation
     else if (tail == 2) p = 1.0 - pLeft;            // 'left' : negative autocorrelation
-    else                p = std::min(1.0, 2.0 * std::min(pLeft, 1.0 - pLeft)); // 'both'
+    else                p = keel::min(1.0, 2.0 * keel::min(pLeft, 1.0 - pLeft)); // 'both'
     outs[0] = Value::scalar(p, mr);
     if (nargout > 1) outs[1] = Value::scalar(dw, mr);
 }

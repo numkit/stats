@@ -14,7 +14,6 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/argcheck.hpp>
 
-#include <algorithm>
 
 namespace numkit::stats {
 
@@ -50,15 +49,15 @@ void grpstats_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     // [means, sem, counts] — emit as many as the caller requested.
     if (fn_names.empty()) {
         static const char *kDefault[] = {"mean", "sem", "numel"};
-        const keel::usize k = std::min<keel::usize>(std::max<keel::usize>(nargout, 1), 3);
+        const keel::usize k = keel::min<keel::usize>(keel::max<keel::usize>(nargout, 1), 3);
         for (keel::usize i = 0; i < k; ++i) fn_names.push_back(keel::String::from(kDefault[i]));
     }
 
     auto results = grpstats(args[0], args[1], fn_names.as_ref(), mr);
     // Distribute results across outputs (1-output gets the first;
     // multi-fn cell-of-fn fills successive outputs).
-    const keel::usize emit = std::min<keel::usize>(results.size(),
-                                         std::max<keel::usize>(nargout, 1));
+    const keel::usize emit = keel::min<keel::usize>(results.size(),
+                                         keel::max<keel::usize>(nargout, 1));
     for (keel::usize i = 0; i < emit; ++i)
         outs[i] = keel::move(results[i]);
 }

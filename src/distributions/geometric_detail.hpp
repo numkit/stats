@@ -15,7 +15,6 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
-#include <algorithm>
 
 
 namespace numkit::stats {
@@ -65,7 +64,7 @@ inline keel::f64 geoinvK(keel::f64 q, keel::f64 p) {
     if (k < 0.0) k = 0.0;
     if (k > 0.0) {
         const keel::f64 cdf_prev = -keel::expm1(k * keel::log1p(-p));   // F(k-1)
-        const keel::f64 tol = std::max(1e-13, q * 1e-13);
+        const keel::f64 tol = keel::max(1e-13, q * 1e-13);
         if (cdf_prev >= q - tol) k -= 1.0;
     }
     return k;

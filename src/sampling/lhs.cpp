@@ -3,6 +3,7 @@
 // Latin Hypercube sampling (lhsdesign / lhsnorm).
 
 #include <keel/array.h>
+#include <keel/algo.h>
 #include <keel/math.h>
 #include <keel/core.h>
 #include <keel/memory.h>
@@ -16,8 +17,6 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
-#include <algorithm>
-#include <numeric>
 
 namespace numkit::stats {
 
@@ -33,7 +32,7 @@ void buildOneLhs(keel::f64 *od, keel::usize n, keel::usize p, bool smooth,
     keel::Array<keel::usize> perm(n);
     const keel::f64 inv_n = 1.0 / keel::as<keel::f64>(n);
     for (keel::usize j = 0; j < p; ++j) {
-        std::iota(perm.begin(), perm.end(), keel::usize(1));
+        keel::iota(perm.begin(), perm.end(), keel::usize(1));
         for (keel::usize i = n - 1; i > 0; --i) {
             const keel::usize k = keel::random::uniform_usize(gen, 0, i);
             keel::swap(perm[i], perm[k]);
@@ -134,7 +133,7 @@ Value lhsdesign(::numkit::ops::RngContext &rng, keel::usize n, keel::usize p,
         const keel::f64 s = score_of(trial.data());
         if (s < best_score) {
             best_score = s;
-            std::copy(trial.begin(), trial.end(), od);
+            keel::copy(trial.begin(), trial.end(), od);
         }
     }
     return out;
@@ -189,8 +188,8 @@ Value lhsnorm(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigm
     keel::f64 *ud = uCol.doubleDataMut();
 
     for (keel::usize j = 0; j < d; ++j) {
-        std::iota(ord.begin(), ord.end(), keel::usize(0));
-        std::sort(ord.begin(), ord.end(), [&](keel::usize a, keel::usize b) {
+        keel::iota(ord.begin(), ord.end(), keel::usize(0));
+        keel::sort(ord.begin(), ord.end(), [&](keel::usize a, keel::usize b) {
             return mv.r.elemAsDouble(a + j * n) < mv.r.elemAsDouble(b + j * n);
         });
         for (keel::usize r = 0; r < n; ++r)
@@ -200,7 +199,7 @@ Value lhsnorm(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigm
             ud[i] = (keel::as<keel::f64>(rank[i]) - xi) * invN;
         }
         const keel::f64 muj = mu.elemAsDouble(j);
-        const keel::f64 sdj = keel::sqrt(std::max(0.0, Sigma.elemAsDouble(j + j * d)));
+        const keel::f64 sdj = keel::sqrt(keel::max(0.0, Sigma.elemAsDouble(j + j * d)));
         if (sdj > 0.0) {
             Value zCol = norminv(uCol, muj, sdj, mr);
             for (keel::usize i = 0; i < n; ++i)

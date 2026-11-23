@@ -68,7 +68,7 @@ Value geoinv(const Value &q, keel::f64 p, keel::Allocator *mr)
         // One-ULP tolerance: if v - (k - 1) < tol, we already had k-1 satisfying.
         if (k > 0.0) {
             const keel::f64 cdf_prev = -keel::expm1(k * keel::log1p(-p)); // F(k-1)
-            const keel::f64 tol = std::max(1e-13, qi * 1e-13);
+            const keel::f64 tol = keel::max(1e-13, qi * 1e-13);
             if (cdf_prev >= qi - tol) k -= 1.0;
         }
         return k;

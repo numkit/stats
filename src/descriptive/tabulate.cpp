@@ -21,6 +21,7 @@
 // Empty input -> 0-by-1 matrix (matches MATLAB).
 
 #include <keel/array.h>
+#include <keel/algo.h>
 #include <keel/math.h>
 #include <keel/core.h>
 #include <keel/memory.h>
@@ -30,7 +31,6 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
-#include <algorithm>
 
 namespace numkit::stats {
 
@@ -90,7 +90,7 @@ Value tabulate(const Value &x, keel::Allocator *mr)
         uniq.reserve(N);
         cnt.reserve(N);
         for (const auto &s : items) {
-            auto it = std::find(uniq.begin(), uniq.end(), s);
+            auto it = keel::find(uniq.begin(), uniq.end(), s);
             if (it == uniq.end()) {
                 uniq.push_back(s.clone());
                 cnt.push_back(1);
@@ -154,7 +154,7 @@ Value tabulate(const Value &x, keel::Allocator *mr)
     }
 
     // Sparse layout: unique sorted values.
-    std::sort(v.begin(), v.end());
+    keel::sort(v.begin(), v.end());
     // Build unique list with counts.
     keel::Array<keel::f64>  uniq;
     keel::Array<keel::usize>  cnt;

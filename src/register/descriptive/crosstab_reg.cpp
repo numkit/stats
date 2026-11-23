@@ -15,7 +15,6 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/argcheck.hpp>
 
-#include <algorithm>
 
 namespace numkit::stats {
 
@@ -41,7 +40,7 @@ void crosstab_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         if (!y_opt.isEmpty())
             uniques.push_back(sortedUniqueNoNaN(y_opt));
         keel::usize maxR = 0;
-        for (const auto &u : uniques) maxR = std::max(maxR, u.size());
+        for (const auto &u : uniques) maxR = keel::max(maxR, u.size());
         const keel::usize numVars = uniques.size();
         Value labels = Value::cell(maxR, numVars, mr);
         for (keel::usize j = 0; j < numVars; ++j) {

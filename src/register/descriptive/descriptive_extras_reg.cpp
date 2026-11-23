@@ -3,6 +3,7 @@
 // CallContext register half of descriptive/descriptive_extras.cpp (Phase 2b
 // compute/register split). Engine-coupled glue over the engine-free compute.
 #include <keel/array.h>
+#include <keel/algo.h>
 #include <keel/core.h>
 #include <keel/format.h>
 #include <keel/memory.h>
@@ -21,7 +22,6 @@
 #include <numkit/ops/reductions.hpp>
 #include <numkit/value/error.hpp>
 
-#include <algorithm>
 
 namespace numkit::stats {
 
@@ -222,7 +222,7 @@ void bounds_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayR
         Value flat = Value::matrix(1, args[0].numel(), ValueType::DOUBLE, mr);
         if (args[0].numel() > 0) {
             const keel::f64 *src = args[0].doubleData();
-            std::copy(src, src + args[0].numel(), flat.doubleDataMut());
+            keel::copy(src, src + args[0].numel(), flat.doubleDataMut());
         }
         auto [lo, hi] = bounds(flat, 2, mr);
         outs[0] = keel::move(lo);
@@ -274,7 +274,7 @@ void iqr_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArray
         Value flat = Value::matrix(1, args[0].numel(), ValueType::DOUBLE, mr);
         if (args[0].numel() > 0) {
             const keel::f64 *src = args[0].doubleData();
-            std::copy(src, src + args[0].numel(), flat.doubleDataMut());
+            keel::copy(src, src + args[0].numel(), flat.doubleDataMut());
         }
         outs[0] = iqr(flat, 2, mr);
     } else {
@@ -399,7 +399,7 @@ Value flattenToRow(const Value &x, keel::Allocator *mr)
     Value flat = Value::matrix(1, x.numel(), ValueType::DOUBLE, mr);
     if (x.numel() > 0) {
         const keel::f64 *src = x.doubleData();
-        std::copy(src, src + x.numel(), flat.doubleDataMut());
+        keel::copy(src, src + x.numel(), flat.doubleDataMut());
     }
     return flat;
 }
@@ -419,7 +419,7 @@ void mape_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArra
     const keel::usize flagStart =
         (args.size() > 2 && !args[2].isEmpty() &&
          (!(args[2].isChar() || args[2].isString()) || allConsumed)) ? 3 : 2;
-    const keel::usize dimLen = flatten ? std::max(args[0].numel(),
+    const keel::usize dimLen = flatten ? keel::max(args[0].numel(),
                                                   args[1].numel())
         : args[0].dims().dim(dim > 0 ? keel::as<keel::usize>(dim) - 1 : 0);
     const ErrorMetricOpts opts = parseErrorMetricOpts(
@@ -453,7 +453,7 @@ void rmse_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArra
     const keel::usize flagStart =
         (args.size() > 2 && !args[2].isEmpty() &&
          (!(args[2].isChar() || args[2].isString()) || allConsumed)) ? 3 : 2;
-    const keel::usize dimLen = flatten ? std::max(args[0].numel(),
+    const keel::usize dimLen = flatten ? keel::max(args[0].numel(),
                                                   args[1].numel())
         : args[0].dims().dim(dim > 0 ? keel::as<keel::usize>(dim) - 1 : 0);
     const ErrorMetricOpts opts = parseErrorMetricOpts(

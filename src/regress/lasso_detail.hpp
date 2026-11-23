@@ -11,8 +11,6 @@
 #include <numkit/value/error.hpp>
 #include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
 
-#include <algorithm>
-#include <numeric>
 
 
 namespace numkit::stats {
@@ -74,7 +72,7 @@ keel::f64 softThreshold(keel::f64 z, keel::f64 g)
         if (delta != 0.0) {
             for (keel::usize i = 0; i < n; ++i)
                 r[i] -= delta * Xs[j * n + i];
-            maxChange = std::max(maxChange, keel::abs(delta));
+            maxChange = keel::max(maxChange, keel::abs(delta));
         }
     }
     return maxChange < tol;
@@ -92,11 +90,11 @@ keel::f64 invLogit_g(keel::f64 e) {
     const keel::f64 ex = keel::exp(e); return ex / (1.0 + ex);
 }
 keel::f64 dEtaLogit_g(keel::f64 mu) {
-    const keel::f64 m = std::min(std::max(mu, 1e-12), 1.0 - 1e-12);
+    const keel::f64 m = keel::min(keel::max(mu, 1e-12), 1.0 - 1e-12);
     return 1.0 / (m * (1.0 - m));
 }
 keel::f64 invLog_g(keel::f64 e) { return keel::exp(e); }
-keel::f64 dEtaLog_g(keel::f64 mu) { return 1.0 / std::max(mu, 1e-12); }
+keel::f64 dEtaLog_g(keel::f64 mu) { return 1.0 / keel::max(mu, 1e-12); }
 
 struct LinkPair { keel::f64 (*inv)(keel::f64); keel::f64 (*dEta)(keel::f64); };
 [[maybe_unused]] LinkPair pickLink(GlmDistribution d) {
@@ -112,10 +110,10 @@ struct LinkPair { keel::f64 (*inv)(keel::f64); keel::f64 (*dEta)(keel::f64); };
     switch (d) {
     case GlmDistribution::Normal:   return 1.0;
     case GlmDistribution::Binomial: {
-        const keel::f64 m = std::min(std::max(mu, 1e-12), 1.0 - 1e-12);
+        const keel::f64 m = keel::min(keel::max(mu, 1e-12), 1.0 - 1e-12);
         return m * (1.0 - m);
     }
-    case GlmDistribution::Poisson:  return std::max(mu, 1e-12);
+    case GlmDistribution::Poisson:  return keel::max(mu, 1e-12);
     default: return 1.0;
     }
 }
@@ -124,8 +122,8 @@ struct LinkPair { keel::f64 (*inv)(keel::f64); keel::f64 (*dEta)(keel::f64); };
     switch (d) {
     case GlmDistribution::Normal:   return yi;
     case GlmDistribution::Binomial: return (yi + 0.5) * 0.5;
-    case GlmDistribution::Poisson:  return std::max(yi + 0.1, 0.1);
-    default: return std::max(yi, 0.1);
+    case GlmDistribution::Poisson:  return keel::max(yi + 0.1, 0.1);
+    default: return keel::max(yi, 0.1);
     }
 }
 

@@ -15,7 +15,6 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 
-#include <algorithm>
 
 #include "ad_dw_detail.hpp"
 
@@ -115,7 +114,7 @@ dwtest(const Value &r, const Value &X, keel::Allocator *mr)
 {
     keel::f64 dw = 0.0;
     const keel::f64 pLeft = dwStatAndPLeft(r, X, true, dw, mr);
-    const keel::f64 pBoth = std::min(1.0, 2.0 * std::min(pLeft, 1.0 - pLeft));
+    const keel::f64 pBoth = keel::min(1.0, 2.0 * keel::min(pLeft, 1.0 - pLeft));
     return {Value::scalar(pBoth, mr), Value::scalar(dw, mr)};
 }
 

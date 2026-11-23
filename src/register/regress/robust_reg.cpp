@@ -15,7 +15,6 @@
 #include "regress/robust_detail.hpp"
 #include <numkit/value/argcheck.hpp>
 
-#include <algorithm>
 
 namespace numkit::stats {
 

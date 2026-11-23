@@ -15,8 +15,6 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
-#include <algorithm>
-#include <numeric>
 
 #include "resample_detail.hpp"
 
@@ -190,7 +188,7 @@ Value randsample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
         N = keel::as<keel::usize>(population.numel());
     }
     const keel::f64 kD = args[1].elemAsDouble(0);
-    const keel::usize K = keel::as<keel::usize>(std::max(kD, 0.0));
+    const keel::usize K = keel::as<keel::usize>(keel::max(kD, 0.0));
 
     const bool replace = (args.size() >= 3 && !args[2].isEmpty())
         ? parseReplaceFlag(args[2], "randsample", "numkit:randsample:badReplaceValue")
@@ -282,7 +280,7 @@ Value datasample_full(::numkit::ops::RngContext &rng, keel::ArrayRef<Value> args
     keel::usize nvStart = 2;
     if (args.size() > 2 && !args[2].isChar() && !args[2].isString()
             && !args[2].isObject()) {
-        dim = keel::as<keel::usize>(std::max(args[2].elemAsDouble(0), 1.0));
+        dim = keel::as<keel::usize>(keel::max(args[2].elemAsDouble(0), 1.0));
         nvStart = 3;
     } else {
         for (keel::i32 d = 0; d < X.dims().ndim(); ++d)

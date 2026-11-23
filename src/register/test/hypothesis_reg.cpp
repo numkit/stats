@@ -4,6 +4,7 @@
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
 #include <keel/core.h>
+#include <keel/algo.h>
 #include <keel/math.h>
 #include <keel/format.h>
 #include <keel/ref.h>
@@ -23,7 +24,6 @@
 #include "test/hypothesis_detail.hpp"
 #include <numkit/value/argcheck.hpp>
 
-#include <algorithm>
 
 namespace numkit::stats {
 
@@ -483,7 +483,7 @@ void chi2gof_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             if (v < xmin) xmin = v;
             if (v > xmax) xmax = v;
         }
-        const keel::i32 K = std::max(2, nbins);
+        const keel::i32 K = keel::max(2, nbins);
         edges.resize(K + 1);
         for (keel::i32 i = 0; i <= K; ++i)
             edges[i] = xmin + (xmax - xmin) * keel::f64(i) / keel::f64(K);
@@ -569,7 +569,7 @@ void chi2gof_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     const keel::f64 df = keel::f64(K_final) - 1.0 - keel::f64(np);
     Value chi2v = Value::scalar(chi2, mr);
     const keel::f64 cdf = (df > 0.0) ? chi2cdf(chi2v, df, mr).toScalar() : 1.0;
-    const keel::f64 p = std::max(0.0, 1.0 - cdf);
+    const keel::f64 p = keel::max(0.0, 1.0 - cdf);
     const keel::i32 h = (p < alpha) ? 1 : 0;
 
     outs[0] = Value::scalar(keel::f64(h), mr);
@@ -580,13 +580,13 @@ void chi2gof_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         s.field("df")       = Value::scalar(df, mr);
         // Pack edges / O / E into Value rows.
         Value edges_out = Value::matrix(1, edges.size(), ValueType::DOUBLE, mr);
-        std::copy(edges.begin(), edges.end(), edges_out.doubleDataMut());
+        keel::copy(edges.begin(), edges.end(), edges_out.doubleDataMut());
         s.field("edges") = edges_out;
         Value O_out = Value::matrix(1, O.size(), ValueType::DOUBLE, mr);
-        std::copy(O.begin(), O.end(), O_out.doubleDataMut());
+        keel::copy(O.begin(), O.end(), O_out.doubleDataMut());
         s.field("O") = O_out;
         Value E_out = Value::matrix(1, E.size(), ValueType::DOUBLE, mr);
-        std::copy(E.begin(), E.end(), E_out.doubleDataMut());
+        keel::copy(E.begin(), E.end(), E_out.doubleDataMut());
         s.field("E") = E_out;
         outs[2] = keel::move(s);
     }
@@ -655,8 +655,8 @@ void vartestn_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             }
         Value Vx = Value::matrix(R * C, 1, ValueType::DOUBLE, mr);
         Value Vg = Value::matrix(R * C, 1, ValueType::DOUBLE, mr);
-        std::copy(vv.begin(), vv.end(), Vx.doubleDataMut());
-        std::copy(gg.begin(), gg.end(), Vg.doubleDataMut());
+        keel::copy(vv.begin(), vv.end(), Vx.doubleDataMut());
+        keel::copy(gg.begin(), gg.end(), Vg.doubleDataMut());
         X = keel::move(Vx);
         G = keel::move(Vg);
     }
@@ -738,7 +738,7 @@ void runstest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             }
             Value sgn = Value::matrix(1, diffs.size(), ValueType::DOUBLE, mr);
             if (!diffs.empty())
-                std::copy(diffs.begin(), diffs.end(), sgn.doubleDataMut());
+                keel::copy(diffs.begin(), diffs.end(), sgn.doubleDataMut());
             xUsed = keel::move(sgn);
         }
         v = 0.0;       // reference value for the sign sequence

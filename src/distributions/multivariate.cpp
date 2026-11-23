@@ -25,7 +25,6 @@
 
 #include "dist_helpers.hpp"
 
-#include <algorithm>
 #include <keel/random.h>
 
 
@@ -67,7 +66,7 @@ Value mvnrnd(::numkit::ops::RngContext &rng, const Value &mu, const Value &Sigma
                          0, 0, "mvnrnd", "", "numkit:mvnrnd:badMu");
     }
 
-    if (n == 0) n = std::max(muN, keel::usize(1));
+    if (n == 0) n = keel::max(muN, keel::usize(1));
     if (muN > 1 && n != muN)
         throw Error("mvnrnd: n must equal rows(mu) when mu is matrix",
                      0, 0, "mvnrnd", "", "numkit:mvnrnd:nMismatch");
@@ -266,7 +265,7 @@ Value mnrnd(::numkit::ops::RngContext &rng, keel::usize N, const Value &P, keel:
 
     keel::Array<keel::usize> counts(k);
     for (keel::usize r = 0; r < m; ++r) {
-        std::fill(counts.begin(), counts.end(), 0u);
+        keel::fill(counts.begin(), counts.end(), 0u);
         for (keel::usize t = 0; t < N; ++t) {
             const keel::f64 u = gen.nextUniform();
             // Linear scan; k is typically small.
@@ -401,7 +400,7 @@ wishrnd_factor(::numkit::ops::RngContext &rng, const Value &Sigma, keel::f64 df,
     for (keel::usize i = 0; i < d; ++i) {
         for (keel::usize j = 0; j < d; ++j) {
             keel::f64 s = 0.0;
-            const keel::usize mlim = std::min(i, j);
+            const keel::usize mlim = keel::min(i, j);
             for (keel::usize k = 0; k <= mlim; ++k)
                 s += M[i * d + k] * M[j * d + k];
             od[j * d + i] = s;
@@ -466,7 +465,7 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, keel::f64 df, 
         for (keel::usize i = 0; i < d; ++i) {
             for (keel::usize j = 0; j <= i; ++j) {
                 keel::f64 s = 0.0;
-                for (keel::usize k = std::max(i, j); k < d; ++k)
+                for (keel::usize k = keel::max(i, j); k < d; ++k)
                     s += Linv[k * d + i] * Linv[k * d + j];
                 invTau[i * d + j] = s;
                 if (i != j) invTau[j * d + i] = s;
@@ -519,7 +518,7 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, keel::f64 df, 
         for (keel::usize i = 0; i < d; ++i)
             for (keel::usize j = 0; j < d; ++j) {
                 keel::f64 s = 0.0;
-                const keel::usize mlim = std::min(i, j);
+                const keel::usize mlim = keel::min(i, j);
                 for (keel::usize k = 0; k <= mlim; ++k)
                     s += M[i * d + k] * M[j * d + k];
                 Y[i * d + j] = s;
@@ -548,7 +547,7 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, keel::f64 df, 
     for (keel::usize i = 0; i < d; ++i) {
         for (keel::usize j = 0; j < d; ++j) {
             keel::f64 s = 0.0;
-            const keel::usize mlim = std::min(i, j);
+            const keel::usize mlim = keel::min(i, j);
             for (keel::usize k = 0; k <= mlim; ++k)
                 s += M[i * d + k] * M[j * d + k];
             Y[i * d + j] = s;
@@ -565,7 +564,7 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, keel::f64 df, 
     for (keel::usize i = 0; i < d; ++i) {
         for (keel::usize j = 0; j < d; ++j) {
             keel::f64 s = 0.0;
-            for (keel::usize k = std::max(i, j); k < d; ++k)
+            for (keel::usize k = keel::max(i, j); k < d; ++k)
                 s += LY[k * d + i] * LY[k * d + j];
             od[j * d + i] = s;
         }
@@ -671,7 +670,7 @@ Value mvtcdf_box(const Value &Lb, const Value &Ub, const Value &C, keel::f64 df,
                 const keel::f64 I = ::numkit::builtin::betainc(zv, av, bv, mr).toScalar();
                 return (x >= 0.0) ? 1.0 - 0.5 * I : 0.5 * I;
             };
-            od[i] = std::max(0.0, cdf_one(Uv) - cdf_one(Lv));
+            od[i] = keel::max(0.0, cdf_one(Uv) - cdf_one(Lv));
         }
         return out;
     }

@@ -9,8 +9,6 @@
 #include <numkit/value/error.hpp>
 #include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
 
-#include <algorithm>
-#include <numeric>
 
 
 namespace numkit::stats {
@@ -70,13 +68,13 @@ keel::f64 dEtaIdentity(keel::f64)  { return 1.0; }
 
 keel::f64 invLogit(keel::f64 e)   { return sigmoid(e); }
 keel::f64 dEtaLogit(keel::f64 mu) {
-    const keel::f64 m = std::min(std::max(mu, 1e-12), 1.0 - 1e-12);
+    const keel::f64 m = keel::min(keel::max(mu, 1e-12), 1.0 - 1e-12);
     return 1.0 / (m * (1.0 - m));
 }
 
 keel::f64 invLog(keel::f64 e)   { return keel::exp(e); }
 keel::f64 dEtaLog(keel::f64 mu) {
-    const keel::f64 m = std::max(mu, 1e-12);
+    const keel::f64 m = keel::max(mu, 1e-12);
     return 1.0 / m;
 }
 
@@ -96,7 +94,7 @@ keel::f64 invProbit(keel::f64 e) {
     return 0.5 * keel::erfc(-e / keel::sqrt(2.0));
 }
 keel::f64 dEtaProbit(keel::f64 mu) {
-    const keel::f64 m = std::min(std::max(mu, 1e-12), 1.0 - 1e-12);
+    const keel::f64 m = keel::min(keel::max(mu, 1e-12), 1.0 - 1e-12);
     // z = norminv(m) — use std::erfinv? not standard. Fall back to a
     // numerical approximation via Beasley-Springer-Moro? For v1 we
     // rely on the inverse-erf approach.
@@ -132,16 +130,16 @@ keel::f64 dEtaProbit(keel::f64 mu) {
     switch (d) {
     case GlmDistribution::Normal:           return 1.0;
     case GlmDistribution::Binomial: {
-        const keel::f64 m = std::min(std::max(mu, 1e-12), 1.0 - 1e-12);
+        const keel::f64 m = keel::min(keel::max(mu, 1e-12), 1.0 - 1e-12);
         return m * (1.0 - m);
     }
-    case GlmDistribution::Poisson:          return std::max(mu, 1e-12);
+    case GlmDistribution::Poisson:          return keel::max(mu, 1e-12);
     case GlmDistribution::Gamma: {
-        const keel::f64 m = std::max(mu, 1e-12);
+        const keel::f64 m = keel::max(mu, 1e-12);
         return m * m;
     }
     case GlmDistribution::InverseGaussian: {
-        const keel::f64 m = std::max(mu, 1e-12);
+        const keel::f64 m = keel::max(mu, 1e-12);
         return m * m * m;
     }
     }
@@ -153,9 +151,9 @@ keel::f64 dEtaProbit(keel::f64 mu) {
     switch (d) {
     case GlmDistribution::Normal:          return yi;
     case GlmDistribution::Binomial:        return (yi + 0.5) / 2.0;  // shrink toward 0.5
-    case GlmDistribution::Poisson:         return std::max(yi + 0.1, 0.1);
-    case GlmDistribution::Gamma:           return std::max(yi, 0.1);
-    case GlmDistribution::InverseGaussian: return std::max(yi, 0.1);
+    case GlmDistribution::Poisson:         return keel::max(yi + 0.1, 0.1);
+    case GlmDistribution::Gamma:           return keel::max(yi, 0.1);
+    case GlmDistribution::InverseGaussian: return keel::max(yi, 0.1);
     }
     return yi;
 }
@@ -168,27 +166,27 @@ keel::f64 dEtaProbit(keel::f64 mu) {
         return r * r;
     }
     case GlmDistribution::Binomial: {
-        const keel::f64 m = std::min(std::max(mu, 1e-12), 1.0 - 1e-12);
-        const keel::f64 yy = std::min(std::max(y,  0.0), 1.0);
+        const keel::f64 m = keel::min(keel::max(mu, 1e-12), 1.0 - 1e-12);
+        const keel::f64 yy = keel::min(keel::max(y,  0.0), 1.0);
         keel::f64 t = 0.0;
         if (yy > 0.0)     t += yy * keel::log(yy / m);
         if (yy < 1.0)     t += (1.0 - yy) * keel::log((1.0 - yy) / (1.0 - m));
         return 2.0 * t;
     }
     case GlmDistribution::Poisson: {
-        const keel::f64 m = std::max(mu, 1e-12);
-        const keel::f64 yy = std::max(y, 0.0);
+        const keel::f64 m = keel::max(mu, 1e-12);
+        const keel::f64 yy = keel::max(y, 0.0);
         const keel::f64 termY = (yy > 0.0) ? yy * keel::log(yy / m) : 0.0;
         return 2.0 * (termY - (yy - m));
     }
     case GlmDistribution::Gamma: {
-        const keel::f64 m = std::max(mu, 1e-12);
-        const keel::f64 yy = std::max(y, 1e-12);
+        const keel::f64 m = keel::max(mu, 1e-12);
+        const keel::f64 yy = keel::max(y, 1e-12);
         return 2.0 * (-keel::log(yy / m) + (yy - m) / m);
     }
     case GlmDistribution::InverseGaussian: {
-        const keel::f64 m = std::max(mu, 1e-12);
-        const keel::f64 yy = std::max(y, 1e-12);
+        const keel::f64 m = keel::max(mu, 1e-12);
+        const keel::f64 yy = keel::max(y, 1e-12);
         const keel::f64 r = (yy - m);
         return r * r / (yy * m * m);
     }

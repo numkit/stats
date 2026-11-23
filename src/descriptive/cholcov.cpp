@@ -21,6 +21,7 @@
 //   6. Else (PSD), keep eigvals d > tol and rebuild T = sqrt(d_keep) .* V_keep'.
 
 #include <keel/array.h>
+#include <keel/algo.h>
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <keel/math.h>
@@ -32,7 +33,6 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
-#include <algorithm>
 
 namespace numkit::stats {
 
@@ -86,7 +86,7 @@ cholcov(const Value &SIGMA, keel::Allocator *mr)
     keel::Array<keel::f64> chol_out;
     if (tryCholesky(SIGMA, chol_out, R)) {
         Value T = Value::matrix(R, R, ValueType::DOUBLE, mr);
-        std::copy(chol_out.begin(), chol_out.end(), T.doubleDataMut());
+        keel::copy(chol_out.begin(), chol_out.end(), T.doubleDataMut());
         return {keel::move(T), Value::scalar(0.0, mr)};
     }
 
@@ -101,7 +101,7 @@ cholcov(const Value &SIGMA, keel::Allocator *mr)
         for (keel::usize i = 0; i < R; ++i) d[i] = dd[i + i * R];
     }
     keel::f64 maxAbsD = 0.0;
-    for (keel::f64 v : d) maxAbsD = std::max(maxAbsD, keel::abs(v));
+    for (keel::f64 v : d) maxAbsD = keel::max(maxAbsD, keel::abs(v));
     const keel::f64 tol = keel::pow(keel::Limits<keel::f64>::kEpsilon,
                                 0.75) * maxAbsD;
 

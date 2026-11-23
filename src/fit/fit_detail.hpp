@@ -11,8 +11,6 @@
 #include <numkit/value/error.hpp>
 #include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
 
-#include <algorithm>
-#include <numeric>
 
 
 namespace numkit::stats {
@@ -142,7 +140,7 @@ normal_fit_mle(const keel::Array<keel::f64> &y, const keel::Array<keel::f64> &fr
         for (keel::usize i = 0; i < N; ++i) if (!cn[i]) {
             const keel::f64 d = y[i] - mu; sq += fr[i] * d * d;
         }
-        sd = keel::sqrt(std::max(sq / std::max(w_un - 1.0, 1.0), 1e-12));
+        sd = keel::sqrt(keel::max(sq / keel::max(w_un - 1.0, 1.0), 1e-12));
     }
     const keel::i32    maxIter = 200;
     const keel::f64 tolFun  = 1e-10;
@@ -164,7 +162,7 @@ normal_fit_mle(const keel::Array<keel::f64> &y, const keel::Array<keel::f64> &fr
             }
         }
         const keel::f64 mu_new  = sumfy / sumf;
-        const keel::f64 var_new = std::max(sumfy2 / sumf - mu_new * mu_new, 1e-300);
+        const keel::f64 var_new = keel::max(sumfy2 / sumf - mu_new * mu_new, 1e-300);
         const keel::f64 sd_new  = keel::sqrt(var_new);
         const keel::f64 delta   = keel::abs(mu_new - mu) + keel::abs(sd_new - sd);
         mu = mu_new; sd = sd_new;

@@ -4,6 +4,7 @@
 #pragma once
 
 #include <keel/array.h>
+#include <keel/algo.h>
 #include <keel/math.h>
 #include <keel/core.h>
 #include <keel/memory.h>
@@ -15,8 +16,6 @@
 #include <numkit/value/error.hpp>
 #include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
 
-#include <algorithm>
-#include <numeric>
 
 
 namespace numkit::stats {
@@ -40,7 +39,7 @@ namespace {
                 out.push_back(idx);
             }
         } else {
-            const keel::i32 take = std::min(K, N);
+            const keel::i32 take = keel::min(K, N);
             Value rp = numkit::ops::randperm(rng, keel::as<keel::usize>(N),
                                              keel::as<keel::usize>(take), nullptr);
             const keel::f64 *rpd = rp.doubleData();
@@ -64,12 +63,12 @@ namespace {
             for (keel::i32 i = 0; i < N; ++i) {
                 const keel::f64 w = weights[keel::as<keel::usize>(i)];
                 if (w > 0.0) {
-                    const keel::f64 e = std::max(keel::random::exponential_f64(gen, 1.0), 1e-300);
+                    const keel::f64 e = keel::max(keel::random::exponential_f64(gen, 1.0), 1e-300);
                     keyed.emplace_back(-e / w, i);
                 }
             }
-            const keel::usize take = std::min(keel::as<keel::usize>(K), keyed.size());
-            std::partial_sort(keyed.begin(), keyed.begin() + take, keyed.end(),
+            const keel::usize take = keel::min(keel::as<keel::usize>(K), keyed.size());
+            keel::partial_sort(keyed.begin(), keyed.begin() + take, keyed.end(),
                               [](const auto &a, const auto &b) { return a.first > b.first; });
             for (keel::usize k = 0; k < take; ++k)
                 out.push_back(keyed[k].second);

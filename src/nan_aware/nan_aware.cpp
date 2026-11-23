@@ -18,7 +18,6 @@
 #include <numkit/ops/reductions.hpp>
 #include <numkit/ops/nan_reductions.hpp>
 
-#include <algorithm>
 
 #include "nan_aware_detail.hpp"
 
@@ -178,7 +177,7 @@ Value nancov(const Value &x, keel::i32 normFlag, keel::Allocator *mr)
 
     centerColumnsLocal(tight.data(), n_kept, p);
     const keel::f64 divisor = (normFlag == 0)
-        ? std::max(1.0, keel::as<keel::f64>(n_kept) - 1.0)
+        ? keel::max(1.0, keel::as<keel::f64>(n_kept) - 1.0)
         : keel::as<keel::f64>(n_kept);
 
     if (p == 1) {
@@ -222,7 +221,7 @@ Value nancov(const Value &x, const Value &y, keel::i32 normFlag,
     packKeptRows(data.data(), n, n_kept, 2, tight.data());
     centerColumnsLocal(tight.data(), n_kept, 2);
     const keel::f64 divisor = (normFlag == 0)
-        ? std::max(1.0, keel::as<keel::f64>(n_kept) - 1.0)
+        ? keel::max(1.0, keel::as<keel::f64>(n_kept) - 1.0)
         : keel::as<keel::f64>(n_kept);
     return covFromCenteredLocal(tight.data(), n_kept, 2, divisor, mr);
 }

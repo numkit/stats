@@ -51,6 +51,7 @@
 //   * single inputs produce single outputs (P14).
 
 #include <keel/core.h>
+#include <keel/algo.h>
 #include <keel/memory.h>
 #include <keel/ref.h>
 #include <keel/arena.h>
@@ -68,7 +69,6 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 
-#include <algorithm>
 
 namespace numkit::stats {
 
@@ -129,7 +129,7 @@ Value rankColumnsWeighted(const Value &X, const Value *wts,
         }
         keel::Array<keel::usize> idx(n, keel::as<keel::usize>(0), scratch.allocator());
         for (keel::usize i = 0; i < n; ++i) idx[i] = i;
-        std::stable_sort(idx.begin(), idx.end(), [&](keel::usize a, keel::usize b) {
+        keel::stable_sort(idx.begin(), idx.end(), [&](keel::usize a, keel::usize b) {
             return X.elemAsDouble(a + c * n) < X.elemAsDouble(b + c * n);
         });
         keel::f64 wPrev = 0.0;
@@ -236,7 +236,7 @@ void gatherRows(const Value &X, const Value *Y, const Value *wts,
     const keel::usize pX = corrColsOf(X);
     const keel::usize pY = Y ? corrColsOf(*Y) : 0;
     const keel::usize m = keel::as<keel::usize>(
-        std::count(keep.begin(), keep.end(), 1));
+        keel::count(keep.begin(), keep.end(), 1));
     if (X.type() == ValueType::COMPLEX) {
         Xo = Value::matrix(m, pX, ValueType::COMPLEX, mr);
         keel::c64 *xo = Xo.complexDataMut();
@@ -588,11 +588,11 @@ keel::f64 corrPearsonTailP(CorrTail tail, keel::f64 r, keel::usize n,
     const keel::f64 t = r * keel::sqrt(df / (1.0 - r * r));
     const keel::f64 cl = tcdf(Value::scalar(t, mr), df, mr).toScalar();
     switch (tail) {
-    case CorrTail::Both:  return std::min(1.0, 2.0 * tcdf(
+    case CorrTail::Both:  return keel::min(1.0, 2.0 * tcdf(
         Value::scalar(-keel::abs(t), mr), df, mr).toScalar());
-    case CorrTail::Right: return std::min(1.0, tcdf(
+    case CorrTail::Right: return keel::min(1.0, tcdf(
         Value::scalar(-t, mr), df, mr).toScalar());
-    case CorrTail::Left:  return std::min(1.0, cl);
+    case CorrTail::Left:  return keel::min(1.0, cl);
     }
     return kNaN;
 }
@@ -603,9 +603,9 @@ keel::f64 corrPearsonTailP(CorrTail tail, keel::f64 r, keel::usize n,
 keel::f64 rankTailFromLU(CorrTail tail, keel::f64 lower, keel::f64 upper)
 {
     switch (tail) {
-    case CorrTail::Left:  return std::min(1.0, lower);
-    case CorrTail::Right: return std::min(1.0, upper);
-    case CorrTail::Both:  return std::min(1.0, 2.0 * std::min(lower, upper));
+    case CorrTail::Left:  return keel::min(1.0, lower);
+    case CorrTail::Right: return keel::min(1.0, upper);
+    case CorrTail::Both:  return keel::min(1.0, 2.0 * keel::min(lower, upper));
     }
     return kNaN;
 }
@@ -629,7 +629,7 @@ keel::Pair<keel::f64, keel::f64> corrKendallExactLU(keel::f64 tau, keel::usize n
     keel::usize curLen = 1;                            // active prefix length
     for (keel::usize k = 1; k < n; ++k) {
         const keel::usize newLen = curLen + k;
-        std::fill(next.begin(), next.begin() + newLen, 0.0);
+        keel::fill(next.begin(), next.begin() + newLen, 0.0);
         const keel::f64 w = 1.0 / keel::as<keel::f64>(k + 1);
         for (keel::usize d = 0; d < curLen; ++d) {
             const keel::f64 pv = prob[d] * w;
@@ -666,7 +666,7 @@ keel::Pair<keel::f64, keel::f64> corrSpearmanExactLU(keel::f64 rho, keel::usize 
         if (D <= Dobs) ++leCount;
         if (D >= Dobs) ++geCount;
         ++total;
-    } while (std::next_permutation(perm.begin(), perm.end()));
+    } while (keel::next_permutation(perm.begin(), perm.end()));
     return { keel::as<keel::f64>(leCount) / keel::as<keel::f64>(total),
              keel::as<keel::f64>(geCount) / keel::as<keel::f64>(total) };
 }
@@ -694,14 +694,14 @@ keel::f64 as89Upper(keel::f64 D, keel::usize n, keel::f64 n3c)
                           y * (c[6] + c[7] / n - y * (c[8] - c[9] / n +
                           y * (c[10] - c[11] * y) / n))) / n) / n;
     const keel::f64 pv = u / keel::exp(0.5 * y) + 0.5 * keel::erfc(x / keel::sqrt(2.0));
-    return std::min(1.0, std::max(0.0, pv));
+    return keel::min(1.0, keel::max(0.0, pv));
 }
 
 keel::f64 as89Tail(CorrTail tail, keel::f64 D, keel::usize n, keel::f64 n3c)
 {
     switch (tail) {
     case CorrTail::Both:
-        return std::min(1.0, 2.0 * as89Upper(std::max(D, n3c - D), n, n3c));
+        return keel::min(1.0, 2.0 * as89Upper(keel::max(D, n3c - D), n, n3c));
     case CorrTail::Left:  return as89Upper(D, n, n3c);
     case CorrTail::Right: return as89Upper(n3c - D, n, n3c);
     }
@@ -744,7 +744,7 @@ keel::Pair<keel::f64, keel::f64> spearmanExactMidrankLU(const keel::f64 *xr,
         if (D <= Dobs) ++leCount;
         if (D >= Dobs) ++geCount;
         ++total;
-    } while (std::next_permutation(perm.begin(), perm.end()));
+    } while (keel::next_permutation(perm.begin(), perm.end()));
     return { keel::as<keel::f64>(leCount) / keel::as<keel::f64>(total),
              keel::as<keel::f64>(geCount) / keel::as<keel::f64>(total) };
 }
@@ -842,15 +842,15 @@ void spearmanFull(const Value &X, const Value &Y, bool corrXX, CorrTail tail,
                 const keel::f64 df = n - 2.0;
                 switch (tail) {
                 case CorrTail::Both:
-                    pd[i + j * p1] = std::min(1.0, 2.0 * tcdf(
+                    pd[i + j * p1] = keel::min(1.0, 2.0 * tcdf(
                         Value::scalar(-keel::abs(t), mr), df, mr).toScalar());
                     break;
                 case CorrTail::Right:
-                    pd[i + j * p1] = std::min(1.0, tcdf(
+                    pd[i + j * p1] = keel::min(1.0, tcdf(
                         Value::scalar(-t, mr), df, mr).toScalar());
                     break;
                 case CorrTail::Left:
-                    pd[i + j * p1] = std::min(1.0, tcdf(
+                    pd[i + j * p1] = keel::min(1.0, tcdf(
                         Value::scalar(t, mr), df, mr).toScalar());
                     break;
                 }
@@ -953,9 +953,9 @@ keel::f64 corrKendallNormalP(CorrTail tail, keel::f64 tau, keel::usize n)
     // Φ(z) = erfc(-z/√2)/2
     const keel::f64 phi = 0.5 * keel::erfc(-z / keel::sqrt(2.0));
     switch (tail) {
-    case CorrTail::Left:  return std::min(1.0, phi);
-    case CorrTail::Right: return std::min(1.0, 1.0 - phi);
-    case CorrTail::Both:  return std::min(1.0, 2.0 * std::min(phi, 1.0 - phi));
+    case CorrTail::Left:  return keel::min(1.0, phi);
+    case CorrTail::Right: return keel::min(1.0, 1.0 - phi);
+    case CorrTail::Both:  return keel::min(1.0, 2.0 * keel::min(phi, 1.0 - phi));
     }
     return kNaN;
 }
@@ -1057,12 +1057,12 @@ void dropNaNRowsAny(keel::Array<Value> &M, keel::Allocator *mr)
     for (keel::usize t = 0; t < M.size(); ++t) {
         const keel::usize nn = keel::as<keel::usize>(M[t].dims().dim(0));
         const keel::usize p = keel::as<keel::usize>(M[t].dims().dim(1));
-        for (keel::usize r = 0; r < std::min(nn, n); ++r)
+        for (keel::usize r = 0; r < keel::min(nn, n); ++r)
             for (keel::usize c = 0; c < p && keep[r]; ++c)
                 if (keel::is_nan(M[t].elemAsDouble(r + c * nn))) keep[r] = 0;
     }
     const keel::usize m = keel::as<keel::usize>(
-        std::count(keep.begin(), keep.end(), 1));
+        keel::count(keep.begin(), keep.end(), 1));
     for (auto &Mt : M) {
         const keel::usize nn = keel::as<keel::usize>(Mt.dims().dim(0));
         const keel::usize p = keel::as<keel::usize>(Mt.dims().dim(1));
@@ -1096,15 +1096,15 @@ keel::usize centeredRank(const Value &Z, keel::Allocator *mr)
             A[i + j * m] = d;
             colNorm2 += d * d;
         }
-        maxNorm = std::max(maxNorm, keel::sqrt(colNorm2));
+        maxNorm = keel::max(maxNorm, keel::sqrt(colNorm2));
     }
     if (maxNorm == 0.0) return 0;
-    const keel::f64 tol = keel::as<keel::f64>(std::max(m, pZ))
+    const keel::f64 tol = keel::as<keel::f64>(keel::max(m, pZ))
                      * keel::Limits<keel::f64>::kEpsilon * maxNorm;
     // Modified Gram-Schmidt / column-pivoted QR rank count.
     keel::usize rnk = 0;
     keel::Array<keel::u8> used(pZ, 0, sc.allocator());
-    for (keel::usize step = 0; step < std::min(m, pZ); ++step) {
+    for (keel::usize step = 0; step < keel::min(m, pZ); ++step) {
         keel::usize bestCol = 0;
         keel::f64 bestNorm = -1.0;
         for (keel::usize j = 0; j < pZ; ++j) {

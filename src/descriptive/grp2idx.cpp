@@ -19,6 +19,7 @@
 // (categorical input and column-aligned char matrices are not yet handled.)
 
 #include <keel/array.h>
+#include <keel/algo.h>
 #include <keel/math.h>
 #include <keel/core.h>
 #include <keel/memory.h>
@@ -28,7 +29,6 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
-#include <algorithm>
 #include <cstdio>
 
 namespace numkit::stats {
@@ -90,8 +90,8 @@ Grp2idxResult grp2idx(const Value &s, keel::Allocator *mr)
             const keel::f64 xi = s.elemAsDouble(i);
             if (!keel::is_nan(xi)) uniq.push_back(xi);
         }
-        std::sort(uniq.begin(), uniq.end());
-        uniq.resize(std::unique(uniq.begin(), uniq.end()) - uniq.begin());
+        keel::sort(uniq.begin(), uniq.end());
+        uniq.resize(keel::unique(uniq.begin(), uniq.end()) - uniq.begin());
         names.reserve(uniq.size());
         for (keel::f64 u : uniq) names.push_back(fmtGroupNum(u));
         g.reserve(n);
@@ -101,7 +101,7 @@ Grp2idxResult grp2idx(const Value &s, keel::Allocator *mr)
                 g.push_back(keel::Limits<keel::f64>::quiet_nan());
                 continue;
             }
-            const auto it = std::lower_bound(uniq.begin(), uniq.end(), xi);
+            const auto it = keel::lower_bound(uniq.begin(), uniq.end(), xi);
             g.push_back(keel::as<keel::f64>((it - uniq.begin()) + 1));
         }
     }
@@ -109,7 +109,7 @@ Grp2idxResult grp2idx(const Value &s, keel::Allocator *mr)
     Grp2idxResult r;
     // G: column vector.
     r.G = Value::matrix(g.size(), 1, ValueType::DOUBLE, mr);
-    std::copy(g.begin(), g.end(), r.G.doubleDataMut());
+    keel::copy(g.begin(), g.end(), r.G.doubleDataMut());
     // GN / GL: column cell of char rows (GL == GN for these input types).
     r.GN = Value::cell(names.size(), 1, mr);
     r.GL = Value::cell(names.size(), 1, mr);

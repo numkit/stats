@@ -4,6 +4,7 @@
 // callback-driven adapters (bootstrp/bootci/crossval/datasample/jackknife/
 // randsample/combnk) + BootstrpCallbackBuiltin + registerBootstrpCallbackBuiltin.
 #include <keel/core.h>
+#include <keel/algo.h>
 #include <keel/math.h>
 #include <keel/format.h>
 #include <keel/memory.h>
@@ -18,9 +19,7 @@
 #include <numkit/value/value.hpp>
 #include "resample/resample_detail.hpp"
 
-#include <algorithm>
 #include <keel/random.h>
-#include <numeric>
 
 namespace numkit::stats {
 
@@ -178,7 +177,7 @@ void crossval_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
                         0, 0, "crossval", "", "numkit:crossval:badOption");
     }
     if (K < 2 || K > keel::as<keel::i32>(m))
-        K = keel::as<keel::i32>(std::min(m, keel::usize{10}));
+        K = keel::as<keel::i32>(keel::min(m, keel::usize{10}));
 
     auto out = Value::matrix(keel::as<keel::usize>(K), 1,
                              ValueType::DOUBLE, mr);
@@ -269,12 +268,12 @@ void bootci_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
     keel::Array<keel::f64> col(nboot, scratch.allocator());
     for (keel::usize j = 0; j < K; ++j) {
         for (keel::i32 i = 0; i < nboot; ++i) col[i] = bd[i + j * nboot];
-        std::sort(col.begin(), col.end());
+        keel::sort(col.begin(), col.end());
         // Linear-interpolation percentile (matches MATLAB prctile default).
         auto qFn = [&](keel::f64 q) {
             const keel::f64 pos = q * (keel::as<keel::f64>(nboot) - 1.0);
             const keel::usize lo = keel::as<keel::usize>(keel::floor(pos));
-            const keel::usize hi = std::min(keel::as<keel::usize>(lo + 1),
+            const keel::usize hi = keel::min(keel::as<keel::usize>(lo + 1),
                                               keel::as<keel::usize>(nboot - 1));
             const keel::f64 frac = pos - keel::as<keel::f64>(lo);
             return col[lo] * (1.0 - frac) + col[hi] * frac;

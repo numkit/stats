@@ -11,6 +11,7 @@
 // matrices get the Sym rejection class rather than the Pos one.
 
 #include <keel/array.h>
+#include <keel/algo.h>
 #include <keel/core.h>
 #include <keel/format.h>
 #include <keel/memory.h>
@@ -27,7 +28,6 @@
 
 #include "multivariate_detail.hpp"         // phiCdf / bivariateCdf / monteCarloCdf
 
-#include <algorithm>
 
 namespace numkit::stats {
 
@@ -58,18 +58,18 @@ bool psdFactor(const keel::Array<keel::f64> &Sig, keel::usize d,
                keel::usize *outRank = nullptr)
 {
     Value Mv = Value::matrix(d, d, ValueType::DOUBLE, mr);
-    std::copy(Sig.begin(), Sig.end(), Mv.doubleDataMut());
+    keel::copy(Sig.begin(), Sig.end(), Mv.doubleDataMut());
     auto [V, D] = ::numkit::linalg::eig_symmetric(Mv, mr);
     evec.assign(keel::ArrayRef<keel::f64>(V.doubleData(), d * d));
     eval.assign(d, 0.0);
     keel::f64 maxAbs = 0.0;
     for (keel::usize i = 0; i < d; ++i) {
         eval[i] = D.doubleData()[i + i * d];
-        maxAbs = std::max(maxAbs, keel::abs(eval[i]));
+        maxAbs = keel::max(maxAbs, keel::abs(eval[i]));
     }
     const keel::f64 tol = keel::as<keel::f64>(d)
                      * keel::Limits<keel::f64>::kEpsilon
-                     * std::max(maxAbs, 1.0);
+                     * keel::max(maxAbs, 1.0);
     for (keel::f64 e : eval)
         if (e < -tol) return false;
     // Strictly positive definite → lower Cholesky L (so T = L' is upper Cholesky,
@@ -106,7 +106,7 @@ bool psdFactor(const keel::Array<keel::f64> &Sig, keel::usize d,
     T.assign(d * r, 0.0);
     for (keel::usize col = 0; col < r; ++col) {
         const keel::usize j = posCols[col];
-        const keel::f64 s = keel::sqrt(std::max(eval[j], 0.0));
+        const keel::f64 s = keel::sqrt(keel::max(eval[j], 0.0));
         keel::usize maxIdx = 0;
         keel::f64 maxVal = 0.0;
         for (keel::usize i = 0; i < d; ++i) {
@@ -215,7 +215,7 @@ MvnrndOut mvnrnd_reinterpreted(::numkit::ops::RngContext &rng, const Value &mu,
         if (keel::as<keel::i64>(n) == casesN) {
             // mu already has cases rows.
         } else if (n == 1) {
-            n = keel::as<keel::usize>(std::max(casesN, keel::i64{0}));
+            n = keel::as<keel::usize>(keel::max(casesN, keel::i64{0}));
         } else {
             throw Error(keel::format("mvnrnd: MU must be a row vector, or must have "
                         "CASES rows (CASES is {}, MU has {} rows).", casesN, n),
@@ -399,7 +399,7 @@ Value mvtrnd_full(::numkit::ops::RngContext &rng, const Value &C,
 {
     keel::usize n = 1;
     if (!cases.isEmpty())
-        n = keel::as<keel::usize>(std::max(
+        n = keel::as<keel::usize>(keel::max(
             keel::as<keel::i64>(cases.elemAsDouble(0)), keel::i64{0}));
 
     const keel::usize m1 = keel::as<keel::usize>(C.dims().dim(0));
@@ -730,7 +730,7 @@ Value mvncdf_full(keel::ArrayRef<Value> args, keel::Allocator *mr)
                 const keel::f64 u = scaleRow(XU, r, j);
                 if (box) {
                     const keel::f64 l = scaleRow(XL, r, j);
-                    p *= std::max(0.0, phiCdf(u) - phiCdf(l));
+                    p *= keel::max(0.0, phiCdf(u) - phiCdf(l));
                 } else {
                     p *= phiCdf(u);
                 }
@@ -743,7 +743,7 @@ Value mvncdf_full(keel::ArrayRef<Value> args, keel::Allocator *mr)
         for (keel::usize r = 0; r < n; ++r) {
             const keel::f64 u = scaleRow(XU, r, 0);
             od[r] = box
-                ? std::max(0.0, phiCdf(u) - phiCdf(scaleRow(XL, r, 0)))
+                ? keel::max(0.0, phiCdf(u) - phiCdf(scaleRow(XL, r, 0)))
                 : phiCdf(u);
         }
     } else if (d == 2) {
@@ -756,7 +756,7 @@ Value mvncdf_full(keel::ArrayRef<Value> args, keel::Allocator *mr)
             } else {
                 const keel::f64 hl = scaleRow(XL, r, 0);
                 const keel::f64 kl = scaleRow(XL, r, 1);
-                od[r] = std::max(0.0,
+                od[r] = keel::max(0.0,
                     bivariateCdf(hu, ku, rhoV) - bivariateCdf(hl, ku, rhoV)
                     - bivariateCdf(hu, kl, rhoV) + bivariateCdf(hl, kl, rhoV));
             }

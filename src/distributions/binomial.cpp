@@ -1,6 +1,7 @@
 // toolboxes/stats/src/distributions/binomial.cpp
 
 #include <keel/core.h>
+#include <keel/algo.h>
 #include <keel/tuple.h>
 #include <keel/math.h>
 #include <keel/memory.h>
@@ -53,7 +54,7 @@ Value binornd(::numkit::ops::RngContext &rng, keel::f64 n, keel::f64 p, keel::us
     const keel::usize cnt = rows * cols;
     const keel::i32 ntrials = keel::as<keel::i32>(n);
     if (ntrials <= 1000000) {
-        std::fill(od, od + cnt, 0.0);
+        keel::fill(od, od + cnt, 0.0);
         for (keel::i32 t = 0; t < ntrials; ++t) {
             for (keel::usize i = 0; i < cnt; ++i) {
                 if (rng.nextUniform() < p)

@@ -16,7 +16,6 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
-#include <algorithm>
 
 #include "robust_detail.hpp"
 
@@ -79,7 +78,7 @@ RobustfitResult robustfit(const Value &X, const Value &y,
             radj[i] = r[i] * adj[i];
         }
         s = madsigma(radj.as_ref(), p);
-        const keel::f64 denom = std::max(s, tiny_s) * tune;
+        const keel::f64 denom = keel::max(s, tiny_s) * tune;
 
         // New weights from the standardised, leverage-adjusted residuals.
         for (keel::usize i = 0; i < n; ++i)
@@ -92,7 +91,7 @@ RobustfitResult robustfit(const Value &X, const Value &y,
         bool changed = false;
         for (keel::usize j = 0; j < p; ++j)
             if (keel::abs(beta[j] - beta_prev[j])
-                > D * std::max(keel::abs(beta[j]), keel::abs(beta_prev[j])))
+                > D * keel::max(keel::abs(beta[j]), keel::abs(beta_prev[j])))
                 changed = true;
         if (!changed) break;
     }
@@ -131,12 +130,12 @@ RobustcovResult robustcov(const Value &X, keel::Allocator *mr)
         // Pick h rows with smallest distance.
         keel::Array<keel::Pair<keel::f64, keel::usize>> pairs(n);
         for (keel::usize i = 0; i < n; ++i) pairs[i] = { dist[i], i };
-        std::nth_element(pairs.begin(), pairs.begin() + h, pairs.end());
+        keel::nth_element(pairs.begin(), pairs.begin() + h, pairs.end());
         keel::Array<keel::usize> newKeep(h);
         for (keel::usize i = 0; i < h; ++i) newKeep[i] = pairs[i].second;
-        std::sort(newKeep.begin(), newKeep.end());
+        keel::sort(newKeep.begin(), newKeep.end());
         if (newKeep.size() == prevKeep.size()
-            && std::equal(newKeep.begin(), newKeep.end(), prevKeep.begin()))
+            && keel::equal(newKeep.begin(), newKeep.end(), prevKeep.begin()))
             break;
         prevKeep = keel::move(newKeep);
         meanCovSubset(Xv.data(), n, d, prevKeep.as_ref(), mu, C);

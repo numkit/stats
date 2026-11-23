@@ -11,6 +11,7 @@
 // compat.* lives in toolboxes/stats/src/library.cpp.
 
 #include <keel/core.h>
+#include <keel/algo.h>
 #include <keel/tuple.h>
 #include <keel/math.h>
 #include <keel/memory.h>
@@ -29,7 +30,6 @@
 #include <numkit/ops/reductions.hpp>
 #include <numkit/builtin/detail/datafun/var_reduction.hpp>
 
-#include <algorithm>
 
 #include "descriptive_detail.hpp"
 
@@ -194,7 +194,7 @@ Value quantileWithOpts(const Value &x, const Value &p, keel::i32 dim, bool flatt
         Value flat = Value::matrix(1, x.numel(), ValueType::DOUBLE, mr);
         if (x.numel() > 0) {
             const keel::f64 *src = x.doubleData();
-            std::copy(src, src + x.numel(), flat.doubleDataMut());
+            keel::copy(src, src + x.numel(), flat.doubleDataMut());
         }
         return quantileImpl(flat, p, 2, pScale, method, fn, mr);
     }
@@ -249,7 +249,7 @@ Value cov(const Value &x, keel::i32 normFlag, keel::Allocator *mr)
     centerColumns(data.data(), n, p);
 
     const keel::f64 divisor = (normFlag == 0)
-        ? std::max(1.0, keel::as<keel::f64>(n) - 1.0)
+        ? keel::max(1.0, keel::as<keel::f64>(n) - 1.0)
         : keel::as<keel::f64>(n);
 
     if (p == 1) {
@@ -283,7 +283,7 @@ Value cov(const Value &x, const Value &y, keel::i32 normFlag, keel::Allocator *m
     }
     centerColumns(data.data(), n, 2);
     const keel::f64 divisor = (normFlag == 0)
-        ? std::max(1.0, keel::as<keel::f64>(n) - 1.0)
+        ? keel::max(1.0, keel::as<keel::f64>(n) - 1.0)
         : keel::as<keel::f64>(n);
     return covMatrixFromCentered(data.data(), n, 2, divisor, mr);
 }

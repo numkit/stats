@@ -4,6 +4,7 @@
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
 #include <keel/core.h>
+#include <keel/algo.h>
 #include <keel/math.h>
 #include <keel/memory.h>
 #include <keel/ref.h>
@@ -28,7 +29,6 @@
 #include <numkit/ops/reductions.hpp>
 #include <numkit/value/error.hpp>
 
-#include <algorithm>
 
 namespace numkit::stats {
 
@@ -430,7 +430,7 @@ void median_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
         auto buf = keel::Array<keel::f64>(total, scratch.allocator());
         const bool fastDouble = (args[0].type() == ValueType::DOUBLE);
         if (fastDouble)
-            std::copy(args[0].doubleData(), args[0].doubleData() + total, buf.data());
+            keel::copy(args[0].doubleData(), args[0].doubleData() + total, buf.data());
         else
             for (keel::usize i = 0; i < total; ++i) buf[i] = args[0].elemAsDouble(i);
         keel::usize k = total;
@@ -580,7 +580,7 @@ Value computeModeCell(const Value &x, keel::i32 dim, bool flatten,
             const keel::f64 d = s[k * stride];
             if (!keel::is_nan(d)) v.push_back(d);
         }
-        std::sort(v.begin(), v.end());
+        keel::sort(v.begin(), v.end());
         const keel::usize N = v.size();
         keel::usize maxc = 0;
         for (keel::usize i = 0; i < N;) {
@@ -665,7 +665,7 @@ void mode_reg(keel::ArrayRef<Value> args, keel::usize nargout, keel::MutArrayRef
         Value flat = Value::matrix(1, args[0].numel(), ValueType::DOUBLE, mr);
         if (args[0].numel() > 0) {
             const keel::f64 *src = args[0].doubleData();
-            std::copy(src, src + args[0].numel(), flat.doubleDataMut());
+            keel::copy(src, src + args[0].numel(), flat.doubleDataMut());
         }
         auto [v, c] = mode(flat, 2, mr);
         outs[0] = keel::move(v);

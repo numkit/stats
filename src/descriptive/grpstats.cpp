@@ -18,6 +18,7 @@
 // is uniform across libs.
 
 #include <keel/array.h>
+#include <keel/algo.h>
 #include <keel/math.h>
 #include <keel/core.h>
 #include <keel/format.h>
@@ -29,7 +30,6 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
-#include <algorithm>
 
 namespace numkit::stats {
 
@@ -72,13 +72,13 @@ keel::f64 aggregate(Agg fn, const keel::Array<keel::f64> &vals)
         case Agg::Min: {
             if (n == 0) return keel::Limits<keel::f64>::quiet_nan();
             keel::f64 m = v[0];
-            for (keel::usize i = 1; i < n; ++i) m = std::min(m, v[i]);
+            for (keel::usize i = 1; i < n; ++i) m = keel::min(m, v[i]);
             return m;
         }
         case Agg::Max: {
             if (n == 0) return keel::Limits<keel::f64>::quiet_nan();
             keel::f64 m = v[0];
-            for (keel::usize i = 1; i < n; ++i) m = std::max(m, v[i]);
+            for (keel::usize i = 1; i < n; ++i) m = keel::max(m, v[i]);
             return m;
         }
         case Agg::Mean: {
@@ -144,8 +144,8 @@ grpstats(const Value &X, const Value &group, keel::ArrayRef<keel::String> fn_nam
     keel::Array<keel::f64> u_g;
     u_g.reserve(N);
     for (keel::f64 v : g) if (!keel::is_nan(v)) u_g.push_back(v);
-    std::sort(u_g.begin(), u_g.end());
-    u_g.resize(std::unique(u_g.begin(), u_g.end()) - u_g.begin());
+    keel::sort(u_g.begin(), u_g.end());
+    u_g.resize(keel::unique(u_g.begin(), u_g.end()) - u_g.begin());
     const keel::usize Ng = u_g.size();
 
     // Collect fns; default mean.

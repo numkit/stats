@@ -16,7 +16,6 @@
 #include "moving/moving_detail.hpp"
 #include <numkit/ops/reductions.hpp>  // numkit::ops::firstNonSingletonDim, validateDim
 
-#include <algorithm>
 
 namespace numkit::stats {
 

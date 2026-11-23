@@ -17,7 +17,6 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
-#include <algorithm>
 
 
 namespace numkit::stats {
@@ -177,7 +176,7 @@ inline keel::f64 genzSovCdf(const keel::f64 *L, keel::usize d,
     };
     const keel::f64 d0 = evalPhi(a[0] / L[0]);
     const keel::f64 e0 = evalPhi(b[0] / L[0]);
-    const keel::f64 f0 = std::max(0.0, e0 - d0);
+    const keel::f64 f0 = keel::max(0.0, e0 - d0);
     if (f0 == 0.0 || d <= 1) return f0;
 
     // First 32 primes for Richtmyer quasi-random generators sqrt(p_k) mod 1.
@@ -208,7 +207,7 @@ inline keel::f64 genzSovCdf(const keel::f64 *L, keel::usize d,
                 s += L[i * d + k] * y[k];
             const keel::f64 di = evalPhi((a[i] - s) / L[i * d + i]);
             const keel::f64 ei = evalPhi((b[i] - s) / L[i * d + i]);
-            const keel::f64 diff = std::max(0.0, ei - di);
+            const keel::f64 diff = keel::max(0.0, ei - di);
             f *= diff;
             if (f == 0.0) return 0.0;
             dp = di;
@@ -218,7 +217,7 @@ inline keel::f64 genzSovCdf(const keel::f64 *L, keel::usize d,
     };
 
     const keel::usize nBatches = 8;
-    const keel::usize pairsPerBatch = std::max<keel::usize>(64, maxEvals / (2 * nBatches));
+    const keel::usize pairsPerBatch = keel::max<keel::usize>(64, maxEvals / (2 * nBatches));
     keel::random::Mt19937 shiftGen(5489u);
     keel::Array<keel::f64> shift(m);
 
@@ -249,7 +248,7 @@ inline keel::f64 genzSovCdf(const keel::f64 *L, keel::usize d,
             if (se <= tol) break;
         }
     }
-    return std::min(1.0, std::max(0.0, meanEst));
+    return keel::min(1.0, keel::max(0.0, meanEst));
 }
 
 } // namespace

@@ -15,7 +15,6 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
-#include <algorithm>
 
 
 namespace numkit::stats {
@@ -49,8 +48,8 @@ inline bool params_valid(keel::f64 M, keel::f64 K, keel::f64 N) {
 }
 
 inline keel::f64 hyge_pmf(keel::f64 k, keel::f64 M, keel::f64 K, keel::f64 N) {
-    const keel::f64 k_min = std::max(0.0, N - (M - K));
-    const keel::f64 k_max = std::min(N, K);
+    const keel::f64 k_min = keel::max(0.0, N - (M - K));
+    const keel::f64 k_max = keel::min(N, K);
     if (k < k_min || k > k_max || keel::floor(k) != k) return 0.0;
     const keel::f64 lp = log_choose(K, k) + log_choose(M - K, N - k) - log_choose(M, N);
     return keel::exp(lp);
@@ -59,9 +58,9 @@ inline keel::f64 hyge_pmf(keel::f64 k, keel::f64 M, keel::f64 K, keel::f64 N) {
 // Forward sum from k_min, with one-ULP tolerance.
 inline keel::f64 hyge_cdf_scalar(keel::f64 k, keel::f64 M, keel::f64 K, keel::f64 N) {
     if (k < 0.0) return 0.0;
-    const keel::f64 k_max = std::min(N, K);
+    const keel::f64 k_max = keel::min(N, K);
     if (k >= k_max) return 1.0;
-    const keel::f64 k_min = std::max(0.0, N - (M - K));
+    const keel::f64 k_min = keel::max(0.0, N - (M - K));
     if (k < k_min) return 0.0;
     // pmf(j+1) / pmf(j) = (K - j)/(j + 1) · (N - j)/(M - K - N + j + 1)
     keel::f64 f = hyge_pmf(k_min, M, K, N);
@@ -74,16 +73,16 @@ inline keel::f64 hyge_cdf_scalar(keel::f64 k, keel::f64 M, keel::f64 K, keel::f6
         else            { f *= num / den; }
         s += f;
     }
-    return std::min(1.0, std::max(0.0, s));
+    return keel::min(1.0, keel::max(0.0, s));
 }
 
 inline keel::f64 hyge_inv_scalar(keel::f64 q, keel::f64 M, keel::f64 K, keel::f64 N) {
     if (!(q >= 0.0 && q <= 1.0)) return keel::Limits<keel::f64>::quiet_nan();
-    const keel::f64 k_min = std::max(0.0, N - (M - K));
-    const keel::f64 k_max = std::min(N, K);
+    const keel::f64 k_min = keel::max(0.0, N - (M - K));
+    const keel::f64 k_max = keel::min(N, K);
     if (q == 0.0) return k_min;
     if (q >= 1.0) return k_max;
-    const keel::f64 tol = std::max(1e-13, q * 1e-13);
+    const keel::f64 tol = keel::max(1e-13, q * 1e-13);
     keel::f64 f = hyge_pmf(k_min, M, K, N);
     keel::f64 s = f;
     if (s >= q - tol) return k_min;

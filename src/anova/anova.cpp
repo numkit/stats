@@ -4,6 +4,7 @@
 // kernels to keel::stats.
 
 #include <keel/arena.h>
+#include <keel/algo.h>
 #include <keel/tuple.h>
 #include <keel/array.h>
 #include <keel/core.h>
@@ -14,7 +15,6 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 
-#include <algorithm>
 
 #include "anova_detail.hpp"
 
@@ -104,8 +104,8 @@ Value dummyvar(const Value &group, keel::Allocator *mr)
     keel::Array<keel::f64> uniq;
     uniq.reserve(N);
     for (keel::usize i = 0; i < N; ++i) uniq.push_back(group.elemAsDouble(i));
-    std::sort(uniq.begin(), uniq.end());
-    uniq.resize(keel::as<keel::usize>(std::unique(uniq.begin(), uniq.end()) - uniq.begin()));
+    keel::sort(uniq.begin(), uniq.end());
+    uniq.resize(keel::as<keel::usize>(keel::unique(uniq.begin(), uniq.end()) - uniq.begin()));
     const keel::usize K = uniq.size();
 
     Value out = Value::matrix(N, K, ValueType::DOUBLE, mr);

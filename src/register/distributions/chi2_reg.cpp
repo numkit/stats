@@ -16,7 +16,6 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/argcheck.hpp>
 
-#include <algorithm>
 
 namespace numkit::stats {
 
@@ -49,7 +48,7 @@ void chi2cdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
     } else {
         // F(x; k) = gammainc(max(0,x/2), k/2); gammainc broadcasts (xs, k/2)
         // and gammaincScalar gives NaN where k/2<=0 (matches k<=0 → NaN).
-        Value xs = elementwise(a[0], [](keel::f64 xi) { return std::max(0.0, 0.5 * xi); }, mr);
+        Value xs = elementwise(a[0], [](keel::f64 xi) { return keel::max(0.0, 0.5 * xi); }, mr);
         Value half_k = elementwise(k, [](keel::f64 ki) { return 0.5 * ki; }, mr);
         v = ::numkit::builtin::gammainc(xs, half_k, mr);
     }

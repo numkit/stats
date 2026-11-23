@@ -6,6 +6,7 @@
 //   canoncorr    — canonical correlation analysis (QR + SVD)
 
 #include <keel/core.h>
+#include <keel/algo.h>
 #include <keel/math.h>
 #include <keel/memory.h>
 #include <keel/arena.h>
@@ -17,7 +18,6 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
-#include <algorithm>
 
 namespace numkit::stats {
 
@@ -78,7 +78,7 @@ void residualiseColumn(const keel::f64 *C, keel::usize n, keel::usize p,
     // Solve (M · coef = b).
     keel::Array<keel::f64> Mcopy(keel::ArrayRef<keel::f64>(MM, p * p), scratch.allocator());
     if (!solveGauss(Mcopy.data(), b.data(), p)) {
-        std::fill(b.begin(), b.end(), 0.0);
+        keel::fill(b.begin(), b.end(), 0.0);
     }
     // Residual = Wcol - C · coef.
     for (keel::usize k = 0; k < n; ++k) {
@@ -170,7 +170,7 @@ Value partialcorri(const Value &Y, const Value &X, const Value &Z,
 
     for (keel::usize j = 0; j < pX; ++j) {
         // Build C column-major.
-        std::fill(C.begin(), C.end(), 0.0);
+        keel::fill(C.begin(), C.end(), 0.0);
         // Col 0: intercept (all ones).
         for (keel::usize k = 0; k < n; ++k) C[0 * n + k] = 1.0;
         // Cols 1..(pX-1): X without col j.
@@ -189,7 +189,7 @@ Value partialcorri(const Value &Y, const Value &X, const Value &Z,
         }
 
         // MM = C' · C (pCtrl × pCtrl, row-major for solveGauss).
-        std::fill(MM.begin(), MM.end(), 0.0);
+        keel::fill(MM.begin(), MM.end(), 0.0);
         for (keel::usize a = 0; a < pCtrl; ++a)
             for (keel::usize b = 0; b < pCtrl; ++b) {
                 keel::f64 s = 0.0;
@@ -229,7 +229,7 @@ CanoncorrResult canoncorr(const Value &X, const Value &Y,
         throw Error("canoncorr: insufficient observations (need n >= p + q)",
                     0, 0, "canoncorr", "", "numkit:canoncorr:tooFewRows");
 
-    const keel::usize k = std::min(p, q);
+    const keel::usize k = keel::min(p, q);
     keel::ArenaTemp scratch = keel::get_scratch(mr);
 
     // Centre X and Y.
@@ -333,7 +333,7 @@ CanoncorrResult canoncorr(const Value &X, const Value &Y,
         for (keel::usize i = 0; i < k; ++i) {
             // Clamp to [0, 1] — FP drift can push it slightly outside.
             const keel::f64 si = Sd[i * Sr + i];
-            rd[i] = std::min(1.0, std::max(0.0, si));
+            rd[i] = keel::min(1.0, keel::max(0.0, si));
         }
     }
 

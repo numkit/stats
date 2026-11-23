@@ -22,7 +22,6 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 
-#include <algorithm>
 
 namespace numkit::stats::detail {
 
@@ -156,7 +155,7 @@ inline void emit_vec_stat_3arg(keel::ArrayRef<Value> args, keel::usize nargout,
     const Value &bv = args[1];
     const Value &cv = args[2];
     const keel::usize na = av.numel(), nb = bv.numel(), nc = cv.numel();
-    const keel::usize nmax = std::max({na, nb, nc});
+    const keel::usize nmax = keel::max({na, nb, nc});
     if (nmax == 1) {
         auto [m, v] = stat_impl(av.toScalar(), bv.toScalar(), cv.toScalar());
         outs[0] = Value::scalar(m, mr);
@@ -232,7 +231,7 @@ inline keel::usize dist_match_numel(std::initializer_list<keel::usize> sizes,
                                     const char *fnName)
 {
     keel::usize N = 0;
-    for (keel::usize s : sizes) N = std::max(N, s);
+    for (keel::usize s : sizes) N = keel::max(N, s);
     for (keel::usize s : sizes)
         if (s != 1 && s != N)
             throw Error(keel::format("{}: Non-scalar arguments must match in size.", fnName),
@@ -277,7 +276,7 @@ inline Value broadcast_dist3(const Value &av, const Value &bv, const Value &cv,
     if (na == 0) return dist_empty_like(av, mr);
     if (nb == 0) return dist_empty_like(bv, mr);
     if (nc == 0) return dist_empty_like(cv, mr);
-    const keel::usize nmax = std::max({na, nb, nc});
+    const keel::usize nmax = keel::max({na, nb, nc});
     if (nmax == 1)
         return Value::scalar(kernel(av.toScalar(), bv.toScalar(), cv.toScalar()), mr);
     auto ok = [&](keel::usize k) { return k == 1 || k == nmax; };
@@ -308,7 +307,7 @@ inline Value broadcast_dist4(const Value &av, const Value &bv, const Value &cv,
     if (nb == 0) return dist_empty_like(bv, mr);
     if (nc == 0) return dist_empty_like(cv, mr);
     if (nd == 0) return dist_empty_like(dv, mr);
-    const keel::usize nmax = std::max({na, nb, nc, nd});
+    const keel::usize nmax = keel::max({na, nb, nc, nd});
     if (nmax == 1)
         return Value::scalar(
             kernel(av.toScalar(), bv.toScalar(), cv.toScalar(), dv.toScalar()), mr);

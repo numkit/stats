@@ -15,7 +15,6 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
-#include <algorithm>
 
 namespace numkit::stats {
 
@@ -43,7 +42,7 @@ keel::f64 tTwoSidedP(keel::f64 tStat, keel::f64 df, keel::Allocator *mr)
 {
     Value tV = Value::scalar(keel::abs(tStat), mr);
     const keel::f64 F = tcdf(tV, df, mr).toScalar();
-    return std::min(1.0, std::max(0.0, 2.0 * (1.0 - F)));
+    return keel::min(1.0, keel::max(0.0, 2.0 * (1.0 - F)));
 }
 
 // 16-point Gauss-Legendre positive nodes and weights on [-1, 1].
@@ -103,7 +102,7 @@ keel::f64 normalRangeCDF(keel::f64 w, keel::usize k)
         return s * half;
     };
     const keel::f64 sum = quad16(-8.5, -1.5) + quad16(-1.5, 5.5);
-    return std::min(1.0, std::max(0.0, kd * sum));
+    return keel::min(1.0, keel::max(0.0, kd * sum));
 }
 
 // Studentized range CDF F_Q(q; k, df).
@@ -137,11 +136,11 @@ keel::f64 studentizedRangeCDF(keel::f64 q, keel::usize k, keel::f64 df)
         }
         return s * half;
     };
-    const keel::f64 spread = 8.0 / keel::sqrt(std::max(0.5, df));
-    const keel::f64 uMin = std::max(1e-6, 1.0 - spread);
+    const keel::f64 spread = 8.0 / keel::sqrt(keel::max(0.5, df));
+    const keel::f64 uMin = keel::max(1e-6, 1.0 - spread);
     const keel::f64 uMax = 1.0 + spread;
     const keel::f64 res = quad16(uMin, 1.0) + quad16(1.0, uMax);
-    return std::min(1.0, std::max(0.0, res));
+    return keel::min(1.0, keel::max(0.0, res));
 }
 
 // Inverse studentized range quantile q_{p; k, df} via bracketed bisection.
@@ -159,7 +158,7 @@ keel::f64 studentizedRangeInv(keel::f64 p, keel::usize k, keel::f64 df)
         const keel::f64 mid = 0.5 * (lo + hi);
         if (studentizedRangeCDF(mid, k, df) < p) lo = mid;
         else                                     hi = mid;
-        if (hi - lo <= 1e-12 * std::max(1.0, mid)) break;
+        if (hi - lo <= 1e-12 * keel::max(1.0, mid)) break;
     }
     return 0.5 * (lo + hi);
 }
@@ -211,11 +210,11 @@ Value multcompare(const Value &stats, keel::f64 alpha, McCorrection ctype,
             keel::f64 pVal = 1.0;
             if (ctype == McCorrection::TukeyKramer) {
                 const keel::f64 qStat = keel::abs(tStat) * keel::sqrt(2.0);
-                pVal = std::min(1.0, std::max(0.0, 1.0 - studentizedRangeCDF(qStat, K, df)));
+                pVal = keel::min(1.0, keel::max(0.0, 1.0 - studentizedRangeCDF(qStat, K, df)));
             } else {
                 pVal = tTwoSidedP(tStat, df, mr);
                 if (ctype == McCorrection::Bonferroni)
-                    pVal = std::min(1.0, pVal * keel::as<keel::f64>(nPairs));
+                    pVal = keel::min(1.0, pVal * keel::as<keel::f64>(nPairs));
             }
 
             // Column-major: out(row, c) = od[c * nPairs + row].

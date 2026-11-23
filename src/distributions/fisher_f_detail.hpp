@@ -15,7 +15,6 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
-#include <algorithm>
 
 
 namespace numkit::stats {
@@ -99,7 +98,7 @@ keel::f64 ncfpdf_one(keel::f64 x, keel::f64 nu1, keel::f64 nu2, keel::f64 delta)
         abs_sum += t;
         if (k > 10 && t < 1e-16 * abs_sum) break;
     }
-    return std::max(0.0, sum);
+    return keel::max(0.0, sum);
 }
 
 } // anonymous
@@ -160,7 +159,7 @@ keel::f64 ncfcdf_one(keel::f64 x, keel::f64 nu1, keel::f64 nu2, keel::f64 delta,
     if (delta > 0.0) x *= (1.0 + delta / nu1);
 
     keel::f64 lo = 0.0;
-    keel::f64 hi = std::max(x + 1.0, 50.0 * x + 50.0);
+    keel::f64 hi = keel::max(x + 1.0, 50.0 * x + 50.0);
     while (ncfcdf_one(hi, nu1, nu2, delta, mr) < p) {
         hi *= 2.0;
         if (!keel::is_finite(hi)) break;
@@ -180,7 +179,7 @@ keel::f64 ncfcdf_one(keel::f64 x, keel::f64 nu1, keel::f64 nu2, keel::f64 delta,
         } else {
             x_new = 0.5 * (lo + hi);
         }
-        if (keel::abs(x_new - x) < 1e-14 * std::max(1.0, keel::abs(x_new)))
+        if (keel::abs(x_new - x) < 1e-14 * keel::max(1.0, keel::abs(x_new)))
             return x_new;
         x = x_new;
     }

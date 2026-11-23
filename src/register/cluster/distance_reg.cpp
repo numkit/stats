@@ -13,7 +13,6 @@
 #include "cluster/distance_detail.hpp"
 #include <numkit/value/error.hpp>
 
-#include <algorithm>
 
 namespace numkit::stats {
 

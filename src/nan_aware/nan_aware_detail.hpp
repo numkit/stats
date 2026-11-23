@@ -13,8 +13,6 @@
 #include <numkit/value/error.hpp>
 #include <numkit/ops/reductions.hpp>  // engine-free numkit::builtin::detail dim-infra (ops re-export)
 
-#include <algorithm>
-#include <numeric>
 
 
 namespace numkit::stats {
@@ -33,11 +31,11 @@ namespace {
     if (n == 0) return keel::kNaN;
     if (n == 1) return data[0];
     const keel::usize mid = n / 2;
-    std::nth_element(data, data + mid, data + n);
+    keel::nth_element(data, data + mid, data + n);
     if (n % 2 == 1)
         return data[mid];
     const keel::f64 upper = data[mid];
-    const keel::f64 lower = *std::max_element(data, data + mid);
+    const keel::f64 lower = *keel::max_element(data, data + mid);
     return 0.5 * (lower + upper);
 }
 

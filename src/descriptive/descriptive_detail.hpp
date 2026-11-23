@@ -20,8 +20,6 @@
 #include <numkit/ops/reductions.hpp>  // numkit::builtin::detail dim-infra (engine-free, ops re-export)
 #include <numkit/builtin/detail/datafun/var_reduction.hpp> // varianceTwoPass (engine-free)
 
-#include <algorithm>
-#include <numeric>
 #include <keel/tuple.h>
 
 
@@ -243,11 +241,11 @@ namespace {
     for (keel::usize i = 0; i < n; ++i)
         if (keel::is_nan(data[i])) return keel::kNaN;
     const keel::usize mid = n / 2;
-    std::nth_element(data, data + mid, data + n);
+    keel::nth_element(data, data + mid, data + n);
     if (n % 2 == 1)
         return data[mid];
     const keel::f64 upper = data[mid];
-    const keel::f64 lower = *std::max_element(data, data + mid);
+    const keel::f64 lower = *keel::max_element(data, data + mid);
     return 0.5 * (lower + upper);
 }
 
@@ -270,7 +268,7 @@ keel::c64 complexMedianFromSlice(keel::c64 *s, keel::usize n)
     if (n == 0) return keel::c64(keel::kNaN, keel::kNaN);
     for (keel::usize i = 0; i < n; ++i)
         if (isComplexNaNStats(s[i])) return keel::c64(keel::kNaN, keel::kNaN);
-    std::sort(s, s + n, complexAbsAngleLess);
+    keel::sort(s, s + n, complexAbsAngleLess);
     if (n & 1u) return s[n / 2];
     return 0.5 * (s[n / 2 - 1] + s[n / 2]);
 }
@@ -384,7 +382,7 @@ keel::f64 quantileFromSortedSlice(const keel::f64 *sorted, keel::usize n, keel::
         const keel::f64 pp = probs[0];
         return applyAlongDim(x, d,
             [pp, method](keel::usize, keel::f64 *slice, keel::usize n) {
-                std::sort(slice, slice + n);
+                keel::sort(slice, slice + n);
                 return quantileFromSortedSlice(slice, n, pp, method);
             }, mr);
     }
@@ -398,8 +396,8 @@ keel::f64 quantileFromSortedSlice(const keel::f64 *sorted, keel::usize n, keel::
     if (x.dims().isVector() || x.isScalar()) {
         // Output is 1Ã—k row vector.
         auto sorted = keel::Array<keel::f64>(x.numel(), scratch.allocator());
-        std::copy(x.doubleData(), x.doubleData() + x.numel(), sorted.data());
-        std::sort(sorted.begin(), sorted.end());
+        keel::copy(x.doubleData(), x.doubleData() + x.numel(), sorted.data());
+        keel::sort(sorted.begin(), sorted.end());
         auto out = Value::matrix(1, k, ValueType::DOUBLE, mr);
         for (keel::usize i = 0; i < k; ++i)
             out.doubleDataMut()[i] = quantileFromSortedSlice(sorted.data(),
@@ -411,7 +409,7 @@ keel::f64 quantileFromSortedSlice(const keel::f64 *sorted, keel::usize n, keel::
 
     // Build output shape: same as input but the reduced dim has size k.
     const auto &dd = x.dims();
-    const keel::i32 nd = std::max(dd.ndim(), d);
+    const keel::i32 nd = keel::max(dd.ndim(), d);
     keel::Array<keel::usize> outShape(nd, scratch.allocator());
     for (keel::i32 i = 0; i < nd; ++i)
         outShape[i] = (i == d - 1) ? k : ((i < dd.ndim()) ? dd.dim(i) : 1);
@@ -436,7 +434,7 @@ keel::f64 quantileFromSortedSlice(const keel::f64 *sorted, keel::usize n, keel::
             const keel::f64 *srcBase = src + o * (B * N) + b;
             for (keel::usize s = 0; s < N; ++s)
                 sorted[s] = srcBase[s * B];
-            std::sort(sorted.begin(), sorted.end());
+            keel::sort(sorted.begin(), sorted.end());
             keel::f64 *dstBase = dst + o * (B * k) + b;
             for (keel::usize i = 0; i < k; ++i)
                 dstBase[i * B] = quantileFromSortedSlice(sorted.data(), N, probs[i], method);
@@ -457,7 +455,7 @@ inline T readSrcAsT(const Value &x, keel::usize i, bool typeMatch)
         return static_cast<T>(x.elemAsDouble(i));
     } else {
         const keel::f64 d = x.elemAsDouble(i);
-        return static_cast<T>(std::clamp(keel::round(d),
+        return static_cast<T>(keel::clamp(keel::round(d),
             keel::as<keel::f64>(keel::Limits<T>::kLowest),
             keel::as<keel::f64>(keel::Limits<T>::kMax)));
     }
@@ -510,7 +508,7 @@ inline void modeFromSliceT(T *data, keel::usize n, T &outVal, keel::f64 &outCoun
         outCount = 0.0;
         return;
     }
-    std::sort(data, data + k);
+    keel::sort(data, data + k);
     T bestVal = data[0];
     keel::usize bestCount = 1;
     T curVal = data[0];
@@ -815,7 +813,7 @@ enum class CovNan { Include, Omitrows, Partialrows };
     readMatrix(x, data, n, p);
 
     auto divisorOf = [normFlag](keel::usize m) {
-        return (normFlag == 0) ? std::max(1.0, keel::as<keel::f64>(m) - 1.0)
+        return (normFlag == 0) ? keel::max(1.0, keel::as<keel::f64>(m) - 1.0)
                                : keel::as<keel::f64>(m);
     };
 

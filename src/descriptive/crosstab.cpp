@@ -21,6 +21,7 @@
 // total N.
 
 #include <keel/array.h>
+#include <keel/algo.h>
 #include <keel/tuple.h>
 #include <keel/math.h>
 #include <keel/core.h>
@@ -31,7 +32,6 @@
 #include <numkit/value/error.hpp>
 #include <numkit/stats/distributions/chi2.hpp>
 
-#include <algorithm>
 #include <cstdio>
 
 #include "crosstab_detail.hpp"
@@ -79,7 +79,7 @@ crosstab(const Value &x, const Value &y_opt, keel::Allocator *mr)
 
     Value T = Value::matrix(R, C, ValueType::DOUBLE, mr);
     keel::f64 *o = T.doubleDataMut();
-    std::fill(o, o + R * C, 0.0);
+    keel::fill(o, o + R * C, 0.0);
 
     keel::usize Ntot = 0;
     for (keel::usize k = 0; k < Nx; ++k) {

@@ -5,6 +5,7 @@
 // convention). Output is always DOUBLE regardless of input class.
 
 #include <keel/array.h>
+#include <keel/algo.h>
 #include <keel/math.h>
 #include <keel/core.h>
 #include <keel/format.h>
@@ -16,7 +17,6 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
-#include <algorithm>
 
 #include "normalize_detail.hpp"
 
@@ -93,7 +93,7 @@ keel::f64 colStdSample(const keel::f64 *x, keel::usize n) {
 }
 
 keel::f64 colMedian(keel::Array<keel::f64> v) {
-    std::sort(v.begin(), v.end());
+    keel::sort(v.begin(), v.end());
     const keel::usize n = v.size();
     if (n == 0) return 0.0;
     return (n & 1) ? v[n / 2]
@@ -101,7 +101,7 @@ keel::f64 colMedian(keel::Array<keel::f64> v) {
 }
 
 keel::f64 colIQR(keel::Array<keel::f64> v) {
-    std::sort(v.begin(), v.end());
+    keel::sort(v.begin(), v.end());
     const keel::usize n = v.size();
     if (n < 2) return 0.0;
     // MATLAB's iqr/normalize use the prctile convention: the i-th sorted
@@ -242,7 +242,7 @@ NormalizeResult normalize(const Value &A, keel::StringRef method,
             keel::f64 L;
             if (keel::is_inf(p)) {
                 L = 0.0;
-                for (keel::usize i = 0; i < n; ++i) L = std::max(L, keel::abs(col[i]));
+                for (keel::usize i = 0; i < n; ++i) L = keel::max(L, keel::abs(col[i]));
             } else if (p == 1.0) {
                 L = 0.0;
                 for (keel::usize i = 0; i < n; ++i) L += keel::abs(col[i]);
@@ -315,7 +315,7 @@ Value rescale(const Value &A, keel::f64 lo, keel::f64 hi,
         const keel::f64 r = mx - mn;
         keel::Array<keel::f64> y(n);
         if (r == 0.0) {
-            std::fill(y.begin(), y.end(), lo);
+            keel::fill(y.begin(), y.end(), lo);
         } else {
             const keel::f64 scl = (hi - lo) / r;
             for (keel::usize i = 0; i < n; ++i) {

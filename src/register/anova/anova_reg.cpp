@@ -4,6 +4,7 @@
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
 #include <keel/array.h>
+#include <keel/algo.h>
 #include <keel/math.h>
 #include <keel/core.h>
 #include <keel/ref.h>
@@ -17,7 +18,6 @@
 #include "anova/anova_detail.hpp"
 #include <numkit/value/error.hpp>
 
-#include <algorithm>
 #include <cstdio>
 #include <keel/tuple.h>
 
@@ -235,7 +235,7 @@ void kruskalwallis_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         const keel::usize M = all.size();
         keel::Array<keel::usize> ord(M);
         for (keel::usize i = 0; i < M; ++i) ord[i] = i;
-        std::sort(ord.begin(), ord.end(),
+        keel::sort(ord.begin(), ord.end(),
                   [&](keel::usize a, keel::usize b){ return all[a].v < all[b].v; });
         keel::Array<keel::f64> rk(M);
         keel::Array<keel::usize> tieSizes;
@@ -252,13 +252,13 @@ void kruskalwallis_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         keel::Array<keel::f64> uniq;
         uniq.reserve(M);
         for (auto &p : all) uniq.push_back(p.g);
-        std::sort(uniq.begin(), uniq.end());
-        uniq.resize(std::unique(uniq.begin(), uniq.end()) - uniq.begin());
+        keel::sort(uniq.begin(), uniq.end());
+        uniq.resize(keel::unique(uniq.begin(), uniq.end()) - uniq.begin());
         const keel::usize K = uniq.size();
         keel::Array<keel::usize> n(K, 0);
         keel::Array<keel::f64> sumR(K, 0.0);
         for (keel::usize k = 0; k < M; ++k) {
-            auto it = std::lower_bound(uniq.begin(), uniq.end(), all[k].g);
+            auto it = keel::lower_bound(uniq.begin(), uniq.end(), all[k].g);
             const keel::usize gi = keel::as<keel::usize>(it - uniq.begin());
             n[gi] += 1;
             sumR[gi] += rk[k];
@@ -389,9 +389,9 @@ void anova2_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             Fc = (ssC / dfC) / msE;
             Fr = (ssR / dfR) / msE;
             Fi = (ssI / dfI) / msE;
-            pCols  = std::max(0.0, 1.0 - fcdf(Value::scalar(Fc, mr), dfC, dfE, mr).toScalar());
-            pRows  = std::max(0.0, 1.0 - fcdf(Value::scalar(Fr, mr), dfR, dfE, mr).toScalar());
-            pInter = std::max(0.0, 1.0 - fcdf(Value::scalar(Fi, mr), dfI, dfE, mr).toScalar());
+            pCols  = keel::max(0.0, 1.0 - fcdf(Value::scalar(Fc, mr), dfC, dfE, mr).toScalar());
+            pRows  = keel::max(0.0, 1.0 - fcdf(Value::scalar(Fr, mr), dfR, dfE, mr).toScalar());
+            pInter = keel::max(0.0, 1.0 - fcdf(Value::scalar(Fi, mr), dfI, dfE, mr).toScalar());
         } else if (msE == 0.0) {
             const keel::f64 inf = keel::Limits<keel::f64>::infinity();
             Fc = Fr = Fi = inf;

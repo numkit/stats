@@ -4,15 +4,14 @@
 #pragma once
 
 #include <keel/array.h>
+#include <keel/algo.h>
 #include <keel/math.h>
 #include <keel/core.h>
 #include <keel/string.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
-#include <algorithm>
 #include <cstdio>
-#include <numeric>
 
 
 namespace numkit::stats {
@@ -30,15 +29,15 @@ keel::Array<keel::f64> sortedUniqueNoNaN(const Value &x)
         if (keel::is_nan(xi)) continue;
         v.push_back(xi);
     }
-    std::sort(v.begin(), v.end());
-    v.resize(std::unique(v.begin(), v.end()) - v.begin());
+    keel::sort(v.begin(), v.end());
+    v.resize(keel::unique(v.begin(), v.end()) - v.begin());
     return v;
 }
 
 // Find index of value in sorted unique list (binary search).
 [[maybe_unused]] keel::usize indexOf(const keel::Array<keel::f64> &u, keel::f64 val)
 {
-    auto it = std::lower_bound(u.begin(), u.end(), val);
+    auto it = keel::lower_bound(u.begin(), u.end(), val);
     return keel::as<keel::usize>(it - u.begin());
 }
 

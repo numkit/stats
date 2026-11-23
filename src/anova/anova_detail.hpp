@@ -4,14 +4,13 @@
 #pragma once
 
 #include <keel/array.h>
+#include <keel/algo.h>
 #include <keel/math.h>
 #include <keel/core.h>
 #include <keel/memory.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
-#include <algorithm>
-#include <numeric>
 #include <keel/tuple.h>
 
 
@@ -47,7 +46,7 @@ keel::Array<Group> bucket(const Value &y, const Value &group)
         }
     }
     // Sort by label ascending — matches MATLAB's anova1 default ordering.
-    std::sort(g.begin(), g.end(),
+    keel::sort(g.begin(), g.end(),
               [](const Group &a, const Group &b) { return a.label < b.label; });
     return g;
 }

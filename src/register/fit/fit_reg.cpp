@@ -4,6 +4,7 @@
 // Engine-coupled glue: marshals CallContext args/outs into the engine-free
 // compute API declared in the headers below. See project_layering_refactor.
 #include <keel/array.h>
+#include <keel/algo.h>
 #include <keel/core.h>
 #include <keel/format.h>
 #include <keel/memory.h>
@@ -22,7 +23,6 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/argcheck.hpp>
 
-#include <algorithm>
 
 namespace numkit::stats {
 
@@ -144,8 +144,8 @@ static void fill_fd_avar2(keel::f64 *p, keel::f64 p0, keel::f64 p1,
         p[0] = NaNd; p[1] = NaNd; p[2] = NaNd; p[3] = NaNd;
         return;
     }
-    const keel::f64 h0 = std::max(1e-4, 1e-4 * keel::abs(p0));
-    const keel::f64 h1 = std::max(1e-4, 1e-4 * keel::abs(p1));
+    const keel::f64 h0 = keel::max(1e-4, 1e-4 * keel::abs(p0));
+    const keel::f64 h1 = keel::max(1e-4, 1e-4 * keel::abs(p1));
     const keel::f64 f_p0 = eval_nL(p0 + h0, p1);
     const keel::f64 f_m0 = eval_nL(p0 - h0, p1);
     const keel::f64 f_p1 = eval_nL(p0, p1 + h1);
@@ -181,9 +181,9 @@ static void fill_fd_avar3(keel::f64 *p, keel::f64 p0, keel::f64 p1, keel::f64 p2
     };
     if (!keel::is_finite(nL)) { setNaN(); return; }
 
-    const keel::f64 h0 = std::max(1e-4, 1e-4 * keel::abs(p0));
-    const keel::f64 h1 = std::max(1e-4, 1e-4 * keel::abs(p1));
-    const keel::f64 h2 = std::max(1e-4, 1e-4 * keel::abs(p2));
+    const keel::f64 h0 = keel::max(1e-4, 1e-4 * keel::abs(p0));
+    const keel::f64 h1 = keel::max(1e-4, 1e-4 * keel::abs(p1));
+    const keel::f64 h2 = keel::max(1e-4, 1e-4 * keel::abs(p2));
     auto e = [&](keel::f64 q0, keel::f64 q1, keel::f64 q2) { return eval_nL(q0, q1, q2); };
     // Diagonal entries.
     const keel::f64 H00 = (e(p0+h0,p1,p2) - 2.0*nL + e(p0-h0,p1,p2)) / (h0*h0);
@@ -697,17 +697,17 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         keel::Array<keel::f64> centroid(K), xr(K), xe(K), xc(K);
         for (keel::usize iter = 0; iter < maxIter; ++iter) {
             for (keel::usize i = 0; i < nVerts; ++i) ord[i] = i;
-            std::sort(ord.begin(), ord.end(), [&](keel::usize a, keel::usize b) {
+            keel::sort(ord.begin(), ord.end(), [&](keel::usize a, keel::usize b) {
                 return fvals[a] < fvals[b];
             });
             keel::f64 fspan = keel::abs(fvals[ord[K]] - fvals[ord[0]]);
             keel::f64 xspan = 0.0;
             for (keel::usize i = 1; i <= K; ++i)
                 for (keel::usize k = 0; k < K; ++k)
-                    xspan = std::max(xspan, keel::abs(simplex[ord[i]][k] - simplex[ord[0]][k]));
+                    xspan = keel::max(xspan, keel::abs(simplex[ord[i]][k] - simplex[ord[0]][k]));
             if (fspan < 1e-11 && xspan < 1e-9) break;
 
-            std::fill(centroid.begin(), centroid.end(), 0.0);
+            keel::fill(centroid.begin(), centroid.end(), 0.0);
             for (keel::usize i = 0; i < K; ++i)
                 for (keel::usize k = 0; k < K; ++k)
                     centroid[k] += simplex[ord[i]][k] / keel::as<keel::f64>(K);
@@ -757,7 +757,7 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             const keel::f64 f0 = fvals[bestIdx];
             keel::Array<keel::f64> hStep(K);
             for (keel::usize k = 0; k < K; ++k)
-                hStep[k] = std::max(1e-5, 1e-4 * keel::abs(phat[k]));
+                hStep[k] = keel::max(1e-5, 1e-4 * keel::abs(phat[k]));
             keel::Array<keel::f64> H(K * K, 0.0);
             for (keel::usize i = 0; i < K; ++i) {
                 auto tp = phat.clone(), tm = phat.clone();

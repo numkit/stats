@@ -21,7 +21,6 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
-#include <algorithm>
 
 namespace numkit::stats {
 
@@ -31,7 +30,7 @@ namespace {
 keel::usize defaultNumLags(keel::usize N)
 {
     const keel::usize cap = (N >= 1) ? N - 1 : 0;
-    return std::min<keel::usize>(20, cap);
+    return keel::min<keel::usize>(20, cap);
 }
 
 // Centred copy of a (vector) Value's data: out[i] = v[i] - mean(v).
@@ -144,7 +143,7 @@ crosscorr(const Value &y1, const Value &y2, keel::i32 numLags, keel::f64 numSTD,
     keel::Array<keel::f64> xcf(2 * K + 1), lags(2 * K + 1);
     for (keel::i64 k = -Kl; k <= Kl; ++k) {
         keel::f64 s = 0.0;
-        const keel::i64 t0 = std::max(0L, -k), t1 = std::min(Nl, Nl - k);
+        const keel::i64 t0 = keel::max(0L, -k), t1 = keel::min(Nl, Nl - k);
         for (keel::i64 t = t0; t < t1; ++t)
             s += c1[keel::as<keel::usize>(t)] * c2[keel::as<keel::usize>(t + k)];
         s /= keel::as<keel::f64>(N);

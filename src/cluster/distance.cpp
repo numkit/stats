@@ -4,6 +4,7 @@
 // delegating pure numerical kernels to keel::stats.
 
 #include <keel/arena.h>
+#include <keel/algo.h>
 #include <keel/array.h>
 #include <keel/core.h>
 #include <keel/math.h>
@@ -14,7 +15,6 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 
-#include <algorithm>
 
 #include "distance_detail.hpp"
 
@@ -137,7 +137,7 @@ void pdist2_topk(const Value &X, const Value &Y, keel::StringRef metric, keel::f
     Value full = pdist2(X, Y, metric, p, C_opt, mr);
     const keel::usize Mx = X.dims().rows();
     const keel::usize My = Y.dims().rows();
-    const keel::usize kk = std::min(k, Mx);
+    const keel::usize kk = keel::min(k, Mx);
     Dout = Value::matrix(kk, My, ValueType::DOUBLE, mr);
     Iout = Value::matrix(kk, My, ValueType::DOUBLE, mr);
     keel::f64 *dd = Dout.doubleDataMut();
@@ -152,13 +152,13 @@ void pdist2_topk(const Value &X, const Value &Y, keel::StringRef metric, keel::f
             col[i].second = i;
         }
         if (largest) {
-            std::partial_sort(col.begin(), col.begin() + kk, col.end(),
+            keel::partial_sort(col.begin(), col.begin() + kk, col.end(),
                 [](const auto &a, const auto &b) {
                     if (a.first != b.first) return a.first > b.first;
                     return a.second < b.second;
                 });
         } else {
-            std::partial_sort(col.begin(), col.begin() + kk, col.end(),
+            keel::partial_sort(col.begin(), col.begin() + kk, col.end(),
                 [](const auto &a, const auto &b) {
                     if (a.first != b.first) return a.first < b.first;
                     return a.second < b.second;

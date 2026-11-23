@@ -24,7 +24,6 @@
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 
-#include <algorithm>
 
 namespace numkit::stats {
 
@@ -484,12 +483,12 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
         for (keel::usize j = 0; j < wantCoef; ++j)
             for (keel::usize k = 0; k < wantCoef; ++k)
                 varEta += xr[j] * covMat[j + k * wantCoef] * xr[k];
-        const keel::f64 seEta = keel::sqrt(std::max(0.0, varEta));
+        const keel::f64 seEta = keel::sqrt(keel::max(0.0, varEta));
         const keel::f64 nr = Nv.isScalar() ? Nv.elemAsDouble(0) : Nv.elemAsDouble(r);
         const keel::f64 y1 = nr * invLink(etaVec[r] - crit * seEta);
         const keel::f64 y2 = nr * invLink(etaVec[r] + crit * seEta);
-        const keel::f64 ymin = std::min(y1, y2);
-        const keel::f64 ymax = std::max(y1, y2);
+        const keel::f64 ymin = keel::min(y1, y2);
+        const keel::f64 ymax = keel::max(y1, y2);
         const keel::f64 yh = yhat.doubleData()[r];
         dylo.doubleDataMut()[r] = yh - ymin;
         dyhi.doubleDataMut()[r] = ymax - yh;

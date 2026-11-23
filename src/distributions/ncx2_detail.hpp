@@ -15,7 +15,6 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
-#include <algorithm>
 
 
 namespace numkit::stats {
@@ -67,7 +66,7 @@ inline keel::f64 gammainc_scalar(keel::f64 xx, keel::f64 a, keel::Allocator *mr)
         if (j > 5 && contrib < 1e-16 * (sum + 1e-300)) break;
         Pj *= halfL / keel::f64(j + 1);
     }
-    return std::min(1.0, sum);
+    return keel::min(1.0, sum);
 }
 
 } // anonymous

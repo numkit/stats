@@ -22,7 +22,6 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/argcheck.hpp>
 
-#include <algorithm>
 
 namespace numkit::stats {
 
@@ -207,7 +206,7 @@ void dispatchDistStruct(const char *fnName, const char *suffix,
             ? 0.0 : evalDistStructBase(pd, "cdf", Value::scalar(tLo, mr), ctx).toScalar();
         const keel::f64 pu = keel::is_inf(tHi) && tHi > 0.0
             ? 1.0 : evalDistStructBase(pd, "cdf", Value::scalar(tHi, mr), ctx).toScalar();
-        const keel::f64 Z = std::max(pu - pl, 0.0);
+        const keel::f64 Z = keel::max(pu - pl, 0.0);
         keel::usize rows = 1, cols = 1;
         parse_rng_size(args, 1, rows, cols, "random");
         Value u = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
@@ -231,7 +230,7 @@ void dispatchDistStruct(const char *fnName, const char *suffix,
         ? 0.0 : evalDistStructBase(pd, "cdf", Value::scalar(tLo, mr), ctx).toScalar();
     const keel::f64 pu = keel::is_inf(tHi) && tHi > 0.0
         ? 1.0 : evalDistStructBase(pd, "cdf", Value::scalar(tHi, mr), ctx).toScalar();
-    const keel::f64 Z = std::max(pu - pl, 1e-300);
+    const keel::f64 Z = keel::max(pu - pl, 1e-300);
 
     if (sfx == "pdf") {
         Value out = evalDistStructBase(pd, "pdf", xVal, ctx);
@@ -253,7 +252,7 @@ void dispatchDistStruct(const char *fnName, const char *suffix,
             const keel::f64 xi = xVal.elemAsDouble(i);
             if (xi <= tLo) od[i] = 0.0;
             else if (xi >= tHi) od[i] = 1.0;
-            else od[i] = std::clamp((od[i] - pl) / Z, 0.0, 1.0);
+            else od[i] = keel::clamp((od[i] - pl) / Z, 0.0, 1.0);
         }
         outs[0] = keel::move(out);
         return;

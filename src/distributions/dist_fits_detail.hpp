@@ -16,7 +16,6 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
-#include <algorithm>
 
 
 namespace numkit::stats {
@@ -85,8 +84,8 @@ Value wald_ci_2d(NllFn &&nll, keel::f64 t1, keel::f64 t2,
     // FD step: eps^{1/3} ≈ 6e-6 is theoretically optimal for 2nd-deriv
     // central FD; relax to 1e-4 for distributions with curved score
     // functions (digamma/trigamma) to suppress roundoff noise.
-    const keel::f64 h1 = std::max(keel::abs(t1), 1.0) * 1e-4;
-    const keel::f64 h2 = std::max(keel::abs(t2), 1.0) * 1e-4;
+    const keel::f64 h1 = keel::max(keel::abs(t1), 1.0) * 1e-4;
+    const keel::f64 h2 = keel::max(keel::abs(t2), 1.0) * 1e-4;
     const keel::f64 f00   = nll(t1, t2);
     const keel::f64 f1p   = nll(t1 + h1, t2);
     const keel::f64 f1m   = nll(t1 - h1, t2);
@@ -108,8 +107,8 @@ Value wald_ci_2d(NllFn &&nll, keel::f64 t1, keel::f64 t2,
     }
     const keel::f64 V11 = H22 / det;
     const keel::f64 V22 = H11 / det;
-    const keel::f64 se1 = keel::sqrt(std::max(V11, 0.0));
-    const keel::f64 se2 = keel::sqrt(std::max(V22, 0.0));
+    const keel::f64 se1 = keel::sqrt(keel::max(V11, 0.0));
+    const keel::f64 se2 = keel::sqrt(keel::max(V22, 0.0));
 
     // z_{α/2} from norminv(1 - α/2). Series via std::erf inversion is
     // unnecessary — use the closed-form via erfc^{-1} approximation:
@@ -284,8 +283,8 @@ namespace {
     }
     const keel::f64 V11 = H22 / det;
     const keel::f64 V22 = H11 / det;
-    const keel::f64 se1 = keel::sqrt(std::max(V11, 0.0));
-    const keel::f64 se2 = keel::sqrt(std::max(V22, 0.0));
+    const keel::f64 se1 = keel::sqrt(keel::max(V11, 0.0));
+    const keel::f64 se2 = keel::sqrt(keel::max(V22, 0.0));
     // z_{α/2} — at default α=0.05 returns 1.959963984540054.
     const keel::f64 z = [](keel::f64 a) -> keel::f64 {
         const keel::f64 p = 1.0 - 0.5 * a;

@@ -3,6 +3,7 @@
 // knnsearch / rangesearch — brute-force NN search via stats::pdist2.
 
 #include <keel/array.h>
+#include <keel/algo.h>
 #include <keel/tuple.h>
 #include <keel/core.h>
 #include <keel/memory.h>
@@ -13,7 +14,6 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
-#include <algorithm>
 
 #include "knnsearch_detail.hpp"
 
@@ -51,7 +51,7 @@ knnsearch(const Value &X, const Value &Y, keel::i32 K, keel::StringRef metric, k
     const auto &dy = Y.dims();
     const keel::usize Nx = dx.rows();
     const keel::usize Ny = dy.rows();
-    const keel::i32 Keff = std::min(keel::as<keel::i32>(Nx), K);
+    const keel::i32 Keff = keel::min(keel::as<keel::i32>(Nx), K);
 
     Value Idx = Value::matrix(Ny, keel::as<keel::usize>(K), ValueType::DOUBLE, mr);
     Value Dout = Value::matrix(Ny, keel::as<keel::usize>(K), ValueType::DOUBLE, mr);
@@ -78,7 +78,7 @@ knnsearch(const Value &X, const Value &Y, keel::i32 K, keel::StringRef metric, k
         for (keel::usize i = 0; i < Nx; ++i)
             heap.emplace_back(dd[i + q * Nx], i);
         // Partial sort by distance, ties by ascending index (stable).
-        std::partial_sort(heap.begin(),
+        keel::partial_sort(heap.begin(),
                           heap.begin() + Keff,
                           heap.end(),
                           [](const auto &a, const auto &b) {
@@ -124,7 +124,7 @@ rangesearch(const Value &X, const Value &Y, keel::f64 r, keel::StringRef metric,
             const keel::f64 v = dd[i + q * Nx];
             if (v <= r) hits.emplace_back(v, i);
         }
-        std::sort(hits.begin(), hits.end(),
+        keel::sort(hits.begin(), hits.end(),
                   [](const auto &a, const auto &b) {
                       if (a.first != b.first) return a.first < b.first;
                       return a.second < b.second;

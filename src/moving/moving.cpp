@@ -7,6 +7,7 @@
 // first, optimise after benches" policy.
 
 #include <keel/core.h>
+#include <keel/algo.h>
 #include <keel/memory.h>
 #include <keel/ref.h>
 #include <keel/arena.h>
@@ -23,7 +24,6 @@
 #include <numkit/ops/helpers.hpp>            // createLike, createForDims (toolboxes/builtin/src/)
 #include <numkit/ops/reductions.hpp>  // numkit::ops::firstNonSingletonDim, validateDim
 
-#include <algorithm>
 
 #include "moving_detail.hpp"
 
@@ -74,7 +74,7 @@ static Value smoothGaussianDim(const Value &x, const Window &w, keel::f64 sigma,
     auto perSlice = [&](const keel::f64 *src, keel::usize n, keel::isize step, keel::f64 *dst) {
         const keel::i64 N = keel::as<keel::i64>(n);
         for (keel::i64 i = 0; i < N; ++i) {
-            const keel::i64 lo = std::max(0L, i - kb), hi = std::min(N - 1, i + kf);
+            const keel::i64 lo = keel::max(0L, i - kb), hi = keel::min(N - 1, i + kf);
             keel::f64 sw = 0.0, ssum = 0.0;
             for (keel::i64 j = lo; j <= hi; ++j) {
                 const keel::f64 v = src[j * step];
@@ -110,7 +110,7 @@ static Value smoothGaussianDim(const Value &x, const Window &w, keel::f64 sigma,
             for (keel::usize r = 0; r < R; ++r)
                 perSlice(src + c * R + r, P, keel::as<keel::isize>(pg), dst + c * R + r);
     } else {
-        std::copy(src, src + x.numel(), dst);
+        keel::copy(src, src + x.numel(), dst);
     }
     return out;
 }
@@ -225,7 +225,7 @@ static Value smoothSGDim(const Value &x, keel::i32 F, keel::i32 deg, keel::i32 d
             for (keel::usize r = 0; r < R; ++r)
                 perSlice(src + c * R + r, P, keel::as<keel::isize>(pg), dst + c * R + r);
     } else {
-        std::copy(src, src + x.numel(), dst);
+        keel::copy(src, src + x.numel(), dst);
     }
     return out;
 }
@@ -329,7 +329,7 @@ static Value smoothLocalRegDim(const Value &x, keel::i32 F, keel::i32 deg, keel:
             for (keel::usize r = 0; r < R; ++r)
                 perSlice(src + c * R + r, P, keel::as<keel::isize>(pg), dst + c * R + r);
     } else {
-        std::copy(src, src + x.numel(), dst);
+        keel::copy(src, src + x.numel(), dst);
     }
     return out;
 }
@@ -431,14 +431,14 @@ void hampelCore(const keel::f64 *src, keel::usize n, keel::i32 k, keel::f64 nsig
     keel::ArenaTemp scratch = keel::get_scratch(mr);
     auto buf = keel::Array<keel::f64>(2 * k + 1, scratch.allocator());
     for (keel::i64 i = 0; i < keel::as<keel::i64>(n); ++i) {
-        const keel::i64 lo = std::max<keel::i64>(0, i - k);
-        const keel::i64 hi = std::min<keel::i64>(keel::as<keel::i64>(n) - 1, i + k);
+        const keel::i64 lo = keel::max<keel::i64>(0, i - k);
+        const keel::i64 hi = keel::min<keel::i64>(keel::as<keel::i64>(n) - 1, i + k);
         const keel::i64 len = hi - lo + 1;
         for (keel::i64 j = 0; j < len; ++j)
             buf[keel::as<keel::usize>(j)] = src[lo + j];
         // Median + MAD on the same window.
         auto copy1 = keel::Array<keel::f64>(len, scratch.allocator());
-        std::copy(buf.data(), buf.data() + len, copy1.data());
+        keel::copy(buf.data(), buf.data() + len, copy1.data());
         const keel::f64 med = winMedianInPlace(copy1.data(), keel::as<keel::usize>(len));
         auto devs = keel::Array<keel::f64>(len, scratch.allocator());
         for (keel::i64 j = 0; j < len; ++j)

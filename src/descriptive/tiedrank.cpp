@@ -21,6 +21,7 @@
 // themselves, then NaN slots are written back as NaN).
 
 #include <keel/array.h>
+#include <keel/algo.h>
 #include <keel/math.h>
 #include <keel/core.h>
 #include <keel/memory.h>
@@ -29,7 +30,6 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
-#include <algorithm>
 
 namespace numkit::stats {
 
@@ -52,7 +52,7 @@ keel::f64 rankOneColumn(const keel::f64 *col, keel::usize N, keel::f64 *ranks)
     }
     // Stable sort by value (preserves original order on ties; MATLAB
     // ranks ties by averaging so order doesn't change the output).
-    std::stable_sort(nz.begin(), nz.end(),
+    keel::stable_sort(nz.begin(), nz.end(),
                      [](const auto &a, const auto &b) {
                          return a.first < b.first;
                      });

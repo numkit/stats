@@ -15,7 +15,6 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
-#include <algorithm>
 
 
 namespace numkit::stats {
@@ -145,7 +144,7 @@ keel::f64 nctpdf_one(keel::f64 x, keel::f64 nu, keel::f64 delta,
         sign_k *= sign_factor;
     }
     keel::f64 v = keel::exp(log_pref) * sum;
-    if (!keel::is_finite(v) || v < 0.0) v = std::max(v, 0.0);
+    if (!keel::is_finite(v) || v < 0.0) v = keel::max(v, 0.0);
     return v;
 }
 
@@ -236,14 +235,14 @@ keel::f64 tinv_scalar(keel::f64 p, keel::f64 nu, keel::Allocator *mr)
 
     // Establish a bracket [lo, hi] for fallback bisection.
     // Find any x_lo with cdf < p and any x_hi with cdf > p.
-    keel::f64 lo = std::min(x - 1.0, delta - 50.0);
-    keel::f64 hi = std::max(x + 1.0, delta + 50.0);
+    keel::f64 lo = keel::min(x - 1.0, delta - 50.0);
+    keel::f64 hi = keel::max(x + 1.0, delta + 50.0);
     while (nctcdf_one(lo, nu, delta, mr) > p) {
-        lo -= std::max(1.0, keel::abs(lo));
+        lo -= keel::max(1.0, keel::abs(lo));
         if (!keel::is_finite(lo)) break;
     }
     while (nctcdf_one(hi, nu, delta, mr) < p) {
-        hi += std::max(1.0, keel::abs(hi));
+        hi += keel::max(1.0, keel::abs(hi));
         if (!keel::is_finite(hi)) break;
     }
 
@@ -264,7 +263,7 @@ keel::f64 tinv_scalar(keel::f64 p, keel::f64 nu, keel::Allocator *mr)
         } else {
             x_new = 0.5 * (lo + hi);
         }
-        if (keel::abs(x_new - x) < 1e-14 * std::max(1.0, keel::abs(x_new)))
+        if (keel::abs(x_new - x) < 1e-14 * keel::max(1.0, keel::abs(x_new)))
             return x_new;
         x = x_new;
     }

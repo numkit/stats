@@ -15,7 +15,6 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
-#include <algorithm>
 
 
 namespace numkit::stats {
@@ -79,7 +78,7 @@ inline keel::f64 poiss_inv_scalar(keel::f64 p, keel::f64 lambda) {
     keel::f64 k = 0.0;
     if (lambda >= 10.0) {
         // Crude Φ⁻¹ approximation good enough for a start.
-        const keel::f64 t = keel::sqrt(-2.0 * keel::log(std::min(p, 1.0 - p)));
+        const keel::f64 t = keel::sqrt(-2.0 * keel::log(keel::min(p, 1.0 - p)));
         const keel::f64 num = 2.515517 + 0.802853 * t + 0.010328 * t * t;
         const keel::f64 den = 1.0 + 1.432788 * t + 0.189269 * t * t + 0.001308 * t * t * t;
         const keel::f64 z = (p < 0.5) ? -(t - num / den) : (t - num / den);
@@ -116,13 +115,13 @@ inline keel::f64 poiss_inv_scalar(keel::f64 p, keel::f64 lambda) {
             f *= lambda / j;
             s += f;
         }
-        return std::min(1.0, std::max(0.0, s));
+        return keel::min(1.0, keel::max(0.0, s));
     };
 
     // Forward-sum cdf and gammainc-based public cdf can disagree by ~1 ULP
     // when p is itself produced by poisscdf — apply a small relative
     // tolerance so round-trips don't overshoot by one unit.
-    const keel::f64 tol = std::max(1e-13, p * 1e-13);
+    const keel::f64 tol = keel::max(1e-13, p * 1e-13);
 
     keel::f64 cur = cdf_at(k);
     if (cur >= p - tol) {
