@@ -241,7 +241,6 @@ if(NUMKIT_BUILD_TESTS AND CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
             set_target_properties(numkit PROPERTIES
                 IMPORTED_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/../numkit/build/Release/numkit.lib"
                 INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/../numkit/include"
-                INTERFACE_COMPILE_DEFINITIONS "NUMKIT_CORE_BUILD=1"
                 INTERFACE_LINK_LIBRARIES "numkit_value;numkit_sys;numkit_ops"
             )
         else()
