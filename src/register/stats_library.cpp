@@ -339,6 +339,7 @@ void kstest2_reg    (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value
 void lillietest_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 void jbtest_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 void adtest_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void adftest_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 void dwtest_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 void signtest_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 void signrank_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
@@ -404,6 +405,8 @@ void lasso_reg    (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>,
 void lassoglm_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 void lscov_reg    (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 void ridge_reg    (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void fitlm_reg    (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void predict_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // lda/lda.cpp
 void classify_reg (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
@@ -440,7 +443,7 @@ namespace numkit {
 namespace stats {
 // Defined in regress/nlinfit.cpp — installs the `.m` nlinfit wrapper (pausable
 // model `fun(beta,X)`; the C++ `nlinfit(...)` API remains the synchronous path).
-void registerNlinfitM(Engine &engine);
+void registerNlinfitM(PluginContext &engine);
 }
 
 void StatsLibrary::install(PluginContext &engine)
@@ -732,6 +735,7 @@ void StatsLibrary::install(PluginContext &engine)
     reg("test", "lillietest", &stats::detail::lillietest_reg);
     reg("test", "jbtest",   &stats::detail::jbtest_reg);
     reg("test", "adtest",   &stats::detail::adtest_reg);
+    reg("test", "adftest",  &stats::detail::adftest_reg);
     reg("test", "dwtest",   &stats::detail::dwtest_reg);
     reg("test", "signtest", &stats::detail::signtest_reg);
     reg("test", "signrank", &stats::detail::signrank_reg);
@@ -795,6 +799,8 @@ void StatsLibrary::install(PluginContext &engine)
     reg("regress", "lassoglm",  &stats::detail::lassoglm_reg);
     reg("regress", "lscov",   &stats::detail::lscov_reg);
     reg("regress", "ridge",   &stats::detail::ridge_reg);
+    reg("regress", "fitlm",   &stats::detail::fitlm_reg);
+    reg("regress", "predict", &stats::detail::predict_reg);
 
     reg("lda", "classify", &stats::detail::classify_reg);
 

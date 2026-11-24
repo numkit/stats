@@ -74,7 +74,7 @@ static Value smoothGaussianDim(const Value &x, const Window &w, keel::f64 sigma,
     auto perSlice = [&](const keel::f64 *src, keel::usize n, keel::isize step, keel::f64 *dst) {
         const keel::i64 N = keel::as<keel::i64>(n);
         for (keel::i64 i = 0; i < N; ++i) {
-            const keel::i64 lo = keel::max(0L, i - kb), hi = keel::min(N - 1, i + kf);
+            const keel::i64 lo = keel::max(keel::i64{0}, i - kb), hi = keel::min(N - 1, i + kf);
             keel::f64 sw = 0.0, ssum = 0.0;
             for (keel::i64 j = lo; j <= hi; ++j) {
                 const keel::f64 v = src[j * step];

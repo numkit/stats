@@ -80,8 +80,6 @@ bool gaussSolve(keel::f64 *M, keel::f64 *b, keel::usize p)
 // MATLAB robustfit weight functions (statrobustwfun.m). Argument is the
 // standardised, leverage-adjusted residual u = radj / (max(s,tiny_s)*tune).
 constexpr keel::f64 kSqrtEps = 1.4901161193847656e-08;  // sqrt(eps)
-#ifndef keel::kPi
-#endif
 
 [[maybe_unused]] keel::f64 robustWeight(RobustWeight wt, keel::f64 u)
 {

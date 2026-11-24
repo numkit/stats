@@ -158,7 +158,7 @@ function J = NUMKIT_nlinfit_jac(fun, beta, n, p, X)
 end
 )NKM";
 
-void registerNlinfitM(Engine &engine)
+void registerNlinfitM(PluginContext &engine)
 {
     engine.registerBuiltinMSource(kNlinfitMSource);
 }
