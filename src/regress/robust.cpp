@@ -1,27 +1,36 @@
 // toolboxes/stats/src/regress/robust.cpp
-//
-// Robust regression + covariance:
-//   robustfit — IRLS regression with bisquare/Huber weighting
-//   robustcov — concentration-step (FAST-MCD-lite) robust covariance
+// Thin Value wrappers over keel::stats::robustfit and keel::stats::robustcov.
 
+#include <keel/arena.h>
 #include <keel/array.h>
-#include <keel/algo.h>
-#include <keel/math.h>
 #include <keel/core.h>
 #include <keel/memory.h>
+#include <keel/stats.h>
 #include <numkit/stats/regress/regress.hpp>
-
-#include <numkit/stats/distributions/chi2.hpp>      // chi2inv
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
-
-#include "robust_detail.hpp"
-
 namespace numkit::stats {
 
 namespace {
+
+keel::stats::RobustWeight toKeelWeight(RobustWeight wt) noexcept
+{
+    switch (wt) {
+        case RobustWeight::Andrews:  return keel::stats::RobustWeight::kAndrews;
+        case RobustWeight::Bisquare: return keel::stats::RobustWeight::kBisquare;
+        case RobustWeight::Cauchy:   return keel::stats::RobustWeight::kCauchy;
+        case RobustWeight::Fair:     return keel::stats::RobustWeight::kFair;
+        case RobustWeight::Huber:    return keel::stats::RobustWeight::kHuber;
+        case RobustWeight::Logistic: return keel::stats::RobustWeight::kLogistic;
+        case RobustWeight::Ols:      return keel::stats::RobustWeight::kOls;
+        case RobustWeight::Talwar:   return keel::stats::RobustWeight::kTalwar;
+        case RobustWeight::Welsch:   return keel::stats::RobustWeight::kWelsch;
+    }
+    return keel::stats::RobustWeight::kBisquare;
+}
+
 void robustfit_argcheck(const Value &X, const Value &y, keel::usize n, keel::usize p)
 {
     (void)X;
@@ -32,6 +41,7 @@ void robustfit_argcheck(const Value &X, const Value &y, keel::usize n, keel::usi
         throw Error("robustfit: need rows(X) > cols(X)",
                     0, 0, "robustfit", "", "numkit:robustfit:noDOF");
 }
+
 } // namespace
 
 RobustfitResult robustfit(const Value &X, const Value &y,
@@ -42,66 +52,20 @@ RobustfitResult robustfit(const Value &X, const Value &y,
     const keel::usize p = X.dims().cols();
     robustfit_argcheck(X, y, n, p);
 
-    if (keel::is_nan(tune)) tune = defaultTune(weight);
-
-    keel::Array<keel::f64> Xv(n * p);
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    keel::Array<keel::f64> Xv(n * p, 0.0, scratch.allocator());
     for (keel::usize i = 0; i < n * p; ++i) Xv[i] = X.elemAsDouble(i);
-    keel::Array<keel::f64> yv(n);
+    keel::Array<keel::f64> yv(n, 0.0, scratch.allocator());
     for (keel::usize i = 0; i < n; ++i) yv[i] = y.elemAsDouble(i);
 
-    // Leverage adjustment (DuMouchel & O'Brien): radj = r / sqrt(1 - h),
-    // h = hat-matrix diagonal. MATLAB statrobustfit.m.
-    const keel::Array<keel::f64> h = leverage(Xv.data(), n, p);
-    keel::Array<keel::f64> adj(n);
-    for (keel::usize i = 0; i < n; ++i)
-        adj[i] = 1.0 / keel::sqrt(1.0 - h[i]);
-
-    // Floor on the scale estimate so a (near-)perfect fit can't drive s to 0.
-    keel::f64 tiny_s = 1e-6 * sampleStd(yv.as_ref());
-    if (!(tiny_s > 0.0)) tiny_s = 1.0;
-
-    // Initial OLS (uniform weights).
-    keel::Array<keel::f64> w(n, 1.0);
-    keel::Array<keel::f64> beta = weightedLS(Xv.data(), n, p, yv.data(), w.data());
-
-    keel::Array<keel::f64> r(n), radj(n), beta_prev(p, 0.0);
-    const keel::i32 maxIter = 50;
-    const keel::f64 D = 1.4901161193847656e-08;   // sqrt(eps)
-    keel::f64 s = 1.0;
-    for (keel::i32 it = 0; it < maxIter; ++it) {
-        // Residuals from the current fit, then the leverage-adjusted scale.
-        for (keel::usize i = 0; i < n; ++i) {
-            keel::f64 pred = 0.0;
-            for (keel::usize j = 0; j < p; ++j)
-                pred += Xv[j * n + i] * beta[j];
-            r[i] = yv[i] - pred;
-            radj[i] = r[i] * adj[i];
-        }
-        s = madsigma(radj.as_ref(), p);
-        const keel::f64 denom = keel::max(s, tiny_s) * tune;
-
-        // New weights from the standardised, leverage-adjusted residuals.
-        for (keel::usize i = 0; i < n; ++i)
-            w[i] = robustWeight(weight, radj[i] / denom);
-
-        beta_prev = keel::move(beta);
-        beta = weightedLS(Xv.data(), n, p, yv.data(), w.data());
-
-        // MATLAB: stop when no |b-b0| exceeds D*max(|b|,|b0|).
-        bool changed = false;
-        for (keel::usize j = 0; j < p; ++j)
-            if (keel::abs(beta[j] - beta_prev[j])
-                > D * keel::max(keel::abs(beta[j]), keel::abs(beta_prev[j])))
-                changed = true;
-        if (!changed) break;
-    }
-
-    // Pack outputs.
     auto bv = Value::matrix(p, 1, ValueType::DOUBLE, mr);
-    keel::copy_n(bv.doubleDataMut(), beta.data(), p);
+    keel::f64 s = 1.0;
+    (void)keel::stats::robustfit(Xv.as_ref(), n, p, yv.as_ref(),
+                                 toKeelWeight(weight), tune,
+                                 keel::MutArrayRef<keel::f64>(bv.doubleDataMut(), p), s,
+                                 scratch.allocator());
     return { keel::move(bv), Value::scalar(s, mr) };
 }
-
 
 RobustcovResult robustcov(const Value &X, keel::Allocator *mr)
 {
@@ -111,59 +75,16 @@ RobustcovResult robustcov(const Value &X, keel::Allocator *mr)
         throw Error("robustcov: need n > d + 1 observations",
                     0, 0, "robustcov", "", "numkit:robustcov:noDOF");
 
-    keel::Array<keel::f64> Xv(n * d);
+    keel::ArenaTemp scratch = keel::get_scratch(mr);
+    keel::Array<keel::f64> Xv(n * d, 0.0, scratch.allocator());
     for (keel::usize i = 0; i < n * d; ++i) Xv[i] = X.elemAsDouble(i);
 
-    // Start from classical mean / cov of all rows.
-    keel::Array<keel::usize> keep(n);
-    for (keel::usize i = 0; i < n; ++i) keep[i] = i;
-    keel::Array<keel::f64> mu, C, invC;
-    meanCovSubset(Xv.data(), n, d, keep.as_ref(), mu, C);
-
-    const keel::usize h = keel::as<keel::usize>(
-        keel::ceil(0.75 * keel::as<keel::f64>(n)));
-
-    keel::Array<keel::usize> prevKeep;
-    for (keel::i32 it = 0; it < 30; ++it) {
-        if (!invertSPD(C.as_ref(), d, invC)) break;
-        auto dist = mahalanobisDist(Xv.data(), n, d, mu.data(), invC.data());
-        // Pick h rows with smallest distance.
-        keel::Array<keel::Pair<keel::f64, keel::usize>> pairs(n);
-        for (keel::usize i = 0; i < n; ++i) pairs[i] = { dist[i], i };
-        keel::nth_element(pairs.begin(), pairs.begin() + h, pairs.end());
-        keel::Array<keel::usize> newKeep(h);
-        for (keel::usize i = 0; i < h; ++i) newKeep[i] = pairs[i].second;
-        keel::sort(newKeep.begin(), newKeep.end());
-        if (newKeep.size() == prevKeep.size()
-            && keel::equal(newKeep.begin(), newKeep.end(), prevKeep.begin()))
-            break;
-        prevKeep = keel::move(newKeep);
-        meanCovSubset(Xv.data(), n, d, prevKeep.as_ref(), mu, C);
-        keep = prevKeep.clone();
-    }
-
-    // Consistency correction (Pison-Van Aelst-Willems 2002):
-    //   c = (h/n) / F_{d+2}(F_d^{-1}(h/n))
-    // where F_d is the chi-squared CDF with d DOF. For h/n = 0.75
-    // and d = 2 this gives c ≈ 1.86, restoring the variance of a
-    // trimmed multivariate-normal sample back to the population value.
-    const keel::f64 hRatio = keel::as<keel::f64>(h) / keel::as<keel::f64>(n);
-    Value pVal = Value::scalar(hRatio, mr);
-    const keel::f64 q = chi2inv(pVal, keel::as<keel::f64>(d), mr).toScalar();
-    Value qVal = Value::scalar(q, mr);
-    const keel::f64 F_dp2 = chi2cdf(qVal, keel::as<keel::f64>(d + 2), mr).toScalar();
-    const keel::f64 scale = (F_dp2 > 0.0) ? hRatio / F_dp2 : 1.0;
-    for (auto &c : C) c *= scale;
-
-    // Pack outputs.
     auto sigma = Value::matrix(d, d, ValueType::DOUBLE, mr);
-    // C is row-major; transpose to col-major for Value layout.
-    keel::f64 *sd = sigma.doubleDataMut();
-    for (keel::usize i = 0; i < d; ++i)
-        for (keel::usize j = 0; j < d; ++j)
-            sd[j * d + i] = C[i * d + j];
-    auto muV = Value::matrix(1, d, ValueType::DOUBLE, mr);
-    keel::copy_n(muV.doubleDataMut(), mu.data(), d);
+    auto muV   = Value::matrix(1, d, ValueType::DOUBLE, mr);
+    (void)keel::stats::robustcov(Xv.as_ref(), n, d,
+                                 keel::MutArrayRef<keel::f64>(sigma.doubleDataMut(), d * d),
+                                 keel::MutArrayRef<keel::f64>(muV.doubleDataMut(), d),
+                                 scratch.allocator());
     return { keel::move(sigma), keel::move(muV) };
 }
 

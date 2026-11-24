@@ -12,7 +12,6 @@
 #include <numkit/stats/regress/regress.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
-#include "regress/robust_detail.hpp"
 #include <numkit/value/argcheck.hpp>
 
 

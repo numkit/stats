@@ -11,10 +11,9 @@
 
 #include <keel/core.h>
 #include <keel/memory.h>
+#include <keel/specfun.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
-
-
 
 namespace numkit::stats {
 
@@ -35,18 +34,14 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
     return out;
 }
 
-inline keel::f64 besseli_scalar(keel::f64 nu, keel::f64 xx, keel::Allocator *mr)
+inline keel::f64 besseli_scalar(keel::f64 nu, keel::f64 xx, keel::Allocator * /*mr*/)
 {
-    Value nv = Value::scalar(nu, mr);
-    Value xv = Value::scalar(xx, mr);
-    return ::numkit::builtin::besseli(nv, xv, mr).toScalar();
+    return keel::specfun::besseli(nu, xx);
 }
 
-inline keel::f64 marcumq_scalar(keel::f64 a, keel::f64 b, keel::Allocator *mr)
+inline keel::f64 marcumq_scalar(keel::f64 a, keel::f64 b, keel::Allocator * /*mr*/)
 {
-    Value av = Value::scalar(a, mr);
-    Value bv = Value::scalar(b, mr);
-    return ::numkit::builtin::marcumq(av, bv, 1, mr).toScalar();
+    return keel::specfun::marcumq(a, b, 1);
 }
 
 } // anonymous

@@ -12,10 +12,9 @@
 #include <keel/core.h>
 #include <keel/math.h>
 #include <keel/memory.h>
+#include <keel/stats.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
-
-
 
 namespace numkit::stats {
 
@@ -36,80 +35,28 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
     return out;
 }
 
-inline keel::f64 log_choose(keel::f64 a, keel::f64 b) {
-    if (b < 0.0 || b > a) return -keel::Limits<keel::f64>::infinity();
-    return keel::lgamma(a + 1.0) - keel::lgamma(b + 1.0) - keel::lgamma(a - b + 1.0);
-}
-
 inline bool params_valid(keel::f64 M, keel::f64 K, keel::f64 N) {
     return M >= 0.0 && K >= 0.0 && N >= 0.0
         && keel::floor(M) == M && keel::floor(K) == K && keel::floor(N) == N
         && K <= M && N <= M;
 }
-
 inline keel::f64 hyge_pmf(keel::f64 k, keel::f64 M, keel::f64 K, keel::f64 N) {
-    const keel::f64 k_min = keel::max(0.0, N - (M - K));
-    const keel::f64 k_max = keel::min(N, K);
-    if (k < k_min || k > k_max || keel::floor(k) != k) return 0.0;
-    const keel::f64 lp = log_choose(K, k) + log_choose(M - K, N - k) - log_choose(M, N);
-    return keel::exp(lp);
+    return keel::stats::hyge_pdf(k, M, K, N);
 }
-
-// Forward sum from k_min, with one-ULP tolerance.
 inline keel::f64 hyge_cdf_scalar(keel::f64 k, keel::f64 M, keel::f64 K, keel::f64 N) {
-    if (k < 0.0) return 0.0;
-    const keel::f64 k_max = keel::min(N, K);
-    if (k >= k_max) return 1.0;
-    const keel::f64 k_min = keel::max(0.0, N - (M - K));
-    if (k < k_min) return 0.0;
-    // pmf(j+1) / pmf(j) = (K - j)/(j + 1) · (N - j)/(M - K - N + j + 1)
-    keel::f64 f = hyge_pmf(k_min, M, K, N);
-    keel::f64 s = f;
-    const keel::f64 kf = keel::floor(k);
-    for (keel::f64 j = k_min; j < kf; j += 1.0) {
-        const keel::f64 num = (K - j) * (N - j);
-        const keel::f64 den = (j + 1.0) * (M - K - N + j + 1.0);
-        if (den == 0.0) { f = 0.0; }
-        else            { f *= num / den; }
-        s += f;
-    }
-    return keel::min(1.0, keel::max(0.0, s));
+    return keel::stats::hyge_cdf(k, M, K, N);
 }
-
 inline keel::f64 hyge_inv_scalar(keel::f64 q, keel::f64 M, keel::f64 K, keel::f64 N) {
-    if (!(q >= 0.0 && q <= 1.0)) return keel::Limits<keel::f64>::quiet_nan();
-    const keel::f64 k_min = keel::max(0.0, N - (M - K));
-    const keel::f64 k_max = keel::min(N, K);
-    if (q == 0.0) return k_min;
-    if (q >= 1.0) return k_max;
-    const keel::f64 tol = keel::max(1e-13, q * 1e-13);
-    keel::f64 f = hyge_pmf(k_min, M, K, N);
-    keel::f64 s = f;
-    if (s >= q - tol) return k_min;
-    for (keel::f64 j = k_min; j < k_max; j += 1.0) {
-        const keel::f64 num = (K - j) * (N - j);
-        const keel::f64 den = (j + 1.0) * (M - K - N + j + 1.0);
-        if (den == 0.0) { f = 0.0; }
-        else            { f *= num / den; }
-        s += f;
-        if (s >= q - tol) return j + 1.0;
-    }
-    return k_max;
+    return keel::stats::hyge_inv(q, M, K, N);
 }
-
-// Kernels for the parameter-broadcast path (vector M/K/N). Each wraps
-// params_valid + the scalar helper above (all pure double, no mr needed).
 inline keel::f64 hygepdfK(keel::f64 k, keel::f64 M, keel::f64 K, keel::f64 N) {
-    return params_valid(M, K, N) ? hyge_pmf(k, M, K, N)
-                                 : keel::Limits<keel::f64>::quiet_nan();
+    return keel::stats::hyge_pdf(k, M, K, N);
 }
 inline keel::f64 hygecdfK(keel::f64 k, keel::f64 M, keel::f64 K, keel::f64 N) {
-    return params_valid(M, K, N) ? hyge_cdf_scalar(k, M, K, N)
-                                 : keel::Limits<keel::f64>::quiet_nan();
+    return keel::stats::hyge_cdf(k, M, K, N);
 }
 inline keel::f64 hygeinvK(keel::f64 q, keel::f64 M, keel::f64 K, keel::f64 N) {
-    return params_valid(M, K, N) ? hyge_inv_scalar(q, M, K, N)
-                                 : keel::Limits<keel::f64>::quiet_nan();
+    return keel::stats::hyge_inv(q, M, K, N);
 }
 
 } // anonymous

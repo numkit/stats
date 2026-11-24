@@ -6,6 +6,7 @@
 #include <keel/core.h>
 #include <keel/tuple.h>
 #include <keel/memory.h>
+#include <keel/stats.h>
 #include <numkit/stats/distributions/hypergeom.hpp>
 
 #include <numkit/builtin/datafun.hpp>
@@ -21,32 +22,19 @@
 
 namespace numkit::stats {
 
-namespace {
-inline bool hyge_argcheck(keel::f64 M, keel::f64 K, keel::f64 N) noexcept
-{
-    return params_valid(M, K, N);
-}
-} // namespace
-
 Value hygepdf(const Value &k, keel::f64 M, keel::f64 K, keel::f64 N, keel::Allocator *mr)
 {
-    if (!hyge_argcheck(M, K, N))
-        return elementwise(k, [](keel::f64){ return keel::Limits<keel::f64>::quiet_nan(); }, mr);
-    return elementwise(k, [=](keel::f64 ki){ return hyge_pmf(ki, M, K, N); }, mr);
+    return elementwise(k, [=](keel::f64 ki) { return keel::stats::hyge_pdf(ki, M, K, N); }, mr);
 }
 
 Value hygecdf(const Value &k, keel::f64 M, keel::f64 K, keel::f64 N, keel::Allocator *mr)
 {
-    if (!params_valid(M, K, N))
-        return elementwise(k, [](keel::f64){ return keel::Limits<keel::f64>::quiet_nan(); }, mr);
-    return elementwise(k, [=](keel::f64 ki){ return hyge_cdf_scalar(ki, M, K, N); }, mr);
+    return elementwise(k, [=](keel::f64 ki) { return keel::stats::hyge_cdf(ki, M, K, N); }, mr);
 }
 
 Value hygeinv(const Value &q, keel::f64 M, keel::f64 K, keel::f64 N, keel::Allocator *mr)
 {
-    if (!params_valid(M, K, N))
-        return elementwise(q, [](keel::f64){ return keel::Limits<keel::f64>::quiet_nan(); }, mr);
-    return elementwise(q, [=](keel::f64 qi){ return hyge_inv_scalar(qi, M, K, N); }, mr);
+    return elementwise(q, [=](keel::f64 qi) { return keel::stats::hyge_inv(qi, M, K, N); }, mr);
 }
 
 Value hygernd(::numkit::ops::RngContext &rng, keel::f64 M, keel::f64 K, keel::f64 N, keel::usize rows, keel::usize cols, keel::Allocator *mr)
@@ -63,14 +51,8 @@ Value hygernd(::numkit::ops::RngContext &rng, keel::f64 M, keel::f64 K, keel::f6
 
 keel::Tuple<keel::f64, keel::f64> hygestat(keel::f64 M, keel::f64 K, keel::f64 N)
 {
-    if (!params_valid(M, K, N) || M < 1.0) {
-        const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
-        return keel::make_tuple(nan, nan);
-    }
-    const keel::f64 mean = N * K / M;
-    if (M < 2.0) return keel::make_tuple(mean, keel::Limits<keel::f64>::quiet_nan());
-    const keel::f64 var = N * K * (M - K) * (M - N) / (M * M * (M - 1.0));
-    return keel::make_tuple(mean, var);
+    const auto m = keel::stats::hyge_stat(M, K, N);
+    return keel::make_tuple(m.mean, m.var);
 }
 
 } // namespace numkit::stats

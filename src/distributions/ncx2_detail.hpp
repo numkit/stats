@@ -12,10 +12,9 @@
 #include <keel/core.h>
 #include <keel/math.h>
 #include <keel/memory.h>
+#include <keel/stats.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
-
-
 
 namespace numkit::stats {
 
@@ -36,37 +35,9 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
     return out;
 }
 
-inline keel::f64 besseli_scalar(keel::f64 nu, keel::f64 xx, keel::Allocator *mr)
+[[maybe_unused]] keel::f64 ncx2cdf_one(keel::f64 x, keel::f64 k, keel::f64 lambda, keel::Allocator * /*mr*/)
 {
-    Value nv = Value::scalar(nu, mr);
-    Value xv = Value::scalar(xx, mr);
-    return ::numkit::builtin::besseli(nv, xv, mr).toScalar();
-}
-
-inline keel::f64 gammainc_scalar(keel::f64 xx, keel::f64 a, keel::Allocator *mr)
-{
-    Value xv = Value::scalar(xx, mr);
-    Value av = Value::scalar(a,  mr);
-    return ::numkit::builtin::gammainc(xv, av, mr).toScalar();
-}
-
-[[maybe_unused]] keel::f64 ncx2cdf_one(keel::f64 x, keel::f64 k, keel::f64 lambda, keel::Allocator *mr)
-{
-    if (x <= 0.0) return 0.0;
-    if (lambda == 0.0) return gammainc_scalar(x / 2.0, k / 2.0, mr);
-    const keel::f64 halfL = lambda / 2.0;
-    const keel::f64 halfX = x / 2.0;
-    keel::f64 Pj = keel::exp(-halfL);
-    keel::f64 sum = 0.0;
-    const keel::i32 maxIter = 2000;
-    for (keel::i32 j = 0; j < maxIter; ++j) {
-        const keel::f64 cdfTerm = gammainc_scalar(halfX, k / 2.0 + keel::f64(j), mr);
-        const keel::f64 contrib = Pj * cdfTerm;
-        sum += contrib;
-        if (j > 5 && contrib < 1e-16 * (sum + 1e-300)) break;
-        Pj *= halfL / keel::f64(j + 1);
-    }
-    return keel::min(1.0, sum);
+    return keel::stats::ncx2_cdf(x, k, lambda);
 }
 
 } // anonymous

@@ -12,10 +12,9 @@
 #include <keel/core.h>
 #include <keel/math.h>
 #include <keel/memory.h>
+#include <keel/stats.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
-
-
 
 namespace numkit::stats {
 
@@ -36,15 +35,8 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
     return out;
 }
 
-// Sample inverse-cdf: x = theta + sigma · ((1-u)^(-k) - 1)/k for k≠0,
-// x = theta − sigma·log1p(−u) for k=0.
 inline keel::f64 gp_inv_one(keel::f64 u, keel::f64 k, keel::f64 sigma, keel::f64 theta) {
-    if (!(u >= 0.0 && u <= 1.0)) return keel::Limits<keel::f64>::quiet_nan();
-    if (u == 0.0) return theta;
-    if (u == 1.0) return (k < 0) ? theta - sigma / k
-                                 :  keel::Limits<keel::f64>::infinity();
-    if (k == 0.0) return theta - sigma * keel::log1p(-u);
-    return theta + sigma * (keel::pow(1.0 - u, -k) - 1.0) / k;
+    return keel::stats::gp_inv(u, k, sigma, theta);
 }
 
 } // anonymous

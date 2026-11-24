@@ -4,9 +4,9 @@
 #include <keel/tuple.h>
 #include <keel/math.h>
 #include <keel/memory.h>
+#include <keel/stats.h>
 #include <numkit/stats/distributions/nakagami.hpp>
 
-#include <numkit/builtin/specfun.hpp>   // gammainc, gammaincinv
 #include <numkit/builtin/datafun.hpp>
 
 #include <numkit/value/value.hpp>
@@ -20,51 +20,19 @@
 
 namespace numkit::stats {
 
-namespace {
-inline bool naka_argcheck(keel::f64 mu, keel::f64 omega) noexcept
-{
-    return mu > 0.0 && omega > 0.0;
-}
-} // namespace
-
 Value nakapdf(const Value &x, keel::f64 mu, keel::f64 omega, keel::Allocator *mr)
 {
-    if (!naka_argcheck(mu, omega))
-        return elementwise(x, [](keel::f64){ return keel::Limits<keel::f64>::quiet_nan(); }, mr);
-    // Pre-compute constants
-    const keel::f64 C = 2.0 * keel::pow(mu, mu) / (keel::tgamma(mu) * keel::pow(omega, mu));
-    const keel::f64 k = mu / omega;
-    return elementwise(x, [=](keel::f64 xi) {
-        if (xi < 0.0) return 0.0;
-        if (xi == 0.0) return (mu < 0.5) ? keel::Limits<keel::f64>::infinity()
-                                         : (mu == 0.5 ? C : 0.0);
-        return C * keel::pow(xi, 2.0 * mu - 1.0) * keel::exp(-k * xi * xi);
-    }, mr);
+    return elementwise(x, [=](keel::f64 xi) { return keel::stats::naka_pdf(xi, mu, omega); }, mr);
 }
 
 Value nakacdf(const Value &x, keel::f64 mu, keel::f64 omega, keel::Allocator *mr)
 {
-    if (mu <= 0.0 || omega <= 0.0)
-        return elementwise(x, [](keel::f64){ return keel::Limits<keel::f64>::quiet_nan(); }, mr);
-    const keel::f64 k = mu / omega;
-    return elementwise(x, [=](keel::f64 xi) {
-        if (xi <= 0.0) return 0.0;
-        return gammainc_scalar(k * xi * xi, mu, mr);
-    }, mr);
+    return elementwise(x, [=](keel::f64 xi) { return keel::stats::naka_cdf(xi, mu, omega); }, mr);
 }
 
 Value nakainv(const Value &p, keel::f64 mu, keel::f64 omega, keel::Allocator *mr)
 {
-    if (mu <= 0.0 || omega <= 0.0)
-        return elementwise(p, [](keel::f64){ return keel::Limits<keel::f64>::quiet_nan(); }, mr);
-    const keel::f64 s = keel::sqrt(omega / mu);
-    return elementwise(p, [=](keel::f64 pi) {
-        if (!(pi >= 0.0 && pi <= 1.0)) return keel::Limits<keel::f64>::quiet_nan();
-        if (pi == 0.0) return 0.0;
-        if (pi >= 1.0) return keel::Limits<keel::f64>::infinity();
-        const keel::f64 q = gammaincinv_scalar(pi, mu, mr);
-        return s * keel::sqrt(q);
-    }, mr);
+    return elementwise(p, [=](keel::f64 pi) { return keel::stats::naka_inv(pi, mu, omega); }, mr);
 }
 
 Value nakarnd(::numkit::ops::RngContext &rng, keel::f64 mu, keel::f64 omega, keel::usize rows, keel::usize cols, keel::Allocator *mr)
@@ -81,14 +49,8 @@ Value nakarnd(::numkit::ops::RngContext &rng, keel::f64 mu, keel::f64 omega, kee
 
 keel::Tuple<keel::f64, keel::f64> nakastat(keel::f64 mu, keel::f64 omega)
 {
-    if (mu <= 0.0 || omega <= 0.0) {
-        const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
-        return keel::make_tuple(nan, nan);
-    }
-    const keel::f64 r = keel::tgamma(mu + 0.5) / keel::tgamma(mu);
-    const keel::f64 mean = keel::sqrt(omega / mu) * r;
-    const keel::f64 var  = omega * (1.0 - r * r / mu);
-    return keel::make_tuple(mean, var);
+    const auto m = keel::stats::naka_stat(mu, omega);
+    return keel::make_tuple(m.mean, m.var);
 }
 
 } // namespace numkit::stats

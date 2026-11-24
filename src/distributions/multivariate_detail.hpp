@@ -14,6 +14,7 @@
 #include <keel/format.h>
 #include <keel/random.h>
 #include <keel/math.h>
+#include <keel/stats.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
@@ -57,47 +58,11 @@ namespace {
 namespace {
 
 // Standard normal CDF.
-keel::f64 phiCdf(keel::f64 x) { return 0.5 * keel::erfc(-x / keel::sqrt(2.0)); }
+keel::f64 phiCdf(keel::f64 x) { return keel::stats::norm_cdf(x, 0.0, 1.0); }
 
-// 16-point Gauss-Legendre quadrature on [0, 1] for the bivariate
-// normal CDF via the parametric integral
-//   Φ_2(h, k; ρ) = Φ(h) · Φ(k) + ∫_0^ρ φ_2(h, k; t) dt
-// where φ_2 is the bivariate normal pdf.
 [[maybe_unused]] keel::f64 bivariateCdf(keel::f64 h, keel::f64 k, keel::f64 rho)
 {
-    // Clamp ρ to avoid issues at the boundary.
-    if (rho >  1.0 - 1e-12) rho =  1.0 - 1e-12;
-    if (rho < -1.0 + 1e-12) rho = -1.0 + 1e-12;
-
-    // Gauss-Legendre 16-point on [0, 1].
-    static constexpr keel::f64 GL_X[16] = {
-        0.0052995325041750, 0.0277124884633837, 0.0671843988060841,
-        0.1222977958224985, 0.1910618777986781, 0.2709916111713863,
-        0.3591982246103705, 0.4524937450811813, 0.5475062549188187,
-        0.6408017753896295, 0.7290083888286137, 0.8089381222013219,
-        0.8777022041775015, 0.9328156011939160, 0.9722875115366163,
-        0.9947004674958250
-    };
-    static constexpr keel::f64 GL_W[16] = {
-        0.0135762297058770, 0.0311267619693239, 0.0475792558412464,
-        0.0623144856277781, 0.0747979944082885, 0.0845782596975013,
-        0.0913017075224618, 0.0947253052275342, 0.0947253052275342,
-        0.0913017075224618, 0.0845782596975013, 0.0747979944082885,
-        0.0623144856277781, 0.0475792558412464, 0.0311267619693239,
-        0.0135762297058770
-    };
-
-    keel::f64 integral = 0.0;
-    for (keel::i32 i = 0; i < 16; ++i) {
-        const keel::f64 t = rho * GL_X[i];   // map [0, 1] → [0, ρ]
-        const keel::f64 r2 = 1.0 - t * t;
-        // φ_2(h, k; t) at point (h, k) with corr t.
-        const keel::f64 quad = (h * h - 2.0 * t * h * k + k * k) / (2.0 * r2);
-        const keel::f64 pdf = keel::exp(-quad) / (2.0 * keel::kPi * keel::sqrt(r2));
-        integral += GL_W[i] * pdf;
-    }
-    integral *= rho;
-    return phiCdf(h) * phiCdf(k) + integral;
+    return keel::stats::bivnorm_cdf(h, k, rho);
 }
 
 // Monte Carlo CDF (d ≥ 3): sample from N(mu, Sigma), count how many
@@ -128,127 +93,15 @@ keel::f64 phiCdf(keel::f64 x) { return 0.5 * keel::erfc(-x / keel::sqrt(2.0)); }
     return keel::as<keel::f64>(below) / keel::as<keel::f64>(total);
 }
 
-// Acklam's full-precision inverse standard normal CDF Φ⁻¹(p).
-inline keel::f64 phiInv(keel::f64 p)
-{
-    if (p <= 0.0) return -keel::Limits<keel::f64>::infinity();
-    if (p >= 1.0) return  keel::Limits<keel::f64>::infinity();
-    static constexpr keel::f64 a1 = -3.969683028665376e+01, a2 =  2.209460984245205e+02,
-                            a3 = -2.759285104469687e+02, a4 =  1.383577518672690e+02,
-                            a5 = -3.066479806614716e+01, a6 =  2.506628277459239e+00;
-    static constexpr keel::f64 b1 = -5.447609879822406e+01, b2 =  1.615858368580409e+02,
-                            b3 = -1.556989798598866e+02, b4 =  6.680131188771972e+01,
-                            b5 = -1.328068155288572e+01;
-    static constexpr keel::f64 c1 = -7.784894002430293e-03, c2 = -3.223964580411365e-01,
-                            c3 = -2.400758277161838e+00, c4 = -2.549732539343734e+00,
-                            c5 =  4.374664141464968e+00, c6 =  2.938163982698783e+00;
-    static constexpr keel::f64 d1 =  7.784695709041462e-03, d2 =  3.224671290700398e-01,
-                            d3 =  2.445134137142996e+00, d4 =  3.754408661907416e+00;
-    static constexpr keel::f64 p_low  = 0.02425;
-    static constexpr keel::f64 p_high = 1.0 - p_low;
-    if (p < p_low) {
-        const keel::f64 q = keel::sqrt(-2.0 * keel::log(p));
-        return (((((c1 * q + c2) * q + c3) * q + c4) * q + c5) * q + c6) /
-               ((((d1 * q + d2) * q + d3) * q + d4) * q + 1.0);
-    }
-    if (p <= p_high) {
-        const keel::f64 q = p - 0.5;
-        const keel::f64 r = q * q;
-        return (((((a1 * r + a2) * r + a3) * r + a4) * r + a5) * r + a6) * q /
-               (((((b1 * r + b2) * r + b3) * r + b4) * r + b5) * r + 1.0);
-    }
-    const keel::f64 q = keel::sqrt(-2.0 * keel::log(1.0 - p));
-    return -(((((c1 * q + c2) * q + c3) * q + c4) * q + c5) * q + c6) /
-             ((((d1 * q + d2) * q + d3) * q + d4) * q + 1.0);
-}
-
 // Genz (1992) Separation-of-Variables (SOV) quasi-Monte Carlo integrator
-// for P(a <= X <= b) where X ~ N(0, L*L') and L is d×d row-major lower
-// Cholesky. Uses antithetic Richtmyer irrational-lattice QMC shifts.
 inline keel::f64 genzSovCdf(const keel::f64 *L, keel::usize d,
                          const keel::f64 *a, const keel::f64 *b,
                          keel::usize maxEvals = 10000,
                          keel::f64 tol = 1e-5)
 {
-    auto evalPhi = [](keel::f64 x) -> keel::f64 {
-        if (keel::is_inf(x)) return x < 0.0 ? 0.0 : 1.0;
-        return phiCdf(x);
-    };
-    const keel::f64 d0 = evalPhi(a[0] / L[0]);
-    const keel::f64 e0 = evalPhi(b[0] / L[0]);
-    const keel::f64 f0 = keel::max(0.0, e0 - d0);
-    if (f0 == 0.0 || d <= 1) return f0;
-
-    // First 32 primes for Richtmyer quasi-random generators sqrt(p_k) mod 1.
-    static constexpr keel::i32 kPrimes[32] = {
-        2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53,
-        59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131
-    };
-    const keel::usize m = d - 1;
-    keel::Array<keel::f64> alpha(m);
-    for (keel::usize k = 0; k < m; ++k) {
-        const keel::f64 pk = (k < 32) ? keel::as<keel::f64>(kPrimes[k])
-                                   : keel::as<keel::f64>(137 + 2 * k);
-        const keel::f64 rt = keel::sqrt(pk);
-        alpha[k] = rt - keel::floor(rt);
-    }
-
-    keel::Array<keel::f64> y(m), w(m);
-    auto evalIntegrand = [&](const keel::Array<keel::f64> &uvec) -> keel::f64 {
-        keel::f64 f = f0;
-        keel::f64 dp = d0, ep = e0;
-        for (keel::usize i = 1; i < d; ++i) {
-            keel::f64 u = dp + uvec[i - 1] * (ep - dp);
-            if (u < 1e-16) u = 1e-16;
-            if (u > 1.0 - 1e-16) u = 1.0 - 1e-16;
-            y[i - 1] = phiInv(u);
-            keel::f64 s = 0.0;
-            for (keel::usize k = 0; k < i; ++k)
-                s += L[i * d + k] * y[k];
-            const keel::f64 di = evalPhi((a[i] - s) / L[i * d + i]);
-            const keel::f64 ei = evalPhi((b[i] - s) / L[i * d + i]);
-            const keel::f64 diff = keel::max(0.0, ei - di);
-            f *= diff;
-            if (f == 0.0) return 0.0;
-            dp = di;
-            ep = ei;
-        }
-        return f;
-    };
-
-    const keel::usize nBatches = 8;
-    const keel::usize pairsPerBatch = keel::max<keel::usize>(64, maxEvals / (2 * nBatches));
-    keel::random::Mt19937 shiftGen(5489u);
-    keel::Array<keel::f64> shift(m);
-
-    keel::f64 meanEst = 0.0;
-    keel::f64 m2 = 0.0;
-    keel::usize completedBatches = 0;
-    for (keel::usize batch = 0; batch < nBatches; ++batch) {
-        for (keel::usize k = 0; k < m; ++k) shift[k] = keel::random::uniform_f64(shiftGen);
-        keel::f64 batchSum = 0.0;
-        for (keel::usize p = 1; p <= pairsPerBatch; ++p) {
-            const keel::f64 pd = keel::as<keel::f64>(p);
-            for (keel::usize k = 0; k < m; ++k) {
-                keel::f64 v = pd * alpha[k] + shift[k];
-                w[k] = v - keel::floor(v);
-            }
-            const keel::f64 f1 = evalIntegrand(w);
-            for (keel::usize k = 0; k < m; ++k) w[k] = 1.0 - w[k];
-            const keel::f64 f2 = evalIntegrand(w);
-            batchSum += 0.5 * (f1 + f2);
-        }
-        const keel::f64 batchMean = batchSum / keel::as<keel::f64>(pairsPerBatch);
-        ++completedBatches;
-        const keel::f64 delta = batchMean - meanEst;
-        meanEst += delta / keel::as<keel::f64>(completedBatches);
-        m2 += delta * (batchMean - meanEst);
-        if (completedBatches >= 4) {
-            const keel::f64 se = keel::sqrt(m2 / keel::as<keel::f64>(completedBatches * (completedBatches - 1)));
-            if (se <= tol) break;
-        }
-    }
-    return keel::min(1.0, keel::max(0.0, meanEst));
+    return keel::stats::genz_sov_mvncdf(keel::ArrayRef<keel::f64>(L, d * d), d,
+                                        keel::ArrayRef<keel::f64>(a, d),
+                                        keel::ArrayRef<keel::f64>(b, d), maxEvals, tol);
 }
 
 } // namespace

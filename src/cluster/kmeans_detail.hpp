@@ -8,6 +8,7 @@
 #include <keel/memory.h>
 #include <keel/array.h>
 #include <keel/random.h>
+#include <keel/stats.h>
 #include <numkit/value/value.hpp>
 #include <numkit/ops/matlab_mt19937.hpp>
 #include <numkit/value/error.hpp>
@@ -90,57 +91,14 @@ struct LloydResult {
     LloydResult res(scratch_mr);
     res.idx.assign(N, 0);
     res.C    = keel::move(C0);
-    res.sumd.assign(K, 0.0);
+    res.sumd.assign(keel::as<keel::usize>(K), 0.0);
     res.total = 0.0;
-
-    keel::Array<keel::i32>    counts((keel::usize)K, 0, scratch_mr);
-    keel::Array<keel::f64> Cnext((keel::usize)K * D, 0.0, scratch_mr);
-
-    for (keel::i32 iter = 0; iter < max_iter; ++iter) {
-        // Assign each point to nearest centroid.
-        bool changed = false;
-        keel::fill(counts.begin(), counts.end(), 0);
-        keel::fill(Cnext.begin(), Cnext.end(), 0.0);
-        keel::fill(res.sumd.begin(), res.sumd.end(), 0.0);
-        res.total = 0.0;
-
-        for (keel::usize i = 0; i < N; ++i) {
-            const keel::f64 *xi = &X[i * D];
-            keel::i32 best = 0;
-            keel::f64 bd = keel::Limits<keel::f64>::infinity();
-            for (keel::i32 k = 0; k < K; ++k) {
-                const keel::f64 d = sq_dist(xi, &res.C[(keel::usize)k * D], D);
-                if (d < bd) { bd = d; best = k; }
-            }
-            if (res.idx[i] != best) { res.idx[i] = best; changed = true; }
-            counts[best] += 1;
-            for (keel::usize k = 0; k < D; ++k) Cnext[(keel::usize)best * D + k] += xi[k];
-            res.sumd[best] += bd;
-            res.total += bd;
-        }
-        // Update centroids.
-        for (keel::i32 k = 0; k < K; ++k) {
-            if (counts[k] > 0) {
-                const keel::f64 inv = 1.0 / keel::f64(counts[k]);
-                for (keel::usize d = 0; d < D; ++d)
-                    res.C[(keel::usize)k * D + d] = Cnext[(keel::usize)k * D + d] * inv;
-            }
-            // Empty cluster: leave centroid where it was (could re-seed,
-            // but Lloyd-classic keeps it).
-        }
-        if (!changed) break;
-    }
-    // Final pass: recompute sumd against the current (post-update) centroids
-    // so the reported WCSS reflects the converged solution.
-    keel::fill(res.sumd.begin(), res.sumd.end(), 0.0);
-    res.total = 0.0;
-    for (keel::usize i = 0; i < N; ++i) {
-        const keel::f64 *xi = &X[i * D];
-        const keel::i32 k = res.idx[i];
-        const keel::f64 d = sq_dist(xi, &res.C[(keel::usize)k * D], D);
-        res.sumd[k] += d;
-        res.total   += d;
-    }
+    (void)keel::stats::kmeans_lloyd(
+        X.as_ref(), N, D, K,
+        keel::MutArrayRef<keel::f64>(res.C.data(), res.C.size()), max_iter,
+        keel::MutArrayRef<keel::i32>(res.idx.data(), res.idx.size()),
+        keel::MutArrayRef<keel::f64>(res.sumd.data(), res.sumd.size()),
+        res.total, scratch_mr);
     return res;
 }
 

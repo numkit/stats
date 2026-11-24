@@ -3,49 +3,35 @@
 #include <keel/core.h>
 #include <keel/tuple.h>
 #include <keel/memory.h>
+#include <keel/stats.h>
 #include <numkit/stats/distributions/negbin.hpp>
 #include <numkit/stats/distributions/gamma_dist.hpp>
 #include <numkit/stats/distributions/poisson.hpp>
 
 #include <numkit/builtin/datafun.hpp>
-#include <numkit/builtin/specfun.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
 #include "dist_helpers.hpp"
 
-
 #include "negbin_detail.hpp"
 
 namespace numkit::stats {
 
-namespace {
-inline bool nbin_argcheck(keel::f64 r, keel::f64 p) noexcept
-{
-    return r > 0.0 && p > 0.0 && p <= 1.0;
-}
-} // namespace
-
 Value nbinpdf(const Value &k, keel::f64 r, keel::f64 p, keel::Allocator *mr)
 {
-    if (!nbin_argcheck(r, p))
-        return elementwise(k, [](keel::f64){ return keel::Limits<keel::f64>::quiet_nan(); }, mr);
-    return elementwise(k, [=](keel::f64 ki){ return nbin_pmf(ki, r, p); }, mr);
+    return elementwise(k, [=](keel::f64 ki) { return keel::stats::nbin_pdf(ki, r, p); }, mr);
 }
 
 Value nbincdf(const Value &k, keel::f64 r, keel::f64 p, keel::Allocator *mr)
 {
-    if (r <= 0.0 || p <= 0.0 || p > 1.0)
-        return elementwise(k, [](keel::f64){ return keel::Limits<keel::f64>::quiet_nan(); }, mr);
-    return elementwise(k, [=](keel::f64 ki){ return nbin_cdf_scalar(ki, r, p, mr); }, mr);
+    return elementwise(k, [=](keel::f64 ki) { return keel::stats::nbin_cdf(ki, r, p); }, mr);
 }
 
 Value nbininv(const Value &q, keel::f64 r, keel::f64 p, keel::Allocator *mr)
 {
-    if (!nbin_params_ok(r, p))
-        return elementwise(q, [](keel::f64){ return keel::Limits<keel::f64>::quiet_nan(); }, mr);
-    return elementwise(q, [=](keel::f64 qi) { return nbin_inv_scalar(qi, r, p); }, mr);
+    return elementwise(q, [=](keel::f64 qi) { return keel::stats::nbin_inv(qi, r, p); }, mr);
 }
 
 Value nbinrnd(::numkit::ops::RngContext &rng, keel::f64 r, keel::f64 p, keel::usize rows, keel::usize cols, keel::Allocator *mr)
@@ -71,13 +57,8 @@ Value nbinrnd(::numkit::ops::RngContext &rng, keel::f64 r, keel::f64 p, keel::us
 
 keel::Tuple<keel::f64, keel::f64> nbinstat(keel::f64 r, keel::f64 p)
 {
-    if (r <= 0.0 || p <= 0.0 || p > 1.0) {
-        const keel::f64 nan = keel::Limits<keel::f64>::quiet_nan();
-        return keel::make_tuple(nan, nan);
-    }
-    const keel::f64 mean = r * (1.0 - p) / p;
-    const keel::f64 var  = mean / p;
-    return keel::make_tuple(mean, var);
+    const auto m = keel::stats::nbin_stat(r, p);
+    return keel::make_tuple(m.mean, m.var);
 }
 
 } // namespace numkit::stats

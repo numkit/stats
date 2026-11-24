@@ -49,6 +49,7 @@
 #include <keel/complex.h>
 #include <keel/format.h>
 #include <keel/function_ref.h>
+#include <keel/stats.h>
 #include <keel/string.h>
 #include <keel/utf8.h>
 #include <numkit/stats/descriptive/descriptive.hpp>
@@ -198,111 +199,31 @@ struct ColStats {
     keel::f64 hi = keel::Limits<keel::f64>::infinity();
 };
 
-// Iterative Grubbs test; tf is the significance level alpha. The final
-// bounds are those of the last TESTED state (post-removal) and the mask
-// is the STATIC rule against them — exactly locateoutliers 'grubbs'.
 ColStats grubbsColumn(const keel::f64 *x, keel::usize n, keel::f64 alpha,
                       keel::Allocator *mr)
 {
     ColStats r;
     r.mask.assign(n, 0);
-    keel::Array<keel::usize> idx;
-    keel::Array<keel::f64> v;
-    idx.reserve(n); v.reserve(n);
-    for (keel::usize i = 0; i < n; ++i)
-        if (!keel::is_nan(x[i])) { v.push_back(x[i]); idx.push_back(i); }
-    if (v.empty()) return r;
-    keel::f64 astd = 0.0, thr = 0.0, cen = 0.0;
-    while (v.size() >= 3) {
-        const keel::usize m = v.size();
-        keel::f64 s = 0.0;
-        for (keel::f64 e : v) s += e;
-        cen = s / keel::f64(m);
-        keel::f64 ss = 0.0;
-        for (keel::f64 e : v) ss += (e - cen) * (e - cen);
-        astd = keel::sqrt(ss / keel::f64(m - 1));
-        if (!(astd > 0.0)) break;
-        keel::usize jmax = 0; keel::f64 amax = -1.0;
-        for (keel::usize j = 0; j < m; ++j) {
-            const keel::f64 ad = keel::abs(v[j] - cen);
-            if (ad > amax) { amax = ad; jmax = j; }
-        }
-        const keel::f64 dof = keel::f64(m) - 2.0;
-        const keel::f64 t = tinv(Value::scalar(alpha / (2.0 * keel::f64(m)), mr),
-                              dof, mr).toScalar();
-        thr = ((keel::f64(m) - 1.0) / keel::sqrt(keel::f64(m))) *
-              keel::abs(t) / keel::sqrt(dof + t * t);
-        if (amax / astd > thr) {
-            v.remove_at(jmax);
-            idx.remove_at(jmax);
-        } else {
-            break;
-        }
-    }
-    r.center = cen;
-    r.lo = cen - astd * thr;
-    r.hi = cen + astd * thr;
-    for (keel::usize i = 0; i < n; ++i)
-        r.mask[i] = (keel::is_nan(x[i]) ? 0
-                    : ((x[i] > r.hi || x[i] < r.lo) ? 1 : 0));
+    keel::stats::OutlierBounds b{};
+    (void)keel::stats::grubbs_outliers(keel::ArrayRef<keel::f64>(x, n), alpha,
+                                       keel::MutArrayRef<keel::u8>(r.mask.data(), n), b, mr);
+    r.center = b.center;
+    r.lo = b.lo;
+    r.hi = b.hi;
     return r;
 }
 
-// Generalized ESD; tf is the significance level alpha. Thresholds come
-// from iteration tindex = (last exceeding R)+1 clamped; the mask is the
-// STATIC rule at tindex — exactly locateoutliers 'gesd'.
 ColStats gesdColumn(const keel::f64 *x, keel::usize n, keel::f64 alpha,
                     keel::i64 maxOutArg, keel::Allocator *mr)
 {
     ColStats r;
     r.mask.assign(n, 0);
-    keel::Array<keel::f64> v;
-    v.reserve(n);
-    for (keel::usize i = 0; i < n; ++i)
-        if (!keel::is_nan(x[i])) v.push_back(x[i]);
-    const keel::usize N = v.size();
-    if (N < 2) return r;
-    const keel::usize maxo = (maxOutArg >= 0)
-        ? keel::as<keel::usize>(maxOutArg)
-        : keel::as<keel::usize>(keel::ceil(0.1 * keel::f64(N)));
-    const keel::usize rounds = keel::min(N, maxo);
-    keel::Array<keel::f64> amean(rounds, 0.0), astd(rounds, 0.0),
-                        lam(rounds, 0.0), R(rounds, 0.0);
-    for (keel::usize it = 0; it < rounds; ++it) {
-        const keel::usize m = v.size();
-        const keel::usize nm1 = N - it;       // n-i+1 (ref 1-based)
-        keel::f64 s = 0.0;
-        for (keel::f64 e : v) s += e;
-        amean[it] = s / keel::f64(m);
-        keel::f64 ss = 0.0;
-        for (keel::f64 e : v) ss += (e - amean[it]) * (e - amean[it]);
-        astd[it] = (m >= 2) ? keel::sqrt(ss / keel::f64(m - 1)) : 0.0;
-        keel::usize jmax = 0; keel::f64 amax = -1.0;
-        for (keel::usize j = 0; j < m; ++j) {
-            const keel::f64 ad = keel::abs(v[j] - amean[it]);
-            if (ad > amax) { amax = ad; jmax = j; }
-        }
-        R[it] = (astd[it] > 0.0) ? amax / astd[it]
-                                : keel::Limits<keel::f64>::infinity();
-        v.remove_at(jmax);
-        const keel::f64 dof = keel::f64(N) - keel::f64(it) - 1.0;   // n-i-1
-        const keel::f64 pp = 1.0 - alpha / (2.0 * keel::f64(nm1));
-        const keel::f64 t = tinv(Value::scalar(pp, mr), dof, mr).toScalar();
-        lam[it] = (keel::f64(nm1) - 1.0) * t / keel::sqrt((dof + t * t) * keel::f64(nm1));
-    }
-    keel::i64 last = -1;
-    for (keel::i64 it = 0; it < keel::as<keel::i64>(rounds); ++it)
-        if (R[keel::as<keel::usize>(it)] > lam[keel::as<keel::usize>(it)])
-            last = it;
-    const keel::usize tindex = (last < 0)
-        ? 0
-        : keel::min<keel::usize>(keel::as<keel::usize>(last) + 1, rounds - 1);
-    r.center = amean[tindex];
-    r.lo = amean[tindex] - astd[tindex] * lam[tindex];
-    r.hi = amean[tindex] + astd[tindex] * lam[tindex];
-    for (keel::usize i = 0; i < n; ++i)
-        r.mask[i] = (keel::is_nan(x[i]) ? 0
-                    : ((x[i] > r.hi || x[i] < r.lo) ? 1 : 0));
+    keel::stats::OutlierBounds b{};
+    (void)keel::stats::gesd_outliers(keel::ArrayRef<keel::f64>(x, n), alpha, maxOutArg,
+                                     keel::MutArrayRef<keel::u8>(r.mask.data(), n), b, mr);
+    r.center = b.center;
+    r.lo = b.lo;
+    r.hi = b.hi;
     return r;
 }
 

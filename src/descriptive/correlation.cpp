@@ -60,6 +60,7 @@
 #include <keel/format.h>
 #include <keel/math.h>
 #include <keel/optional.h>
+#include <keel/stats.h>
 #include <keel/string.h>
 #include <numkit/stats/descriptive/descriptive.hpp>
 #include "descriptive/descriptive_extras_detail.hpp"
@@ -571,35 +572,22 @@ PairwisePearsonOut corrPairwiseKendall(const Value &X, const Value &Y,
 // t-approximation fallback for large n. One-sided forms come straight
 // from the same statistics (probe71b C08/C09/C15).
 
-// Pearson: t = r·√((n-2)/(1-r²)), |r|==1 → t = ±Inf (analytic tail).
-keel::f64 corrPearsonTailP(CorrTail tail, keel::f64 r, keel::usize n,
-                        keel::Allocator *mr)
+inline keel::stats::CorrTail toKeelTail(CorrTail tail) noexcept
 {
-    if (n < 3 || keel::is_nan(r)) return kNaN;
-    if (keel::abs(r) >= 1.0) {
-        const bool pos = (r > 0.0);
-        switch (tail) {
-        case CorrTail::Both:  return 0.0;
-        case CorrTail::Right: return pos ? 0.0 : 1.0;
-        case CorrTail::Left:  return pos ? 1.0 : 0.0;
-        }
-    }
-    const keel::f64 df = keel::as<keel::f64>(n) - 2.0;
-    const keel::f64 t = r * keel::sqrt(df / (1.0 - r * r));
-    const keel::f64 cl = tcdf(Value::scalar(t, mr), df, mr).toScalar();
     switch (tail) {
-    case CorrTail::Both:  return keel::min(1.0, 2.0 * tcdf(
-        Value::scalar(-keel::abs(t), mr), df, mr).toScalar());
-    case CorrTail::Right: return keel::min(1.0, tcdf(
-        Value::scalar(-t, mr), df, mr).toScalar());
-    case CorrTail::Left:  return keel::min(1.0, cl);
+    case CorrTail::Both:  return keel::stats::CorrTail::kBoth;
+    case CorrTail::Right: return keel::stats::CorrTail::kRight;
+    case CorrTail::Left:  return keel::stats::CorrTail::kLeft;
     }
-    return kNaN;
+    return keel::stats::CorrTail::kBoth;
 }
 
-// One-sided p from a discrete exact distribution: lower = P(D ≤ Dobs),
-// upper = P(D ≥ Dobs). left = min(1, lower); right = min(1, upper);
-// both = min(1, 2·min(lower, upper)) (doubling the more significant side).
+keel::f64 corrPearsonTailP(CorrTail tail, keel::f64 r, keel::usize n,
+                        keel::Allocator * /*mr*/)
+{
+    return keel::stats::corr_pearson_pval(toKeelTail(tail), r, n);
+}
+
 keel::f64 rankTailFromLU(CorrTail tail, keel::f64 lower, keel::f64 upper)
 {
     switch (tail) {
@@ -610,143 +598,30 @@ keel::f64 rankTailFromLU(CorrTail tail, keel::f64 lower, keel::f64 upper)
     return kNaN;
 }
 
-// Exact Kendall {lower, upper} from the normalized inversions distribution
-// (probabilities, so no factorial overflow). D = #discordant pairs. The DP
-// ping-pongs two arena buffers sized to the max support (Dmax+1) — no
-// per-iteration allocation.
 keel::Pair<keel::f64, keel::f64> corrKendallExactLU(keel::f64 tau, keel::usize n,
                                              keel::Allocator *mr)
 {
-    if (n < 2 || keel::is_nan(tau)) return { kNaN, kNaN };
-    const keel::usize Dmax = n * (n - 1) / 2;
-    keel::i64 Dobs = keel::round_i64(keel::as<keel::f64>(Dmax) * (1.0 - tau) / 2.0);
-    if (Dobs < 0) Dobs = 0;
-    if (Dobs > keel::as<keel::i64>(Dmax)) Dobs = keel::as<keel::i64>(Dmax);
-    keel::ArenaTemp sc = keel::get_scratch(mr);
-    keel::Array<keel::f64> prob(Dmax + 1, 0.0, sc.allocator());      // P(#inversions == d)
-    keel::Array<keel::f64> next(Dmax + 1, 0.0, sc.allocator());
-    prob[0] = 1.0;
-    keel::usize curLen = 1;                            // active prefix length
-    for (keel::usize k = 1; k < n; ++k) {
-        const keel::usize newLen = curLen + k;
-        keel::fill(next.begin(), next.begin() + newLen, 0.0);
-        const keel::f64 w = 1.0 / keel::as<keel::f64>(k + 1);
-        for (keel::usize d = 0; d < curLen; ++d) {
-            const keel::f64 pv = prob[d] * w;
-            for (keel::usize s = 0; s <= k; ++s) next[d + s] += pv;
-        }
-        keel::swap(prob, next);                       // O(1), same arena
-        curLen = newLen;
-    }
-    keel::f64 lower = 0.0, upper = 0.0;
-    for (keel::i64 d = 0; d <= Dobs; ++d) lower += prob[keel::as<keel::usize>(d)];
-    for (keel::i64 d = Dobs; d < keel::as<keel::i64>(curLen); ++d)
-        upper += prob[keel::as<keel::usize>(d)];
+    keel::f64 lower = kNaN, upper = kNaN;
+    (void)keel::stats::corr_kendall_exact_lu(tau, n, lower, upper, mr);
     return { lower, upper };
 }
 
-// Exact Spearman {lower, upper} by enumerating permutations (small n).
-// D = Σ(rankX_i - rankY_i)²; under H0 it is the displacement of a random perm.
-keel::Pair<keel::f64, keel::f64> corrSpearmanExactLU(keel::f64 rho, keel::usize n,
-                                              keel::Allocator *mr)
-{
-    const keel::f64 scale = keel::as<keel::f64>(n) * (keel::as<keel::f64>(n) * n - 1.0) / 6.0;
-    keel::i64 Dobs = keel::round_i64((1.0 - rho) * scale);
-    if (Dobs < 0) Dobs = 0;
-    keel::ArenaTemp sc = keel::get_scratch(mr);
-    keel::Array<keel::i32> perm(n, sc.allocator());
-    for (keel::usize i = 0; i < n; ++i) perm[i] = keel::as<keel::i32>(i);
-    keel::usize total = 0, leCount = 0, geCount = 0;
-    do {
-        keel::i64 D = 0;
-        for (keel::usize i = 0; i < n; ++i) {
-            const keel::i64 d = perm[i] - keel::as<keel::i64>(i);
-            D += d * d;
-        }
-        if (D <= Dobs) ++leCount;
-        if (D >= Dobs) ++geCount;
-        ++total;
-    } while (keel::next_permutation(perm.begin(), perm.end()));
-    return { keel::as<keel::f64>(leCount) / keel::as<keel::f64>(total),
-             keel::as<keel::f64>(geCount) / keel::as<keel::f64>(total) };
-}
-
-// ── Spearman: the reference engine's two-branch contract ──────────────
-// Coefficient: Pearson of the midranks when there are no ties (or no
-// p-values / weights are involved); the TIE-CORRECTED form
-// (meanD - D) / (sqrt(n-1) * stdD) with per-column tie adjustments when
-// p-values are requested and ties exist. p-values: exact permutation
-// enumeration for n < 10 (permutations of 1:n without ties, of the
-// MIDRANKS with ties), the AS 89 Edgeworth expansion for n >= 10 without
-// ties, a Student-t approximation with ties.
-
-// AS 89: upper tail probability of Spearman's D (no ties), Edgeworth
-// expansion with continuity correction (algorithm AS 89).
-keel::f64 as89Upper(keel::f64 D, keel::usize n, keel::f64 n3c)
-{
-    static const keel::f64 c[12] = { .2274, .2531, .1745, .0758, .1033, .3932,
-                                  .0879, .0151, .0072, .0831, .0131, .00046 };
-    const keel::f64 x = (2.0 * (D - 1.0) / n3c - 1.0)
-                   * keel::sqrt(keel::as<keel::f64>(n) - 1.0);
-    const keel::f64 y = x * x;
-    const keel::f64 u = x * (c[0] + (c[1] + c[2] / n) / n +
-                          y * (-c[3] + (c[4] + c[5] / n) / n -
-                          y * (c[6] + c[7] / n - y * (c[8] - c[9] / n +
-                          y * (c[10] - c[11] * y) / n))) / n) / n;
-    const keel::f64 pv = u / keel::exp(0.5 * y) + 0.5 * keel::erfc(x / keel::sqrt(2.0));
-    return keel::min(1.0, keel::max(0.0, pv));
-}
-
-keel::f64 as89Tail(CorrTail tail, keel::f64 D, keel::usize n, keel::f64 n3c)
-{
-    switch (tail) {
-    case CorrTail::Both:
-        return keel::min(1.0, 2.0 * as89Upper(keel::max(D, n3c - D), n, n3c));
-    case CorrTail::Left:  return as89Upper(D, n, n3c);
-    case CorrTail::Right: return as89Upper(n3c - D, n, n3c);
-    }
-    return kNaN;
-}
-
-// No-ties Spearman p from rho (rho -> D statistic -> exact / AS89).
 keel::f64 corrSpearmanNoTiesTailP(CorrTail tail, keel::f64 rho, keel::usize n,
                                keel::Allocator *mr)
 {
-    if (n < 2 || keel::is_nan(rho)) return kNaN;
-    if (n < 10) {
-        const auto lo_up = corrSpearmanExactLU(rho, n, mr);
-        return rankTailFromLU(tail, lo_up.first, lo_up.second);
-    }
-    const keel::f64 n3c = (keel::as<keel::f64>(n) + 1.0) * n
-                     * (keel::as<keel::f64>(n) - 1.0) / 3.0;
-    const keel::f64 scale = n3c / 2.0;
-    const keel::f64 D = scale - keel::round_i64(rho * scale);
-    return as89Tail(tail, D, n, n3c);
+    return keel::stats::corr_spearman_no_ties_pval(toKeelTail(tail), rho, n, mr);
 }
 
-// Exact {lower, upper} tail by enumerating all n! permutations of the y
-// MIDRANKS against a fixed x midrank column (the tied-data exact form).
 keel::Pair<keel::f64, keel::f64> spearmanExactMidrankLU(const keel::f64 *xr,
                                                  const keel::f64 *yr,
                                                  keel::usize n, keel::f64 Dobs,
                                                  keel::Allocator *mr)
 {
-    keel::ArenaTemp sc = keel::get_scratch(mr);
-    keel::Array<keel::i32> perm(n, sc.allocator());
-    for (keel::usize i = 0; i < n; ++i) perm[i] = keel::as<keel::i32>(i);
-    keel::usize total = 0, leCount = 0, geCount = 0;
-    do {
-        keel::f64 D = 0.0;
-        for (keel::usize i = 0; i < n; ++i) {
-            const keel::f64 d = xr[i] - yr[perm[i]];
-            D += d * d;
-        }
-        if (D <= Dobs) ++leCount;
-        if (D >= Dobs) ++geCount;
-        ++total;
-    } while (keel::next_permutation(perm.begin(), perm.end()));
-    return { keel::as<keel::f64>(leCount) / keel::as<keel::f64>(total),
-             keel::as<keel::f64>(geCount) / keel::as<keel::f64>(total) };
+    keel::f64 lower = kNaN, upper = kNaN;
+    (void)keel::stats::corr_spearman_exact_midrank_lu(
+        keel::ArrayRef<keel::f64>(xr, n), keel::ArrayRef<keel::f64>(yr, n),
+        Dobs, lower, upper, mr);
+    return { lower, upper };
 }
 
 // Spearman coefficient (+ p-values). Computes coef into `coef` and, when
@@ -942,22 +817,9 @@ void corrPairwiseSpearman(const Value &X, const Value &Y, const Value *wts,
     }
 }
 
-// Large-n Kendall: tie-free normal approximation z = 3τ√(n(n-1)/2(2n+5)).
 keel::f64 corrKendallNormalP(CorrTail tail, keel::f64 tau, keel::usize n)
 {
-    if (n < 2 || keel::is_nan(tau)) return kNaN;
-    if (keel::abs(tau) >= 1.0)
-        return rankTailFromLU(tail, tau > 0 ? 1.0 : 0.0, tau > 0 ? 0.0 : 1.0);
-    const keel::f64 z = 3.0 * tau * keel::sqrt(keel::as<keel::f64>(n) * (n - 1))
-                   / keel::sqrt(2.0 * (2.0 * n + 5.0));
-    // Φ(z) = erfc(-z/√2)/2
-    const keel::f64 phi = 0.5 * keel::erfc(-z / keel::sqrt(2.0));
-    switch (tail) {
-    case CorrTail::Left:  return keel::min(1.0, phi);
-    case CorrTail::Right: return keel::min(1.0, 1.0 - phi);
-    case CorrTail::Both:  return keel::min(1.0, 2.0 * keel::min(phi, 1.0 - phi));
-    }
-    return kNaN;
+    return keel::stats::corr_kendall_normal_pval(toKeelTail(tail), tau, n);
 }
 
 // Build the p-value matrix (same shape as r). corrXX → diagonal p is 1

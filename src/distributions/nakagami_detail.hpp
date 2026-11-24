@@ -11,10 +11,9 @@
 
 #include <keel/core.h>
 #include <keel/memory.h>
+#include <keel/specfun.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
-
-
 
 namespace numkit::stats {
 
@@ -35,18 +34,14 @@ Value elementwise(const Value &x, Op op, keel::Allocator *mr)
     return out;
 }
 
-inline keel::f64 gammainc_scalar(keel::f64 xx, keel::f64 a, keel::Allocator *mr)
+inline keel::f64 gammainc_scalar(keel::f64 xx, keel::f64 a, keel::Allocator * /*mr*/)
 {
-    Value xv = Value::scalar(xx, mr);
-    Value av = Value::scalar(a,  mr);
-    return ::numkit::builtin::gammainc(xv, av, mr).toScalar();
+    return keel::specfun::gammainc(xx, a);
 }
 
-inline keel::f64 gammaincinv_scalar(keel::f64 p, keel::f64 a, keel::Allocator *mr)
+inline keel::f64 gammaincinv_scalar(keel::f64 p, keel::f64 a, keel::Allocator * /*mr*/)
 {
-    Value pv = Value::scalar(p, mr);
-    Value av = Value::scalar(a, mr);
-    return ::numkit::builtin::gammaincinv(pv, av, mr).toScalar();
+    return keel::specfun::gammaincinv(p, a);
 }
 
 } // anonymous
