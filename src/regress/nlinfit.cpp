@@ -7,14 +7,12 @@
 #include <keel/tuple.h>
 #include <keel/algo.h>
 #include <keel/core.h>
+#include <keel/linalg.h>
 #include <keel/memory.h>
 #include <keel/ref.h>
 #include <keel/math.h>
+#include <keel/stats.h>
 #include <numkit/stats/regress/regress.hpp>
-
-#include <numkit/stats/distributions/students_t.hpp>     // tinv
-#include <numkit/linalg/solvers.hpp>                     // linsolve
-#include <numkit/linalg/properties.hpp>                  // inv
 
 #include <numkit/value/error.hpp>
 #include <numkit/value/fn_handle.hpp>
@@ -84,62 +82,32 @@ keel::Array<keel::f64> numericalJacobian(FnHandle model,
     return J;
 }
 
-// Compute (J' · J + λ · diag(J' · J)) · dβ = J' · r  via Gauss elim.
+// Compute (J' · J + λ · diag(J' · J)) · dβ = J' · r via keel::linalg::la_solve.
 // J is n × p column-major, r is length n.
 keel::Array<keel::f64> lmStep(keel::ArrayRef<keel::f64> J,
                             keel::usize n, keel::usize p,
                             keel::ArrayRef<keel::f64> r,
                             keel::f64 lambda)
 {
-    // M = J' · J + λ · diag(J' · J)
+    // M = J' · J + λ · diag(J' · J) (symmetric => row-major == col-major).
     keel::Array<keel::f64> M(p * p, 0.0);
     for (keel::usize i = 0; i < p; ++i)
         for (keel::usize j = 0; j < p; ++j) {
             keel::f64 s = 0.0;
             for (keel::usize k = 0; k < n; ++k)
                 s += J[i * n + k] * J[j * n + k];
-            M[i * p + j] = s;
+            M[i + j * p] = s;
         }
     for (keel::usize i = 0; i < p; ++i)
-        M[i * p + i] *= (1.0 + lambda);
-    // g = J' · r
+        M[i + i * p] *= (1.0 + lambda);
     keel::Array<keel::f64> g(p, 0.0);
     for (keel::usize i = 0; i < p; ++i)
         for (keel::usize k = 0; k < n; ++k)
             g[i] += J[i * n + k] * r[k];
-    // Gauss elimination (M is row-major p×p).
-    for (keel::usize k = 0; k < p; ++k) {
-        keel::usize piv = k;
-        keel::f64 pmax = keel::abs(M[k * p + k]);
-        for (keel::usize rr = k + 1; rr < p; ++rr) {
-            const keel::f64 v = keel::abs(M[rr * p + k]);
-            if (v > pmax) { pmax = v; piv = rr; }
-        }
-        if (pmax == 0.0) {
-            // Singular — return zero step.
-            return keel::Array<keel::f64>(p, 0.0);
-        }
-        if (piv != k) {
-            for (keel::usize j = 0; j < p; ++j)
-                keel::swap(M[k * p + j], M[piv * p + j]);
-            keel::swap(g[k], g[piv]);
-        }
-        const keel::f64 pv = M[k * p + k];
-        for (keel::usize rr = k + 1; rr < p; ++rr) {
-            const keel::f64 f = M[rr * p + k] / pv;
-            for (keel::usize j = k; j < p; ++j)
-                M[rr * p + j] -= f * M[k * p + j];
-            g[rr] -= f * g[k];
-        }
-    }
-    // Back-substitute.
-    for (keel::usize k = p; k-- > 0;) {
-        keel::f64 s = g[k];
-        for (keel::usize j = k + 1; j < p; ++j)
-            s -= M[k * p + j] * g[j];
-        g[k] = s / M[k * p + k];
-    }
-    return g;
+    keel::Array<keel::f64> step(p, 0.0);
+    if (!keel::linalg::la_solve(M.data(), p, p, g.data(), 1, step.data()))
+        return keel::Array<keel::f64>(p, 0.0);
+    return step;
 }
 
 // Compute (J' · J)^{-1} for the covariance. Returns p × p column-major.
@@ -152,44 +120,11 @@ keel::Array<keel::f64> invJtJ(keel::ArrayRef<keel::f64> J,
             keel::f64 s = 0.0;
             for (keel::usize k = 0; k < n; ++k)
                 s += J[i * n + k] * J[j * n + k];
-            M[i * p + j] = s;
+            M[i + j * p] = s;
         }
-    // Invert by Gauss-Jordan with augmented identity.
-    keel::Array<keel::f64> A(p * 2 * p, 0.0);
-    for (keel::usize i = 0; i < p; ++i)
-        for (keel::usize j = 0; j < p; ++j)
-            A[i * 2 * p + j] = M[i * p + j];
-    for (keel::usize i = 0; i < p; ++i)
-        A[i * 2 * p + (p + i)] = 1.0;
-    for (keel::usize k = 0; k < p; ++k) {
-        keel::usize piv = k;
-        keel::f64 pmax = keel::abs(A[k * 2 * p + k]);
-        for (keel::usize rr = k + 1; rr < p; ++rr) {
-            const keel::f64 v = keel::abs(A[rr * 2 * p + k]);
-            if (v > pmax) { pmax = v; piv = rr; }
-        }
-        if (pmax == 0.0) {
-            return keel::Array<keel::f64>(p * p, keel::Limits<keel::f64>::quiet_nan());
-        }
-        if (piv != k) {
-            for (keel::usize j = 0; j < 2 * p; ++j)
-                keel::swap(A[k * 2 * p + j], A[piv * 2 * p + j]);
-        }
-        const keel::f64 pv = A[k * 2 * p + k];
-        for (keel::usize j = 0; j < 2 * p; ++j)
-            A[k * 2 * p + j] /= pv;
-        for (keel::usize rr = 0; rr < p; ++rr) {
-            if (rr == k) continue;
-            const keel::f64 f = A[rr * 2 * p + k];
-            for (keel::usize j = 0; j < 2 * p; ++j)
-                A[rr * 2 * p + j] -= f * A[k * 2 * p + j];
-        }
-    }
-    // Extract inverse (column-major). A right half is row-major inverse.
-    keel::Array<keel::f64> Inv(p * p);
-    for (keel::usize i = 0; i < p; ++i)
-        for (keel::usize j = 0; j < p; ++j)
-            Inv[j * p + i] = A[i * 2 * p + (p + j)];
+    keel::Array<keel::f64> Inv(p * p, 0.0);
+    if (!keel::linalg::matrix_inv(M.data(), p, Inv.data()))
+        return keel::Array<keel::f64>(p * p, keel::Limits<keel::f64>::quiet_nan());
     return Inv;
 }
 
@@ -308,8 +243,7 @@ Value nlparci(const Value &beta, const Value &R, const Value &J,
     auto Inv = invJtJ(Jvec.as_ref(), n, p);
 
     // t_{α/2, n-p}.
-    Value pHi = Value::scalar(1.0 - alpha / 2.0, mr);
-    const keel::f64 tcrit = tinv(pHi, keel::as<keel::f64>(n - p), mr).toScalar();
+    const keel::f64 tcrit = keel::stats::t_inv(1.0 - alpha / 2.0, keel::as<keel::f64>(n - p));
 
     auto out = Value::matrix(p, 2, ValueType::DOUBLE, mr);
     keel::f64 *od = out.doubleDataMut();
@@ -373,8 +307,7 @@ nlpredci(FnHandle model, const Value &X, const Value &beta,
     }
 
     // t critical.
-    Value pHi = Value::scalar(1.0 - alpha / 2.0, mr);
-    const keel::f64 tcrit = tinv(pHi, keel::as<keel::f64>(n - p), mr).toScalar();
+    const keel::f64 tcrit = keel::stats::t_inv(1.0 - alpha / 2.0, keel::as<keel::f64>(n - p));
 
     auto ypred = flatToMatrix(ypredFlat.data(), m, 1, mr);
     auto delta = Value::matrix(m, 1, ValueType::DOUBLE, mr);

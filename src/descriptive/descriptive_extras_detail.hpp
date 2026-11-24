@@ -11,6 +11,7 @@
 #include <keel/array.h>
 #include <keel/format.h>
 #include <keel/function_ref.h>
+#include <keel/linalg.h>
 #include <keel/string.h>
 #include <keel/utf8.h>
 #include <keel/math.h>
@@ -412,37 +413,9 @@ keel::Array<keel::f64> fitPolyLS(const keel::f64 *xidx, keel::usize n, const kee
             xp *= xidx[i];
         }
     }
-    // Gaussian elimination with partial pivot.
-    for (keel::usize kc = 0; kc < k; ++kc) {
-        keel::usize piv = kc;
-        keel::f64 pmax = keel::abs(M[kc + kc * k]);
-        for (keel::usize r = kc + 1; r < k; ++r) {
-            const keel::f64 v = keel::abs(M[r + kc * k]);
-            if (v > pmax) { pmax = v; piv = r; }
-        }
-        if (pmax == 0.0) {
-            keel::Array<keel::f64> nanVec(k, keel::Limits<keel::f64>::quiet_nan(),
-                                       scratch_mr);
-            return nanVec;
-        }
-        if (piv != kc) {
-            for (keel::usize j = 0; j < k; ++j)
-                keel::swap(M[kc + j * k], M[piv + j * k]);
-            keel::swap(b[kc], b[piv]);
-        }
-        const keel::f64 pivVal = M[kc + kc * k];
-        for (keel::usize r = kc + 1; r < k; ++r) {
-            const keel::f64 f = M[r + kc * k] / pivVal;
-            for (keel::usize j = kc; j < k; ++j)
-                M[r + j * k] -= f * M[kc + j * k];
-            b[r] -= f * b[kc];
-        }
-    }
     keel::Array<keel::f64> a(k, 0.0, scratch_mr);
-    for (keel::usize kk = k; kk-- > 0;) {
-        keel::f64 s = b[kk];
-        for (keel::usize j = kk + 1; j < k; ++j) s -= M[kk + j * k] * a[j];
-        a[kk] = s / M[kk + kk * k];
+    if (!keel::linalg::la_solve(M.data(), k, k, b.data(), 1, a.data(), scratch_mr)) {
+        a.assign(k, keel::Limits<keel::f64>::quiet_nan());
     }
     return a;
 }
@@ -466,41 +439,6 @@ keel::f64 evalPoly(const keel::Array<keel::f64> &a, keel::f64 x)
         dst[i] = src[i] - evalPoly(coefs, xidx[i]);
 }
 
-// Solve the k×k linear system (row-major G) G·c = rhs by Gaussian
-// elimination with partial pivoting; solution overwrites rhs. k is tiny
-// (the number of detrend basis columns). Returns false if singular.
-bool solveSmallDense(keel::f64 *G, keel::f64 *rhs, keel::usize k)
-{
-    for (keel::usize col = 0; col < k; ++col) {
-        keel::usize piv = col;
-        keel::f64 best = keel::abs(G[col * k + col]);
-        for (keel::usize r = col + 1; r < k; ++r) {
-            const keel::f64 v = keel::abs(G[r * k + col]);
-            if (v > best) { best = v; piv = r; }
-        }
-        if (best == 0.0) return false;
-        if (piv != col) {
-            for (keel::usize j = 0; j < k; ++j)
-                keel::swap(G[col * k + j], G[piv * k + j]);
-            keel::swap(rhs[col], rhs[piv]);
-        }
-        const keel::f64 d = G[col * k + col];
-        for (keel::usize r = col + 1; r < k; ++r) {
-            const keel::f64 f = G[r * k + col] / d;
-            if (f == 0.0) continue;
-            for (keel::usize j = col; j < k; ++j)
-                G[r * k + j] -= f * G[col * k + j];
-            rhs[r] -= f * rhs[col];
-        }
-    }
-    for (keel::usize i = k; i-- > 0;) {
-        keel::f64 s = rhs[i];
-        for (keel::usize j = i + 1; j < k; ++j) s -= G[i * k + j] * rhs[j];
-        rhs[i] = s / G[i * k + i];
-    }
-    return true;
-}
-
 // Detrend one length-N column against a prebuilt design matrix `a`
 // (column-major, N×k): subtract the least-squares fit a·(a\src).
 // Used by the piecewise-linear (breakpoint) detrend path.
@@ -514,19 +452,20 @@ bool solveSmallDense(keel::f64 *G, keel::f64 *rhs, keel::usize k)
         for (keel::usize j = 0; j < k; ++j) {
             keel::f64 s = 0.0;
             for (keel::usize r = 0; r < N; ++r) s += a[i * N + r] * a[j * N + r];
-            G[i * k + j] = s;
+            G[i + j * k] = s;
         }
         keel::f64 s = 0.0;
         for (keel::usize r = 0; r < N; ++r) s += a[i * N + r] * src[r];
         rhs[i] = s;
     }
-    if (!solveSmallDense(G.data(), rhs.data(), k)) {
+    keel::Array<keel::f64> coef(k, 0.0, sc.allocator());
+    if (!keel::linalg::la_solve(G.data(), k, k, rhs.data(), 1, coef.data(), sc.allocator())) {
         for (keel::usize r = 0; r < N; ++r) dst[r] = src[r];
         return;
     }
     for (keel::usize r = 0; r < N; ++r) {
         keel::f64 fit = 0.0;
-        for (keel::usize i = 0; i < k; ++i) fit += a[i * N + r] * rhs[i];
+        for (keel::usize i = 0; i < k; ++i) fit += a[i * N + r] * coef[i];
         dst[r] = src[r] - fit;
     }
 }

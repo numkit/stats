@@ -17,12 +17,12 @@
 #include <keel/memory.h>
 #include <keel/ref.h>
 #include <keel/math.h>
+#include <keel/stats.h>
 #include <keel/string.h>
 #include <keel/utf8.h>
 #include <numkit/stats/distributions/multivariate.hpp>
 
 #include <numkit/builtin/datafun.hpp>          // RngContext
-#include <numkit/linalg/eig.hpp>               // eig_symmetric
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
 
@@ -48,74 +48,27 @@ bool isSymmetric(const keel::Array<keel::f64> &M, keel::usize d)
     return true;
 }
 
-// Factor Sigma = L·L' with L d×r (r = rank of Sigma):
-// Strictly PD → r = d and L is lower Cholesky.
-// Rank-deficient PSD → r < d and L has r columns V(:,j)*sqrt(λ_j) for λ_j > tol.
-// Returns false when Sigma has any eigenvalue < -tol.
+// Factor Sigma = L·L' with L d×r (r = rank of Sigma) via keel::stats::cholcov.
+// Returns false when Sigma has any negative eigenvalue beyond tol.
 bool psdFactor(const keel::Array<keel::f64> &Sig, keel::usize d,
                keel::Array<keel::f64> &T, keel::Array<keel::f64> &eval,
                keel::Array<keel::f64> &evec, keel::Allocator *mr,
                keel::usize *outRank = nullptr)
 {
-    Value Mv = Value::matrix(d, d, ValueType::DOUBLE, mr);
-    keel::copy(Sig.begin(), Sig.end(), Mv.doubleDataMut());
-    auto [V, D] = ::numkit::linalg::eig_symmetric(Mv, mr);
-    evec.assign(keel::ArrayRef<keel::f64>(V.doubleData(), d * d));
-    eval.assign(d, 0.0);
-    keel::f64 maxAbs = 0.0;
-    for (keel::usize i = 0; i < d; ++i) {
-        eval[i] = D.doubleData()[i + i * d];
-        maxAbs = keel::max(maxAbs, keel::abs(eval[i]));
+    (void)eval;
+    (void)evec;
+    keel::stats::CholCovResult cc(mr);
+    if (keel::stats::cholcov(Sig.as_ref(), d, cc, mr) != keel::stats::StatsStatus::kOk ||
+        cc.non_pd_count > 0) {
+        return false;
     }
-    const keel::f64 tol = keel::as<keel::f64>(d)
-                     * keel::Limits<keel::f64>::kEpsilon
-                     * keel::max(maxAbs, 1.0);
-    for (keel::f64 e : eval)
-        if (e < -tol) return false;
-    // Strictly positive definite → lower Cholesky L (so T = L' is upper Cholesky,
-    // matching cholcov output, probe R09). Semidefinite → compact d×r factor.
-    bool pd = true;
-    for (keel::f64 e : eval)
-        if (e <= tol) pd = false;
-    if (pd) {
-        T.assign(d * d, 0.0);
-        for (keel::usize j = 0; j < d; ++j) {
-            for (keel::usize i = j; i < d; ++i) {
-                keel::f64 v = Sig[i + j * d];   // column-major source
-                for (keel::usize k = 0; k < j; ++k)
-                    v -= T[i + k * d] * T[j + k * d];
-                T[i + j * d] = (i == j) ? keel::sqrt(v)
-                                        : v / T[j + j * d];
-                if (i == j && !(v > 0.0)) { pd = false; break; }
-            }
-            if (!pd) break;
-        }
-        if (pd) {
-            if (outRank) *outRank = d;
-            return true;
-        }
-    }
-    // Count positive eigenvalues and build d×r factor (descending eigenvalue order,
-    // with cholcov sign convention: largest-magnitude element in each column positive).
-    keel::Array<keel::usize> posCols;
-    for (keel::usize j = 0; j < d; ++j) {
-        if (eval[j] > tol) posCols.push_back(j);
-    }
-    const keel::usize r = posCols.size();
+    const keel::usize r = cc.rows;
     if (outRank) *outRank = r;
     T.assign(d * r, 0.0);
     for (keel::usize col = 0; col < r; ++col) {
-        const keel::usize j = posCols[col];
-        const keel::f64 s = keel::sqrt(keel::max(eval[j], 0.0));
-        keel::usize maxIdx = 0;
-        keel::f64 maxVal = 0.0;
         for (keel::usize i = 0; i < d; ++i) {
-            const keel::f64 a = keel::abs(evec[i + j * d]);
-            if (a > maxVal) { maxVal = a; maxIdx = i; }
+            T[i + col * d] = cc.t_col_major[col + i * r];
         }
-        const keel::f64 sign = (evec[maxIdx + j * d] < 0.0) ? -1.0 : 1.0;
-        for (keel::usize i = 0; i < d; ++i)
-            T[i + col * d] = sign * evec[i + j * d] * s;
     }
     return true;
 }

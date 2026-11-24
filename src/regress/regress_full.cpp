@@ -12,14 +12,11 @@
 #include <keel/format.h>
 #include <keel/memory.h>
 #include <keel/ref.h>
+#include <keel/stats.h>
 #include <keel/string.h>
 #include <keel/utf8.h>
 #include <numkit/stats/regress/regress.hpp>   // ridge / nlparci / glmval + full entries
 
-#include <numkit/stats/distributions/chi2.hpp>         // chi2inv (glmval simultaneous)
-#include <numkit/stats/distributions/fisher_f.hpp>     // finv (glmval simultaneous)
-#include <numkit/stats/distributions/normal.hpp>       // norminv (glmval bounds)
-#include <numkit/stats/distributions/students_t.hpp>   // tinv (nlparci, glmval bounds)
 #include <numkit/value/argcheck.hpp>
 #include <numkit/value/error.hpp>
 #include <numkit/value/value.hpp>
@@ -195,8 +192,8 @@ Value nlparci_full(const Value &beta, const Value &resid,
         Value ci = nlparci(beta, residC, Jc, alpha, mr);
         // The kernel's half-widths: recompute via its covariance route —
         // extract se from ci directly (ci = beta ± se·t).
-        const keel::f64 tcrit = tinv(Value::scalar(1.0 - alpha / 2.0, mr),
-                                  keel::as<keel::f64>(n - pp), mr).toScalar();
+        const keel::f64 tcrit = keel::stats::t_inv(1.0 - alpha / 2.0,
+                                                   keel::as<keel::f64>(n - pp));
         Value out = Value::matrix(pp, 2, ValueType::DOUBLE, mr);
         keel::f64 *od = out.doubleDataMut();
         for (keel::usize j = 0; j < pp; ++j) {
@@ -209,8 +206,8 @@ Value nlparci_full(const Value &beta, const Value &resid,
         return out;
     }
 
-    const keel::f64 tcrit = tinv(Value::scalar(1.0 - alpha / 2.0, mr),
-                              keel::as<keel::f64>(n - pp), mr).toScalar();
+    const keel::f64 tcrit = keel::stats::t_inv(1.0 - alpha / 2.0,
+                                               keel::as<keel::f64>(n - pp));
     Value out = Value::matrix(pp, 2, ValueType::DOUBLE, mr);
     keel::f64 *od = out.doubleDataMut();
     for (keel::usize j = 0; j < pp; ++j) {
@@ -459,12 +456,12 @@ GlmvalResult glmval_full_bounds(const Value &b, const Value &X, const Value &lin
     keel::f64 crit = 0.0;
     if (!simultaneous) {
         crit = (estdisp && keel::is_finite(dfe))
-            ? tinv(Value::scalar(1.0 - alpha / 2.0, mr), dfe, mr).toScalar()
-            : norminv(Value::scalar(1.0 - alpha / 2.0, mr), 0.0, 1.0, mr).toScalar();
+            ? keel::stats::t_inv(1.0 - alpha / 2.0, dfe)
+            : keel::stats::norm_inv(1.0 - alpha / 2.0, 0.0, 1.0);
     } else {
         crit = (estdisp && keel::is_finite(dfe))
-            ? keel::sqrt(p_df * finv(Value::scalar(1.0 - alpha, mr), p_df, dfe, mr).toScalar())
-            : keel::sqrt(chi2inv(Value::scalar(1.0 - alpha, mr), p_df, mr).toScalar());
+            ? keel::sqrt(p_df * keel::stats::f_inv(1.0 - alpha, p_df, dfe))
+            : keel::sqrt(keel::stats::chi2_inv(1.0 - alpha, p_df));
     }
 
     Value dylo = Value::matrix(rows, 1, ValueType::DOUBLE, mr);
