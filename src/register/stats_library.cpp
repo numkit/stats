@@ -304,6 +304,7 @@ void mahal_reg      (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value
 
 // cluster/kmeans.cpp
 void kmeans_reg     (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void evalclusters_reg(keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // cluster/kmedoids.cpp
 void kmedoids_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
@@ -358,6 +359,10 @@ void bootci_reg     (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value
 void crossval_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 void jackknife_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 void combnk_reg     (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void cvpartition_reg(keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void training_reg   (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void test_reg       (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
+void repartition_reg(keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
 
 // fit/fit.cpp
 void normfit_reg  (keel::ArrayRef<Value>, keel::usize, keel::MutArrayRef<Value>, CallContext &);
@@ -710,6 +715,7 @@ void StatsLibrary::install(PluginContext &engine)
     reg("cluster", "squareform", &stats::detail::squareform_reg);
     reg("cluster", "mahal",      &stats::detail::mahal_reg);
     reg("cluster", "kmeans",     &stats::detail::kmeans_reg);
+    reg("cluster", "evalclusters",&stats::detail::evalclusters_reg);
     reg("cluster", "kmedoids",   &stats::detail::kmedoids_reg);
     reg("cluster", "dbscan",     &stats::detail::dbscan_reg);
     reg("cluster", "linkage",    &stats::detail::linkage_reg);
@@ -753,6 +759,10 @@ void StatsLibrary::install(PluginContext &engine)
     reg("resample", "crossval",   &stats::detail::crossval_reg);
     reg("resample", "jackknife",  &stats::detail::jackknife_reg);
     reg("resample", "combnk",     &stats::detail::combnk_reg);
+    reg("resample", "cvpartition",&stats::detail::cvpartition_reg);
+    reg("resample", "training",   &stats::detail::training_reg);
+    reg("resample", "test",       &stats::detail::test_reg);
+    reg("resample", "repartition",&stats::detail::repartition_reg);
 
     reg("fit", "normfit",  &stats::detail::normfit_reg);
     reg("fit", "poissfit", &stats::detail::poissfit_reg);
