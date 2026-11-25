@@ -62,8 +62,6 @@
 #include <numkit/value/value.hpp>
 #include <numkit/value/value_type.hpp>
 
-#include <cstdio>
-
 
 #include "descriptive_extras_detail.hpp"
 #include "descriptive_detail.hpp"   // narrowToSingle

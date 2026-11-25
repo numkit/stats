@@ -32,8 +32,6 @@
 #include <numkit/value/error.hpp>
 #include <numkit/stats/distributions/chi2.hpp>
 
-#include <cstdio>
-
 #include "crosstab_detail.hpp"
 
 namespace numkit::stats {

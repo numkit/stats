@@ -23,28 +23,25 @@
 #include <keel/math.h>
 #include <keel/core.h>
 #include <keel/memory.h>
+#include <keel/number.h>
 #include <keel/string.h>
 #include <numkit/stats/descriptive/descriptive.hpp>
 
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
 
-#include <cstdio>
-
 namespace numkit::stats {
 
 namespace {
 
-// Format a numeric group value the way MATLAB's grp2idx labels it: integers
-// print with no decimals, other values with ~5 significant digits.
+// Format a numeric group value the way the reference engine's grp2idx labels it:
+// integers print with no decimals, other values with ~5 significant digits.
 keel::String fmtGroupNum(keel::f64 v)
 {
     char buf[64];
     if (keel::is_finite(v) && keel::floor(v) == v && keel::abs(v) < 1e15)
-        std::snprintf(buf, sizeof(buf), "%.0f", v);
-    else
-        std::snprintf(buf, sizeof(buf), "%.5g", v);
-    return keel::String::from(buf);
+        return keel::String::from(keel::format_i64_to(buf, keel::as<keel::i64>(v)));
+    return keel::String::from(keel::format_f64_general_to(buf, v, 5));
 }
 
 void grp2idx_argcheck(const Value &s)

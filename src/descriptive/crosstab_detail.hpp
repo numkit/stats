@@ -7,11 +7,10 @@
 #include <keel/algo.h>
 #include <keel/math.h>
 #include <keel/core.h>
+#include <keel/number.h>
 #include <keel/string.h>
 #include <numkit/value/value.hpp>
 #include <numkit/value/error.hpp>
-
-#include <cstdio>
 
 
 namespace numkit::stats {
@@ -49,10 +48,8 @@ keel::Array<keel::f64> sortedUniqueNoNaN(const Value &x)
 {
     char buf[64];
     if (keel::is_finite(v) && v == keel::floor(v) && keel::abs(v) < 1e15)
-        std::snprintf(buf, sizeof(buf), "%lld", keel::as<keel::i64>(v));
-    else
-        std::snprintf(buf, sizeof(buf), "%.5g", v);
-    return keel::String::from(buf);
+        return keel::String::from(keel::format_i64_to(buf, keel::as<keel::i64>(v)));
+    return keel::String::from(keel::format_f64_general_to(buf, v, 5));
 }
 
 } // namespace

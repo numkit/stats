@@ -18,7 +18,7 @@
 #include "anova/anova_detail.hpp"
 #include <numkit/value/error.hpp>
 
-#include <cstdio>
+#include <keel/number.h>
 #include <keel/tuple.h>
 
 namespace numkit::stats {
@@ -277,8 +277,7 @@ void kruskalwallis_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             mrVec.doubleDataMut()[k] = (n[k] > 0) ? sumR[k] / keel::as<keel::f64>(n[k]) : 0.0;
             // gnames as decimal string of the label (matches MATLAB)
             char buf[64];
-            std::snprintf(buf, sizeof(buf), "%g", uniq[k]);
-            gnames.cellAt(k) = Value::fromString(buf, mr);
+            gnames.cellAt(k) = Value::fromString(keel::format_f64_general_to(buf, uniq[k], 6), mr);
         }
         Value s = Value::structure(mr);
         s.field("gnames")    = keel::move(gnames);
