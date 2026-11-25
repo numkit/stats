@@ -62,21 +62,47 @@ TEST_F(CvEvalClustersTest, KFoldLeaveoutResubstitutionAndStratified)
     EXPECT_DOUBLE_EQ(evalScalar("t1"), 15.0);
     EXPECT_DOUBLE_EQ(evalScalar("t2"), 10.0);
     EXPECT_DOUBLE_EQ(evalScalar("sum(test(cs2))"), 25.0);
+
+    // Error branches for cvpartition / training / test / repartition
+    EXPECT_THROW(eval("cvpartition(0, 'Holdout', 0.2)"), std::exception);
+    EXPECT_THROW(eval("cvpartition(10, 'Holdout', 1.5)"), std::exception);
+    EXPECT_THROW(eval("cvpartition(10, 'KFold', 11)"), std::exception);
+    EXPECT_THROW(eval("cvpartition(10, 'UnknownMode')"), std::exception);
+    EXPECT_THROW(eval("test(c, 0)"), std::exception);
+    EXPECT_THROW(eval("training(c, 6)"), std::exception);
+    EXPECT_THROW(eval("repartition(struct('a', 1))"), std::exception);
 }
 
-TEST_F(CvEvalClustersTest, EvalClustersAllThreeCriteria)
+TEST_F(CvEvalClustersTest, EvalClustersAllThreeCriteriaAndLinkageAndMatrix)
 {
     eval("rng(1); "
          "X = [randn(40,2); randn(40,2) + 12; randn(40,2) + [0 12]]; "
          "eCH  = evalclusters(X, 'kmeans', 'CalinskiHarabasz', 'KList', 1:5); "
          "eDB  = evalclusters(X, 'kmeans', 'DaviesBouldin', 'KList', 1:5); "
-         "eSil = evalclusters(X, 'kmeans', 'Silhouette', 'KList', 1:5);");
+         "eSil = evalclusters(X, 'kmeans', 'Silhouette', 'KList', 1:5); "
+         "eLnk = evalclusters(X, 'linkage', 'CalinskiHarabasz', 'KList', 1:5);");
     EXPECT_DOUBLE_EQ(evalScalar("eCH.OptimalK"), 3.0);
     EXPECT_DOUBLE_EQ(evalScalar("eDB.OptimalK"), 3.0);
     EXPECT_DOUBLE_EQ(evalScalar("eSil.OptimalK"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("eLnk.OptimalK"), 3.0);
+    EXPECT_EQ(eval("eLnk.ClusteringFunction").toString(), "linkage");
     EXPECT_TRUE(std::isnan(evalScalar("eCH.CriterionValues(1)")));
     EXPECT_TRUE(std::isnan(evalScalar("eDB.CriterionValues(1)")));
     EXPECT_TRUE(std::isnan(evalScalar("eSil.CriterionValues(1)")));
     EXPECT_DOUBLE_EQ(evalScalar("numel(eCH.OptimalY)"), 120.0);
+
+    // Precomputed cluster matrix form (columns = candidate partitions for k=2, 3, 4)
+    eval("c2 = [ones(40,1); 2*ones(80,1)]; "
+         "c3 = [ones(40,1); 2*ones(40,1); 3*ones(40,1)]; "
+         "c4 = [ones(20,1); 4*ones(20,1); 2*ones(40,1); 3*ones(40,1)]; "
+         "ePre = evalclusters(X, [c2 c3 c4], 'CalinskiHarabasz');");
+    EXPECT_DOUBLE_EQ(evalScalar("ePre.OptimalK"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ePre.OptimalIndex"), 2.0);
+    EXPECT_EQ(eval("ePre.ClusteringFunction").toString(), "custom");
+
+    // Error branches: unknown criterion, unknown clustering algorithm, missing KList, bad shape
     EXPECT_THROW(eval("evalclusters(X, 'kmeans', 'NoSuchCriterion', 'KList', 1:3)"), std::exception);
+    EXPECT_THROW(eval("evalclusters(X, 'bogus_algo', 'CalinskiHarabasz', 'KList', 1:3)"), std::exception);
+    EXPECT_THROW(eval("evalclusters(X, 'kmeans', 'CalinskiHarabasz')"), std::exception);
+    EXPECT_THROW(eval("evalclusters(X, ones(5, 2), 'CalinskiHarabasz')"), std::exception);
 }

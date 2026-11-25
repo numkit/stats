@@ -128,4 +128,15 @@ namespace {
 }
 } // anon
 
+Value cvpartition_compute(::numkit::ops::RngContext &rng,
+                          const Value &nOrGroup,
+                          keel::StringRef typeStr,
+                          const Value *paramArg,
+                          keel::Allocator *mr);
+Value cvpartition_mask(const Value &c, bool isTest, keel::i32 foldIdx,
+                       const char *fnName, keel::Allocator *mr);
+Value cvpartition_repartition(::numkit::ops::RngContext &rng,
+                              const Value &c,
+                              keel::Allocator *mr);
+
 } // namespace numkit::stats

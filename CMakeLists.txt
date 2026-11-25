@@ -137,7 +137,7 @@ if(NOT TARGET keel::stats)
     FetchContent_MakeAvailable(keel_stats)
 endif()
 
-file(GLOB_RECURSE STATS_COMPUTE_SOURCES
+file(GLOB_RECURSE STATS_COMPUTE_SOURCES CONFIGURE_DEPENDS
     "src/anova/*.cpp"
     "src/cluster/*.cpp"
     "src/copulas/*.cpp"
@@ -158,7 +158,7 @@ file(GLOB_RECURSE STATS_COMPUTE_SOURCES
     "src/test/*.cpp"
 )
 
-file(GLOB_RECURSE STATS_PLUGIN_SOURCES
+file(GLOB_RECURSE STATS_PLUGIN_SOURCES CONFIGURE_DEPENDS
     "src/register/*.cpp"
     "src/module.cpp"
     "src/c_api.cpp"

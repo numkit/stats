@@ -114,4 +114,11 @@ struct KmeansResult {
 KmeansResult kmeans_full(::numkit::ops::RngContext &rng, const Value &X, keel::i32 K, keel::i32 max_iter, keel::i32 replicates,
                          keel::Allocator *mr);
 
+Value evalclusters_compute(::numkit::ops::RngContext &rng,
+                           const Value &X,
+                           const Value &clustArg,
+                           keel::StringRef criterionRaw,
+                           keel::ArrayRef<keel::i32> klist,
+                           keel::Allocator *mr);
+
 } // namespace numkit::stats
