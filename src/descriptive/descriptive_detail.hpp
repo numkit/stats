@@ -331,7 +331,7 @@ keel::f64 quantileFromSortedSlice(const keel::f64 *sorted, keel::usize n, keel::
     if (!keel::is_finite(p)) return keel::kNaN;
 
     // Compute 1-based real-valued position q according to the method.
-    keel::f64 q;
+    keel::f64 q = 0.0;
     switch (method) {
         case QMethod::Midpoint:
         case QMethod::Approximate:                     // fallback

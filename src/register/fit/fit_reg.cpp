@@ -225,7 +225,7 @@ static void fill_fd_avar3(keel::f64 *p, keel::f64 p0, keel::f64 p1, keel::f64 p2
                       keel::ArrayRef<Value> args, keel::MutArrayRef<Value> outs,
                       CallContext &ctx)
 {
-    if (args.size() < 2 || args[0].numel() < 2)
+    if (args.size() < 2 || !args[0].isNumeric() || args[0].numel() < 2)
         throw Error(keel::format("{}: requires (params[2], data)", fn),
                     0, 0, fn, "", "numkit:like:nargin");
     const keel::f64 p0 = args[0].elemAsDouble(0);
@@ -238,7 +238,7 @@ void normlike_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                   keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 4, "normlike");
-    if (args[0].numel() < 2)
+    if (!args[0].isNumeric() || args[0].numel() < 2)
         throw Error("normlike: requires (params=[mu sigma], data[, cens, freq])",
                     0, 0, "normlike", "", "numkit:normlike:nargin");
     const keel::f64 mu    = args[0].elemAsDouble(0);
@@ -321,7 +321,7 @@ void lognlike_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                   keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 4, "lognlike");
-    if (args[0].numel() < 2)
+    if (!args[0].isNumeric() || args[0].numel() < 2)
         throw Error("lognlike: requires (params=[mu sigma], data[, cens, freq])",
                     0, 0, "lognlike", "", "numkit:lognlike:nargin");
     auto *mr = ctx.engine->allocator();
@@ -341,7 +341,7 @@ void gamlike_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                  keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 4, "gamlike");
-    if (args[0].numel() < 2)
+    if (!args[0].isNumeric() || args[0].numel() < 2)
         throw Error("gamlike: requires (params=[a b], data)",
                     0, 0, "gamlike", "", "numkit:gamlike:nargin");
     auto *mr = ctx.engine->allocator();
@@ -365,7 +365,7 @@ void betalike_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                   keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 2, "betalike");
-    if (args[0].numel() < 2)
+    if (!args[0].isNumeric() || args[0].numel() < 2)
         throw Error("betalike: requires (params=[a b], data)",
                     0, 0, "betalike", "", "numkit:betalike:nargin");
     auto *mr = ctx.engine->allocator();
@@ -423,7 +423,7 @@ void wbllike_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
                  keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 4, "wbllike");
-    if (args[0].numel() < 2)
+    if (!args[0].isNumeric() || args[0].numel() < 2)
         throw Error("wbllike: requires (params=[scale shape], data[, cens, freq])",
                     0, 0, "wbllike", "", "numkit:wbllike:nargin");
     const keel::f64 scale = args[0].elemAsDouble(0);
@@ -441,7 +441,7 @@ void evlike_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
                 keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 4, "evlike");
-    if (args[0].numel() < 2)
+    if (!args[0].isNumeric() || args[0].numel() < 2)
         throw Error("evlike: requires (params=[mu sigma], data[, cens, freq])",
                     0, 0, "evlike", "", "numkit:evlike:nargin");
     const keel::f64 mu    = args[0].elemAsDouble(0);
@@ -476,7 +476,7 @@ void gevlike_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                  keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 2, "gevlike");
-    if (args[0].numel() < 3)
+    if (!args[0].isNumeric() || args[0].numel() < 3)
         throw Error("gevlike: requires (params=[k sigma mu], data)",
                     0, 0, "gevlike", "", "numkit:gevlike:nargin");
     auto *mr = ctx.engine->allocator();
@@ -500,7 +500,7 @@ void gplike_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                 keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
     argcheck::checkNargin(args.size(), 2, 2, "gplike");
-    if (args[0].numel() < 2)
+    if (!args[0].isNumeric() || args[0].numel() < 2)
         throw Error("gplike: requires (params=[k sigma], data)",
                     0, 0, "gplike", "", "numkit:gplike:nargin");
     auto *mr = ctx.engine->allocator();
@@ -584,6 +584,9 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     }
 
     auto emitPci2 = [&](const Value &ci1, const Value &ci2) {
+        if (!ci1.isNumeric() || ci1.numel() < 2 || !ci2.isNumeric() || ci2.numel() < 2)
+            throw Error("mle: invalid confidence interval vector",
+                        0, 0, "mle", "", "numkit:mle:ci");
         Value pci = Value::matrix(2, 2, ValueType::DOUBLE, mr);
         keel::f64 *p = pci.doubleDataMut();
         p[0] = ci1.elemAsDouble(0); p[1] = ci1.elemAsDouble(1);   // col 1
@@ -591,6 +594,9 @@ void mle_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         outs[1] = keel::move(pci);
     };
     auto emitPci1 = [&](const Value &ci) {
+        if (!ci.isNumeric() || ci.numel() < 2)
+            throw Error("mle: invalid confidence interval vector",
+                        0, 0, "mle", "", "numkit:mle:ci");
         Value pci = Value::matrix(2, 1, ValueType::DOUBLE, mr);
         keel::f64 *p = pci.doubleDataMut();
         p[0] = ci.elemAsDouble(0); p[1] = ci.elemAsDouble(1);

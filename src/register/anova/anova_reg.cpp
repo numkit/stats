@@ -251,7 +251,7 @@ void kruskalwallis_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         // Bucket per group label (sorted unique).
         keel::Array<keel::f64> uniq;
         uniq.reserve(M);
-        for (auto &p : all) uniq.push_back(p.g);
+        for (const auto &item : all) uniq.push_back(item.g);
         keel::sort(uniq.begin(), uniq.end());
         uniq.resize(keel::unique(uniq.begin(), uniq.end()) - uniq.begin());
         const keel::usize K = uniq.size();

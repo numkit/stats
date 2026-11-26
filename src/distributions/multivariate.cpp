@@ -543,14 +543,14 @@ iwishrnd_factor(::numkit::ops::RngContext &rng, const Value &Tau, keel::f64 df, 
             M[i * d + j] = s;
         }
     }
-    keel::Array<keel::f64> Y(d * d, 0.0);
+    keel::Array<keel::f64> Y_dead(d * d, 0.0);
     for (keel::usize i = 0; i < d; ++i) {
         for (keel::usize j = 0; j < d; ++j) {
             keel::f64 s = 0.0;
             const keel::usize mlim = keel::min(i, j);
             for (keel::usize k = 0; k <= mlim; ++k)
                 s += M[i * d + k] * M[j * d + k];
-            Y[i * d + j] = s;
+            Y_dead[i * d + j] = s;
         }
     }
 

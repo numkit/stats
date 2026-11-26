@@ -47,6 +47,9 @@ using numkit::Value;
             setError(err, 1, "outs array must be non-null when nargout > 0");
             return 1;
         }
+        for (keel::usize i = 0; i < nargout; ++i) {
+            outs[i] = nullptr;
+        }
 
         Value inStack[8];
         keel::Array<Value> inHeap;
@@ -70,8 +73,17 @@ using numkit::Value;
 
         doInvoke(keel::ArrayRef<Value>(inPtr, nargs), nargout, keel::MutArrayRef<Value>(outPtr, outSlots));
 
-        for (keel::usize i = 0; i < nargout; ++i) {
-            outs[i] = boxValue(keel::move(outPtr[i]));
+        keel::usize boxed = 0;
+        try {
+            for (; boxed < nargout; ++boxed) {
+                outs[boxed] = boxValue(keel::move(outPtr[boxed]));
+            }
+        } catch (...) {
+            for (keel::usize j = 0; j < boxed; ++j) {
+                numkit_val_release(outs[j]);
+                outs[j] = nullptr;
+            }
+            throw;
         }
         return 0;
     } catch (const std::exception &ex) {
@@ -95,6 +107,9 @@ numkit_stats_ctx *numkit_stats_ctx_create(numkit_error *err)
     } catch (const std::exception &ex) {
         numkit::c_abi::setError(err, 1, ex.what());
         return nullptr;
+    } catch (...) {
+        numkit::c_abi::setError(err, 1, "Unknown C++ exception in numkit_stats_ctx_create");
+        return nullptr;
     }
 }
 
@@ -111,7 +126,11 @@ void numkit_stats_seed_rng(numkit_stats_ctx *ctx, keel::u64 seed)
 int numkit_stats_has_function(const numkit_stats_ctx *ctx, const char *name)
 {
     if (!ctx || !name || !*name) return 0;
-    return ctx->ctx.hasFunction(kToolboxNs, name) ? 1 : 0;
+    try {
+        return ctx->ctx.hasFunction(kToolboxNs, name) ? 1 : 0;
+    } catch (...) {
+        return 0;
+    }
 }
 
 int numkit_stats_register_fn(numkit_stats_ctx *ctx,
@@ -137,14 +156,21 @@ int numkit_stats_register_fn(numkit_stats_ctx *ctx,
     } catch (const std::exception &ex) {
         numkit::c_abi::setError(err, 1, ex.what());
         return 1;
+    } catch (...) {
+        numkit::c_abi::setError(err, 1, "Unknown C++ exception in numkit_stats_register_fn");
+        return 1;
     }
 }
 
 const numkit_fn *numkit_stats_resolve(const numkit_stats_ctx *ctx, const char *name)
 {
     if (!ctx || !name || !*name) return nullptr;
-    const numkit::ExternalFunc *fn = ctx->ctx.resolve(kToolboxNs, name);
-    return reinterpret_cast<const numkit_fn *>(fn);
+    try {
+        const numkit::ExternalFunc *fn = ctx->ctx.resolve(kToolboxNs, name);
+        return reinterpret_cast<const numkit_fn *>(fn);
+    } catch (...) {
+        return nullptr;
+    }
 }
 
 int numkit_stats_invoke(numkit_stats_ctx *ctx,

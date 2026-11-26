@@ -238,3 +238,28 @@ TEST_F(ArgcheckStatsRnd, BatchThreeValidation)
     EXPECT_EQ(evalInt("numel(haltonset(2))"), 1);
     EXPECT_NEAR(evalInt("numel(skewness([1 2 3; 4 5 8], 1, 2))"), 2, 0);
 }
+
+TEST_F(ArgcheckStatsRnd, ShortVectorAndNonNumericGuards)
+{
+    expectError("normlike(1, [1 2])", "numkit:normlike:nargin");
+    expectError("normlike('ab', [1 2])", "numkit:normlike:nargin");
+    expectError("lognlike(1, [1 2])", "numkit:lognlike:nargin");
+    expectError("gamlike(1, [1 2])", "numkit:gamlike:nargin");
+    expectError("betalike(1, [0.2 0.8])", "numkit:betalike:nargin");
+    expectError("wbllike(1, [1 2])", "numkit:wbllike:nargin");
+    expectError("evlike(1, [1 2])", "numkit:evlike:nargin");
+    expectError("gevlike([1 2], [1 2])", "numkit:gevlike:nargin");
+    expectError("gevlike('abc', [1 2])", "numkit:gevlike:nargin");
+    expectError("gplike(1, [1 2])", "numkit:gplike:nargin");
+    expectError("adftest(randn(20,1), 'Lags', [])", "numkit:adftest:badLags");
+    expectError("adftest(randn(20,1), 'Alpha', [])", "numkit:adftest:badAlpha");
+    expectError("adftest(randn(20,1), 'Lags', 'a')", "numkit:adftest:badLags");
+    expectError("chi2gof(randn(20,1), 'Ctrs', [])", "numkit:chi2gof:ctrs");
+    expectError("chi2gof(randn(20,1), 'Ctrs', 1)", "numkit:chi2gof:ctrs");
+    expectError("chi2gof(randn(20,1), 'Edges', [])", "numkit:chi2gof:edges");
+    expectError("ksdensity(1:10, 'Support', {1, 2})", "numkit:ksdensity:support");
+    expectError("filloutliers(1:10, 'nearest', 'percentiles', 'ab')", "numkit:filloutliers:percentiles");
+    expectError("predict(struct('Coefficients', 1), [1; 2])", "numkit:predict:invalidModel");
+    // chi2gof with explicit Frequency/Expected and short first arg should not OOB.
+    EXPECT_NO_THROW(engine.eval("[h, p, st] = chi2gof(1, 'Frequency', [10 20 30], 'Expected', [20 20 20]);"));
+}

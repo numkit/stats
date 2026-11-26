@@ -423,9 +423,12 @@ void chi2gof_reg(keel::ArrayRef<Value> args, keel::usize nargout,
             Value edges_out = Value::matrix(1, K + 1, ValueType::DOUBLE, mr);
             keel::f64 *ep = edges_out.doubleDataMut();
             const Value &xv = args[0];
-            const keel::f64 x0 = xv.elemAsDouble(0);
-            const keel::f64 xK = xv.elemAsDouble(K - 1);
-            const keel::f64 dx = (K > 1) ? (xK - x0) / keel::f64(K - 1) : 1.0;
+            keel::f64 x0 = 1.0, dx = 1.0;
+            if (xv.isNumeric() && xv.numel() >= K && K > 0) {
+                x0 = xv.elemAsDouble(0);
+                const keel::f64 xK = xv.elemAsDouble(K - 1);
+                dx = (K > 1) ? (xK - x0) / keel::f64(K - 1) : 1.0;
+            }
             for (keel::usize i = 0; i <= K; ++i) ep[i] = x0 + (keel::f64(i) - 0.5) * dx;
             s.field("edges") = edges_out;
             s.field("O")     = freq;
@@ -438,8 +441,8 @@ void chi2gof_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     // Path B: auto-binning. Need data vector.
     const Value &x = args[0];
     const keel::usize N = x.numel();
-    if (N < 2)
-        throw Error("chi2gof: data vector must have at least 2 elements",
+    if (!x.isNumeric() || N < 2)
+        throw Error("chi2gof: data vector must be numeric with at least 2 elements",
                     0, 0, "chi2gof", "", "numkit:chi2gof:size");
 
     keel::ArenaTemp scratch = keel::get_scratch(mr);
@@ -458,11 +461,17 @@ void chi2gof_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     // Build edges.
     keel::Array<keel::f64> edges(scratch.allocator());
     if (edges_set) {
+        if (!edges_arg.isNumeric() || edges_arg.numel() < 2)
+            throw Error("chi2gof: 'Edges' must be a numeric vector with at least 2 elements",
+                        0, 0, "chi2gof", "", "numkit:chi2gof:edges");
         const keel::usize M = edges_arg.numel();
         edges.resize(M);
         for (keel::usize i = 0; i < M; ++i) edges[i] = edges_arg.elemAsDouble(i);
     } else if (ctrs_set) {
         // Centres → derive edges as midpoints + extrapolation.
+        if (!ctrs_arg.isNumeric() || ctrs_arg.numel() < 2)
+            throw Error("chi2gof: 'Ctrs' must be a numeric vector with at least 2 elements",
+                        0, 0, "chi2gof", "", "numkit:chi2gof:ctrs");
         const keel::usize M = ctrs_arg.numel();
         edges.resize(M + 1);
         const keel::f64 c0 = ctrs_arg.elemAsDouble(0);

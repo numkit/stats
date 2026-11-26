@@ -104,6 +104,9 @@ void gamrnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
     auto *mr = ctx.engine->allocator();
     if (args.size() == 2 && (!args[0].isScalar() || !args[1].isScalar())) {
         const Value &a = args[0], &b = args[1];
+        if (!a.isNumeric() || !b.isNumeric())
+            throw Error("gamrnd: parameters A and B must be numeric",
+                        0, 0, "gamrnd", "", "numkit:gamrnd:type");
         const keel::usize na = a.numel(), nb = b.numel();
         if (na == 0 || nb == 0) {
             outs[0] = dist_empty_like(na == 0 ? a : b, mr);
@@ -117,7 +120,7 @@ void gamrnd_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutAr
             const keel::f64 ai = a.elemAsDouble(na == 1 ? 0 : i);
             const keel::f64 bi = b.elemAsDouble(nb == 1 ? 0 : i);
             Value sample = gamrnd(ctx.engine->rng(), ai, bi, 1, 1, mr);
-            od[i] = sample.elemAsDouble(0);
+            od[i] = (sample.numel() >= 1) ? sample.elemAsDouble(0) : keel::Limits<keel::f64>::quiet_nan();
         }
         outs[0] = keel::move(out);
         return;

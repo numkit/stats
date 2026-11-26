@@ -58,7 +58,7 @@ namespace {
 namespace {
 
 // Standard normal CDF.
-keel::f64 phiCdf(keel::f64 x) { return keel::stats::norm_cdf(x, 0.0, 1.0); }
+[[maybe_unused]] inline keel::f64 phiCdf(keel::f64 x) { return keel::stats::norm_cdf(x, 0.0, 1.0); }
 
 [[maybe_unused]] keel::f64 bivariateCdf(keel::f64 h, keel::f64 k, keel::f64 rho)
 {

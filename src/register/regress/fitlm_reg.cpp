@@ -283,7 +283,13 @@ void predict_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
         throw Error("predict: first argument must be a fitted model",
                     0, 0, "predict", "", "numkit:predict:invalidModel");
     const Value &coefs = mdl.field("Coefficients");
+    if (!coefs.isStruct() || !coefs.hasField("Estimate"))
+        throw Error("predict: model Coefficients must be a struct with an Estimate field",
+                    0, 0, "predict", "", "numkit:predict:invalidModel");
     const Value &est = coefs.field("Estimate");
+    if (!est.isNumeric())
+        throw Error("predict: model Estimate must be numeric",
+                    0, 0, "predict", "", "numkit:predict:invalidModel");
     const keel::usize K = est.numel();
     const keel::usize P = (K > 0) ? (K - 1) : 0;
     const keel::f64 b0 = (K > 0) ? est.elemAsDouble(0) : 0.0;
@@ -311,6 +317,10 @@ void predict_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
         outs[0] = keel::move(ypred);
         return;
     }
+
+    if (!Xnew.isNumeric())
+        throw Error("predict: Xnew must be a numeric array or table",
+                    0, 0, "predict", "", "numkit:predict:invalidX");
 
     if (P <= 1 && (Xnew.dims().rows() == 1 || Xnew.dims().cols() == 1)) {
         Value ypred = Value::matrix(Xnew.dims().rows(), Xnew.dims().cols(), ValueType::DOUBLE, mr);

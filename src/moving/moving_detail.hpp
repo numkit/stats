@@ -36,17 +36,19 @@ struct Window {
     keel::i64 kf;   // samples forward
 };
 
+[[noreturn]] inline void throwBadMovingWindow(const char *fn)
+{
+    throw Error(keel::format("{}: Window length must be a finite, "
+                             "positive, real scalar or 2-element vector of finite, "
+                             "nonnegative, real scalars.", fn),
+                0, 0, fn, "", keel::format("numkit:{}:badK", fn));
+}
+
 Window decodeWindow(keel::ArrayRef<keel::usize> k, const char *fn)
 {
-    auto badK = [&]() {
-        throw Error(keel::format("{}: Window length must be a finite, "
-                                 "positive, real scalar or 2-element vector of finite, "
-                                 "nonnegative, real scalars.", fn),
-                    0, 0, fn, "", keel::format("numkit:{}:badK", fn));
-    };
     if (k.size() == 1) {
         const keel::usize n = k[0];
-        if (n == 0) badK();
+        if (n == 0) throwBadMovingWindow(fn);
         // A scalar window of even length is centred about the CURRENT
         // and PREVIOUS elements — it leans BACKWARD: kb = floor(k/2),
         // kf = floor((k-1)/2). e.g. movsum([1 2 3 4],2) = [1 3 5 7] (window
@@ -56,8 +58,7 @@ Window decodeWindow(keel::ArrayRef<keel::usize> k, const char *fn)
     if (k.size() == 2) {
         return {keel::as<keel::i64>(k[0]), keel::as<keel::i64>(k[1])};
     }
-    badK();
-    return {0, 0}; // unreachable
+    throwBadMovingWindow(fn);
 }
 
 // Adapter / smoothdata path: extract k from a Value (scalar or 2-vec) into
@@ -66,30 +67,23 @@ Window decodeWindow(keel::ArrayRef<keel::usize> k, const char *fn)
 keel::Array<keel::usize> decodeWindowValueToScratch(const Value &k, const char *fn,
                                                const keel::ArenaTemp &scratch)
 {
-    auto badK = [&]() {
-        throw Error(keel::format("{}: Window length must be a finite, "
-                                 "positive, real scalar or 2-element vector of finite, "
-                                 "nonnegative, real scalars.", fn),
-                    0, 0, fn, "", keel::format("numkit:{}:badK", fn));
-    };
     keel::Array<keel::usize> out(scratch.allocator());
     if (k.isScalar()) {
         const keel::f64 v = k.toScalar();
-        if (!keel::is_finite(v) || v <= 0 || keel::floor(v) != v) badK();
+        if (!keel::is_finite(v) || v <= 0 || keel::floor(v) != v) throwBadMovingWindow(fn);
         out.push_back(keel::as<keel::usize>(v));
         return out;
     }
-    if (k.numel() == 2) {
+    if (k.isNumeric() && k.numel() == 2) {
         const keel::f64 a = k.elemAsDouble(0);
         const keel::f64 b = k.elemAsDouble(1);
         if (!keel::is_finite(a) || !keel::is_finite(b) ||
-            a < 0 || b < 0 || keel::floor(a) != a || keel::floor(b) != b) badK();
+            a < 0 || b < 0 || keel::floor(a) != a || keel::floor(b) != b) throwBadMovingWindow(fn);
         out.push_back(keel::as<keel::usize>(a));
         out.push_back(keel::as<keel::usize>(b));
         return out;
     }
-    badK();
-    return out; // unreachable
+    throwBadMovingWindow(fn);
 }
 
 // ── Mov-extras options (nanflag + Endpoints + SamplePoints) ───────────
@@ -215,18 +209,12 @@ inline keel::String toLower(keel::StringRef sv)
     if (!opt.has_sample_points)
         return decodeWindowValueToScratch(k, fn, scratch);
 
-    auto badK = [&]() {
-        throw Error(keel::format("{}: Window length must be a finite, "
-                                 "positive, real scalar or 2-element vector of finite, "
-                                 "nonnegative, real scalars.", fn),
-                    0, 0, fn, "", keel::format("numkit:{}:badK", fn));
-    };
-    if (k.isEmpty() || k.isChar() || k.isString() || k.type() == ValueType::COMPLEX || k.type() == ValueType::LOGICAL)
-        badK();
+    if (k.isEmpty() || !k.isNumeric() || k.type() == ValueType::COMPLEX)
+        throwBadMovingWindow(fn);
     keel::Array<keel::usize> out(scratch.allocator());
     if (k.isScalar()) {
         const keel::f64 v = k.toScalar();
-        if (!keel::is_finite(v) || v <= 0.0) badK();
+        if (!keel::is_finite(v) || v <= 0.0) throwBadMovingWindow(fn);
         opt.sp_kb = 0.5 * v;
         opt.sp_kf = 0.5 * v;
         out.push_back(1);
@@ -235,14 +223,13 @@ inline keel::String toLower(keel::StringRef sv)
     if (k.numel() == 2) {
         const keel::f64 a = k.elemAsDouble(0);
         const keel::f64 b = k.elemAsDouble(1);
-        if (!keel::is_finite(a) || !keel::is_finite(b) || a < 0.0 || b < 0.0) badK();
+        if (!keel::is_finite(a) || !keel::is_finite(b) || a < 0.0 || b < 0.0) throwBadMovingWindow(fn);
         opt.sp_kb = a;
         opt.sp_kf = b;
         out.push_back(1);
         return out;
     }
-    badK();
-    return out;
+    throwBadMovingWindow(fn);
 }
 
 // Allocate a same-shape DOUBLE output via createLike.

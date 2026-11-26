@@ -38,6 +38,9 @@ void adftest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
     auto *mr = ctx.engine->allocator();
     auto *alloc = mr ? mr : keel::default_allocator();
     const Value &yIn = args[0];
+    if (!yIn.isNumeric())
+        throw Error("adftest: input data must be numeric",
+                    0, 0, "adftest", "", "numkit:adftest:badData");
     keel::Array<keel::f64> y(alloc);
     for (keel::usize i = 0; i < yIn.numel(); ++i) {
         keel::f64 v = yIn.elemAsDouble(i);
@@ -53,10 +56,17 @@ void adftest_reg(keel::ArrayRef<Value> args, keel::usize nargout,
         keel::String k = args[i].toString();
         if (iequalsOpt(k, "Model"))
             model = args[i + 1].toString();
-        else if (iequalsOpt(k, "Lags"))
+        else if (iequalsOpt(k, "Lags")) {
+            if (!args[i + 1].isNumeric() || args[i + 1].numel() < 1)
+                throw Error("adftest: 'Lags' must be a non-empty numeric value",
+                            0, 0, "adftest", "", "numkit:adftest:badLags");
             lags = keel::as<keel::i32>(args[i + 1].elemAsDouble(0));
-        else if (iequalsOpt(k, "Alpha"))
+        } else if (iequalsOpt(k, "Alpha")) {
+            if (!args[i + 1].isNumeric() || args[i + 1].numel() < 1)
+                throw Error("adftest: 'Alpha' must be a non-empty numeric value",
+                            0, 0, "adftest", "", "numkit:adftest:badAlpha");
             alpha = args[i + 1].elemAsDouble(0);
+        }
     }
     const keel::usize N = y.size();
     const keel::usize p = keel::as<keel::usize>(keel::max(0, lags));

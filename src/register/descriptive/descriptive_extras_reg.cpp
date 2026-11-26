@@ -112,7 +112,7 @@ void ksdensity_reg(keel::ArrayRef<Value> args, keel::usize nargout,
                     throw Error(keel::format("ksdensity: unknown Support '{}'", s),
                                 0, 0, "ksdensity", "", "numkit:ksdensity:support");
                 }
-            } else if (v.numel() == 2) {
+            } else if (v.isNumeric() && v.numel() == 2) {
                 supportLo = v.elemAsDouble(0);
                 supportHi = v.elemAsDouble(1);
                 if (!(supportLo < supportHi))
@@ -421,7 +421,7 @@ void mape_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArra
          (!(args[2].isChar() || args[2].isString()) || allConsumed)) ? 3 : 2;
     const keel::usize dimLen = flatten ? keel::max(args[0].numel(),
                                                   args[1].numel())
-        : args[0].dims().dim(dim > 0 ? keel::as<keel::usize>(dim) - 1 : 0);
+        : args[0].dims().dim(dim > 0 ? dim - 1 : 0);
     const ErrorMetricOpts opts = parseErrorMetricOpts(
         args, flagStart, true, args[0], args[1], dimLen, "mape");
     if (!vecdimSet.empty()) {
@@ -455,7 +455,7 @@ void rmse_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArra
          (!(args[2].isChar() || args[2].isString()) || allConsumed)) ? 3 : 2;
     const keel::usize dimLen = flatten ? keel::max(args[0].numel(),
                                                   args[1].numel())
-        : args[0].dims().dim(dim > 0 ? keel::as<keel::usize>(dim) - 1 : 0);
+        : args[0].dims().dim(dim > 0 ? dim - 1 : 0);
     const ErrorMetricOpts opts = parseErrorMetricOpts(
         args, flagStart, false, args[0], args[1], dimLen, "rmse");
     if (!vecdimSet.empty()) {
@@ -696,9 +696,9 @@ void filloutliers_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
                 ++i;
             } else if (detRef == "percentiles") {
                 ++i;
-                if (i >= args.size() || args[i].numel() != 2)
+                if (i >= args.size() || !args[i].isNumeric() || args[i].numel() != 2)
                     throw Error("filloutliers: 'percentiles' requires a "
-                                "2-element [lower upper] vector",
+                                "2-element numeric [lower upper] vector",
                                 0, 0, "filloutliers", "",
                                 "numkit:filloutliers:percentiles");
                 loP = args[i].elemAsDouble(0);
