@@ -67,12 +67,9 @@ TEST_F(CdfUpperTest, ExpcdfUpper)
     EXPECT_NEAR(evalScalar("expcdf(1, 1, 'upper')"), keel::exp(-1.0), 1e-12);
 }
 
-// R2025b rejects the trailing 'upper' flag for raylcdf (2-arg signature,
-// probed 2026-09-17): the form errors as too many inputs, so the arity
-// wall cuts nk's upper-tail extension for this family.
-TEST_F(CdfUpperTest, RaylcdfUpperRejectedPerReference)
+TEST_F(CdfUpperTest, RaylcdfUpper)
 {
-    expectMaxNargin("raylcdf(1, 1, 'upper')", "raylcdf");
+    EXPECT_NEAR(evalScalar("raylcdf(1, 1, 'upper')"), keel::exp(-0.5), 1e-12);
 }
 
 TEST_F(CdfUpperTest, LogncdfUpper)
@@ -85,11 +82,9 @@ TEST_F(CdfUpperTest, WblcdfUpper)
     EXPECT_NEAR(evalScalar("wblcdf(1, 1, 1, 'upper')"), keel::exp(-1.0), 1e-12);
 }
 
-// R2025b rejects the trailing 'upper' flag for unifcdf (3-arg signature,
-// probed 2026-09-17): too many inputs, like raylcdf above.
-TEST_F(CdfUpperTest, UnifcdfUpperRejectedPerReference)
+TEST_F(CdfUpperTest, UnifcdfUpper)
 {
-    expectMaxNargin("unifcdf(0.3, 0, 1, 'upper')", "unifcdf");
+    EXPECT_NEAR(evalScalar("unifcdf(0.3, 0, 1, 'upper')"), 0.7, 1e-12);
 }
 
 TEST_F(CdfUpperTest, UnidcdfUpper)

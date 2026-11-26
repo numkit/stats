@@ -30,10 +30,10 @@ void gevpdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
 void gevcdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
                 keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
-    argcheck::checkNargin(args.size(), 1, 4, "gevcdf");
+    argcheck::checkNargin(args.size(), 1, 5, "gevcdf");
     bool upper = false;
     const keel::usize n = stripUpperFlag(args, upper);
-    if (n < 4)
+    if (n != 4)
         throw Error("gevcdf: requires (x, k, sigma, mu[, 'upper'])",
                     0, 0, "gevcdf", "", "numkit:gevcdf:nargin");
     Value v = gevcdf(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), ctx.engine->allocator());

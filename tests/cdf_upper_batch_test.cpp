@@ -58,21 +58,20 @@ TEST_F(CdfUpperBatchTest, GeocdfUpper)
 
 // ─── gevcdf ─────────────────────────────────────────────────────────
 
-// R2025b rejects the trailing 'upper' flag for gevcdf (4-arg signature,
-// probed 2026-09-17): the form errors as too many inputs, so the arity
-// wall cuts nk's upper-tail extension for this family.
-TEST_F(CdfUpperBatchTest, GevcdfUpperRejectedPerReference)
+TEST_F(CdfUpperBatchTest, GevcdfUpper)
 {
-    expectMaxNargin("gevcdf(1, 0.5, 1, 0, 'upper')", "gevcdf");
+    EXPECT_NEAR(evalScalar("gevcdf(1, 0.5, 1, 0, 'upper')"), 0.358819611570045, 1e-12);
+    eval("x = [0 1 2]; p = gevcdf(x, 0.5, 1, 0); pu = gevcdf(x, 0.5, 1, 0, 'upper');");
+    EXPECT_LT(evalScalar("max(abs(p + pu - 1))"), 1e-12);
 }
 
 // ─── gpcdf ──────────────────────────────────────────────────────────
 
-// R2025b rejects the trailing 'upper' flag for gpcdf (4-arg signature,
-// probed 2026-09-17): too many inputs, like gevcdf above.
-TEST_F(CdfUpperBatchTest, GpcdfUpperRejectedPerReference)
+TEST_F(CdfUpperBatchTest, GpcdfUpper)
 {
-    expectMaxNargin("gpcdf(0, 0, 1, 0, 'upper')", "gpcdf");
+    EXPECT_NEAR(evalScalar("gpcdf(1, 0.5, 1, 0, 'upper')"), 4.0 / 9.0, 1e-12);
+    eval("x = [0.1 0.5 1 2]; p = gpcdf(x, 0.5, 1, 0); pu = gpcdf(x, 0.5, 1, 0, 'upper');");
+    EXPECT_LT(evalScalar("max(abs(p + pu - 1))"), 1e-12);
 }
 
 // ─── hygecdf ────────────────────────────────────────────────────────

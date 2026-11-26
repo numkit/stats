@@ -33,10 +33,10 @@ void raylpdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
 
 void raylcdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
-    argcheck::checkNargin(args.size(), 1, 2, "raylcdf");
+    argcheck::checkNargin(args.size(), 1, 3, "raylcdf");
     bool upper = false;
     const keel::ArrayRef<Value> a = args.slice(0, stripUpperFlag(args, upper));
-    if (a.size() < 2)
+    if (a.size() < 2 || a.size() > 2)
         throw Error("raylcdf: requires (x, b[, 'upper'])", 0, 0, "raylcdf", "", "numkit:raylcdf:nargin");
     auto *mr = ctx.engine->allocator();
     const Value &b = a[1];

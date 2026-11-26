@@ -38,10 +38,10 @@ void unifpdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutA
 
 void unifcdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/, keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
-    argcheck::checkNargin(args.size(), 1, 3, "unifcdf");
+    argcheck::checkNargin(args.size(), 1, 4, "unifcdf");
     bool upper = false;
     const keel::ArrayRef<Value> stripped = args.slice(0, stripUpperFlag(args, upper));
-    if (stripped.empty())
+    if (stripped.empty() || stripped.size() > 3)
         throw Error("unifcdf: requires (x[, a, b][, 'upper'])", 0, 0, "unifcdf", "", "numkit:unifcdf:nargin");
     Value v = unifcdf(stripped[0], argA(stripped, 1), argB(stripped, 2), ctx.engine->allocator());
     if (upper) applyUpperInPlace(v);

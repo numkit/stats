@@ -30,10 +30,10 @@ void gppdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
 void gpcdf_reg(keel::ArrayRef<Value> args, keel::usize /*nargout*/,
                keel::MutArrayRef<Value> outs, CallContext &ctx)
 {
-    argcheck::checkNargin(args.size(), 1, 4, "gpcdf");
+    argcheck::checkNargin(args.size(), 1, 5, "gpcdf");
     bool upper = false;
     const keel::usize n = stripUpperFlag(args, upper);
-    if (n < 4)
+    if (n != 4)
         throw Error("gpcdf: requires (x, k, sigma, theta[, 'upper'])",
                     0, 0, "gpcdf", "", "numkit:gpcdf:nargin");
     Value v = gpcdf(args[0], args[1].toScalar(), args[2].toScalar(), args[3].toScalar(), ctx.engine->allocator());
