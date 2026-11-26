@@ -132,7 +132,7 @@ if(NOT TARGET keel::stats)
     FetchContent_Declare(
         keel_stats
         GIT_REPOSITORY https://github.com/keelcpp/stats.git
-        GIT_TAG        5e90e0a788544e85b5a3c42060b598439672e26f
+        GIT_TAG        8b432fb4128d05c8d6eabf97f76f03af5fe2f6ce
     )
     FetchContent_MakeAvailable(keel_stats)
 endif()

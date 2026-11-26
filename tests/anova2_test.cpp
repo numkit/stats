@@ -28,10 +28,10 @@ TEST_F(Anova2Test, ClassicFertilizerExample)
 
 TEST_F(Anova2Test, StrongRowEffect)
 {
-    // Rows differ massively, columns identical -> p_rows ~0, p_cols ~1.
+    // Rows differ massively, columns identical (SS_col = SS_err = 0 -> F_col = 0/0 = NaN).
     eval("Y = [1 1 1; 5 5 5; 10 10 10]; p = anova2(Y);");
     EXPECT_NEAR(evalScalar("p(2)"), 0.0, 1e-10);
-    EXPECT_GT(evalScalar("p(1)"), 0.5);
+    EXPECT_TRUE(keel::is_nan(evalScalar("p(1)")));
 }
 
 TEST_F(Anova2Test, OutputShape)

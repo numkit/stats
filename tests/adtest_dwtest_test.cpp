@@ -51,11 +51,11 @@ TEST_F(AdDwTest, AdtestAlphaControlsDecisionOnly)
     EXPECT_TRUE(evalScalar("sameA") > 0.5);
 }
 
-// Critical value = 0.752 (Stephens 1986, estimated parameters at α=0.05).
+// Critical value at alpha=0.05 via inverted D'Agostino-Stephens p-value curve.
 TEST_F(AdDwTest, AdtestCriticalValueIs752)
 {
     eval("[~, ~, ~, cv] = adtest(randn(100, 1));");
-    EXPECT_NEAR(evalScalar("cv"), 0.752, 1e-9);
+    EXPECT_NEAR(evalScalar("cv"), 0.7531939173, 1e-6);
 }
 
 // Tiny sample throws.
